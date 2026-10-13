@@ -1,0 +1,15 @@
+version: v2
+title: 栖光艺术节 · 新海报（4:5 竖版 · 第十四届）
+size: [960, 1200]
+customFonts:
+  - family: 阿里妈妈数黑体
+    src: "https://statics.kimi.ai/neo-design-static/p-font/阿里妈妈数黑体.ttf"
+theme:
+  colors:
+    ink: "#0B1020"
+    violet: "#745CFF"
+    cyan: "#35D5FF"
+    pink: "#FF4D9E"
+    gray: "#8A93A7"
+pages:
+  - pages/1_poster.page

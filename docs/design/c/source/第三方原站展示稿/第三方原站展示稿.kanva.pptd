@@ -1,0 +1,19 @@
+version: v2
+title: 第三方开源站 · 原站展示稿（品牌强调色替换 · 概念线框）
+size: [1280, 720]
+customFonts:
+  - family: 阿里妈妈数黑体
+    src: "https://statics.kimi.ai/neo-design-static/p-font/阿里妈妈数黑体.ttf"
+theme:
+  colors:
+    ink: "#0B1020"
+    panel: "#141A33"
+    line: "#262F55"
+    violet: "#745CFF"
+    cyan: "#35D5FF"
+    gray: "#8A93A7"
+    amber: "#FFB84D"
+    purpleOld: "#7C5CFF"
+    orangeNew: "#E8863C"
+pages:
+  - pages/1_wireframe.page

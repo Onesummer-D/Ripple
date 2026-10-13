@@ -1,0 +1,21 @@
+version: v2
+title: 栖光艺术节 · 三容器展示稿（媒体源替换 / Scope 决策）
+size: [1280, 720]
+customFonts:
+  - family: 阿里妈妈数黑体
+    src: "https://statics.kimi.ai/neo-design-static/p-font/阿里妈妈数黑体.ttf"
+theme:
+  colors:
+    ink: "#0B1020"
+    rail: "#10162E"
+    panel: "#141A33"
+    line: "#262F55"
+    violet: "#745CFF"
+    cyan: "#35D5FF"
+    green: "#36D399"
+    amber: "#FFB84D"
+    red: "#FF5D78"
+    gray: "#8A93A7"
+pages:
+  - pages/1_containers.page
+  - pages/2_scope.page

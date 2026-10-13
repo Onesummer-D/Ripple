@@ -1,0 +1,100 @@
+pageType: content
+background:
+  type: image
+  src: "media/qiguang_old_visual.png"
+  fit: {mode: cover}
+elements:
+  - elementId: tag-edition
+    elementType: text
+    bounds: [72, 56, 640, 26]
+    content:
+      fontSize: 15
+      color: "#FFFFFFCC"
+      letterSpacing: 4
+      wrap: false
+      text: |
+        <p>QIGUANG ARTS FESTIVAL · 13TH EDITION</p>
+  - elementId: tag-old
+    elementType: shape
+    bounds: [1096, 52, 112, 34]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#0B102099"}
+    border: {style: solid, width: 1, color: "#FFFFFF55"}
+  - elementId: tag-old-text
+    elementType: text
+    bounds: [1096, 52, 112, 34]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>旧版 · 16:9</p>
+  - elementId: title
+    elementType: text
+    bounds: [72, 210, 760, 120]
+    content:
+      fontSize: 88
+      fontFamily: 阿里妈妈数黑体
+      color: "#FFFFFF"
+      wrap: false
+      shadow: {blur: 18, color: "#0B102088", offset: [0, 6]}
+      text: |
+        <p>栖光艺术节</p>
+  - elementId: subtitle
+    elementType: text
+    bounds: [76, 348, 640, 34]
+    content:
+      fontSize: 22
+      color: "#FFFFFFB3"
+      letterSpacing: 6
+      wrap: false
+      text: |
+        <p>山谷之夜 · 声光现场</p>
+  - elementId: title-en
+    elementType: text
+    bounds: [76, 396, 640, 24]
+    content:
+      fontSize: 14
+      color: "#FFFFFF80"
+      letterSpacing: 3
+      wrap: false
+      text: |
+        <p>A NIGHT OF LIGHT AND SOUND IN THE VALLEY</p>
+  - elementId: bottom-band
+    elementType: shape
+    bounds: [0, 632, 1280, 88]
+    shapeName: rect
+    fill: {type: solid, color: "#0B1020D9"}
+  - elementId: info-date
+    elementType: text
+    bounds: [72, 650, 360, 52]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      lineHeight: 1.4
+      text: |
+        <p><strong>2025.10.24 – 10.26</strong></p>
+        <p><span style="font-size:12px; color:#FFFFFF99;">第十三届 · 往届主视觉</span></p>
+  - elementId: info-venue
+    elementType: text
+    bounds: [480, 650, 360, 52]
+    content:
+      fontSize: 18
+      color: "#FFFFFF"
+      lineHeight: 1.4
+      text: |
+        <p><strong>栖光山谷 · 主会场</strong></p>
+        <p><span style="font-size:12px; color:#FFFFFF99;">QIGUANG VALLEY · MAIN STAGE</span></p>
+  - elementId: info-note
+    elementType: text
+    bounds: [880, 650, 330, 52]
+    content:
+      fontSize: 11
+      color: "#FFFFFF73"
+      align: [right, middle]
+      lineHeight: 1.5
+      text: |
+        <p>概念设计 · 视觉参考素材</p>
+        <p>非真实品牌资产</p>

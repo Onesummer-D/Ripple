@@ -1,0 +1,98 @@
+pageType: content
+background:
+  type: image
+  src: "media/qiguang_new_visual.png"
+  fit: {mode: cover}
+elements:
+  - elementId: tag-edition
+    elementType: text
+    bounds: [64, 48, 620, 26]
+    content:
+      fontSize: 15
+      color: "#0B1020CC"
+      letterSpacing: 4
+      wrap: false
+      text: |
+        <p>QIGUANG ARTS FESTIVAL · 14TH EDITION</p>
+  - elementId: tag-new
+    elementType: shape
+    bounds: [792, 44, 104, 34]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#0B1020"}
+  - elementId: tag-new-text
+    elementType: text
+    bounds: [792, 44, 104, 34]
+    content:
+      fontSize: 13
+      color: "#35D5FF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>新版 · 4:5</p>
+  - elementId: title
+    elementType: text
+    bounds: [60, 120, 840, 150]
+    content:
+      fontSize: 116
+      fontFamily: 阿里妈妈数黑体
+      color: "#0B1020"
+      wrap: false
+      text: |
+        <p>栖光艺术节</p>
+  - elementId: subtitle
+    elementType: text
+    bounds: [66, 292, 700, 36]
+    content:
+      fontSize: 24
+      color: "#0B1020"
+      letterSpacing: 8
+      wrap: false
+      text: |
+        <p>光合声场 · 第十四届</p>
+  - elementId: title-en
+    elementType: text
+    bounds: [66, 340, 700, 24]
+    content:
+      fontSize: 14
+      color: "#0B102099"
+      letterSpacing: 3
+      wrap: false
+      text: |
+        <p>WHERE LIGHT LEARNS TO SING</p>
+  - elementId: bottom-band
+    elementType: shape
+    bounds: [0, 1064, 960, 136]
+    shapeName: rect
+    fill: {type: solid, color: "#0B1020E6"}
+  - elementId: info-date
+    elementType: text
+    bounds: [64, 1088, 400, 88]
+    content:
+      fontSize: 22
+      color: "#FFFFFF"
+      lineHeight: 1.5
+      text: |
+        <p><strong>2026.05.01 – 05.03</strong></p>
+        <p><span style="font-size:13px; color:#FFFFFF99;">栖光山谷 · 三大舞台</span></p>
+  - elementId: info-ticket
+    elementType: text
+    bounds: [440, 1088, 300, 88]
+    content:
+      fontSize: 18
+      color: "#35D5FF"
+      lineHeight: 1.5
+      text: |
+        <p><strong>早鸟票开售</strong></p>
+        <p><span style="font-size:13px; color:#FFFFFF99;">EARLY BIRD ON SALE</span></p>
+  - elementId: info-note
+    elementType: text
+    bounds: [700, 1088, 220, 88]
+    content:
+      fontSize: 11
+      color: "#FFFFFF73"
+      align: [right, middle]
+      lineHeight: 1.6
+      text: |
+        <p>概念设计 · 视觉参考素材</p>
+        <p>非真实品牌资产</p>

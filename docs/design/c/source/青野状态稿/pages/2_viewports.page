@@ -1,0 +1,423 @@
+pageType: content
+background:
+  type: solid
+  color: "$ink"
+elements:
+  # ---------- 头部 ----------
+  - elementId: title
+    elementType: text
+    bounds: [40, 28, 720, 32]
+    content:
+      fontSize: 24
+      fontFamily: 阿里妈妈数黑体
+      color: "#FFFFFF"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>青野 · 三视口预演：长标题波及检查</p>
+  - elementId: scene-chip
+    elementType: shape
+    bounds: [1080, 30, 160, 26]
+    shapeName: roundRect
+    adjustments: [50000]
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: scene-chip-t
+    elementType: text
+    bounds: [1080, 30, 160, 26]
+    content:
+      fontSize: 11
+      color: "$violet"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>场景 03 · 三视口预演</p>
+  - elementId: sub
+    elementType: text
+    bounds: [40, 64, 1100, 20]
+    content:
+      fontSize: 12
+      color: "$gray"
+      wrap: false
+      text: |
+        <p>候选长标题（未上线）：秋日限定上新，精选好物低至五折，周末会员还有专属惊喜</p>
+  # ---------- 桌面端 ----------
+  - elementId: d-label
+    elementType: text
+    bounds: [40, 104, 300, 18]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      wrap: false
+      text: |
+        <p><strong>桌面端</strong> · 1440 × 900</p>
+  - elementId: d-chip
+    elementType: shape
+    bounds: [40, 128, 180, 22]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#36D3991F"}
+    border: {style: solid, width: 1, color: "#36D39966"}
+  - elementId: d-chip-icon
+    elementType: icon
+    bounds: [52, 133, 12, 12]
+    iconName: "fas:circle-check"
+    fill: {type: solid, color: "$green"}
+  - elementId: d-chip-t
+    elementType: text
+    bounds: [70, 128, 144, 22]
+    content:
+      fontSize: 10
+      color: "$green"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>无预设布局异常</p>
+  - elementId: d-frame
+    elementType: shape
+    bounds: [40, 164, 620, 349]
+    shapeName: rect
+    fill: {type: solid, color: "$paper"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: d-nav-logo
+    elementType: text
+    bounds: [56, 176, 120, 16]
+    content:
+      fontSize: 13
+      color: "$txt"
+      wrap: false
+      text: |
+        <p><strong>青野文创</strong></p>
+  - elementId: d-nav-links
+    elementType: text
+    bounds: [170, 178, 200, 14]
+    content:
+      fontSize: 9
+      color: "$sub"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>首页　秋季活动　商品专题</p>
+  - elementId: d-title
+    elementType: text
+    bounds: [56, 208, 300, 66]
+    content:
+      fontSize: 21
+      color: "$txt"
+      lineHeight: 1.4
+      text: |
+        <p><strong>秋日限定上新，精选好物低至五折，周末会员还有专属惊喜</strong></p>
+  - elementId: d-btn
+    elementType: shape
+    bounds: [56, 292, 96, 30]
+    shapeName: roundRect
+    adjustments: [30000]
+    fill: {type: solid, color: "$violet"}
+  - elementId: d-btn-t
+    elementType: text
+    bounds: [56, 292, 96, 30]
+    content:
+      fontSize: 11
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>开始选购</p>
+  - elementId: d-img
+    elementType: image
+    bounds: [384, 182, 260, 176]
+    src: "media/qingye_pottery.png"
+    cropShape: {shapeName: roundRect, adjustments: [8000]}
+    fit: {mode: cover}
+    crop: {left: 0.18}
+  - elementId: d-c1
+    elementType: shape
+    bounds: [56, 380, 180, 110]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#FFFFFF"}
+  - elementId: d-c1-b
+    elementType: shape
+    bounds: [68, 392, 156, 56]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#E8DFD3"}
+  - elementId: d-c1-t
+    elementType: shape
+    bounds: [68, 458, 100, 10]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  - elementId: d-c2
+    elementType: shape
+    bounds: [260, 380, 180, 110]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#FFFFFF"}
+  - elementId: d-c2-b
+    elementType: shape
+    bounds: [272, 392, 156, 56]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#DCE3E1"}
+  - elementId: d-c2-t
+    elementType: shape
+    bounds: [272, 458, 100, 10]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  - elementId: d-c3
+    elementType: shape
+    bounds: [464, 380, 180, 110]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#FFFFFF"}
+  - elementId: d-c3-b
+    elementType: shape
+    bounds: [476, 392, 156, 56]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#E4D9CE"}
+  - elementId: d-c3-t
+    elementType: shape
+    bounds: [476, 458, 100, 10]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  # ---------- 平板端 ----------
+  - elementId: t-label
+    elementType: text
+    bounds: [700, 104, 240, 18]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      wrap: false
+      text: |
+        <p><strong>平板端</strong> · 768 × 1024</p>
+  - elementId: t-chip
+    elementType: shape
+    bounds: [700, 128, 180, 22]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#36D3991F"}
+    border: {style: solid, width: 1, color: "#36D39966"}
+  - elementId: t-chip-icon
+    elementType: icon
+    bounds: [712, 133, 12, 12]
+    iconName: "fas:circle-check"
+    fill: {type: solid, color: "$green"}
+  - elementId: t-chip-t
+    elementType: text
+    bounds: [730, 128, 144, 22]
+    content:
+      fontSize: 10
+      color: "$green"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>无预设布局异常</p>
+  - elementId: t-frame
+    elementType: shape
+    bounds: [700, 164, 250, 333]
+    shapeName: rect
+    fill: {type: solid, color: "$paper"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: t-img
+    elementType: image
+    bounds: [712, 176, 226, 120]
+    src: "media/qingye_pottery.png"
+    cropShape: {shapeName: roundRect, adjustments: [8000]}
+    fit: {mode: cover}
+    crop: {left: 0.18}
+  - elementId: t-title
+    elementType: text
+    bounds: [712, 308, 226, 66]
+    content:
+      fontSize: 15
+      color: "$txt"
+      lineHeight: 1.4
+      text: |
+        <p><strong>秋日限定上新，精选好物低至五折，周末会员还有专属惊喜</strong></p>
+  - elementId: t-btn
+    elementType: shape
+    bounds: [712, 388, 226, 30]
+    shapeName: roundRect
+    adjustments: [30000]
+    fill: {type: solid, color: "$violet"}
+  - elementId: t-btn-t
+    elementType: text
+    bounds: [712, 388, 226, 30]
+    content:
+      fontSize: 11
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>开始选购</p>
+  - elementId: t-sk1
+    elementType: shape
+    bounds: [712, 434, 226, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  - elementId: t-sk2
+    elementType: shape
+    bounds: [712, 450, 180, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  - elementId: t-sk3
+    elementType: shape
+    bounds: [712, 466, 120, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  # ---------- 手机端 ----------
+  - elementId: m-label
+    elementType: text
+    bounds: [990, 104, 240, 18]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      wrap: false
+      text: |
+        <p><strong>手机端</strong> · 375 × 812</p>
+  - elementId: m-chip
+    elementType: shape
+    bounds: [990, 128, 190, 22]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#FF5D7826"}
+    border: {style: solid, width: 1, color: "$red"}
+  - elementId: m-chip-icon
+    elementType: icon
+    bounds: [1002, 133, 12, 12]
+    iconName: "fas:xmark"
+    fill: {type: solid, color: "$red"}
+  - elementId: m-chip-t
+    elementType: text
+    bounds: [1020, 128, 152, 22]
+    content:
+      fontSize: 10
+      color: "$red"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>购买按钮 · 重叠</p>
+  - elementId: m-frame
+    elementType: shape
+    bounds: [990, 164, 190, 411]
+    shapeName: rect
+    fill: {type: solid, color: "$paper"}
+    border: {style: solid, width: 1.5, color: "$red"}
+  - elementId: m-img
+    elementType: image
+    bounds: [1000, 174, 170, 80]
+    src: "media/qingye_pottery.png"
+    cropShape: {shapeName: roundRect, adjustments: [10000]}
+    fit: {mode: cover}
+    crop: {left: 0.18}
+  - elementId: m-title
+    elementType: text
+    bounds: [1000, 264, 170, 66]
+    content:
+      fontSize: 13
+      color: "$txt"
+      lineHeight: 1.6
+      text: |
+        <p><strong>秋日限定上新，</strong></p>
+        <p><strong>精选好物低至五折，</strong></p>
+        <p><strong>周末会员还有专属惊喜</strong></p>
+  - elementId: m-btn
+    elementType: shape
+    bounds: [1000, 322, 170, 30]
+    shapeName: roundRect
+    adjustments: [30000]
+    fill: {type: solid, color: "$violet"}
+  - elementId: m-btn-t
+    elementType: text
+    bounds: [1000, 322, 170, 30]
+    content:
+      fontSize: 11
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>购买</p>
+  - elementId: m-overlap-mark
+    elementType: shape
+    bounds: [994, 246, 182, 114]
+    shapeName: rect
+    border: {style: dash, width: 1.5, color: "$red"}
+  - elementId: m-sk1
+    elementType: shape
+    bounds: [1000, 376, 170, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  - elementId: m-sk2
+    elementType: shape
+    bounds: [1000, 392, 140, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E0D9CC"}
+  - elementId: m-evi
+    elementType: shape
+    bounds: [996, 540, 178, 24]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#FF5D7826"}
+    border: {style: solid, width: 1, color: "$red"}
+  - elementId: m-evi-t
+    elementType: text
+    bounds: [996, 540, 178, 24]
+    content:
+      fontSize: 9
+      color: "$red"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>E-VIEW-001 · 占位，待 B 实测</p>
+  # ---------- 处置建议 ----------
+  - elementId: advice
+    elementType: shape
+    bounds: [40, 600, 1200, 48]
+    shapeName: roundRect
+    adjustments: [16000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: advice-icon
+    elementType: icon
+    bounds: [58, 616, 16, 16]
+    iconName: "fas:triangle-exclamation"
+    fill: {type: solid, color: "$amber"}
+  - elementId: advice-t
+    elementType: text
+    bounds: [86, 600, 1140, 48]
+    content:
+      fontSize: 11
+      color: "#C7CCDA"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>处置建议（建议 · 非事实）：移动端改用短标题，或减少行数、增大标题与按钮间距；风险截图与编号以 B 的实测 Evidence（E-VIEW-001）为准。</p>
+  # ---------- 页脚 ----------
+  - elementId: foot
+    elementType: text
+    bounds: [40, 672, 900, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>概念效果示意 · 非浏览器实测截图 · 涟漪 Ripple · 青野状态稿 B（三视口风险聚焦）</p>
+  - elementId: foot-page
+    elementType: text
+    bounds: [1104, 672, 136, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>2 / 2</p>
