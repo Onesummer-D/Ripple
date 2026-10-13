@@ -1,0 +1,16 @@
+version: v2
+title: 栖光艺术节 · 旧海报（16:9 横版 · 第十三届）
+size: [1280, 720]
+customFonts:
+  - family: 阿里妈妈数黑体
+    src: "https://statics.kimi.ai/neo-design-static/p-font/阿里妈妈数黑体.ttf"
+theme:
+  colors:
+    ink: "#0B1020"
+    paper: "#F6F0E6"
+    violet: "#745CFF"
+    cyan: "#35D5FF"
+    gray: "#8A93A7"
+    white: "#FFFFFF"
+pages:
+  - pages/1_poster.page

@@ -1,0 +1,662 @@
+pageType: content
+background:
+  type: solid
+  color: "$ink"
+elements:
+  # ---------- 浏览器外壳 ----------
+  - elementId: chrome-bar
+    elementType: shape
+    bounds: [24, 20, 1232, 40]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#1A2140"}
+  - elementId: dot-r
+    elementType: shape
+    bounds: [44, 35, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "#FF5D78"}
+  - elementId: dot-y
+    elementType: shape
+    bounds: [64, 35, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "#FFB84D"}
+  - elementId: dot-g
+    elementType: shape
+    bounds: [84, 35, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "#36D399"}
+  - elementId: url-pill
+    elementType: shape
+    bounds: [110, 29, 560, 22]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#0B1020"}
+  - elementId: url-text
+    elementType: text
+    bounds: [124, 29, 540, 22]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>ripple.dev/edit · 青野文创 · 首页（草稿预览）</p>
+  - elementId: chip-draft
+    elementType: shape
+    bounds: [1112, 28, 122, 24]
+    shapeName: roundRect
+    adjustments: [50000]
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: chip-draft-text
+    elementType: text
+    bounds: [1112, 28, 122, 24]
+    content:
+      fontSize: 11
+      color: "$violet"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>草稿模式 DRAFT</p>
+  # ---------- 左侧工具轨 ----------
+  - elementId: rail
+    elementType: shape
+    bounds: [24, 68, 48, 584]
+    shapeName: roundRect
+    adjustments: [18000]
+    fill: {type: solid, color: "$rail"}
+  - elementId: rail-active-bg
+    elementType: shape
+    bounds: [31, 86, 34, 34]
+    shapeName: roundRect
+    adjustments: [24000]
+    fill: {type: solid, color: "#745CFF33"}
+  - elementId: rail-i1
+    elementType: icon
+    bounds: [40, 95, 16, 16]
+    iconName: "fas:pen"
+    fill: {type: solid, color: "$violet"}
+  - elementId: rail-i2
+    elementType: icon
+    bounds: [40, 150, 16, 16]
+    iconName: "fas:layer-group"
+    fill: {type: solid, color: "$gray"}
+  - elementId: rail-i3
+    elementType: icon
+    bounds: [40, 204, 16, 16]
+    iconName: "fas:eye"
+    fill: {type: solid, color: "$gray"}
+  - elementId: rail-i4
+    elementType: icon
+    bounds: [40, 258, 16, 16]
+    iconName: "fas:film"
+    fill: {type: solid, color: "$gray"}
+  - elementId: rail-i5
+    elementType: icon
+    bounds: [40, 612, 16, 16]
+    iconName: "fas:gear"
+    fill: {type: solid, color: "$gray"}
+  # ---------- 青野网站画布 ----------
+  - elementId: canvas
+    elementType: shape
+    bounds: [80, 68, 752, 584]
+    shapeName: rect
+    fill: {type: solid, color: "$paper"}
+  - elementId: nav-logo
+    elementType: text
+    bounds: [104, 88, 140, 26]
+    content:
+      fontSize: 18
+      color: "$txt"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>青野文创</strong></p>
+  - elementId: nav-links
+    elementType: text
+    bounds: [400, 90, 408, 22]
+    content:
+      fontSize: 12
+      color: "$sub"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p><span style="color:#745CFF;"><strong>首页</strong></span>　　秋季活动　　商品专题　　品牌故事</p>
+  # 选中态：标题 + 选框 + 控制点
+  - elementId: hero-title
+    elementType: text
+    bounds: [112, 140, 300, 54]
+    content:
+      fontSize: 40
+      fontFamily: 阿里妈妈数黑体
+      color: "$txt"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>秋日灵感季</strong></p>
+  - elementId: sel-border
+    elementType: shape
+    bounds: [104, 132, 316, 70]
+    shapeName: rect
+    border: {style: solid, width: 2, color: "$violet"}
+  - elementId: sel-h1
+    elementType: shape
+    bounds: [100, 128, 8, 8]
+    shapeName: rect
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1.5, color: "$violet"}
+  - elementId: sel-h2
+    elementType: shape
+    bounds: [416, 128, 8, 8]
+    shapeName: rect
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1.5, color: "$violet"}
+  - elementId: sel-h3
+    elementType: shape
+    bounds: [100, 198, 8, 8]
+    shapeName: rect
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1.5, color: "$violet"}
+  - elementId: sel-h4
+    elementType: shape
+    bounds: [416, 198, 8, 8]
+    shapeName: rect
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1.5, color: "$violet"}
+  - elementId: slot-chip
+    elementType: shape
+    bounds: [104, 104, 150, 20]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "$violet"}
+  - elementId: slot-chip-text
+    elementType: text
+    bounds: [104, 104, 150, 20]
+    content:
+      fontSize: 10
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>可编辑槽 · title</p>
+  - elementId: hero-sub
+    elementType: text
+    bounds: [112, 222, 330, 44]
+    content:
+      fontSize: 13
+      color: "$sub"
+      lineHeight: 1.6
+      text: |
+        <p>秋天，从一件手作开始。选出适合日常的好物，送给在意的人。</p>
+  - elementId: btn-primary
+    elementType: shape
+    bounds: [112, 282, 104, 34]
+    shapeName: roundRect
+    adjustments: [30000]
+    fill: {type: solid, color: "$violet"}
+  - elementId: btn-primary-text
+    elementType: text
+    bounds: [112, 282, 104, 34]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>开始选购</p>
+  - elementId: btn-ghost
+    elementType: shape
+    bounds: [226, 282, 104, 34]
+    shapeName: roundRect
+    adjustments: [30000]
+    border: {style: solid, width: 1, color: "#2A243866"}
+  - elementId: btn-ghost-text
+    elementType: text
+    bounds: [226, 282, 104, 34]
+    content:
+      fontSize: 13
+      color: "$txt"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>查看活动</p>
+  - elementId: hero-img
+    elementType: image
+    bounds: [460, 110, 340, 220]
+    src: "media/qingye_pottery.png"
+    cropShape: {shapeName: roundRect, adjustments: [8000]}
+    fit: {mode: cover}
+    crop: {left: 0.18}
+  - elementId: sec-title
+    elementType: text
+    bounds: [104, 372, 200, 24]
+    content:
+      fontSize: 16
+      color: "$txt"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>秋日上新</strong></p>
+  - elementId: sec-more
+    elementType: text
+    bounds: [660, 376, 148, 16]
+    content:
+      fontSize: 11
+      color: "$sub"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>查看全部 →</p>
+  # 三张商品卡
+  - elementId: pc1
+    elementType: shape
+    bounds: [104, 410, 200, 190]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$card"}
+    shadow: {blur: 12, color: "#2A243814", offset: [0, 4]}
+  - elementId: pc1-img
+    elementType: shape
+    bounds: [116, 422, 176, 100]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#E8DFD3"}
+  - elementId: pc1-name
+    elementType: text
+    bounds: [116, 532, 176, 20]
+    content:
+      fontSize: 13
+      color: "$txt"
+      wrap: false
+      text: |
+        <p>粗陶茶杯</p>
+  - elementId: pc1-price
+    elementType: text
+    bounds: [116, 556, 176, 18]
+    content:
+      fontSize: 12
+      color: "$violet"
+      wrap: false
+      text: |
+        <p><strong>¥168</strong></p>
+  - elementId: pc2
+    elementType: shape
+    bounds: [320, 410, 200, 190]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$card"}
+    shadow: {blur: 12, color: "#2A243814", offset: [0, 4]}
+  - elementId: pc2-img
+    elementType: shape
+    bounds: [332, 422, 176, 100]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#DCE3E1"}
+  - elementId: pc2-name
+    elementType: text
+    bounds: [332, 532, 176, 20]
+    content:
+      fontSize: 13
+      color: "$txt"
+      wrap: false
+      text: |
+        <p>原木托盘</p>
+  - elementId: pc2-price
+    elementType: text
+    bounds: [332, 556, 176, 18]
+    content:
+      fontSize: 12
+      color: "$violet"
+      wrap: false
+      text: |
+        <p><strong>¥129</strong></p>
+  - elementId: pc3
+    elementType: shape
+    bounds: [536, 410, 200, 190]
+    shapeName: roundRect
+    adjustments: [7000]
+    fill: {type: solid, color: "$card"}
+    shadow: {blur: 12, color: "#2A243814", offset: [0, 4]}
+  - elementId: pc3-img
+    elementType: shape
+    bounds: [548, 422, 176, 100]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "#E4D9CE"}
+  - elementId: pc3-name
+    elementType: text
+    bounds: [548, 532, 176, 20]
+    content:
+      fontSize: 13
+      color: "$txt"
+      wrap: false
+      text: |
+        <p>桂花香薰</p>
+  - elementId: pc3-price
+    elementType: text
+    bounds: [548, 556, 176, 18]
+    content:
+      fontSize: 12
+      color: "$violet"
+      wrap: false
+      text: |
+        <p><strong>¥99</strong></p>
+  # ---------- 右侧涟漪面板 ----------
+  - elementId: panel
+    elementType: shape
+    bounds: [856, 68, 400, 584]
+    shapeName: roundRect
+    adjustments: [4000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: panel-title
+    elementType: text
+    bounds: [880, 88, 300, 28]
+    content:
+      fontSize: 20
+      fontFamily: 阿里妈妈数黑体
+      color: "#FFFFFF"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>这次修改的涟漪</p>
+  - elementId: panel-icon
+    elementType: icon
+    bounds: [1212, 92, 18, 18]
+    iconName: "fas:link"
+    fill: {type: solid, color: "$violet"}
+  - elementId: panel-sub
+    elementType: text
+    bounds: [880, 122, 352, 18]
+    content:
+      fontSize: 12
+      color: "$gray"
+      wrap: false
+      text: |
+        <p>选中元素 → 共享文案源 · 概念示意</p>
+  # 结构链四节点
+  - elementId: nd1
+    elementType: shape
+    bounds: [880, 152, 352, 42]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "#1A2140"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: nd1-bar
+    elementType: shape
+    bounds: [880, 160, 3, 26]
+    shapeName: rect
+    fill: {type: solid, color: "$cyan"}
+  - elementId: nd1-t
+    elementType: text
+    bounds: [896, 157, 320, 32]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      lineHeight: 1.3
+      text: |
+        <p><strong>路由 Route</strong></p>
+        <p><span style="font-size:10px; color:#8A93A7;">首页 · /</span></p>
+  - elementId: conn1
+    elementType: shape
+    bounds: [906, 194, 2, 12]
+    shapeName: rect
+    fill: {type: solid, color: "$line"}
+  - elementId: nd2
+    elementType: shape
+    bounds: [880, 206, 352, 42]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "#1A2140"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: nd2-bar
+    elementType: shape
+    bounds: [880, 214, 3, 26]
+    shapeName: rect
+    fill: {type: solid, color: "$cyan"}
+  - elementId: nd2-t
+    elementType: text
+    bounds: [896, 211, 320, 32]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      lineHeight: 1.3
+      text: |
+        <p><strong>组件 Component</strong></p>
+        <p><span style="font-size:10px; color:#8A93A7;">HeroTitle 头图标题</span></p>
+  - elementId: conn2
+    elementType: shape
+    bounds: [906, 248, 2, 12]
+    shapeName: rect
+    fill: {type: solid, color: "$line"}
+  - elementId: nd3
+    elementType: shape
+    bounds: [880, 260, 352, 42]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "#1A2140"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: nd3-bar
+    elementType: shape
+    bounds: [880, 268, 3, 26]
+    shapeName: rect
+    fill: {type: solid, color: "$cyan"}
+  - elementId: nd3-t
+    elementType: text
+    bounds: [896, 265, 320, 32]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      lineHeight: 1.3
+      text: |
+        <p><strong>可编辑槽 Editable Slot</strong></p>
+        <p><span style="font-size:10px; color:#8A93A7;">title（当前选中）</span></p>
+  - elementId: conn3
+    elementType: shape
+    bounds: [906, 302, 2, 12]
+    shapeName: rect
+    fill: {type: solid, color: "$line"}
+  - elementId: nd4
+    elementType: shape
+    bounds: [880, 314, 352, 42]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "#1A2140"}
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: nd4-bar
+    elementType: shape
+    bounds: [880, 322, 3, 26]
+    shapeName: rect
+    fill: {type: solid, color: "$violet"}
+  - elementId: nd4-t
+    elementType: text
+    bounds: [896, 319, 210, 32]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      lineHeight: 1.3
+      text: |
+        <p><strong>内容源 Content Source</strong></p>
+        <p><span style="font-size:10px; color:#8A93A7;">campaign.autumn.title</span></p>
+  - elementId: nd4-chip
+    elementType: shape
+    bounds: [1110, 324, 110, 22]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#745CFF26"}
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: nd4-chip-t
+    elementType: text
+    bounds: [1110, 324, 110, 22]
+    content:
+      fontSize: 9
+      color: "$violet"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>E-REF-001 · 占位</p>
+  # 受影响页面
+  - elementId: aff-label
+    elementType: text
+    bounds: [880, 376, 240, 20]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      wrap: false
+      text: |
+        <p><strong>受影响页面 · 3</strong></p>
+  - elementId: aff1
+    elementType: shape
+    bounds: [880, 406, 352, 38]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "#1A2140"}
+  - elementId: aff1-dot
+    elementType: shape
+    bounds: [894, 420, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$violet"}
+  - elementId: aff1-t
+    elementType: text
+    bounds: [914, 410, 180, 30]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      lineHeight: 1.25
+      text: |
+        <p>首页</p>
+        <p><span style="font-size:10px; color:#8A93A7;">/</span></p>
+  - elementId: aff1-tag
+    elementType: text
+    bounds: [1130, 406, 90, 38]
+    content:
+      fontSize: 10
+      color: "$violet"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>标题</p>
+  - elementId: aff2
+    elementType: shape
+    bounds: [880, 450, 352, 38]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "#1A2140"}
+  - elementId: aff2-dot
+    elementType: shape
+    bounds: [894, 464, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$violet"}
+  - elementId: aff2-t
+    elementType: text
+    bounds: [914, 454, 180, 30]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      lineHeight: 1.25
+      text: |
+        <p>秋季活动页</p>
+        <p><span style="font-size:10px; color:#8A93A7;">/autumn</span></p>
+  - elementId: aff2-tag
+    elementType: text
+    bounds: [1130, 450, 90, 38]
+    content:
+      fontSize: 10
+      color: "$violet"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>标题</p>
+  - elementId: aff3
+    elementType: shape
+    bounds: [880, 494, 352, 38]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "#1A2140"}
+  - elementId: aff3-dot
+    elementType: shape
+    bounds: [894, 508, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$violet"}
+  - elementId: aff3-t
+    elementType: text
+    bounds: [914, 498, 180, 30]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      lineHeight: 1.25
+      text: |
+        <p>商品专题页</p>
+        <p><span style="font-size:10px; color:#8A93A7;">/topic</span></p>
+  - elementId: aff3-tag
+    elementType: text
+    bounds: [1130, 494, 90, 38]
+    content:
+      fontSize: 10
+      color: "$violet"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>标题</p>
+  - elementId: aff4
+    elementType: shape
+    bounds: [880, 538, 352, 38]
+    shapeName: roundRect
+    adjustments: [14000]
+    fill: {type: solid, color: "#141A33"}
+    border: {style: dash, width: 1, color: "$line"}
+  - elementId: aff4-dot
+    elementType: shape
+    bounds: [894, 552, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$gray"}
+  - elementId: aff4-t
+    elementType: text
+    bounds: [914, 542, 180, 30]
+    content:
+      fontSize: 13
+      color: "$gray"
+      lineHeight: 1.25
+      text: |
+        <p>品牌故事页</p>
+        <p><span style="font-size:10px; color:#8A93A7;">/about</span></p>
+  - elementId: aff4-tag
+    elementType: text
+    bounds: [1060, 538, 160, 38]
+    content:
+      fontSize: 9
+      color: "$gray"
+      align: [right, middle]
+      lineHeight: 1.3
+      text: |
+        <p>独立文案 · 不受影响</p>
+        <p>E-REF-002 · 占位</p>
+  - elementId: panel-note
+    elementType: text
+    bounds: [880, 594, 352, 44]
+    content:
+      fontSize: 10
+      color: "$gray"
+      lineHeight: 1.5
+      text: |
+        <p>节点、连线与受影响面为概念示意；真实引用关系与编号以 B 的 Evidence Pack（E-REF / E-VIEW）为准。</p>
+  # ---------- 页脚 ----------
+  - elementId: foot
+    elementType: text
+    bounds: [24, 676, 900, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>概念效果示意 · 非浏览器实测截图 · 涟漪 Ripple · 青野状态稿 A（编辑选中态）</p>
+  - elementId: foot-page
+    elementType: text
+    bounds: [1120, 676, 136, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>1 / 2</p>

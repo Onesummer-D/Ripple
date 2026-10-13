@@ -1,0 +1,25 @@
+version: v2
+title: 青野文创 · 演示状态稿（编辑选中态 / 三视口风险聚焦）
+size: [1280, 720]
+customFonts:
+  - family: 阿里妈妈数黑体
+    src: "https://statics.kimi.ai/neo-design-static/p-font/阿里妈妈数黑体.ttf"
+theme:
+  colors:
+    ink: "#0B1020"
+    rail: "#10162E"
+    panel: "#141A33"
+    line: "#262F55"
+    paper: "#F6F0E6"
+    card: "#FFFFFF"
+    txt: "#2A2438"
+    sub: "#6B6478"
+    violet: "#745CFF"
+    cyan: "#35D5FF"
+    green: "#36D399"
+    amber: "#FFB84D"
+    red: "#FF5D78"
+    gray: "#8A93A7"
+pages:
+  - pages/1_edit_selected.page
+  - pages/2_viewports.page

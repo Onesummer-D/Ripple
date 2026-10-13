@@ -1,0 +1,576 @@
+pageType: content
+background:
+  type: solid
+  color: "$ink"
+elements:
+  # ---------- 顶部警示横幅 ----------
+  - elementId: banner
+    elementType: shape
+    bounds: [40, 20, 1200, 40]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#FFB84D1A"}
+    border: {style: solid, width: 1, color: "#FFB84D55"}
+  - elementId: banner-icon
+    elementType: icon
+    bounds: [58, 32, 16, 16]
+    iconName: "fas:triangle-exclamation"
+    fill: {type: solid, color: "$amber"}
+  - elementId: banner-t
+    elementType: text
+    bounds: [84, 20, 1140, 40]
+    content:
+      fontSize: 12
+      color: "$amber"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>概念线框示意 · 非第三方原站截图 · 候选仓库 shadcnstore/shadcn-dashboard-landing-template（候选接入中 · 未完成白名单确认）</p>
+  # ---------- 头部 ----------
+  - elementId: title
+    elementType: text
+    bounds: [40, 76, 720, 32]
+    content:
+      fontSize: 24
+      fontFamily: 阿里妈妈数黑体
+      color: "#FFFFFF"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>第三方开源站 · 品牌强调色替换</p>
+  - elementId: scene-chip
+    elementType: shape
+    bounds: [1050, 78, 190, 26]
+    shapeName: roundRect
+    adjustments: [50000]
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: scene-chip-t
+    elementType: text
+    bounds: [1050, 78, 190, 26]
+    content:
+      fontSize: 11
+      color: "$violet"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>视觉涟漪 · 设计 Token</p>
+  - elementId: sub
+    elementType: text
+    bounds: [40, 112, 1100, 20]
+    content:
+      fontSize: 12
+      color: "$gray"
+      wrap: false
+      text: |
+        <p>候选设计 Token --brand-accent · 紫 → 暖橙 · 保留原站字体、布局与气质（色值均为示意）</p>
+  # ---------- Token 替换条 ----------
+  - elementId: token-bar
+    elementType: shape
+    bounds: [40, 148, 1200, 60]
+    shapeName: roundRect
+    adjustments: [12000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: sw-old
+    elementType: shape
+    bounds: [64, 166, 24, 24]
+    shapeName: roundRect
+    adjustments: [24000]
+    fill: {type: solid, color: "$purpleOld"}
+  - elementId: sw-old-t
+    elementType: text
+    bounds: [100, 158, 300, 40]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      lineHeight: 1.4
+      text: |
+        <p><strong>--brand-accent</strong></p>
+        <p><span style="font-size:10px; color:#8A93A7;">当前 · 紫（示意值）</span></p>
+  - elementId: token-arrow
+    elementType: icon
+    bounds: [420, 170, 18, 18]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$violet"}
+  - elementId: sw-new
+    elementType: shape
+    bounds: [460, 166, 24, 24]
+    shapeName: roundRect
+    adjustments: [24000]
+    fill: {type: solid, color: "$orangeNew"}
+  - elementId: sw-new-t
+    elementType: text
+    bounds: [496, 158, 320, 40]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      lineHeight: 1.4
+      text: |
+        <p><strong>--brand-accent</strong></p>
+        <p><span style="font-size:10px; color:#8A93A7;">候选 · 暖橙（示意值）</span></p>
+  - elementId: token-chip
+    elementType: shape
+    bounds: [950, 166, 270, 24]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#745CFF26"}
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: token-chip-t
+    elementType: text
+    bounds: [950, 166, 270, 24]
+    content:
+      fontSize: 9
+      color: "$violet"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>E-REF-004 · 占位 · 消费位置待 B 静态分析确认</p>
+  # ---------- BEFORE 线框 ----------
+  - elementId: bf-label
+    elementType: text
+    bounds: [40, 230, 300, 20]
+    content:
+      fontSize: 12
+      color: "$gray"
+      wrap: false
+      text: |
+        <p><strong>BEFORE</strong> · 当前（紫）</p>
+  - elementId: bf-card
+    elementType: shape
+    bounds: [40, 256, 580, 320]
+    shapeName: roundRect
+    adjustments: [5000]
+    fill: {type: solid, color: "#FAFAFA"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: bf-d1
+    elementType: shape
+    bounds: [56, 270, 8, 8]
+    shapeName: ellipse
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: bf-d2
+    elementType: shape
+    bounds: [70, 270, 8, 8]
+    shapeName: ellipse
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: bf-d3
+    elementType: shape
+    bounds: [84, 270, 8, 8]
+    shapeName: ellipse
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: bf-logo
+    elementType: shape
+    bounds: [56, 292, 20, 20]
+    shapeName: roundRect
+    adjustments: [24000]
+    fill: {type: solid, color: "#71717A"}
+  - elementId: bf-n1
+    elementType: shape
+    bounds: [96, 298, 44, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: bf-n2
+    elementType: shape
+    bounds: [150, 298, 44, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: bf-n3
+    elementType: shape
+    bounds: [204, 298, 44, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: bf-ncta
+    elementType: shape
+    bounds: [536, 290, 68, 22]
+    shapeName: roundRect
+    adjustments: [30000]
+    fill: {type: solid, color: "$purpleOld"}
+  - elementId: bf-h1
+    elementType: shape
+    bounds: [160, 340, 280, 16]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#A1A1AA"}
+  - elementId: bf-h2
+    elementType: shape
+    bounds: [200, 366, 200, 16]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: bf-sub
+    elementType: shape
+    bounds: [180, 396, 240, 10]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: bf-cta
+    elementType: shape
+    bounds: [250, 424, 120, 36]
+    shapeName: roundRect
+    adjustments: [28000]
+    fill: {type: solid, color: "$purpleOld"}
+  - elementId: bf-cta-t
+    elementType: text
+    bounds: [250, 424, 120, 36]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>主按钮</p>
+  - elementId: bf-m1
+    elementType: shape
+    bounds: [56, 484, 150, 68]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1, color: "#E4E4E7"}
+  - elementId: bf-m1-dot
+    elementType: shape
+    bounds: [70, 498, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$purpleOld"}
+  - elementId: bf-m1-b1
+    elementType: shape
+    bounds: [70, 516, 100, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: bf-m1-b2
+    elementType: shape
+    bounds: [70, 532, 70, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: bf-m2
+    elementType: shape
+    bounds: [255, 484, 150, 68]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1, color: "#E4E4E7"}
+  - elementId: bf-m2-dot
+    elementType: shape
+    bounds: [269, 498, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$purpleOld"}
+  - elementId: bf-m2-b1
+    elementType: shape
+    bounds: [269, 516, 100, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: bf-m2-b2
+    elementType: shape
+    bounds: [269, 532, 70, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: bf-m3
+    elementType: shape
+    bounds: [454, 484, 150, 68]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1, color: "#E4E4E7"}
+  - elementId: bf-m3-dot
+    elementType: shape
+    bounds: [468, 498, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$purpleOld"}
+  - elementId: bf-m3-b1
+    elementType: shape
+    bounds: [468, 516, 100, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: bf-m3-b2
+    elementType: shape
+    bounds: [468, 532, 70, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  # ---------- 中间箭头 ----------
+  - elementId: mid-arrow
+    elementType: icon
+    bounds: [630, 400, 20, 20]
+    iconName: "fas:arrow-right"
+    fill: {type: solid, color: "$violet"}
+  # ---------- AFTER 线框 ----------
+  - elementId: af-label
+    elementType: text
+    bounds: [660, 230, 360, 20]
+    content:
+      fontSize: 12
+      color: "$gray"
+      wrap: false
+      text: |
+        <p><strong>AFTER</strong> · 替换后（暖橙 · 示意值）</p>
+  - elementId: af-card
+    elementType: shape
+    bounds: [660, 256, 580, 320]
+    shapeName: roundRect
+    adjustments: [5000]
+    fill: {type: solid, color: "#FAFAFA"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: af-d1
+    elementType: shape
+    bounds: [676, 270, 8, 8]
+    shapeName: ellipse
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: af-d2
+    elementType: shape
+    bounds: [690, 270, 8, 8]
+    shapeName: ellipse
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: af-d3
+    elementType: shape
+    bounds: [704, 270, 8, 8]
+    shapeName: ellipse
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: af-logo
+    elementType: shape
+    bounds: [676, 292, 20, 20]
+    shapeName: roundRect
+    adjustments: [24000]
+    fill: {type: solid, color: "#71717A"}
+  - elementId: af-n1
+    elementType: shape
+    bounds: [716, 298, 44, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: af-n2
+    elementType: shape
+    bounds: [770, 298, 44, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: af-n3
+    elementType: shape
+    bounds: [824, 298, 44, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: af-ncta
+    elementType: shape
+    bounds: [1156, 290, 68, 22]
+    shapeName: roundRect
+    adjustments: [30000]
+    fill: {type: solid, color: "$orangeNew"}
+  - elementId: af-h1
+    elementType: shape
+    bounds: [780, 340, 280, 16]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#A1A1AA"}
+  - elementId: af-h2
+    elementType: shape
+    bounds: [820, 366, 200, 16]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#D4D4D8"}
+  - elementId: af-sub
+    elementType: shape
+    bounds: [800, 396, 240, 10]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: af-cta
+    elementType: shape
+    bounds: [870, 424, 120, 36]
+    shapeName: roundRect
+    adjustments: [28000]
+    fill: {type: solid, color: "$orangeNew"}
+  - elementId: af-cta-t
+    elementType: text
+    bounds: [870, 424, 120, 36]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>主按钮</p>
+  - elementId: af-m1
+    elementType: shape
+    bounds: [676, 484, 150, 68]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1, color: "#E4E4E7"}
+  - elementId: af-m1-dot
+    elementType: shape
+    bounds: [690, 498, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$orangeNew"}
+  - elementId: af-m1-b1
+    elementType: shape
+    bounds: [690, 516, 100, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: af-m1-b2
+    elementType: shape
+    bounds: [690, 532, 70, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: af-m2
+    elementType: shape
+    bounds: [875, 484, 150, 68]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1, color: "#E4E4E7"}
+  - elementId: af-m2-dot
+    elementType: shape
+    bounds: [889, 498, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$orangeNew"}
+  - elementId: af-m2-b1
+    elementType: shape
+    bounds: [889, 516, 100, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: af-m2-b2
+    elementType: shape
+    bounds: [889, 532, 70, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: af-m3
+    elementType: shape
+    bounds: [1074, 484, 150, 68]
+    shapeName: roundRect
+    adjustments: [10000]
+    fill: {type: solid, color: "#FFFFFF"}
+    border: {style: solid, width: 1, color: "#E4E4E7"}
+  - elementId: af-m3-dot
+    elementType: shape
+    bounds: [1088, 498, 10, 10]
+    shapeName: ellipse
+    fill: {type: solid, color: "$orangeNew"}
+  - elementId: af-m3-b1
+    elementType: shape
+    bounds: [1088, 516, 100, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  - elementId: af-m3-b2
+    elementType: shape
+    bounds: [1088, 532, 70, 8]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#E4E4E7"}
+  # ---------- 底部纪律 ----------
+  - elementId: r1
+    elementType: shape
+    bounds: [40, 604, 200, 32]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: r1-t
+    elementType: text
+    bounds: [40, 604, 200, 32]
+    content:
+      fontSize: 11
+      color: "#C7CCDA"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>仅调整品牌强调色</p>
+  - elementId: r2
+    elementType: shape
+    bounds: [252, 604, 220, 32]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: r2-t
+    elementType: text
+    bounds: [252, 604, 220, 32]
+    content:
+      fontSize: 11
+      color: "#C7CCDA"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>不改动其他设计 Token</p>
+  - elementId: r3
+    elementType: shape
+    bounds: [484, 604, 220, 32]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: r3-t
+    elementType: text
+    bounds: [484, 604, 220, 32]
+    content:
+      fontSize: 11
+      color: "#C7CCDA"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>字体与布局沿用原站</p>
+  - elementId: r4
+    elementType: shape
+    bounds: [716, 604, 200, 32]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: r4-t
+    elementType: text
+    bounds: [716, 604, 200, 32]
+    content:
+      fontSize: 11
+      color: "#C7CCDA"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>录屏以 B 实测为准</p>
+  - elementId: status-chip
+    elementType: shape
+    bounds: [948, 600, 292, 40]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#FFB84D1A"}
+    border: {style: solid, width: 1, color: "#FFB84D55"}
+  - elementId: status-chip-t
+    elementType: text
+    bounds: [948, 600, 292, 40]
+    content:
+      fontSize: 10
+      color: "$amber"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>候选接入中 · 不作为已接入案例</p>
+  # ---------- 页脚 ----------
+  - elementId: foot
+    elementType: text
+    bounds: [40, 676, 1000, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>概念线框示意 · 非第三方原站截图 · 候选仓库与 Token 均为候选接入状态 · 第三方原站展示稿</p>
+  - elementId: foot-page
+    elementType: text
+    bounds: [1104, 676, 136, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>1 / 1</p>

@@ -1,0 +1,315 @@
+pageType: content
+background:
+  type: solid
+  color: "$ink"
+elements:
+  # ---------- 头部 ----------
+  - elementId: title
+    elementType: text
+    bounds: [40, 28, 720, 32]
+    content:
+      fontSize: 24
+      fontFamily: 阿里妈妈数黑体
+      color: "#FFFFFF"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>栖光 · 新海报进入三个容器</p>
+  - elementId: scene-chip
+    elementType: shape
+    bounds: [1050, 30, 190, 26]
+    shapeName: roundRect
+    adjustments: [50000]
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: scene-chip-t
+    elementType: text
+    bounds: [1050, 30, 190, 26]
+    content:
+      fontSize: 11
+      color: "$violet"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>结构涟漪 · 媒体源</p>
+  - elementId: sub
+    elementType: text
+    bounds: [40, 64, 1100, 20]
+    content:
+      fontSize: 12
+      color: "$gray"
+      wrap: false
+      text: |
+        <p>共享媒体源 festival.hero.poster · 一次替换，三个位置同步预演（概念示意）</p>
+  # ---------- 共享媒体源 ----------
+  - elementId: src-card
+    elementType: shape
+    bounds: [40, 120, 210, 480]
+    shapeName: roundRect
+    adjustments: [6000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1.5, color: "$violet"}
+  - elementId: src-thumb
+    elementType: image
+    bounds: [58, 140, 174, 217]
+    src: "media/qiguang_new_visual.png"
+    cropShape: {shapeName: roundRect, adjustments: [8000]}
+    fit: {mode: cover}
+  - elementId: src-label
+    elementType: text
+    bounds: [58, 372, 174, 18]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      wrap: false
+      text: |
+        <p><strong>共享媒体源</strong></p>
+  - elementId: src-mono
+    elementType: text
+    bounds: [58, 394, 174, 16]
+    content:
+      fontSize: 10
+      color: "$cyan"
+      wrap: false
+      text: |
+        <p>festival.hero.poster</p>
+  - elementId: src-note
+    elementType: text
+    bounds: [58, 416, 174, 34]
+    content:
+      fontSize: 10
+      color: "$gray"
+      lineHeight: 1.5
+      text: |
+        <p>16:9 旧海报 → 4:5 新海报 · 一次替换</p>
+  - elementId: src-chip
+    elementType: shape
+    bounds: [58, 458, 174, 24]
+    shapeName: roundRect
+    adjustments: [50000]
+    fill: {type: solid, color: "#745CFF26"}
+    border: {style: solid, width: 1, color: "$violet"}
+  - elementId: src-chip-t
+    elementType: text
+    bounds: [58, 458, 174, 24]
+    content:
+      fontSize: 9
+      color: "$violet"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>E-REF-003 · 占位，待 B 确认</p>
+  # ---------- 连接线 ----------
+  - elementId: conn-1
+    elementType: shape
+    bounds: [254, 219, 44, 2]
+    shapeName: rect
+    fill: {type: solid, color: "$line"}
+  - elementId: conn-2
+    elementType: shape
+    bounds: [254, 479, 44, 2]
+    shapeName: rect
+    fill: {type: solid, color: "$line"}
+  # ---------- 容器一：首页横版 Hero ----------
+  - elementId: c1-label
+    elementType: text
+    bounds: [300, 96, 640, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      wrap: false
+      text: |
+        <p><strong>首页 · 横版 Hero</strong>　object-fit: cover · 上下裁切聚焦流体高光</p>
+  - elementId: c1-img
+    elementType: image
+    bounds: [300, 120, 640, 200]
+    src: "media/qiguang_new_visual.png"
+    cropShape: {shapeName: roundRect, adjustments: [6000]}
+    fit: {mode: cover}
+    crop: {top: 0.35, bottom: 0.35}
+  - elementId: c1-veil
+    elementType: shape
+    bounds: [300, 240, 640, 80]
+    shapeName: rect
+    fill: {type: solid, color: "#0B102099"}
+  - elementId: c1-title
+    elementType: text
+    bounds: [322, 254, 320, 34]
+    content:
+      fontSize: 26
+      fontFamily: 阿里妈妈数黑体
+      color: "#FFFFFF"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>栖光艺术节</p>
+  - elementId: c1-sub
+    elementType: text
+    bounds: [322, 292, 320, 18]
+    content:
+      fontSize: 12
+      color: "#FFFFFFB3"
+      wrap: false
+      text: |
+        <p>光合声场 · 第十四届 · 2026.05.01 – 05.03</p>
+  # ---------- 容器二：节目页竖版展墙 ----------
+  - elementId: c2-label
+    elementType: text
+    bounds: [300, 336, 300, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      wrap: false
+      text: |
+        <p><strong>节目页 · 竖版展墙</strong>　完整 4:5 呈现</p>
+  - elementId: c2-img
+    elementType: image
+    bounds: [300, 360, 192, 240]
+    src: "media/qiguang_new_visual.png"
+    cropShape: {shapeName: roundRect, adjustments: [8000]}
+    fit: {mode: cover}
+  # ---------- 容器三：购票页固定卡 ----------
+  - elementId: c3-label
+    elementType: text
+    bounds: [532, 336, 408, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      wrap: false
+      text: |
+        <p><strong>购票页 · 固定卡</strong>　cover 局部裁切 · 卡片尺寸固定</p>
+  - elementId: c3-card
+    elementType: shape
+    bounds: [532, 360, 408, 240]
+    shapeName: roundRect
+    adjustments: [6000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: c3-thumb
+    elementType: image
+    bounds: [548, 376, 120, 150]
+    src: "media/qiguang_new_visual.png"
+    cropShape: {shapeName: roundRect, adjustments: [10000]}
+    fit: {mode: cover}
+  - elementId: c3-title
+    elementType: text
+    bounds: [684, 382, 240, 24]
+    content:
+      fontSize: 16
+      color: "#FFFFFF"
+      wrap: false
+      text: |
+        <p><strong>第十四届 · 栖光艺术节</strong></p>
+  - elementId: c3-date
+    elementType: text
+    bounds: [684, 412, 240, 16]
+    content:
+      fontSize: 11
+      color: "$gray"
+      wrap: false
+      text: |
+        <p>2026.05.01 – 05.03 · 栖光山谷</p>
+  - elementId: c3-btn
+    elementType: shape
+    bounds: [684, 442, 120, 32]
+    shapeName: roundRect
+    adjustments: [30000]
+    fill: {type: solid, color: "$violet"}
+  - elementId: c3-btn-t
+    elementType: text
+    bounds: [684, 442, 120, 32]
+    content:
+      fontSize: 12
+      color: "#FFFFFF"
+      align: [center, middle]
+      wrap: false
+      text: |
+        <p>购票 · 早鸟</p>
+  - elementId: c3-note
+    elementType: text
+    bounds: [548, 540, 376, 44]
+    content:
+      fontSize: 10
+      color: "$gray"
+      lineHeight: 1.5
+      text: |
+        <p>固定卡尺寸不变，图片 cover 裁切、焦点居中；竖版展墙完整呈现，横版 Hero 上下裁切——同一媒体源，三种容器行为。</p>
+  # ---------- 右栏 ----------
+  - elementId: neg-card
+    elementType: shape
+    bounds: [980, 120, 260, 130]
+    shapeName: roundRect
+    adjustments: [8000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: dash, width: 1, color: "$gray"}
+  - elementId: neg-icon
+    elementType: icon
+    bounds: [998, 138, 16, 16]
+    iconName: "fas:box-archive"
+    fill: {type: solid, color: "$gray"}
+  - elementId: neg-title
+    elementType: text
+    bounds: [1024, 134, 200, 22]
+    content:
+      fontSize: 13
+      color: "$gray"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p><strong>归档页 · /archive</strong></p>
+  - elementId: neg-note
+    elementType: text
+    bounds: [998, 164, 226, 66]
+    content:
+      fontSize: 10
+      color: "$gray"
+      lineHeight: 1.6
+      text: |
+        <p>使用独立素材，不受本次替换影响 · 作为负例对照（负例设计见主文档 §2.1）</p>
+  - elementId: info-card
+    elementType: shape
+    bounds: [980, 270, 260, 330]
+    shapeName: roundRect
+    adjustments: [6000]
+    fill: {type: solid, color: "$panel"}
+    border: {style: solid, width: 1, color: "$line"}
+  - elementId: info-title
+    elementType: text
+    bounds: [998, 288, 228, 20]
+    content:
+      fontSize: 13
+      color: "#FFFFFF"
+      wrap: false
+      text: |
+        <p><strong>读图说明</strong></p>
+  - elementId: info-body
+    elementType: text
+    bounds: [998, 316, 228, 264]
+    content:
+      fontSize: 10.5
+      color: "#C7CCDA"
+      lineHeight: 1.7
+      text: |
+        <p>三容器共用同一媒体源：替换一次，三处同步预演。</p>
+        <p>各容器的裁切行为（cover / 完整呈现）由 A 的实现决定，本稿仅示意三种典型容器。</p>
+        <p>连线与同步关系为概念示意；真实引用关系与编号以 B 的 Evidence（E-REF-003）为准。</p>
+  # ---------- 页脚 ----------
+  - elementId: foot
+    elementType: text
+    bounds: [40, 676, 1000, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [left, middle]
+      wrap: false
+      text: |
+        <p>视觉为概念设计素材 · 非真实品牌资产 · 概念效果示意，非产品实际界面截图 · 栖光三容器展示稿</p>
+  - elementId: foot-page
+    elementType: text
+    bounds: [1104, 676, 136, 18]
+    content:
+      fontSize: 11
+      color: "$gray"
+      align: [right, middle]
+      wrap: false
+      text: |
+        <p>1 / 2</p>
