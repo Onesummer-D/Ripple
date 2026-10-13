@@ -1,0 +1,36 @@
+{
+  "name": "ripple-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test": "vitest",
+    "test:browser": "playwright test",
+    "verify": "node scripts/verify.mjs",
+    "smoke:static": "node scripts/static-acceptance.mjs",
+    "acceptance:phase4": "node scripts/phase4-acceptance.mjs",
+    "acceptance:phase5": "node scripts/phase5-acceptance.mjs",
+    "preview:static": "node scripts/preview-server.mjs",
+    "acceptance:runtime-node": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^3.2.7"
+  }
+}

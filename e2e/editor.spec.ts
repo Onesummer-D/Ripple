@@ -1,0 +1,98 @@
+import { expect, test } from '@playwright/test'
+import path from 'node:path'
+import fs from 'node:fs'
+
+const acceptanceDate = process.env.RIPPLE_ACCEPTANCE_DATE ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date())
+
+for (const viewport of [{ width: 375, height: 812 }, { width: 768, height: 1024 }, { width: 1440, height: 900 }]) {
+  test(`text, media and token editing at ${viewport.width}`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    await page.goto('/')
+    await page.getByTestId('case-card-qingye').click()
+    await page.getByTestId('slot-qingye-home-title-slot').click()
+    await page.getByTestId('candidate-input').fill('秋日限定上新，精选好物低至五折，周末会员还有专属惊喜')
+    await page.getByTestId('create-candidate').click()
+    await page.getByTestId('scope-shared').click()
+    await expect(page.locator('.route-preview-card.affected')).toHaveCount(3)
+    await page.getByTestId('scope-instance').click()
+    await expect(page.locator('.route-preview-card.affected')).toHaveCount(1)
+    await page.getByTestId('apply-draft').click()
+    await page.getByTestId('restore-previous').click()
+    await expect(page.getByTestId('slot-qingye-home-title-slot')).toContainText('秋日上新')
+    await page.getByTestId('nav-space').click()
+
+    await page.getByTestId('case-card-qiguang').click()
+    await page.getByTestId('slot-qiguang-program-poster-slot').click()
+    const base64 = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 400; canvas.height = 500
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = '#b9a4ff'; ctx.fillRect(0, 0, 400, 500)
+      ctx.fillStyle = '#ff7733'; ctx.beginPath(); ctx.arc(200, 250, 150, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#171525'; ctx.font = 'bold 36px sans-serif'; ctx.fillText('MIRAGE', 30, 65)
+      return canvas.toDataURL('image/png').split(',')[1]
+    })
+    await page.getByTestId('media-upload').setInputFiles({ name: 'portrait-400x500.png', mimeType: 'image/png', buffer: Buffer.from(base64, 'base64') })
+    await expect(page.getByTestId('media-upload')).toBeEnabled()
+    await page.getByTestId('create-candidate').click()
+    await page.getByTestId('scope-instance').click()
+    await expect(page.getByTestId('media-layout-grid').locator('article > figure > img[src^="data:"]')).toHaveCount(1)
+    await expect(page.getByTestId('media-layout-grid')).toContainText('400 × 500')
+    await page.getByTestId('scope-shared').click()
+    await expect(page.getByTestId('media-layout-grid').locator('article > figure > img[src^="data:"]')).toHaveCount(3)
+    await expect(page.getByTestId('measurement-panel')).toContainText('自然尺寸 400 × 500')
+    const mediaReport = JSON.parse(await page.getByTestId('measurement-panel').locator('pre').textContent() ?? '{}')
+    fs.writeFileSync(path.resolve(`../../docs/acceptance/${acceptanceDate}/evidence/live-media-${viewport.width}.json`), JSON.stringify(mediaReport, null, 2))
+    await expect(page.getByTestId('media-layout-grid').locator('article > figure > img[src="/assets/qiguang-archive.svg"]')).toHaveCount(1)
+    await expect(page.locator('.canvas-route')).toHaveText('ripple.local/program')
+    await page.getByTestId('media-layout-grid').getByRole('button', { name: '放大首页横幅海报裁切', exact: true }).click()
+    const cropDialog = page.getByRole('dialog', { name: '首页横幅海报裁切对照', exact: true })
+    await expect(cropDialog).toBeVisible()
+    await expect(cropDialog.getByAltText('完整原图')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(cropDialog).not.toBeVisible()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: path.resolve(`../../docs/acceptance/${acceptanceDate}/evidence/media-${viewport.width}.png`), fullPage: true })
+    await page.getByTestId('apply-draft').click()
+    await page.getByTestId('restore-previous').click()
+    await expect(page.getByTestId('media-layout-grid').locator('article > figure > img[src="/assets/qiguang-original.svg"]')).toHaveCount(3)
+    await page.getByTestId('restore-qiguang-snapshot-1').click()
+    await expect(page.getByTestId('media-layout-grid').locator('article > figure > img[src^="data:"]')).toHaveCount(3)
+    await page.reload()
+    await expect.poll(() => page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve) => { const request = indexedDB.open('ripple-media', 1); request.onsuccess = () => resolve(request.result) })
+      const count = await new Promise<number>((resolve) => { const request = db.transaction('resources').objectStore('resources').count(); request.onsuccess = () => resolve(request.result) })
+      db.close(); return count
+    })).toBe(1)
+
+    await page.getByTestId('case-card-qiguang').click()
+    await page.getByTestId('slot-qiguang-program-poster-slot').click()
+    await expect(page.getByTestId('media-library').locator('option')).toHaveCount(2)
+    await page.getByTestId('media-library').selectOption({ label: 'portrait-400x500.png · 400 × 500' })
+    await page.getByTestId('create-candidate').click()
+    await page.getByTestId('scope-instance').click()
+    await expect(page.getByTestId('media-layout-grid').locator('article > figure > img[src^="data:"]')).toHaveCount(1)
+    await page.getByTestId('cancel-draft').click()
+    await expect(page.getByTestId('media-layout-grid').locator('article > figure > img[src^="data:"]')).toHaveCount(0)
+    await page.getByTestId('nav-space').click()
+
+    await page.getByTestId('case-card-third-party').click()
+    await page.getByTestId('slot-thirdparty-accent-slot').click()
+    await page.getByTestId('candidate-input').fill('#ff6633')
+    await page.getByTestId('create-candidate').click()
+    await page.getByTestId('scope-shared').click()
+    await expect(page.getByTestId('token-consumers').getByText('#ff6633')).toHaveCount(3)
+    await expect(page.getByTestId('measurement-panel')).toContainText('rgb(255, 102, 51)')
+    const tokenReport = JSON.parse(await page.getByTestId('measurement-panel').locator('pre').textContent() ?? '{}')
+    fs.writeFileSync(path.resolve(`../../docs/acceptance/${acceptanceDate}/evidence/live-token-fixture-${viewport.width}.json`), JSON.stringify(tokenReport, null, 2))
+    await page.getByTestId('apply-draft').click()
+    await page.getByTestId('restore-previous').click()
+    await expect(page.getByTestId('token-consumers').getByText('#8B5CF6')).toHaveCount(3)
+    await page.getByTestId('reset-case').click()
+    await expect(page.getByTestId('apply-draft')).toBeDisabled()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    expect(errors).toEqual([])
+  })
+}

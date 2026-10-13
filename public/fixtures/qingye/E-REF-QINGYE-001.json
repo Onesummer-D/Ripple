@@ -1,0 +1,225 @@
+{
+  "origin": "fixture",
+  "evidence": {
+    "id": "E-REF-QINGYE-001",
+    "caseId": "qingye",
+    "type": "STRUCTURE",
+    "route": "/",
+    "viewport": "fixture",
+    "summary": "三个共享消费位置与一个独立来源 Fixture",
+    "sourcePath": "fixtures/qingye/E-REF-QINGYE-001.json",
+    "verification": "verified",
+    "origin": "fixture"
+  },
+  "graph": {
+    "id": "qingye-graph-fixture",
+    "caseId": "qingye",
+    "nodes": [
+      {
+        "id": "/-route",
+        "caseId": "qingye",
+        "kind": "route",
+        "label": "/",
+        "route": "/"
+      },
+      {
+        "id": "qingye-home-title",
+        "caseId": "qingye",
+        "kind": "instance",
+        "label": "首页秋日标题",
+        "route": "/",
+        "sourceId": "qingye-shared-title"
+      },
+      {
+        "id": "qingye-home-title-slot",
+        "caseId": "qingye",
+        "kind": "slot",
+        "label": "首页秋日标题",
+        "route": "/",
+        "sourceId": "qingye-shared-title"
+      },
+      {
+        "id": "qingye-shared-title",
+        "caseId": "qingye",
+        "kind": "source",
+        "label": "qingye-shared-title"
+      },
+      {
+        "id": "/autumn-route",
+        "caseId": "qingye",
+        "kind": "route",
+        "label": "/autumn",
+        "route": "/autumn"
+      },
+      {
+        "id": "qingye-autumn-title",
+        "caseId": "qingye",
+        "kind": "instance",
+        "label": "活动页秋日标题",
+        "route": "/autumn",
+        "sourceId": "qingye-shared-title"
+      },
+      {
+        "id": "qingye-autumn-title-slot",
+        "caseId": "qingye",
+        "kind": "slot",
+        "label": "活动页秋日标题",
+        "route": "/autumn",
+        "sourceId": "qingye-shared-title"
+      },
+      {
+        "id": "/collection-route",
+        "caseId": "qingye",
+        "kind": "route",
+        "label": "/collection",
+        "route": "/collection"
+      },
+      {
+        "id": "qingye-collection-title",
+        "caseId": "qingye",
+        "kind": "instance",
+        "label": "专题页秋日标题",
+        "route": "/collection",
+        "sourceId": "qingye-shared-title"
+      },
+      {
+        "id": "qingye-collection-title-slot",
+        "caseId": "qingye",
+        "kind": "slot",
+        "label": "专题页秋日标题",
+        "route": "/collection",
+        "sourceId": "qingye-shared-title"
+      },
+      {
+        "id": "/about-route",
+        "caseId": "qingye",
+        "kind": "route",
+        "label": "/about",
+        "route": "/about"
+      },
+      {
+        "id": "qingye-about-title",
+        "caseId": "qingye",
+        "kind": "instance",
+        "label": "品牌故事标题",
+        "route": "/about",
+        "sourceId": "qingye-about-source"
+      },
+      {
+        "id": "qingye-about-title-slot",
+        "caseId": "qingye",
+        "kind": "slot",
+        "label": "品牌故事标题",
+        "route": "/about",
+        "sourceId": "qingye-about-source"
+      },
+      {
+        "id": "qingye-about-source",
+        "caseId": "qingye",
+        "kind": "source",
+        "label": "qingye-about-source"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/-contains-qingye-home-title",
+        "caseId": "qingye",
+        "type": "contains",
+        "from": "/-route",
+        "to": "qingye-home-title"
+      },
+      {
+        "id": "qingye-home-title-reads-qingye-shared-title",
+        "caseId": "qingye",
+        "type": "reads",
+        "from": "qingye-home-title",
+        "to": "qingye-shared-title"
+      },
+      {
+        "id": "/autumn-contains-qingye-autumn-title",
+        "caseId": "qingye",
+        "type": "contains",
+        "from": "/autumn-route",
+        "to": "qingye-autumn-title"
+      },
+      {
+        "id": "qingye-autumn-title-reads-qingye-shared-title",
+        "caseId": "qingye",
+        "type": "reads",
+        "from": "qingye-autumn-title",
+        "to": "qingye-shared-title"
+      },
+      {
+        "id": "/collection-contains-qingye-collection-title",
+        "caseId": "qingye",
+        "type": "contains",
+        "from": "/collection-route",
+        "to": "qingye-collection-title"
+      },
+      {
+        "id": "qingye-collection-title-reads-qingye-shared-title",
+        "caseId": "qingye",
+        "type": "reads",
+        "from": "qingye-collection-title",
+        "to": "qingye-shared-title"
+      },
+      {
+        "id": "/about-contains-qingye-about-title",
+        "caseId": "qingye",
+        "type": "contains",
+        "from": "/about-route",
+        "to": "qingye-about-title"
+      },
+      {
+        "id": "qingye-about-title-reads-qingye-about-source",
+        "caseId": "qingye",
+        "type": "reads",
+        "from": "qingye-about-title",
+        "to": "qingye-about-source"
+      }
+    ]
+  },
+  "slots": [
+    {
+      "id": "qingye-home-title-slot",
+      "instanceId": "qingye-home-title",
+      "sourceId": "qingye-shared-title",
+      "label": "首页秋日标题",
+      "value": "秋日上新",
+      "editKind": "TEXT",
+      "route": "/",
+      "shared": true
+    },
+    {
+      "id": "qingye-autumn-title-slot",
+      "instanceId": "qingye-autumn-title",
+      "sourceId": "qingye-shared-title",
+      "label": "活动页秋日标题",
+      "value": "秋日上新",
+      "editKind": "TEXT",
+      "route": "/autumn",
+      "shared": true
+    },
+    {
+      "id": "qingye-collection-title-slot",
+      "instanceId": "qingye-collection-title",
+      "sourceId": "qingye-shared-title",
+      "label": "专题页秋日标题",
+      "value": "秋日上新",
+      "editKind": "TEXT",
+      "route": "/collection",
+      "shared": true
+    },
+    {
+      "id": "qingye-about-title-slot",
+      "instanceId": "qingye-about-title",
+      "sourceId": "qingye-about-source",
+      "label": "品牌故事标题",
+      "value": "我们的故事",
+      "editKind": "TEXT",
+      "route": "/about",
+      "shared": false
+    }
+  ],
+  "note": "结构交互示例。该文件不提供真实预演、风险检测或第三方仓库证明。"
+}

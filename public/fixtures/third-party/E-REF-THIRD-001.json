@@ -1,0 +1,165 @@
+{
+  "origin": "fixture",
+  "evidence": {
+    "id": "E-REF-THIRD-001",
+    "caseId": "third-party",
+    "type": "STRUCTURE",
+    "route": "/showcase",
+    "viewport": "fixture",
+    "summary": "共享色彩 Token 的消费位置 Fixture",
+    "sourcePath": "fixtures/third-party/E-REF-THIRD-001.json",
+    "verification": "verified",
+    "origin": "fixture"
+  },
+  "graph": {
+    "id": "third-party-graph-fixture",
+    "caseId": "third-party",
+    "nodes": [
+      {
+        "id": "/showcase-route",
+        "caseId": "third-party",
+        "kind": "route",
+        "label": "/showcase",
+        "route": "/showcase"
+      },
+      {
+        "id": "thirdparty-primary-button",
+        "caseId": "third-party",
+        "kind": "instance",
+        "label": "共享强调色",
+        "route": "/showcase",
+        "sourceId": "thirdparty-shared-token"
+      },
+      {
+        "id": "thirdparty-accent-slot",
+        "caseId": "third-party",
+        "kind": "slot",
+        "label": "共享强调色",
+        "route": "/showcase",
+        "sourceId": "thirdparty-shared-token"
+      },
+      {
+        "id": "thirdparty-shared-token",
+        "caseId": "third-party",
+        "kind": "source",
+        "label": "thirdparty-shared-token"
+      },
+      {
+        "id": "thirdparty-badge",
+        "caseId": "third-party",
+        "kind": "instance",
+        "label": "状态标签",
+        "route": "/showcase",
+        "sourceId": "thirdparty-shared-token"
+      },
+      {
+        "id": "thirdparty-badge-slot",
+        "caseId": "third-party",
+        "kind": "slot",
+        "label": "状态标签",
+        "route": "/showcase",
+        "sourceId": "thirdparty-shared-token"
+      },
+      {
+        "id": "/docs-route",
+        "caseId": "third-party",
+        "kind": "route",
+        "label": "/docs",
+        "route": "/docs"
+      },
+      {
+        "id": "thirdparty-icon",
+        "caseId": "third-party",
+        "kind": "instance",
+        "label": "导航图标",
+        "route": "/docs",
+        "sourceId": "thirdparty-shared-token"
+      },
+      {
+        "id": "thirdparty-icon-slot",
+        "caseId": "third-party",
+        "kind": "slot",
+        "label": "导航图标",
+        "route": "/docs",
+        "sourceId": "thirdparty-shared-token"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/showcase-contains-thirdparty-primary-button",
+        "caseId": "third-party",
+        "type": "contains",
+        "from": "/showcase-route",
+        "to": "thirdparty-primary-button"
+      },
+      {
+        "id": "thirdparty-primary-button-reads-thirdparty-shared-token",
+        "caseId": "third-party",
+        "type": "reads",
+        "from": "thirdparty-primary-button",
+        "to": "thirdparty-shared-token"
+      },
+      {
+        "id": "/showcase-contains-thirdparty-badge",
+        "caseId": "third-party",
+        "type": "contains",
+        "from": "/showcase-route",
+        "to": "thirdparty-badge"
+      },
+      {
+        "id": "thirdparty-badge-reads-thirdparty-shared-token",
+        "caseId": "third-party",
+        "type": "reads",
+        "from": "thirdparty-badge",
+        "to": "thirdparty-shared-token"
+      },
+      {
+        "id": "/docs-contains-thirdparty-icon",
+        "caseId": "third-party",
+        "type": "contains",
+        "from": "/docs-route",
+        "to": "thirdparty-icon"
+      },
+      {
+        "id": "thirdparty-icon-reads-thirdparty-shared-token",
+        "caseId": "third-party",
+        "type": "reads",
+        "from": "thirdparty-icon",
+        "to": "thirdparty-shared-token"
+      }
+    ]
+  },
+  "slots": [
+    {
+      "id": "thirdparty-accent-slot",
+      "instanceId": "thirdparty-primary-button",
+      "sourceId": "thirdparty-shared-token",
+      "label": "共享强调色",
+      "value": "#8B5CF6",
+      "editKind": "TOKEN",
+      "route": "/showcase",
+      "shared": true
+    },
+    {
+      "id": "thirdparty-badge-slot",
+      "instanceId": "thirdparty-badge",
+      "sourceId": "thirdparty-shared-token",
+      "label": "状态标签",
+      "value": "#8B5CF6",
+      "editKind": "TOKEN",
+      "route": "/showcase",
+      "shared": true
+    },
+    {
+      "id": "thirdparty-icon-slot",
+      "instanceId": "thirdparty-icon",
+      "sourceId": "thirdparty-shared-token",
+      "label": "导航图标",
+      "value": "#8B5CF6",
+      "editKind": "TOKEN",
+      "route": "/docs",
+      "shared": true
+    }
+  ],
+  "note": "结构交互示例。该文件不提供真实预演、风险检测或第三方仓库证明。"
+}

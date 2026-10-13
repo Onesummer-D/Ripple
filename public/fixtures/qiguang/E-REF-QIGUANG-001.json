@@ -1,0 +1,225 @@
+{
+  "origin": "fixture",
+  "evidence": {
+    "id": "E-REF-QIGUANG-001",
+    "caseId": "qiguang",
+    "type": "STRUCTURE",
+    "route": "/",
+    "viewport": "fixture",
+    "summary": "共享图片 Source 的三个容器 Fixture",
+    "sourcePath": "fixtures/qiguang/E-REF-QIGUANG-001.json",
+    "verification": "verified",
+    "origin": "fixture"
+  },
+  "graph": {
+    "id": "qiguang-graph-fixture",
+    "caseId": "qiguang",
+    "nodes": [
+      {
+        "id": "/-route",
+        "caseId": "qiguang",
+        "kind": "route",
+        "label": "/",
+        "route": "/"
+      },
+      {
+        "id": "qiguang-home-hero",
+        "caseId": "qiguang",
+        "kind": "instance",
+        "label": "首页横幅海报",
+        "route": "/",
+        "sourceId": "qiguang-shared-poster"
+      },
+      {
+        "id": "qiguang-home-poster-slot",
+        "caseId": "qiguang",
+        "kind": "slot",
+        "label": "首页横幅海报",
+        "route": "/",
+        "sourceId": "qiguang-shared-poster"
+      },
+      {
+        "id": "qiguang-shared-poster",
+        "caseId": "qiguang",
+        "kind": "source",
+        "label": "qiguang-shared-poster"
+      },
+      {
+        "id": "/program-route",
+        "caseId": "qiguang",
+        "kind": "route",
+        "label": "/program",
+        "route": "/program"
+      },
+      {
+        "id": "qiguang-program-wall",
+        "caseId": "qiguang",
+        "kind": "instance",
+        "label": "节目展墙海报",
+        "route": "/program",
+        "sourceId": "qiguang-shared-poster"
+      },
+      {
+        "id": "qiguang-program-poster-slot",
+        "caseId": "qiguang",
+        "kind": "slot",
+        "label": "节目展墙海报",
+        "route": "/program",
+        "sourceId": "qiguang-shared-poster"
+      },
+      {
+        "id": "/tickets-route",
+        "caseId": "qiguang",
+        "kind": "route",
+        "label": "/tickets",
+        "route": "/tickets"
+      },
+      {
+        "id": "qiguang-ticket-card",
+        "caseId": "qiguang",
+        "kind": "instance",
+        "label": "购票卡海报",
+        "route": "/tickets",
+        "sourceId": "qiguang-shared-poster"
+      },
+      {
+        "id": "qiguang-tickets-poster-slot",
+        "caseId": "qiguang",
+        "kind": "slot",
+        "label": "购票卡海报",
+        "route": "/tickets",
+        "sourceId": "qiguang-shared-poster"
+      },
+      {
+        "id": "/archive-route",
+        "caseId": "qiguang",
+        "kind": "route",
+        "label": "/archive",
+        "route": "/archive"
+      },
+      {
+        "id": "qiguang-archive",
+        "caseId": "qiguang",
+        "kind": "instance",
+        "label": "往届回顾海报",
+        "route": "/archive",
+        "sourceId": "qiguang-archive-poster"
+      },
+      {
+        "id": "qiguang-archive-poster-slot",
+        "caseId": "qiguang",
+        "kind": "slot",
+        "label": "往届回顾海报",
+        "route": "/archive",
+        "sourceId": "qiguang-archive-poster"
+      },
+      {
+        "id": "qiguang-archive-poster",
+        "caseId": "qiguang",
+        "kind": "source",
+        "label": "qiguang-archive-poster"
+      }
+    ],
+    "edges": [
+      {
+        "id": "/-contains-qiguang-home-hero",
+        "caseId": "qiguang",
+        "type": "contains",
+        "from": "/-route",
+        "to": "qiguang-home-hero"
+      },
+      {
+        "id": "qiguang-home-hero-reads-qiguang-shared-poster",
+        "caseId": "qiguang",
+        "type": "reads",
+        "from": "qiguang-home-hero",
+        "to": "qiguang-shared-poster"
+      },
+      {
+        "id": "/program-contains-qiguang-program-wall",
+        "caseId": "qiguang",
+        "type": "contains",
+        "from": "/program-route",
+        "to": "qiguang-program-wall"
+      },
+      {
+        "id": "qiguang-program-wall-reads-qiguang-shared-poster",
+        "caseId": "qiguang",
+        "type": "reads",
+        "from": "qiguang-program-wall",
+        "to": "qiguang-shared-poster"
+      },
+      {
+        "id": "/tickets-contains-qiguang-ticket-card",
+        "caseId": "qiguang",
+        "type": "contains",
+        "from": "/tickets-route",
+        "to": "qiguang-ticket-card"
+      },
+      {
+        "id": "qiguang-ticket-card-reads-qiguang-shared-poster",
+        "caseId": "qiguang",
+        "type": "reads",
+        "from": "qiguang-ticket-card",
+        "to": "qiguang-shared-poster"
+      },
+      {
+        "id": "/archive-contains-qiguang-archive",
+        "caseId": "qiguang",
+        "type": "contains",
+        "from": "/archive-route",
+        "to": "qiguang-archive"
+      },
+      {
+        "id": "qiguang-archive-reads-qiguang-archive-poster",
+        "caseId": "qiguang",
+        "type": "reads",
+        "from": "qiguang-archive",
+        "to": "qiguang-archive-poster"
+      }
+    ]
+  },
+  "slots": [
+    {
+      "id": "qiguang-home-poster-slot",
+      "instanceId": "qiguang-home-hero",
+      "sourceId": "qiguang-shared-poster",
+      "label": "首页横幅海报",
+      "value": "/assets/qiguang-original.svg",
+      "editKind": "MEDIA",
+      "route": "/",
+      "shared": true
+    },
+    {
+      "id": "qiguang-program-poster-slot",
+      "instanceId": "qiguang-program-wall",
+      "sourceId": "qiguang-shared-poster",
+      "label": "节目展墙海报",
+      "value": "/assets/qiguang-original.svg",
+      "editKind": "MEDIA",
+      "route": "/program",
+      "shared": true
+    },
+    {
+      "id": "qiguang-tickets-poster-slot",
+      "instanceId": "qiguang-ticket-card",
+      "sourceId": "qiguang-shared-poster",
+      "label": "购票卡海报",
+      "value": "/assets/qiguang-original.svg",
+      "editKind": "MEDIA",
+      "route": "/tickets",
+      "shared": true
+    },
+    {
+      "id": "qiguang-archive-poster-slot",
+      "instanceId": "qiguang-archive",
+      "sourceId": "qiguang-archive-poster",
+      "label": "往届回顾海报",
+      "value": "/assets/qiguang-archive.svg",
+      "editKind": "MEDIA",
+      "route": "/archive",
+      "shared": false
+    }
+  ],
+  "note": "结构交互示例。该文件不提供真实预演、风险检测或第三方仓库证明。"
+}

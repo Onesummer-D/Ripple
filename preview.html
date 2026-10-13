@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ripple Foundation Preview</title>
+  <link rel="stylesheet" href="./src/styles.css">
+  <style>
+    .preview-hidden { display: none !important; }
+    .preview-card { border: 0; color: inherit; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-mark"><div class="brand-orbit">≈</div><div><strong>Ripple</strong><span>涟漪工作台</span></div></div>
+      <nav class="side-nav" aria-label="主导航">
+        <button class="nav-item active" id="space-nav" data-testid="nav-space">▦ 作品空间</button>
+        <button class="nav-item" id="case-nav" data-testid="nav-case">✦ 编辑演示</button>
+      </nav>
+      <div class="sidebar-footer"><div class="status-dot"><span></span>本地演示环境</div><div class="sidebar-note">改动上线前<br><b>先看见波及</b></div></div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar"><div><span class="eyebrow">RIPPLE / IMPACT-AWARE EDITING</span><h1 id="page-title">作品空间</h1></div><div class="topbar-actions"><button class="ghost-button preview-hidden" id="back-button" data-testid="back-space">‹ 返回空间</button><button class="ghost-button preview-hidden" id="reset-button" data-testid="reset-case">↻ 重置案例</button></div></header>
+      <div id="space-view" class="page-stack">
+        <section class="hero-card"><div class="hero-copy"><span class="kicker">影响感知式编辑 · FOUNDATION 01</span><h2>每一次修改，<br><em>先看见它会碰到哪里。</em></h2><p>Ripple 把数字作品里的隐藏关联、真实预演和范围决策，变成一条可理解、可回退的编辑路径。</p><div class="hero-meta"><span><span class="pulse"></span>3 个演示案例</span><span>375 / 768 / 1440</span><span>Fixture 驱动</span></div></div><div class="hero-ripple"><div class="ripple-ring ring-one"></div><div class="ripple-ring ring-two"></div><div class="ripple-ring ring-three"></div><div class="ripple-core">≈</div></div></section>
+        <div class="section-heading"><div><span class="eyebrow">CASE LIBRARY</span><h2>选择一个作品，开始看见涟漪</h2></div><span class="muted">Phase 01 · 可重置 Fixture</span></div>
+        <section class="case-grid">
+          <button class="case-card preview-card" data-testid="case-card-qingye" data-case="青野文创" data-subtitle="改一句话，决定影响范围" data-value="秋日上新" data-accent="#D8A36B"><div class="case-card-top"><span class="case-index">01</span><span class="case-kind" style="color:#D8A36B">文字 Source</span></div><div class="case-visual" style="--accent:#D8A36B"><div class="visual-grid"></div><div class="visual-wave"></div><span class="visual-label">青野秋日</span></div><div class="case-copy"><h3>青野文创</h3><p>改一句话，决定影响范围</p><span class="case-enter">进入案例 →</span></div></button>
+          <button class="case-card preview-card" data-testid="case-card-qiguang" data-case="栖光艺术节" data-subtitle="换一张海报，看见三种呈现" data-value="16:9 · Mirage" data-accent="#F97316"><div class="case-card-top"><span class="case-index">02</span><span class="case-kind" style="color:#F97316">图片 Source</span></div><div class="case-visual" style="--accent:#F97316"><div class="visual-grid"></div><div class="visual-wave"></div><span class="visual-label">栖光 FEST</span></div><div class="case-copy"><h3>栖光艺术节</h3><p>换一张海报，看见三种呈现</p><span class="case-enter">进入案例 →</span></div></button>
+          <button class="case-card preview-card" data-testid="case-card-third-party" data-case="第三方开源站" data-subtitle="改一个强调色，看见整套联动" data-value="#8B5CF6" data-accent="#8B5CF6"><div class="case-card-top"><span class="case-index">03</span><span class="case-kind" style="color:#8B5CF6">色彩 Token</span></div><div class="case-visual" style="--accent:#8B5CF6"><div class="visual-grid"></div><div class="visual-wave"></div><span class="visual-label">OPEN SOURCE</span></div><div class="case-copy"><h3>第三方开源站</h3><p>改一个强调色，看见整套联动</p><span class="case-enter">进入案例 →</span></div></button>
+        </section>
+        <section class="principle-strip">ⓘ<div><strong>同组件，不等于同来源。</strong><span>About 与 Archive 的独立 source 会在关系图中被明确排除。</span></div><span class="strip-tag">NEGATIVE CASE READY</span></section>
+      </div>
+      <div id="case-view" class="workspace preview-hidden">
+        <div class="workspace-banner" style="--accent:#D8A36B"><div><span class="eyebrow">CASE / QINGYE</span><h2 id="case-subtitle">改一句话，决定影响范围</h2><p>共享标题会波及首页、秋季活动页与商品专题页；品牌故事页使用独立来源。</p></div><div class="banner-status"><span class="status-pill"><span class="pulse"></span>Fixture loaded</span><span>F01 · F02 · F03 · F04</span></div></div>
+        <div class="workspace-grid"><section class="canvas-panel"><div class="panel-header"><div><span class="eyebrow">WORKSPACE CANVAS</span><h3>真实作品画布 · <span id="case-name">青野文创</span></h3></div><span class="viewport-chip">1440 × 900</span></div><div class="canvas-stage" style="--accent:#D8A36B"><div class="canvas-toolbar"><span class="browser-dot red"></span><span class="browser-dot yellow"></span><span class="browser-dot green"></span><span class="canvas-route">ripple.local/</span></div><div class="canvas-content"><span class="canvas-label">青野文创 · Autumn Edit</span><strong id="canvas-value">秋日上新</strong><p>候选编辑、影响面板与范围决策将在后续阶段接入。</p><div class="canvas-button">查看作品 →</div></div><div class="canvas-ripple"><span></span><span></span><span></span></div></div><div class="device-row"><span class="device-label">预演视口</span><div class="device-chip highlighted"><span class="device-icon"></span>375 × 812</div><div class="device-chip"><span class="device-icon"></span>768 × 1024</div><div class="device-chip"><span class="device-icon"></span>1440 × 900</div></div></section><aside class="inspector-panel"><div class="panel-header"><div><span class="eyebrow">SOURCE / SLOT</span><h3>campaign.autumn.title</h3></div><span class="version-badge">v1</span></div><div class="inspector-summary"><div class="summary-icon">≈</div><div><strong>3 个关联实例</strong><span>4 个可编辑位置 · 4 个 Fixture</span></div></div><div class="slot-list"><div class="slot-row"><div class="slot-marker" style="background:#D8A36B"></div><div class="slot-info"><strong>首页秋日标题</strong><span>/ · 共享 Source</span></div><span class="slot-value">秋日上新</span></div><div class="slot-row"><div class="slot-marker" style="background:#D8A36B"></div><div class="slot-info"><strong>活动页秋日标题</strong><span>/autumn · 共享 Source</span></div><span class="slot-value">秋日上新</span></div><div class="slot-row"><div class="slot-marker" style="background:#596273"></div><div class="slot-info"><strong>品牌故事标题</strong><span>/about · 独立 Source</span></div><span class="slot-value">我们的故事</span></div></div><div class="next-step"><div class="step-number">01</div><div><strong>下一步：选中一个 Slot</strong><span>候选输入、影响面板与范围决策将在后续阶段接入。</span></div>✓</div><button class="reset-link" id="inline-reset" data-testid="reset-case-inline">↻ 重置此案例到 Fixture 初始状态</button></aside></div>
+        <div class="handoff-note">✦ <span>A Foundation 已就绪：B 可通过 adapter 替换 Fixture，C 可使用稳定状态稿，D 可从 reset 入口开始验收。</span></div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const space = document.getElementById('space-view');
+    const caseView = document.getElementById('case-view');
+    const pageTitle = document.getElementById('page-title');
+    const back = document.getElementById('back-button');
+    const reset = document.getElementById('reset-button');
+    const showCase = (button) => {
+      space.classList.add('preview-hidden');
+      caseView.classList.remove('preview-hidden');
+      pageTitle.textContent = button.dataset.case;
+      document.getElementById('case-name').textContent = button.dataset.case;
+      document.getElementById('case-subtitle').textContent = button.dataset.subtitle;
+      document.getElementById('canvas-value').textContent = button.dataset.value;
+      document.querySelector('.workspace-banner').style.setProperty('--accent', button.dataset.accent);
+      document.querySelector('.canvas-stage').style.setProperty('--accent', button.dataset.accent);
+      back.classList.remove('preview-hidden');
+      reset.classList.remove('preview-hidden');
+    };
+    document.querySelectorAll('[data-case]').forEach((button) => button.addEventListener('click', () => showCase(button)));
+    const showSpace = () => {
+      space.classList.remove('preview-hidden');
+      caseView.classList.add('preview-hidden');
+      pageTitle.textContent = '作品空间';
+      back.classList.add('preview-hidden');
+      reset.classList.add('preview-hidden');
+    };
+    back.addEventListener('click', showSpace);
+    document.getElementById('space-nav').addEventListener('click', showSpace);
+    document.getElementById('case-nav').addEventListener('click', () => showCase(document.querySelector('[data-case]')));
+    reset.addEventListener('click', () => { document.getElementById('canvas-value').textContent = '秋日上新'; });
+    document.getElementById('inline-reset').addEventListener('click', () => { document.getElementById('canvas-value').textContent = '秋日上新'; });
+  </script>
+</body>
+</html>

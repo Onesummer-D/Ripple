@@ -1,0 +1,111 @@
+import { expect, test } from '@playwright/test'
+import fs from 'node:fs'
+import path from 'node:path'
+
+const acceptanceDate = process.env.RIPPLE_ACCEPTANCE_DATE ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date())
+const evidence = path.resolve('../../docs/acceptance', acceptanceDate, 'evidence')
+
+for (const width of [375, 768, 1440]) {
+  test(`page/device and Evidence navigation at shell ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 375 ? 812 : 1024 })
+    await page.goto('/')
+    await page.getByTestId('case-card-qingye').click()
+    await page.getByTestId('slot-qingye-home-title-slot').click()
+    const candidate = '秋日限定上新，精选好物低至五折，周末会员还有专属惊喜'
+    await page.getByTestId('candidate-input').fill(candidate)
+    await page.getByTestId('create-candidate').click()
+    await page.getByTestId('scope-shared').click()
+    await expect(page.getByTestId('relationship-count')).toHaveText('3 个受影响实例')
+    await page.getByTestId('preview-route-autumn').click()
+    const frame = page.frameLocator('[data-testid="page-frame"]')
+    await expect(frame.locator('[data-slot-id="qingye-autumn-title-slot"]')).toHaveText(candidate)
+    const measured = []
+    const liveReports = []
+    for (const deviceWidth of [375, 768, 1440]) {
+      await page.getByTestId(`viewport-${deviceWidth}`).click()
+      await expect.poll(() => frame.locator('body').evaluate(() => innerWidth)).toBe(deviceWidth)
+      await expect(page.getByTestId('measurement-panel')).toHaveAttribute('data-measurement-width', String(deviceWidth))
+      const live = JSON.parse(await page.getByTestId('measurement-panel').locator('pre').textContent() ?? '{}')
+      expect(live.context.candidateValue).toBe(candidate)
+      expect(live.context.scopeMode).toBe('SHARED')
+      liveReports.push(live)
+      measured.push(await frame.locator('body').evaluate(() => {
+        const title = document.querySelector('[data-slot-id]')!.getBoundingClientRect()
+        const cta = document.querySelector('[data-testid="purchase-cta"]')!.getBoundingClientRect()
+        return { width: innerWidth, title: { x: title.x, y: title.y, width: title.width, height: title.height }, cta: { x: cta.x, y: cta.y, width: cta.width, height: cta.height }, overlaps: title.left < cta.right && title.right > cta.left && title.top < cta.bottom && title.bottom > cta.top }
+      }))
+    }
+    expect(measured.find((result) => result.width === 375)?.overlaps).toBe(true)
+    expect(measured.find((result) => result.width === 768)?.overlaps).toBe(false)
+    expect(measured.find((result) => result.width === 1440)?.overlaps).toBe(false)
+    await page.getByTestId('viewport-375').click()
+    await expect(page.getByTestId('measurement-summary')).toHaveText('标题与购买按钮重叠')
+    await expect(page.getByTestId('measurement-panel')).toHaveAttribute('data-measurement-width', '375')
+    await page.getByTestId('page-preview').screenshot({ path: path.join(evidence, `qingye-shared-risk-${width}.png`) })
+    await page.getByTestId('scope-instance').click()
+    await expect(page.getByTestId('relationship-count')).toHaveText('1 个受影响实例')
+    await expect(page.getByTestId('measurement-summary')).toHaveText('当前标题与购买按钮未重叠')
+    const localReport = JSON.parse(await page.getByTestId('measurement-panel').locator('pre').textContent() ?? '{}')
+    expect(localReport.context.scopeMode).toBe('INSTANCE')
+    fs.writeFileSync(path.join(evidence, `live-risk-${width}.json`), JSON.stringify({ shared: liveReports, local: localReport }, null, 2))
+    await expect(frame.locator('[data-slot-id="qingye-autumn-title-slot"]')).toHaveText('秋日上新')
+    const localOverlap = await frame.locator('body').evaluate(() => {
+      const title = document.querySelector('[data-slot-id]')!.getBoundingClientRect()
+      const cta = document.querySelector('[data-testid="purchase-cta"]')!.getBoundingClientRect()
+      return title.left < cta.right && title.right > cta.left && title.top < cta.bottom && title.bottom > cta.top
+    })
+    expect(localOverlap).toBe(false)
+    await page.getByTestId('page-preview').screenshot({ path: path.join(evidence, `qingye-local-resolved-${width}.png`) })
+    await page.getByTestId('preview-route-home').click()
+    await expect(frame.locator('[data-slot-id="qingye-home-title-slot"]')).toHaveText(candidate)
+    await page.getByTestId('preview-draft').click()
+    await expect(frame.locator('[data-slot-id="qingye-home-title-slot"]')).toHaveText('秋日上新')
+    await page.getByTestId('repreview').click()
+    await expect(frame.locator('[data-slot-id="qingye-home-title-slot"]')).toHaveText(candidate)
+    await page.getByTestId('preview-route-about').click()
+    await expect(frame.locator('[data-slot-id="qingye-about-title-slot"]')).toHaveText('我们的故事')
+    await expect(page.getByTestId('scope-instance')).toHaveAttribute('aria-pressed', 'true')
+    await page.getByTestId('relation-qingye-autumn-title').click()
+    await expect(page.getByTestId('measurement-panel')).toHaveAttribute('data-measurement-route', '/autumn')
+    await expect(page.getByTestId('measurement-summary')).toHaveText('当前标题与购买按钮未重叠')
+    await page.getByTestId('apply-draft').click()
+    await expect(page.getByTestId('snapshot-evidence')).toBeVisible()
+    await page.getByTestId('snapshot-evidence').locator('button.evidence-open').click()
+    await expect(page.getByRole('dialog', { name: 'Evidence 详情' }).getByRole('link', { name: '下载此版本测量 JSON' })).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await page.getByTestId('evidence-E-REF-QINGYE-001').click()
+    const dialog = page.getByRole('dialog', { name: 'Evidence 详情', exact: true })
+    await expect(dialog.getByRole('link', { name: '打开证据文件' })).toHaveAttribute('href', '/fixtures/qingye/E-REF-QINGYE-001.json')
+    await expect(dialog.locator('pre')).toContainText('"origin": "fixture"')
+    await page.keyboard.press('Escape')
+    await expect(dialog).not.toBeVisible()
+    await page.getByTestId('evidence-E-VIEW-QINGYE-001').click()
+    await page.getByTestId('focus-evidence-route').click()
+    await expect(page.locator('.canvas-route')).toHaveText('ripple.local/autumn')
+    await expect.poll(() => frame.locator('body').evaluate(() => innerWidth)).toBe(375)
+    await expect(page.getByTestId('scope-instance')).toHaveAttribute('aria-pressed', 'true')
+    await expect(frame.locator('[data-slot-id="qingye-autumn-title-slot"]')).toHaveText('秋日上新')
+    await page.getByTestId('viewport-768').click()
+    await expect.poll(() => frame.locator('body').evaluate(() => innerWidth)).toBe(768)
+    await page.getByTestId('page-preview').screenshot({ path: path.join(evidence, `page-preview-${width}.png`) })
+    fs.writeFileSync(path.join(evidence, `qingye-layout-${width}.json`), JSON.stringify({ origin: 'A local page browser measurement', route: '/autumn', selectedSlotId: 'qingye-home-title-slot', sourceId: 'qingye-shared-title', candidateValue: candidate, shellWidth: width, shared: measured, local375Overlaps: localOverlap, sharedScreenshot: `qingye-shared-risk-${width}.png`, localScreenshot: `qingye-local-resolved-${width}.png` }, null, 2))
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+
+    await page.getByTestId('nav-space').click()
+    await page.getByTestId('case-card-qiguang').click()
+    for (const [route, slotId] of [['home', 'qiguang-home-poster-slot'], ['program', 'qiguang-program-poster-slot'], ['tickets', 'qiguang-tickets-poster-slot'], ['archive', 'qiguang-archive-poster-slot']]) {
+      await page.getByTestId(`preview-route-${route}`).click()
+      await expect(frame.locator(`[data-slot-id="${slotId}"]`)).toBeVisible()
+    }
+    await page.getByTestId('evidence-E-VIEW-QIGUANG-001').click()
+    await page.getByTestId('focus-evidence-route').click()
+    await expect.poll(() => frame.locator('body').evaluate(() => innerWidth)).toBe(768)
+    await expect(page.locator('.canvas-route')).toHaveText('ripple.local/program')
+    await page.getByTestId('nav-space').click()
+    await page.getByTestId('case-card-third-party').click()
+    await page.getByTestId('evidence-E-UNKNOWN-THIRD-001').click()
+    await expect(dialog.getByText('证据尚未验证，暂未提供可用检测文件。')).toBeVisible()
+    await expect(dialog.getByRole('link')).toHaveCount(0)
+  })
+}
