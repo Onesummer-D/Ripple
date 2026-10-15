@@ -1,0 +1,5 @@
+
+> ripple-editor@0.1.0 test
+> vitest --run --reporter=json --outputFile=D:\Onesummer_D\Learning\Competitons\ShuMei_QG\docs\acceptance\2026-10-15\evidence\vitest-results.json
+
+JSON report written to D:/Onesummer_D/Learning/Competitons/ShuMei_QG/docs/acceptance/2026-10-15/evidence/vitest-results.json

@@ -1,0 +1,172 @@
+{
+  "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs",
+  "acceptanceDate": "2026-10-15",
+  "generatedAt": "2026-10-15T06:01:17.894Z",
+  "checks": [
+    {
+      "name": "fixture validation",
+      "detail": "pass"
+    },
+    {
+      "name": "three case runtime flows",
+      "detail": "pass"
+    },
+    {
+      "name": "route preview projections match impact",
+      "detail": "pass"
+    },
+    {
+      "name": "instance/shared projections differ",
+      "detail": "pass"
+    },
+    {
+      "name": "restore returns initial values",
+      "detail": "pass"
+    },
+    {
+      "name": "negative routes remain unchanged",
+      "detail": "pass"
+    },
+    {
+      "name": "selector value projection is immutable",
+      "detail": "pass"
+    },
+    {
+      "name": "real adapter preserves unknown evidence",
+      "detail": "pass"
+    },
+    {
+      "name": "real adapter reports malformed input",
+      "detail": "pass"
+    }
+  ],
+  "cases": [
+    {
+      "caseId": "qingye",
+      "mode": "INSTANCE",
+      "snapshotId": "qingye-snapshot-1",
+      "affectedInstanceIds": [
+        "qingye-home-title"
+      ],
+      "projectedNodes": 1,
+      "projectedRoutes": [
+        "/"
+      ],
+      "routePreviewRoutes": [
+        "/"
+      ],
+      "expectedRoutes": [
+        "/"
+      ],
+      "excludedRoutes": [
+        "/about"
+      ],
+      "changedRoutes": [
+        "/"
+      ],
+      "unchangedRoutes": [
+        "/autumn",
+        "/collection",
+        "/about"
+      ],
+      "restoredValues": {
+        "qingye-home-title-slot": "秋日上新",
+        "qingye-autumn-title-slot": "秋日上新",
+        "qingye-collection-title-slot": "秋日上新",
+        "qingye-about-title-slot": "我们的故事"
+      },
+      "initialValues": {
+        "qingye-home-title-slot": "秋日上新",
+        "qingye-autumn-title-slot": "秋日上新",
+        "qingye-collection-title-slot": "秋日上新",
+        "qingye-about-title-slot": "我们的故事"
+      }
+    },
+    {
+      "caseId": "qiguang",
+      "mode": "SHARED",
+      "snapshotId": "qiguang-snapshot-1",
+      "affectedInstanceIds": [
+        "qiguang-home-hero",
+        "qiguang-program-wall",
+        "qiguang-ticket-card"
+      ],
+      "projectedNodes": 3,
+      "projectedRoutes": [
+        "/",
+        "/program",
+        "/tickets"
+      ],
+      "routePreviewRoutes": [
+        "/",
+        "/program",
+        "/tickets"
+      ],
+      "expectedRoutes": [
+        "/",
+        "/program",
+        "/tickets"
+      ],
+      "excludedRoutes": [
+        "/archive"
+      ],
+      "changedRoutes": [
+        "/",
+        "/program",
+        "/tickets"
+      ],
+      "unchangedRoutes": [
+        "/archive"
+      ],
+      "restoredValues": {
+        "qiguang-home-poster-slot": "/assets/qiguang-original.svg",
+        "qiguang-program-poster-slot": "/assets/qiguang-original.svg",
+        "qiguang-tickets-poster-slot": "/assets/qiguang-original.svg",
+        "qiguang-archive-poster-slot": "/assets/qiguang-archive.svg"
+      },
+      "initialValues": {
+        "qiguang-home-poster-slot": "/assets/qiguang-original.svg",
+        "qiguang-program-poster-slot": "/assets/qiguang-original.svg",
+        "qiguang-tickets-poster-slot": "/assets/qiguang-original.svg",
+        "qiguang-archive-poster-slot": "/assets/qiguang-archive.svg"
+      }
+    },
+    {
+      "caseId": "third-party",
+      "mode": "INSTANCE",
+      "snapshotId": "third-party-snapshot-1",
+      "affectedInstanceIds": [
+        "thirdparty-primary-button"
+      ],
+      "projectedNodes": 1,
+      "projectedRoutes": [
+        "/showcase"
+      ],
+      "routePreviewRoutes": [
+        "/showcase"
+      ],
+      "expectedRoutes": [
+        "/showcase"
+      ],
+      "excludedRoutes": [],
+      "changedRoutes": [
+        "/showcase"
+      ],
+      "unchangedRoutes": [
+        "/showcase",
+        "/docs"
+      ],
+      "restoredValues": {
+        "thirdparty-accent-slot": "#8B5CF6",
+        "thirdparty-badge-slot": "#8B5CF6",
+        "thirdparty-icon-slot": "#8B5CF6"
+      },
+      "initialValues": {
+        "thirdparty-accent-slot": "#8B5CF6",
+        "thirdparty-badge-slot": "#8B5CF6",
+        "thirdparty-icon-slot": "#8B5CF6"
+      }
+    }
+  ],
+  "skipped": 0
+}

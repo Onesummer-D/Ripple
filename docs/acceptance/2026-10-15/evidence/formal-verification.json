@@ -1,0 +1,43 @@
+{
+  "acceptanceDate": "2026-10-15",
+  "generatedAt": "2026-10-15T06:00:48.368Z",
+  "sourceDigest": "b06c3268974314723e42169b4003ab55821f42c50c47af1d2e79feb5ac815640",
+  "passed": true,
+  "results": [
+    {
+      "name": "typecheck",
+      "args": [
+        "run",
+        "typecheck"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "args": [
+        "run",
+        "build"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "test",
+      "args": [
+        "test",
+        "--",
+        "--run",
+        "--reporter=json",
+        "--outputFile=D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\docs\\acceptance\\2026-10-15\\evidence\\vitest-results.json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "browser",
+      "args": [
+        "run",
+        "test:browser"
+      ],
+      "exitCode": 0
+    }
+  ]
+}

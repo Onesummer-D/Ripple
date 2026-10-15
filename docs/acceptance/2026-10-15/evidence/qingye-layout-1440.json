@@ -1,0 +1,61 @@
+{
+  "origin": "A local page browser measurement",
+  "route": "/autumn",
+  "selectedSlotId": "qingye-home-title-slot",
+  "sourceId": "qingye-shared-title",
+  "candidateValue": "秋日限定上新，精选好物低至五折，周末会员还有专属惊喜",
+  "shellWidth": 1440,
+  "shared": [
+    {
+      "width": 375,
+      "title": {
+        "x": 42,
+        "y": 194.984375,
+        "width": 291,
+        "height": 156.125
+      },
+      "cta": {
+        "x": 42,
+        "y": 260.59375,
+        "width": 156,
+        "height": 46.390625
+      },
+      "overlaps": true
+    },
+    {
+      "width": 768,
+      "title": {
+        "x": 66.390625,
+        "y": 182.1875,
+        "width": 635.21875,
+        "height": 99.09375
+      },
+      "cta": {
+        "x": 66.390625,
+        "y": 319.796875,
+        "width": 156,
+        "height": 46.390625
+      },
+      "overlaps": false
+    },
+    {
+      "width": 1440,
+      "title": {
+        "x": 180,
+        "y": 182.1875,
+        "width": 780,
+        "height": 99.09375
+      },
+      "cta": {
+        "x": 180,
+        "y": 319.796875,
+        "width": 156,
+        "height": 46.390625
+      },
+      "overlaps": false
+    }
+  ],
+  "local375Overlaps": false,
+  "sharedScreenshot": "qingye-shared-risk-1440.png",
+  "localScreenshot": "qingye-local-resolved-1440.png"
+}

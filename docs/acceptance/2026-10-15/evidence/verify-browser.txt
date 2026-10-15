@@ -1,0 +1,19 @@
+
+> ripple-editor@0.1.0 test:browser
+> playwright test
+
+[WebServer] (node:17448) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:43588) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 e2e\editor.spec.ts:8:3 › text, media and token editing at 375 (11.0s)
+  ok 2 e2e\editor.spec.ts:8:3 › text, media and token editing at 768 (3.3s)
+  ok 3 e2e\editor.spec.ts:8:3 › text, media and token editing at 1440 (3.5s)
+  ok 4 e2e\preview.spec.ts:9:3 › page/device and Evidence navigation at shell 375 (4.0s)
+  ok 5 e2e\preview.spec.ts:9:3 › page/device and Evidence navigation at shell 768 (3.8s)
+  ok 6 e2e\preview.spec.ts:9:3 › page/device and Evidence navigation at shell 1440 (3.9s)
+
+  6 passed (32.3s)

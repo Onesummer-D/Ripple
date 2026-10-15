@@ -1,0 +1,92 @@
+{
+  "phase": "05-hardening-and-acceptance",
+  "command": "npm run acceptance:phase5",
+  "acceptanceDate": "2026-10-15",
+  "generatedAt": "2026-10-15T06:01:21.035Z",
+  "checks": [
+    {
+      "name": "fixture coverage",
+      "detail": "pass"
+    },
+    {
+      "name": "truth matrix coverage",
+      "detail": "pass"
+    },
+    {
+      "name": "fixture-derived local scope",
+      "detail": "pass"
+    },
+    {
+      "name": "derived selector boundary",
+      "detail": "pass"
+    },
+    {
+      "name": "core contracts remain typed",
+      "detail": "pass"
+    },
+    {
+      "name": "state transition coverage",
+      "detail": "pass"
+    },
+    {
+      "name": "stable editor controls",
+      "detail": "pass"
+    },
+    {
+      "name": "accessible state controls",
+      "detail": "pass"
+    },
+    {
+      "name": "responsive viewport contract",
+      "detail": "pass"
+    },
+    {
+      "name": "route preview responsive",
+      "detail": "pass"
+    },
+    {
+      "name": "horizontal overflow guard",
+      "detail": "pass"
+    },
+    {
+      "name": "offline font fallback",
+      "detail": "pass"
+    },
+    {
+      "name": "adapter handoff docs",
+      "detail": "pass"
+    },
+    {
+      "name": "architecture boundary docs",
+      "detail": "pass"
+    },
+    {
+      "name": "unknown evidence semantics",
+      "detail": "pass"
+    },
+    {
+      "name": "required scripts",
+      "detail": "pass"
+    },
+    {
+      "name": "node runtime smoke entry",
+      "detail": "pass"
+    },
+    {
+      "name": "dependency-free preview server",
+      "detail": "pass"
+    },
+    {
+      "name": "deterministic preview entry",
+      "detail": "pass"
+    }
+  ],
+  "skipped": 0,
+  "runtime": {
+    "dependenciesInstalled": true,
+    "nodeRuntimeSmokeEvidence": true,
+    "formalVerificationCurrent": true,
+    "runtimeChecksPending": false,
+    "blockers": []
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "E-LIVE-qiguang-7d4c8181-2d16-4051-a45d-a28c5843784d-10",
+  "caseId": "qiguang",
+  "type": "LAYOUT",
+  "route": "/program",
+  "viewport": "375x812",
+  "summary": "当前页面浏览器布局观测",
+  "sourcePath": "inline://E-LIVE-qiguang-7d4c8181-2d16-4051-a45d-a28c5843784d-10",
+  "origin": "real",
+  "producer": "A-preview",
+  "verification": "verified",
+  "context": {
+    "previewMode": "candidate",
+    "previewKey": "8a4b9424-d422-4c79-a20c-0a3b0bb3d02e",
+    "candidateEditId": "qiguang-candidate-qiguang-program-poster-slot",
+    "candidateValue": "media://03495b0d-6716-44ef-a30e-b3915c1e8121",
+    "scopeDecisionId": "qiguang-scope-shared",
+    "scopeMode": "SHARED"
+  },
+  "measurement": {
+    "measuredAt": "2026-10-15T06:00:30.361Z",
+    "width": 375,
+    "height": 812,
+    "slots": [
+      {
+        "slotId": "qiguang-program-poster-slot",
+        "instanceId": "qiguang-program-wall",
+        "sourceId": "qiguang-shared-poster",
+        "rect": {
+          "x": 22,
+          "y": 240.984375,
+          "width": 331,
+          "height": 413.75
+        },
+        "media": {
+          "naturalWidth": 400,
+          "naturalHeight": 500,
+          "objectFit": "cover",
+          "objectPosition": "50% 50%"
+        }
+      }
+    ]
+  }
+}

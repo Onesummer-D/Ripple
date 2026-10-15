@@ -6,6 +6,7 @@ import { previewViewports, type PreviewViewport } from '../preview/viewports'
 import { withMeasurementBridge } from '../preview/measurementBridge'
 import { usePreviewMeasurement } from './usePreviewMeasurement'
 import { MeasurementPanel } from './MeasurementPanel'
+import { ExplanationPanel } from './ExplanationPanel'
 
 export function PagePreview({ caseId, route, values, resources, viewport, onViewportChange, mode, onModeChange, hasCandidate, revision, onRepreview, context, onEvidence }: {
   caseId: CaseId
@@ -46,5 +47,6 @@ export function PagePreview({ caseId, route, values, resources, viewport, onView
     <div ref={host} className="viewport-host"><div className="viewport-size" style={{ width: viewport.width * scale, height: viewport.height * scale }}><iframe ref={frame} onLoad={measurement.request} key={requestKey} data-testid="page-frame" title={`${caseId} ${route} ${viewport.width} 页面预览`} sandbox="allow-scripts" srcDoc={document} width={viewport.width} height={viewport.height} style={{ transform: `scale(${scale})` }} /></div></div>
     <p className="preview-caption">页面按 {viewport.label} 布局，缩放仅适配工作台空间 · {mode === 'candidate' && hasCandidate ? '候选预览' : '当前草稿'}</p>
     {measurement.unavailable ? <p role="status" className="input-error">当前页面测量尚未就绪，可重新预演后再试。</p> : <MeasurementPanel evidence={measurement.evidence} />}
+    <ExplanationPanel evidence={measurement.evidence} onFocus={() => host.current?.scrollIntoView?.({ block: 'start' })} />
   </section>
 }

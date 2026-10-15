@@ -1,0 +1,9 @@
+{
+  "command": "npm run acceptance:phase5",
+  "acceptanceDate": "2026-10-15",
+  "skipped": 0,
+  "dependenciesInstalled": true,
+  "nodeRuntimeSmokeEvidence": true,
+  "runtimeChecksPending": false,
+  "blockers": []
+}

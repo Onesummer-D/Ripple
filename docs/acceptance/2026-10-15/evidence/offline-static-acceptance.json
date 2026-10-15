@@ -1,0 +1,62 @@
+{
+  "command": "npm run smoke:static",
+  "acceptanceDate": "2026-10-15",
+  "generatedAt": "2026-10-15T06:01:17.794Z",
+  "checks": [
+    {
+      "name": "fixture IDs F01-F10",
+      "detail": "pass"
+    },
+    {
+      "name": "source brace balance",
+      "detail": "pass"
+    },
+    {
+      "name": "typed contract names",
+      "detail": "pass"
+    },
+    {
+      "name": "case identities",
+      "detail": "pass"
+    },
+    {
+      "name": "truth matrix F01-F10",
+      "detail": "pass"
+    },
+    {
+      "name": "editor test IDs",
+      "detail": "pass"
+    },
+    {
+      "name": "adapter diagnostics UI",
+      "detail": "pass"
+    },
+    {
+      "name": "history state commands",
+      "detail": "pass"
+    },
+    {
+      "name": "derived app selectors",
+      "detail": "pass"
+    },
+    {
+      "name": "adapter safety markers",
+      "detail": "pass"
+    },
+    {
+      "name": "viewport coverage markers",
+      "detail": "pass"
+    },
+    {
+      "name": "package scripts",
+      "detail": "pass"
+    },
+    {
+      "name": "static preview entry",
+      "detail": "pass"
+    }
+  ],
+  "runtime": {
+    "dependenciesInstalled": true
+  }
+}

@@ -185,4 +185,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid #b8a8ff; outline-
 .evidence-state { width: fit-content; color: #72d2aa; background: #1e3a31; border-radius: 3px; padding: 2px 4px; font: 7px 'DM Mono', monospace; }
 .evidence-state.fixture { color: #c0b4ff; background: #30284d; }
 .evidence-state.unknown { color: #efb66f; background: #45321d; }
+.explanation-panel { margin-top: 16px; padding: 16px; border: 1px solid #393448; border-radius: 10px; background: #17141f; }
+.explanation-panel header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.explanation-panel h3 { margin: 0; font-size: 15px; }
+.explanation-panel header > span { color: #b9adc9; font-size: 11px; }
+.explanation-cards { display: grid; gap: 10px; margin-top: 14px; }
+.explanation-card { min-width: 0; padding: 14px; border-left: 3px solid #8a79bd; border-radius: 6px; background: #211c2d; }
+.explanation-card.risk { border-color: #dfae6b; background: #30251b; }
+.explanation-card.unknown { border-color: #a59a85; }
+.explanation-state { color: #dccaff; font-size: 11px; }
+.explanation-card.risk .explanation-state { color: #ffd49b; }
+.explanation-card h4 { margin: 8px 0; font-size: 14px; }
+.explanation-card p { margin: 7px 0; color: #dfd8e9; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.explanation-card .explanation-suggestion { color: #bcb1ca; }
+.explanation-card small { display: block; color: #b5a7cb; font-size: 10px; overflow-wrap: anywhere; }
 .evidence-row small { display: block; color: #657174; font: 7px 'DM Mono', monospace; margin-top: 2px; }

@@ -13,6 +13,7 @@ import { PagePreview } from './PagePreview'
 import { EvidencePanel } from './EvidencePanel'
 import { previewViewports, viewportForEvidence, type PreviewViewport } from '../preview/viewports'
 import { RelationshipMap } from './RelationshipMap'
+import { SourceExplanation } from './SourceExplanation'
 
 type View = 'space' | 'case'
 
@@ -245,6 +246,7 @@ function CaseView({
           <div className="panel-header"><div><span className="eyebrow">WORKSPACE CANVAS</span><h3>作品草稿画布 · {fixture.name}</h3></div><span className="viewport-chip">{viewport.label}</span></div>
           <div className="page-route-tabs" aria-label="预览页面">{routePreviews.map((item) => <button type="button" className="ghost-button" key={item.route} aria-pressed={previewRoute === item.route} onClick={() => setPreviewRoute(item.route)} data-testid={`preview-route-${item.route === '/' ? 'home' : item.route.slice(1)}`}>{item.route}</button>)}</div>
           <RelationshipMap fixture={fixture} sourceId={runtime.candidate?.sourceId ?? selectedSlot?.sourceId ?? fixture.slots[0]?.sourceId ?? ''} decision={runtime.decision} onFocusRoute={setPreviewRoute} />
+          {runtime.candidate && runtime.status !== 'applied' && <SourceExplanation fixture={fixture} candidate={runtime.candidate} decision={runtime.decision} onScope={(mode) => { handleChooseScope(mode); setPreviewMode('candidate'); setPreviewRevision((revision) => revision + 1) }} />}
           <PagePreview caseId={fixture.id} route={previewRoute} values={displayedValues} resources={resources} viewport={viewport} onViewportChange={setViewport} mode={previewMode} onModeChange={setPreviewMode} hasCandidate={Boolean(runtime.candidate && runtime.status !== 'applied')} revision={previewRevision} onRepreview={() => { setPreviewMode('candidate'); setPreviewRevision((revision) => revision + 1) }} context={{ previewMode: effectivePreviewMode, previewKey, candidateEditId: runtime.candidate?.id, candidateValue: runtime.candidate?.newValue, scopeDecisionId: runtime.decision?.id, scopeMode: runtime.decision?.mode, snapshotId: runtime.currentSnapshotId }} onEvidence={setLiveEvidence} />
           {runtime.candidate && runtime.status !== 'applied' && <section className="comparison-grid" data-testid="candidate-comparison"><div><h4>当前草稿</h4><ContentPreview slot={beforeSlot} resources={resources} /></div><div><h4>候选预览</h4><ContentPreview slot={afterSlot} resources={resources} /></div></section>}
           {fixture.editKind === 'MEDIA' && <section className="media-layout-grid" data-testid="media-layout-grid">{previewValues.map((slot) => <article key={slot.id}><h4>{slot.label} · {slot.route}</h4><ContentPreview slot={slot} resources={resources} /></article>)}</section>}

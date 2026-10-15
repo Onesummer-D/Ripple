@@ -1,0 +1,180 @@
+{
+  "shared": [
+    {
+      "id": "E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-11",
+      "caseId": "qingye",
+      "type": "LAYOUT",
+      "route": "/autumn",
+      "viewport": "375x812",
+      "summary": "当前页面元素与购买按钮发生重叠",
+      "sourcePath": "inline://E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-11",
+      "origin": "real",
+      "producer": "A-preview",
+      "verification": "verified",
+      "context": {
+        "previewMode": "candidate",
+        "previewKey": "4a35cf0f-df5e-4e4b-85c5-904577bed60f",
+        "candidateEditId": "qingye-candidate-qingye-home-title-slot",
+        "candidateValue": "秋日限定上新，精选好物低至五折，周末会员还有专属惊喜",
+        "scopeDecisionId": "qingye-scope-shared",
+        "scopeMode": "SHARED"
+      },
+      "measurement": {
+        "measuredAt": "2026-10-15T06:00:40.579Z",
+        "width": 375,
+        "height": 812,
+        "slots": [
+          {
+            "slotId": "qingye-autumn-title-slot",
+            "instanceId": "qingye-autumn-title",
+            "sourceId": "qingye-shared-title",
+            "rect": {
+              "x": 42,
+              "y": 194.984375,
+              "width": 291,
+              "height": 156.125
+            }
+          }
+        ],
+        "cta": {
+          "x": 42,
+          "y": 260.59375,
+          "width": 156,
+          "height": 46.390625
+        }
+      }
+    },
+    {
+      "id": "E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-13",
+      "caseId": "qingye",
+      "type": "LAYOUT",
+      "route": "/autumn",
+      "viewport": "768x1024",
+      "summary": "当前页面浏览器布局观测",
+      "sourcePath": "inline://E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-13",
+      "origin": "real",
+      "producer": "A-preview",
+      "verification": "verified",
+      "context": {
+        "previewMode": "candidate",
+        "previewKey": "2323965b-69bb-45ba-8c1d-c8cbbda7cbc6",
+        "candidateEditId": "qingye-candidate-qingye-home-title-slot",
+        "candidateValue": "秋日限定上新，精选好物低至五折，周末会员还有专属惊喜",
+        "scopeDecisionId": "qingye-scope-shared",
+        "scopeMode": "SHARED"
+      },
+      "measurement": {
+        "measuredAt": "2026-10-15T06:00:40.759Z",
+        "width": 768,
+        "height": 1024,
+        "slots": [
+          {
+            "slotId": "qingye-autumn-title-slot",
+            "instanceId": "qingye-autumn-title",
+            "sourceId": "qingye-shared-title",
+            "rect": {
+              "x": 66.390625,
+              "y": 182.1875,
+              "width": 635.21875,
+              "height": 99.09375
+            }
+          }
+        ],
+        "cta": {
+          "x": 66.390625,
+          "y": 319.796875,
+          "width": 156,
+          "height": 46.390625
+        }
+      }
+    },
+    {
+      "id": "E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-15",
+      "caseId": "qingye",
+      "type": "LAYOUT",
+      "route": "/autumn",
+      "viewport": "1440x900",
+      "summary": "当前页面浏览器布局观测",
+      "sourcePath": "inline://E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-15",
+      "origin": "real",
+      "producer": "A-preview",
+      "verification": "verified",
+      "context": {
+        "previewMode": "candidate",
+        "previewKey": "a73eeeb1-5608-4de2-b522-c6081b46abac",
+        "candidateEditId": "qingye-candidate-qingye-home-title-slot",
+        "candidateValue": "秋日限定上新，精选好物低至五折，周末会员还有专属惊喜",
+        "scopeDecisionId": "qingye-scope-shared",
+        "scopeMode": "SHARED"
+      },
+      "measurement": {
+        "measuredAt": "2026-10-15T06:00:40.908Z",
+        "width": 1440,
+        "height": 900,
+        "slots": [
+          {
+            "slotId": "qingye-autumn-title-slot",
+            "instanceId": "qingye-autumn-title",
+            "sourceId": "qingye-shared-title",
+            "rect": {
+              "x": 180,
+              "y": 182.1875,
+              "width": 780,
+              "height": 99.09375
+            }
+          }
+        ],
+        "cta": {
+          "x": 180,
+          "y": 319.796875,
+          "width": 156,
+          "height": 46.390625
+        }
+      }
+    }
+  ],
+  "local": {
+    "id": "E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-19",
+    "caseId": "qingye",
+    "type": "LAYOUT",
+    "route": "/autumn",
+    "viewport": "375x812",
+    "summary": "当前页面浏览器布局观测",
+    "sourcePath": "inline://E-LIVE-qingye-3a4a39bb-962e-47f7-b253-8384f6053814-19",
+    "origin": "real",
+    "producer": "A-preview",
+    "verification": "verified",
+    "context": {
+      "previewMode": "candidate",
+      "previewKey": "5ff19fcd-df08-4585-b469-c7b1e91fcf15",
+      "candidateEditId": "qingye-candidate-qingye-home-title-slot",
+      "candidateValue": "秋日限定上新，精选好物低至五折，周末会员还有专属惊喜",
+      "scopeDecisionId": "qingye-scope-instance",
+      "scopeMode": "INSTANCE"
+    },
+    "measurement": {
+      "measuredAt": "2026-10-15T06:00:41.393Z",
+      "width": 375,
+      "height": 812,
+      "slots": [
+        {
+          "slotId": "qingye-autumn-title-slot",
+          "instanceId": "qingye-autumn-title",
+          "sourceId": "qingye-shared-title",
+          "rect": {
+            "x": 42,
+            "y": 194.984375,
+            "width": 291,
+            "height": 39.03125
+          }
+        }
+      ],
+      "cta": {
+        "x": 42,
+        "y": 260.59375,
+        "width": 156,
+        "height": 46.390625
+      }
+    }
+  }
+}
