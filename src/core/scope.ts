@@ -1,0 +1,64 @@
+import type { Relation, SourceGraph } from './model'
+
+const consumerRelations = new Set<Relation['kind']>([
+  'reads',
+  'uses-token',
+  'asset-consumer',
+  'imports',
+  'renders',
+  'css-cascade',
+])
+
+export interface PageImpact {
+  pageRefs: string[]
+  unresolved: string[]
+}
+
+/** Follows only source-proven consumer edges; candidate writes fail closed on incomplete proof. */
+export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): PageImpact {
+  const nodes = new Map(graph.nodes.map(node => [node.id, node]))
+  const target = nodes.get(sourceRef)
+  if (!target) return { pageRefs: [], unresolved: [`目标不在当前源码图中：${sourceRef}`] }
+
+  const unresolved = graph.unresolved.length
+    ? [`源码图含有未解析依赖：${graph.unresolved.join('；')}`]
+    : []
+  const incoming = new Map<string, Relation[]>()
+  for (const edge of graph.edges) {
+    if (!consumerRelations.has(edge.kind)) continue
+    if (!incoming.has(edge.to)) incoming.set(edge.to, [])
+    incoming.get(edge.to)!.push(edge)
+  }
+
+  const pageRefs = new Set<string>()
+  const visited = new Set<string>()
+  const queue = [sourceRef]
+  while (queue.length) {
+    const current = queue.shift()!
+    if (visited.has(current)) continue
+    visited.add(current)
+    const node = nodes.get(current)
+    if (!node) {
+      unresolved.push(`关系图引用了不存在的源码节点：${current}`)
+      continue
+    }
+    if (node.kind === 'route') pageRefs.add(node.id)
+    if (node.kind === 'component') {
+      for (const page of node.pages ?? []) {
+        const pageRef = `page:${page}`
+        if (nodes.get(pageRef)?.kind === 'route') pageRefs.add(pageRef)
+        else unresolved.push(`组件 ${node.label} 声明了未解析页面：${pageRef}`)
+      }
+    }
+    for (const edge of incoming.get(current) ?? []) {
+      if (edge.certainty !== 'source-proven') {
+        unresolved.push(`目标存在非确定的消费者关系：${edge.id}`)
+        continue
+      }
+      queue.push(edge.from)
+    }
+  }
+
+  if (!pageRefs.size) unresolved.push(`目标没有可证明的页面消费者：${sourceRef}`)
+  return { pageRefs: [...pageRefs].sort(), unresolved: [...new Set(unresolved)] }
+}

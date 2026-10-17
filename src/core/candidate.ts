@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import ts from 'typescript'
 import type { CandidatePatch, EditOperation, ScopeDecision, SourceGraph, SourceNode } from './model'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot } from './project'
+import { sourceProvenPageImpact } from './scope'
 
 export class CandidateError extends Error {
   constructor(message: string) { super(message); this.name = 'CandidateError' }
@@ -49,6 +50,9 @@ function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditO
   if ([...scope.excludedRefs, ...scope.protectedRefs].some(id => included.has(id))) throw new CandidateError('Scope 的 included 与 excluded/protected 冲突')
   if (!operations.length || !unique(operations.map(operation => operation.id))) throw new CandidateError('候选必须包含至少一项且操作 ID 不重复')
   const nodes = new Map(graph.nodes.map(node => [node.id, node]))
+  for (const ref of [...scope.includedRefs, ...scope.excludedRefs, ...scope.protectedRefs]) {
+    if (!nodes.has(ref)) throw new CandidateError(`Scope 引用了当前源码图中不存在的对象：${ref}`)
+  }
   const excluded = new Set([...scope.excludedRefs, ...scope.protectedRefs])
   for (const operation of operations) {
     if (!included.has(operation.targetRef) || excluded.has(operation.targetRef)) throw new CandidateError(`Scope 不允许修改目标：${operation.targetRef}`)
@@ -57,6 +61,12 @@ function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditO
     const expectedKind = operation.kind === 'TEXT' ? 'data' : operation.kind === 'MEDIA' ? 'media' : operation.kind === 'TOKEN' ? 'token' : undefined
     if (!target || !expectedKind || target.kind !== expectedKind || !target.location?.path || target.location.start === undefined || target.location.end === undefined) {
       throw new CandidateError(`目标缺少与操作类型匹配的 AST 源位置：${operation.targetRef}`)
+    }
+    const impact = sourceProvenPageImpact(graph, operation.targetRef)
+    if (impact.unresolved.length) throw new CandidateError(`无法证明目标的完整页面影响，拒绝生成候选：${impact.unresolved.join('；')}`)
+    for (const pageRef of impact.pageRefs) {
+      if (excluded.has(pageRef)) throw new CandidateError(`操作会影响 Scope 排除或保护的页面：${pageRef}`)
+      if (!included.has(pageRef)) throw new CandidateError(`Scope 尚未明确包含受影响页面：${pageRef}`)
     }
   }
   return nodes

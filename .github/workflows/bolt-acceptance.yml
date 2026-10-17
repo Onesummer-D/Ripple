@@ -1,0 +1,51 @@
+name: Bolt real-project acceptance
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bolt-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: Onesummer-D/ripple-qingye-bolt
+          token: ${{ secrets.BOLT_REPO_TOKEN }}
+          path: bolt-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for the acceptance runner
+        run: mkdir -p "$RUNNER_TEMP/ripple-acceptance/playwright-browsers" && npx playwright install --with-deps chromium
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
+      - name: Verify the real Bolt project through the Ripple workbench
+        run: npm run test:browser
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
+          RIPPLE_BOLT_PROJECT: ${{ github.workspace }}/bolt-source/project
+          RIPPLE_BROWSER_ARTIFACT_DIR: test-results/evidence-bolt-workbench
+      - name: Preserve real-workbench browser screenshots and run metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-bolt-workbench-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Run real Bolt isolated-candidate browser acceptance
+        run: npm run acceptance:bolt -- "$GITHUB_WORKSPACE/bolt-source/project" "$RUNNER_TEMP/ripple-acceptance"
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
+      - name: Preserve screenshots, pixel diffs and execution record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-bolt-acceptance-${{ github.run_id }}
+          path: ${{ runner.temp }}/ripple-acceptance/artifacts/
+          if-no-files-found: warn
+          retention-days: 30

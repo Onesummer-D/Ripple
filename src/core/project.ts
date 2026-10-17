@@ -138,13 +138,27 @@ export function analyzeProject(input: string): SourceGraph {
     sourceFiles.set(normalize(absolute), source)
   }
 
+  const compilerOptions: ts.CompilerOptions = { jsx: ts.JsxEmit.Preserve, moduleResolution: ts.ModuleResolutionKind.Bundler, allowJs: true }
+  for (const configName of ['tsconfig.json', 'tsconfig.app.json', 'jsconfig.json']) {
+    const configFile = path.join(snapshot.root, configName)
+    if (!fs.existsSync(configFile)) continue
+    const read = ts.readConfigFile(configFile, ts.sys.readFile)
+    if (!read.error) Object.assign(compilerOptions, ts.parseJsonConfigFileContent(read.config, ts.sys, snapshot.root, undefined, configFile).options)
+  }
+  const program = ts.createProgram([...sourceFiles.keys()], compilerOptions)
+  const checker = program.getTypeChecker()
+  for (const absolute of sourceFiles.keys()) {
+    const boundSource = program.getSourceFile(absolute)
+    if (boundSource) sourceFiles.set(absolute, boundSource)
+  }
+
   const nodes: SourceNode[] = []
   const edges: Relation[] = []
   const unresolved: string[] = []
   const nodeById = new Map<string, SourceNode>()
   const addNode = (node: SourceNode) => { if (!nodeById.has(node.id)) { nodes.push(node); nodeById.set(node.id, node) } }
-  const addEdge = (from: string, to: string, kind: Relation['kind'], id: string) => {
-    edges.push({ id, from, to, kind, certainty: 'source-proven', evidenceRefs: [] })
+  const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven') => {
+    edges.push({ id, from, to, kind, certainty, evidenceRefs: [] })
   }
 
   for (const relative of snapshot.trackedFiles) {
@@ -160,6 +174,7 @@ export function analyzeProject(input: string): SourceGraph {
 
   const tokenNodes = new Map<string, SourceNode[]>()
   const mediaNodes = new Map<string, SourceNode[]>()
+  const mediaBySource = new Map<string, SourceNode>()
   const addIndexedValue = (node: SourceNode, index: Map<string, SourceNode[]>, key: string) => {
     addNode(node)
     if (!index.has(key)) index.set(key, [])
@@ -172,7 +187,9 @@ export function analyzeProject(input: string): SourceGraph {
       if (!imageLike(literal.text)) return
       const start = literal.getStart(source) + 1
       const end = literal.getEnd() - 1
-      addIndexedValue({ id: nodeId(file, 'media', start), kind: 'media', label: property, value: literal.text, location: { path: file, start, end } }, mediaNodes, property)
+      const media: SourceNode = { id: nodeId(file, 'media', start), kind: 'media', label: property, value: literal.text, location: { path: file, start, end } }
+      addIndexedValue(media, mediaNodes, property)
+      mediaBySource.set(`${file}#${start}`, media)
     }
     const scanValues = (node: ts.Node) => {
       if (ts.isPropertyAssignment(node)) {
@@ -223,14 +240,6 @@ export function analyzeProject(input: string): SourceGraph {
     }
   }
 
-  const compilerOptions: ts.CompilerOptions = { jsx: ts.JsxEmit.Preserve, moduleResolution: ts.ModuleResolutionKind.Bundler, allowJs: true }
-  for (const configName of ['tsconfig.json', 'tsconfig.app.json', 'jsconfig.json']) {
-    const configFile = path.join(snapshot.root, configName)
-    if (fs.existsSync(configFile)) {
-      const read = ts.readConfigFile(configFile, ts.sys.readFile)
-      if (!read.error) Object.assign(compilerOptions, ts.parseJsonConfigFileContent(read.config, ts.sys, snapshot.root, undefined, configFile).options)
-    }
-  }
   const componentRenders = new Map<string, Set<string>>()
   const appDirect = new Set<string>()
   const pageTargets = new Map<string, Set<string>>()
@@ -277,7 +286,23 @@ export function analyzeProject(input: string): SourceGraph {
     const visit = (node: ts.Node) => {
       const ownerComponent = owner.find(component => component.node.pos <= node.pos && component.node.end >= node.end)
       if (ownerComponent && ts.isPropertyAccessExpression(node)) {
-        for (const media of mediaNodes.get(node.name.text) ?? []) addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset:${ownerComponent.id}:${media.id}:${node.getStart(source)}`)
+        const symbol = checker.getSymbolAtLocation(node.name)
+        const declaration = symbol?.valueDeclaration
+        const literal = declaration && ts.isPropertyAssignment(declaration) ? stringValue(declaration.initializer) : undefined
+        let linked = false
+        if (literal && imageLike(literal.text)) {
+          const sourcePath = relativeTo(snapshot.root, declaration!.getSourceFile().fileName)
+          const media = mediaBySource.get(`${sourcePath}#${literal.getStart(declaration!.getSourceFile()) + 1}`)
+          if (media) {
+            addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset:${ownerComponent.id}:${media.id}:${node.getStart(source)}`)
+            linked = true
+          }
+        }
+        if (!linked) {
+          for (const media of mediaNodes.get(node.name.text) ?? []) {
+            addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset-candidate:${ownerComponent.id}:${media.id}:${node.getStart(source)}`, 'semantic-candidate')
+          }
+        }
       }
       if (ownerComponent && ts.isJsxAttribute(node) && node.name.getText(source) === 'src') {
         const literal = stringValue(node.initializer)
@@ -312,7 +337,7 @@ export function analyzeProject(input: string): SourceGraph {
         if (tag && /^[a-z]/.test(tag)) {
           const start = node.getStart(source)
           const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
-          addNode({ id: nodeId(relative, 'jsx', start), kind: 'dom-instance', label: `<${tag}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
+          addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
         }
         const target = declarationComponentName(tag, imports, byExport)
         if (target && ownerComponent) {
@@ -370,12 +395,17 @@ export function analyzeProject(input: string): SourceGraph {
   return { id: `graph:${snapshot.revision.sourceDigest.slice(0, 20)}`, revision: snapshot.revision, nodes, edges, unresolved: [...new Set(unresolved)] }
 }
 
-export function resolveRenderedElement(graph: SourceGraph, sourceRef: string): { element: SourceNode; editableText: SourceNode[] } {
+export function resolveJsxSourceElement(graph: SourceGraph, sourceRef: string): { element: SourceNode; editableText: SourceNode[] } {
   const normalizedRef = sourceRef.startsWith('jsx:') ? sourceRef : `jsx:${sourceRef}`
-  const element = graph.nodes.find(node => node.kind === 'dom-instance' && node.id === normalizedRef)
+  const element = graph.nodes.find(node => node.kind === 'jsx-element' && node.id === normalizedRef)
   if (!element) throw new ProjectReadError(`运行时元素没有已确认的源码映射：${sourceRef}`)
-  const bounds = element.location
-  const editableText = bounds ? graph.nodes.filter(node => node.kind === 'data' && node.location?.path === bounds.path &&
-    node.location.start! > bounds.start! && node.location.end! <= bounds.end!) : []
+  const textRefs = new Set(graph.edges.filter(edge => edge.kind === 'reads' && edge.from === element.id).map(edge => edge.to))
+  const editableText = graph.nodes.filter(node => node.kind === 'data' && textRefs.has(node.id))
   return { element, editableText }
+}
+
+export function resolveRuntimeElement(graph: SourceGraph, selection: { sourceRef: string; runtimeInstanceId: string }): { element: SourceNode; runtimeInstanceId: string; editableText: SourceNode[] } {
+  if (!selection.runtimeInstanceId || selection.runtimeInstanceId === selection.sourceRef) throw new ProjectReadError('运行时实例标识必须与 JSX 源码锚点分离')
+  const resolved = resolveJsxSourceElement(graph, selection.sourceRef)
+  return { ...resolved, runtimeInstanceId: selection.runtimeInstanceId }
 }

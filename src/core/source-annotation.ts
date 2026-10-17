@@ -18,10 +18,16 @@ export function sourceAnnotationPlugin(projectRoot: string): Plugin {
       const visit = (node: ts.Node) => {
         if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
           const tag = ts.isIdentifier(node.tagName) ? node.tagName.text : ''
-          const alreadyAnnotated = node.attributes.properties.some(attribute => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === 'data-ripple-source')
-          if (/^[a-z]/.test(tag) && !alreadyAnnotated) {
+          const hasSourceRef = node.attributes.properties.some(attribute => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === 'data-ripple-source')
+          const hasInstanceRef = node.attributes.properties.some(attribute => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === 'data-ripple-instance')
+          if (/^[a-z]/.test(tag) && (!hasSourceRef || !hasInstanceRef)) {
             const position = node.getEnd() - (ts.isJsxSelfClosingElement(node) ? 2 : 1)
-            insertions.push({ position, text: ` data-ripple-source="jsx:${relative.replaceAll('\\', '/')}#${node.getStart(source)}"` })
+            const sourceRef = `jsx:${relative.replaceAll('\\', '/')}#${node.getStart(source)}`
+            const additions = [
+              ...(!hasSourceRef ? [`data-ripple-source="${sourceRef}"`] : []),
+              ...(!hasInstanceRef ? [`data-ripple-instance={(() => { const runtime = globalThis as typeof globalThis & { __rippleInstanceCounters?: Map<string, number> }; const counters = runtime.__rippleInstanceCounters ??= new Map<string, number>(); const key = ${JSON.stringify(sourceRef)}; const index = counters.get(key) ?? 0; counters.set(key, index + 1); return key + "@" + index; })()}`] : []),
+            ]
+            insertions.push({ position, text: ` ${additions.join(' ')}` })
           }
         }
         node.forEachChild(visit)

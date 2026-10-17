@@ -13,7 +13,7 @@ export interface ProjectRevision {
 }
 export interface SourceNode {
   id: Id
-  kind: 'file' | 'symbol' | 'component' | 'route' | 'data' | 'media' | 'token' | 'dom-instance' | 'state'
+  kind: 'file' | 'symbol' | 'component' | 'route' | 'data' | 'media' | 'token' | 'jsx-element' | 'state'
   label: string
   location?: { path: string; start?: number; end?: number }
   page?: string
@@ -72,6 +72,11 @@ export interface VerificationCheck {
   description: string
   mandatory: boolean
 }
+export interface VerificationAssertion {
+  id: string
+  passed: boolean
+  detail: string
+}
 export interface VerificationEvidence {
   id: Id
   checkId: Id
@@ -95,7 +100,9 @@ export interface VerificationRun {
   startedAt: string
   completedAt: string
   checks: VerificationCheck[]
+  assertions: VerificationAssertion[]
   evidence: VerificationEvidence[]
+  execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }
 export interface Approval {
@@ -119,6 +126,7 @@ export interface EditSession {
   projectRevision: ProjectRevision
   rawIntent: string
   selectedElementRefs: Id[]
+  operations: EditOperation[]
   status: SessionStatus
   sourceGraphId?: Id
   scope?: ScopeDecision

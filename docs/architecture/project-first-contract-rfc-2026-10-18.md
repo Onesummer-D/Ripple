@@ -1,6 +1,6 @@
 # RFC：Ripple Project-first 领域架构与迁移路线
 
-**日期：2026-10-18** · **状态：Project-first 核心执行切片已通过 Bolt 候选预演验收；正式工作台与 MEDIA/TOKEN 覆盖闭环仍未完成**  
+**日期：2026-10-18** · **状态：Project-first 核心与本机工作台已接通；真实 Bolt 局部/共享候选验收通过；正式预演 UI、MEDIA/TOKEN 覆盖与进程沙箱仍未完成**  
 来源：[产品与架构复审 v2](../strategy/Ripple_产品定位与架构复审_v2_2026-10-18.md) · [独立架构审计](./architecture-independent-audit-2026-10-18.md)。
 
 ## 已做出的技术决策
@@ -13,14 +13,16 @@
 
 - `src/core/model.ts` 与 `src/core/session.ts`：ProjectRevision、SourceGraph、ScopeDecision、统一 EditOperation、CandidatePatch、VerificationRun/Evidence、AppliedRevision、EditSession；没有以青野/栖光等固定案例作为领域主键。验证状态只能由与候选 hash、源码基线、运行环境、页面/视口/状态/证据文件匹配的检查构成。
 - `src/core/project.ts`：读取干净 Git 工程，按跟踪文件字节生成源摘要；用 TypeScript AST 解析 React/Vite JSX、模块导入、React 页面状态、组件消费者、JSX 文本、Tailwind 颜色 token、CSS 自定义属性与图片引用。来源关系带源码偏移和证据确定性；不能证明的关系保留为 unresolved/unknown。
-- `src/core/source-annotation.ts`：仅在候选预演服务中给响应的 JSX host 元素注入源码锚点，不写入目标工程文件。真实 Bolt 的页面 DOM 锚点已经与静态分析器中的 `SourceNode` 对上。
-- `src/core/candidate.ts`：将干净基线创建为 Git worktree；校验 Scope included/excluded/protected 与操作类型；在同一文件按倒序 AST 偏移组合多项 TEXT/MEDIA/TOKEN 修改；生成真实 Git 补丁、补丁 SHA-256 和候选树摘要；原工程漂移、检出字节不一致、越界/符号链接路径、Scope 冲突、旧候选哈希都会拒绝。
+- `src/core/scope.ts`：沿实际 `reads`、`uses-token`、`asset-consumer`、`imports`、`renders` 等 source-proven 关系反向计算页面消费者；操作目标在 `includedRefs` 中不再被视为充分授权。页面未全部显式包含或出现 excluded/protected 消费者时，候选直接拒绝。
+- `src/core/source-annotation.ts`：只在服务的 JSX host 元素注入定义级源码锚点和独立的逐次渲染实例 ID，不写目标工程。`resolveJsxSourceElement` 通过图谱中的直接文本消费边定位文本，不再把祖先 JSX 容器误作内部文本的具体来源。
+- `src/core/candidate.ts`：将干净基线创建为 Git worktree；校验 Scope included/excluded/protected 与真实页面传播；在同一文件按倒序源码偏移组合多项 TEXT/MEDIA/TOKEN 修改；生成真实 Git 补丁、补丁 SHA-256 和候选树摘要；原工程漂移、检出字节不一致、越界/符号链接路径、Scope 冲突、旧候选哈希都会拒绝。
 - `src/core/apply.ts`：只接受当前已验证且获批的 `CandidateRecord`；再检查原工程摘要/HEAD、候选目录和补丁工件哈希后，`git apply --check` 并应用工件中的同一补丁；落地摘要须等于已验证候选树。回滚要求工程仍精确处于该候选树，反向应用同一补丁后必须恢复基线摘要。
-- `scripts/bolt-integration-acceptance.mjs`（`npm run acceptance:bolt -- <Bolt-project> <work-root>`）：在原 Bolt checkout 之外创建 baseline/candidate worktree，读取真实网站、编辑首页标题与 CTA 两项源码文字、构建候选、启动真实 Vite、运行 Playwright 三视口，并用 B 包已有的 pixelmatch/pngjs 做截图差异，最后验证证据并批准该候选。临时依赖、浏览器缓存、screenshots 与验收 JSON 均位于项目外。
+- `src/core/verification.ts`：只有运行记录与 candidate/source/runtime/check/viewport/state 一致、截图确为 PNG 且实际文件哈希重算匹配时，才签发当前进程内的执行收据；Evidence 对象本身或调用者填写的截图路径/哈希不能通过 `registerVerification`。浏览器检查记录未通过也不能登记为通过。
+- `src/app/ProjectWorkbench.tsx` 与 `src/core/local-project-api.ts`：默认工作台可打开用户指定的本机 Git 工程、展示真实页面/共享组件/源码目标及确定性、记录原始意图、多项 TEXT/MEDIA/TOKEN 操作、逐页 include/exclude/protect，生成和展示隔离 worktree 的 patch/diff/hash，并丢弃候选。API 只绑定 loopback，不运行目标工程脚本。浏览器/批准/应用状态明确为 `NOT RUN`。
+- `scripts/bolt-integration-acceptance.mjs`（`npm run acceptance:bolt -- <Bolt-project> <work-root>`）：原 Bolt checkout 外创建 baseline/local/shared candidate worktree；验证真实首页局部两项编辑不会传播到其它页面；验证 Footer 共享编辑在四个页面传播而页面主体不变；执行真实导航与三视口响应式断言、DOM→精确 JSX 来源映射、重复实例 ID 和浏览器错误检查。`pixelmatch/pngjs` 只留作差异工件，不作为通过标准。最后在一次性 worktree 应用并回滚已获批的同一补丁。依赖、浏览器、screenshots 和执行 JSON 均在 Bolt 原目录之外。
+- `.github/workflows/ci.yml`：自动运行类型检查、单元/API 测试、构建和 Playwright，保留截图、trace、机器可读报告；`bolt-acceptance.yml` 手动检出私有 Bolt 工程，在工作台 UI 与核心执行器两条路径运行真实项目验收并保存工件。
 
-本轮实测：Ripple `typecheck` 通过，Vitest 全量 **60/60** 通过，Ripple `build` 通过（仅有超过 500 KB chunk 的既有打包提醒）；Bolt 候选 `vite build` 通过；首页 375×812、768×1024、1440×900 均通过 DOM→源码锚点、页面错误、候选文案和截图差异检查，三视口分别发现 32,321、10,882、16,000 个差异像素；验证证据绑定同一 baseline/source digest、patch hash、候选树摘要、runtime fingerprint、路由、采集时间窗和截图 SHA-256，最终状态 `passed` 且候选 `approved`。同一获批补丁在与原 Bolt 相同 Git commit、字节摘要一致的临时 Bolt worktree 上实际应用并回滚，应用后与候选树摘要一致、回滚后恢复基线摘要；用户的 Bolt 原始 checkout 摘要和 Git 状态保持不变。
-
-这仍是**引擎/验收切片，不是完整用户工作台**：当前没有面向用户的 Project 导入与分析界面、可视化 Scope 选择/编辑 UI、长期会话与证据存储或预览服务器生命周期管理；上述 Bolt 选择、操作和 Scope 是受测验收脚本构造的真实输入。MEDIA 当前仅能作为图片源字符串操作，尚无焦点裁切/多尺寸处理；TOKEN 可识别并定向源位置，但尚无共享 token 系统和页面/组件级 override 数据模型；本轮只在一次性 Bolt worktree 实际应用/回滚，未修改用户的 Bolt 原始 checkout。**Git worktree 只隔离源码版本，不是 OS 级进程沙箱**；本轮只执行用户提供的 Bolt 构建，禁止把该执行模式用于不可信任的任意仓库；面向任意工程前需补进程/文件系统/网络边界和权限 UI。旧 A CaseRuntime/UI 尚未迁出或删除，进入产品工作台切换前必须完成旧结构清理。
+本轮执行结果见 PR #2 的验收记录。工作台已经能在真实 Bolt 项目上分析图谱并创建/展示共享候选；独立验收脚本还覆盖局部/共享真实浏览器行为与同补丁应用/回滚。工作台 UI 当前仍将浏览器预演/验证/批准/应用显示为 `NOT RUN`，它还没有托管站点生命周期、执行信任边界和持久化 EditSession。MEDIA 目前只支持源码字符串候选，不含焦点裁切/多尺寸规则；TOKEN 能识别来源但缺共享颜色系统与页面/组件 override 数据模型。Git worktree 只隔离源码版本，不是 OS 级进程沙箱；当前仅对用户提供的 Bolt 工程执行依赖安装与 build，不可开放任意不可信仓库执行。原 Fixture `App`、CaseRuntime 等模块尚未删除，但已从默认入口和正式 E2E 中卸下，不能继续作为真实项目数据源。
 
 ## 核心不变量
 

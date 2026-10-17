@@ -1,4 +1,5 @@
-import type { AppliedRevision, Approval, CandidatePatch, EditSession, ProjectRevision, ScopeDecision, VerificationRun } from './model'
+import type { AppliedRevision, Approval, CandidatePatch, EditOperation, EditSession, ProjectRevision, ScopeDecision, VerificationRun } from './model'
+import { assertTrustedBrowserExecution } from './verification'
 
 export class SessionInvariantError extends Error {
   constructor(message: string) { super(message); this.name = 'SessionInvariantError' }
@@ -16,13 +17,13 @@ const routePath = (value: string): string | undefined => {
 export function openSession(id: string, revision: ProjectRevision, rawIntent: string, selectedElementRefs: string[] = []): EditSession {
   requireCondition(!!id && !!revision.projectId && !!revision.sourceDigest && !!revision.runtimeFingerprint, 'Project revision must be identified')
   requireCondition(!!rawIntent.trim(), 'Original user intent is required')
-  return { id, projectRevision: revision, rawIntent, selectedElementRefs: [...selectedElementRefs], status: 'draft', runs: [] }
+  return { id, projectRevision: revision, rawIntent, selectedElementRefs: [...selectedElementRefs], operations: [], status: 'draft', runs: [] }
 }
 
 export function recordSourceGraph(session: EditSession, graphId: string, sourceDigest: string): EditSession {
   requireCondition(session.status !== 'applied', 'Applied session is immutable')
   requireCondition(!!graphId && sourceDigest === session.projectRevision.sourceDigest, 'Source graph must match baseline revision')
-  return { ...session, sourceGraphId: graphId, scope: undefined, candidate: undefined, approval: undefined, runs: session.runs.map(r => ({ ...r, status: 'stale' })), status: 'analyzed' }
+  return { ...session, sourceGraphId: graphId, scope: undefined, operations: [], candidate: undefined, approval: undefined, runs: session.runs.map(r => ({ ...r, status: 'stale' })), status: 'analyzed' }
 }
 
 export function chooseScope(session: EditSession, scope: ScopeDecision): EditSession {
@@ -37,6 +38,16 @@ export function chooseScope(session: EditSession, scope: ScopeDecision): EditSes
   return { ...session, scope: { ...scope, includedRefs: [...scope.includedRefs], excludedRefs: [...scope.excludedRefs], protectedRefs: [...scope.protectedRefs] }, candidate: undefined, approval: undefined, runs: session.runs.map(r => ({ ...r, status: 'stale' })), status: 'scoped' }
 }
 
+export function stageOperations(session: EditSession, operations: EditOperation[]): EditSession {
+  requireCondition(session.status !== 'applied', 'Applied session is immutable')
+  requireCondition(!!session.scope, 'Explicit scope required before editing operations')
+  requireCondition(unique(operations.map(operation => operation.id)) && unique(operations.map(operation => operation.targetRef)), 'Operation identities and targets must be unique')
+  const included = new Set(session.scope.includedRefs)
+  const excluded = new Set([...session.scope.excludedRefs, ...session.scope.protectedRefs])
+  requireCondition(operations.every(operation => !!operation.id && operation.before !== operation.after && included.has(operation.targetRef) && !excluded.has(operation.targetRef)), 'Operation changes an unchanged, forbidden or unscoped target')
+  return { ...session, operations: operations.map(operation => ({ ...operation })), candidate: undefined, approval: undefined, runs: session.runs.map(run => ({ ...run, status: 'stale' })), status: 'scoped' }
+}
+
 export function stageCandidate(session: EditSession, patch: CandidatePatch): EditSession {
   const scope = session.scope
   requireCondition(session.status !== 'applied', 'Applied session is immutable')
@@ -44,6 +55,8 @@ export function stageCandidate(session: EditSession, patch: CandidatePatch): Edi
   requireCondition(patch.baseSourceDigest === session.projectRevision.sourceDigest, 'Candidate baseline does not match project')
   requireCondition(patch.scopeDecisionId === scope.id && patch.scopeVersion === scope.version, 'Candidate scope is stale')
   requireCondition(!!patch.id && !!patch.patchHash && !!patch.candidateTreeDigest && !!patch.diffArtifact && patch.operations.length > 0, 'Real patch and output tree digest required')
+  const sameOperation = (left: EditOperation, right: EditOperation) => left.id === right.id && left.kind === right.kind && left.targetRef === right.targetRef && left.before === right.before && left.after === right.after
+  requireCondition(session.operations.length === patch.operations.length && session.operations.every((operation, index) => sameOperation(operation, patch.operations[index])), 'Candidate must contain the exact operations in this EditSession')
   const included = new Set(scope.includedRefs)
   requireCondition(patch.operations.every(op => included.has(op.targetRef) && !!op.id && op.before !== op.after), 'Patch changes forbidden or unchanged targets')
   return { ...session, candidate: { ...patch, operations: [...patch.operations] }, approval: undefined, runs: session.runs.map(r => ({ ...r, status: 'stale' })), status: 'candidate' }
@@ -54,6 +67,7 @@ export function registerVerification(session: EditSession, run: VerificationRun)
   requireCondition(session.status === 'candidate' || session.status === 'verified', 'Candidate must exist before verification')
   requireCondition(!!patch && !!session.scope, 'Candidate and scope required')
   requireCondition(run.candidateId === patch.id && run.baseSourceDigest === patch.baseSourceDigest && run.patchHash === patch.patchHash && run.candidateTreeDigest === patch.candidateTreeDigest && run.runtimeFingerprint === session.projectRevision.runtimeFingerprint, 'Verification does not match candidate code/environment')
+  assertTrustedBrowserExecution(run)
   requireCondition(!session.runs.some(r => r.id === run.id), 'Verification run identity already exists')
   const startedAt = Date.parse(run.startedAt), completedAt = Date.parse(run.completedAt)
   requireCondition(Number.isFinite(startedAt) && Number.isFinite(completedAt) && completedAt >= startedAt, 'Verification run time window is invalid')
