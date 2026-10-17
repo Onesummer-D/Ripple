@@ -64,4 +64,13 @@ describe('Project-first session invariants', () => {
     expect(recordSourceGraph(s, 'new-graph', revision.sourceDigest).candidate).toBeUndefined()
     expect(() => recordSourceGraph(s, 'bad-graph', 'other-source')).toThrow(/must match/)
   })
+  it('refuses vacuous passing status when no mandatory check ran', () => {
+    const s = staged(), run = runFor(s.candidate!)
+    expect(() => registerVerification(s, { ...run, checks: run.checks.map(c => ({ ...c, mandatory: false })) })).toThrow(/Mandatory checks/)
+  })
+  it('refuses contradictory duplicate evidence for one browser check', () => {
+    const s = staged(), run = runFor(s.candidate!)
+    expect(() => registerVerification(s, { ...run, evidence: [...run.evidence, { ...run.evidence[0], id: 'duplicate-evidence', result: 'unknown' }] })).toThrow(/unique check/)
+  })
+
 })
