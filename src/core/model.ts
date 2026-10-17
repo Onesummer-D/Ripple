@@ -7,6 +7,7 @@ export type RelationCertainty = 'source-proven' | 'runtime-observed' | 'semantic
 export interface ProjectRevision {
   projectId: Id
   sourceDigest: string
+  gitCommit?: string
   ref?: string
   runtimeFingerprint: string
 }
@@ -16,7 +17,9 @@ export interface SourceNode {
   label: string
   location?: { path: string; start?: number; end?: number }
   page?: string
+  pages?: string[]
   selector?: string
+  value?: string
 }
 export interface Relation {
   id: Id
@@ -56,6 +59,8 @@ export interface CandidatePatch {
   scopeVersion: number
   patchHash: string
   candidateTreeDigest: string
+  candidateRoot?: string
+  artifactPath?: string
   operations: EditOperation[]
   diffArtifact: string
 }
@@ -77,6 +82,7 @@ export interface VerificationEvidence {
   runtimeState: string
   elementRefs: Id[]
   artifactPath?: string
+  artifactHash?: string
   reason?: string
 }
 export interface VerificationRun {

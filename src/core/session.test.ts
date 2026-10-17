@@ -5,7 +5,7 @@ import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceG
 const revision: ProjectRevision = { projectId: 'bolt-shop', sourceDigest: 'tree-old', runtimeFingerprint: 'lock+vite+mock-data' }
 const scope = (version = 1, id = 'scope-1'): ScopeDecision => ({ id, version, includedRefs: ['home.title', 'autumn.title'], excludedRefs: ['product.price'], protectedRefs: ['story.2018'], decidedBy: 'user', decidedAt: '2026-10-18T00:00:00Z' })
 const candidate = (s: ScopeDecision): CandidatePatch => ({ id: `candidate-${s.version}`, baseSourceDigest: revision.sourceDigest, scopeDecisionId: s.id, scopeVersion: s.version, patchHash: `patch-${s.version}`, candidateTreeDigest: `tree-${s.version}`, diffArtifact: '/sandbox/candidate.patch', operations: [{ id: 'edit-1', kind: 'TEXT', targetRef: 'home.title', before: '旧名称', after: '新名称' }, { id: 'edit-2', kind: 'TEXT', targetRef: 'autumn.title', before: '旧名称', after: '新名称' }] })
-const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass'): VerificationRun => ({ id: `run-${p.id}`, candidateId: p.id, baseSourceDigest: p.baseSourceDigest, patchHash: p.patchHash, candidateTreeDigest: p.candidateTreeDigest, runtimeFingerprint: revision.runtimeFingerprint, startedAt: '2026-10-18T00:00:00Z', completedAt: '2026-10-18T00:01:00Z', checks: [{ id: 'desktop', route: '/', viewport: { width: 1440, height: 900 }, state: 'loaded', mandatory: true, description: 'title visible' }], evidence: [{ id: `e-${p.id}`, checkId: 'desktop', result, pageUrl: 'http://127.0.0.1:5173/', capturedAt: '2026-10-18T00:00:30Z', viewport: { width: 1440, height: 900 }, runtimeState: 'loaded', elementRefs: ['home.title'], artifactPath: result === 'pass' ? 'screens/candidate-home-1440.png' : undefined }], status: 'incomplete' })
+const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass'): VerificationRun => ({ id: `run-${p.id}`, candidateId: p.id, baseSourceDigest: p.baseSourceDigest, patchHash: p.patchHash, candidateTreeDigest: p.candidateTreeDigest, runtimeFingerprint: revision.runtimeFingerprint, startedAt: '2026-10-18T00:00:00Z', completedAt: '2026-10-18T00:01:00Z', checks: [{ id: 'desktop', route: '/', viewport: { width: 1440, height: 900 }, state: 'loaded', mandatory: true, description: 'title visible' }], evidence: [{ id: `e-${p.id}`, checkId: 'desktop', result, pageUrl: 'http://127.0.0.1:5173/', capturedAt: '2026-10-18T00:00:30Z', viewport: { width: 1440, height: 900 }, runtimeState: 'loaded', elementRefs: ['home.title'], artifactPath: result === 'pass' ? 'screens/candidate-home-1440.png' : undefined, artifactHash: result === 'pass' ? 'a'.repeat(64) : undefined }], status: 'incomplete' })
 const approvalFor = (p: CandidatePatch, run: VerificationRun): Approval => ({ candidateId: p.id, verificationRunId: run.id, by: 'user', at: '2026-10-18T00:02:00Z' })
 const analyzed = () => recordSourceGraph(openSession('session-1', revision, '更新本季活动，保留历史'), 'graph-1', revision.sourceDigest)
 const staged = () => { const s = scope(); return stageCandidate(chooseScope(analyzed(), s), candidate(s)) }
@@ -31,7 +31,13 @@ describe('Project-first session invariants', () => {
   })
   it('does not allow passing checks without an evidence artifact', () => {
     const s = staged(), run = runFor(s.candidate!)
-    expect(() => registerVerification(s, { ...run, evidence: run.evidence.map(e => ({ ...e, artifactPath: undefined })) })).toThrow(/artifacts/)
+    expect(() => registerVerification(s, { ...run, evidence: run.evidence.map(e => ({ ...e, artifactPath: undefined, artifactHash: undefined })) })).toThrow(/hashed artifact/)
+  })
+  it('rejects evidence with the wrong page, missing artifact hash, or capture outside its run', () => {
+    const s = staged(), run = runFor(s.candidate!)
+    expect(() => registerVerification(s, { ...run, evidence: run.evidence.map(e => ({ ...e, pageUrl: 'http://127.0.0.1:5173/autumn' })) })).toThrow(/Evidence must match/)
+    expect(() => registerVerification(s, { ...run, evidence: run.evidence.map(e => ({ ...e, artifactHash: undefined })) })).toThrow(/hashed artifact/)
+    expect(() => registerVerification(s, { ...run, evidence: run.evidence.map(e => ({ ...e, capturedAt: '2026-10-18T00:02:00Z' })) })).toThrow(/Evidence must match/)
   })
   it('rejects approval for risk/unknown and incomplete verification', () => {
     for (const result of ['risk', 'unknown'] as const) {
@@ -72,5 +78,4 @@ describe('Project-first session invariants', () => {
     const s = staged(), run = runFor(s.candidate!)
     expect(() => registerVerification(s, { ...run, evidence: [...run.evidence, { ...run.evidence[0], id: 'duplicate-evidence', result: 'unknown' }] })).toThrow(/unique check/)
   })
-
 })

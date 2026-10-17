@@ -1,6 +1,6 @@
 # RFC：Ripple Project-first 领域架构与迁移路线
 
-**日期：2026-10-18** · **状态：独立分支的核心契约试验，未经端到端集成验收**  
+**日期：2026-10-18** · **状态：Project-first 核心执行切片已通过 Bolt 候选预演验收；正式工作台与 MEDIA/TOKEN 覆盖闭环仍未完成**  
 来源：[产品与架构复审 v2](../strategy/Ripple_产品定位与架构复审_v2_2026-10-18.md) · [独立架构审计](./architecture-independent-audit-2026-10-18.md)。
 
 ## 已做出的技术决策
@@ -9,14 +9,18 @@
 
 这里的 B 是架构方案而非 B 队员。若后续迁移实验证明被保留模块妨碍设计或重写成本更低，允许选择全量重建。对旧实现既不盲目保留，也不因“更先进”而盲目丢弃。
 
-## 已落地的独立契约验证
+## 已落地的 Project-first 执行切片（2026-10-18）
 
-分支下新增：
-- `src/core/model.ts`：ProjectRevision、SourceGraph、ScopeDecision、CandidatePatch、VerificationRun/Evidence、AppliedRevision、EditSession，完全不包含 `qingye/qiguang/third-party` 这样的案例 ID。
-- `src/core/session.ts`：纯函数状态机，限制读源码→用户确定 Scope→候选 Patch→实际证据→批准→同一 Patch 应用。
-- `src/core/session.test.ts`：9 项 Vitest 状态机测试，覆盖多项编辑、历史保护、越权目标、候选/环境不一致、截图产物、未知风险、Scope 更改旧证据失效、应用同一树、源码分析刷新。
+- `src/core/model.ts` 与 `src/core/session.ts`：ProjectRevision、SourceGraph、ScopeDecision、统一 EditOperation、CandidatePatch、VerificationRun/Evidence、AppliedRevision、EditSession；没有以青野/栖光等固定案例作为领域主键。验证状态只能由与候选 hash、源码基线、运行环境、页面/视口/状态/证据文件匹配的检查构成。
+- `src/core/project.ts`：读取干净 Git 工程，按跟踪文件字节生成源摘要；用 TypeScript AST 解析 React/Vite JSX、模块导入、React 页面状态、组件消费者、JSX 文本、Tailwind 颜色 token、CSS 自定义属性与图片引用。来源关系带源码偏移和证据确定性；不能证明的关系保留为 unresolved/unknown。
+- `src/core/source-annotation.ts`：仅在候选预演服务中给响应的 JSX host 元素注入源码锚点，不写入目标工程文件。真实 Bolt 的页面 DOM 锚点已经与静态分析器中的 `SourceNode` 对上。
+- `src/core/candidate.ts`：将干净基线创建为 Git worktree；校验 Scope included/excluded/protected 与操作类型；在同一文件按倒序 AST 偏移组合多项 TEXT/MEDIA/TOKEN 修改；生成真实 Git 补丁、补丁 SHA-256 和候选树摘要；原工程漂移、检出字节不一致、越界/符号链接路径、Scope 冲突、旧候选哈希都会拒绝。
+- `src/core/apply.ts`：只接受当前已验证且获批的 `CandidateRecord`；再检查原工程摘要/HEAD、候选目录和补丁工件哈希后，`git apply --check` 并应用工件中的同一补丁；落地摘要须等于已验证候选树。回滚要求工程仍精确处于该候选树，反向应用同一补丁后必须恢复基线摘要。
+- `scripts/bolt-integration-acceptance.mjs`（`npm run acceptance:bolt -- <Bolt-project> <work-root>`）：在原 Bolt checkout 之外创建 baseline/candidate worktree，读取真实网站、编辑首页标题与 CTA 两项源码文字、构建候选、启动真实 Vite、运行 Playwright 三视口，并用 B 包已有的 pixelmatch/pngjs 做截图差异，最后验证证据并批准该候选。临时依赖、浏览器缓存、screenshots 与验收 JSON 均位于项目外。
 
-上述三文件经过独立 `tsc --strict` 检查，同等状态转移的 9 项 Node 断言已在临时工作目录执行通过。**本次没有运行仓库自身的 Vitest / Playwright 全套测试；没有将新领域核心接入 A 的 UI，也没有证明 B 工程的真实 Patch 可直接应用。**
+本轮实测：Ripple `typecheck` 通过，Vitest 全量 **60/60** 通过，Ripple `build` 通过（仅有超过 500 KB chunk 的既有打包提醒）；Bolt 候选 `vite build` 通过；首页 375×812、768×1024、1440×900 均通过 DOM→源码锚点、页面错误、候选文案和截图差异检查，三视口分别发现 32,321、10,882、16,000 个差异像素；验证证据绑定同一 baseline/source digest、patch hash、候选树摘要、runtime fingerprint、路由、采集时间窗和截图 SHA-256，最终状态 `passed` 且候选 `approved`。同一获批补丁在与原 Bolt 相同 Git commit、字节摘要一致的临时 Bolt worktree 上实际应用并回滚，应用后与候选树摘要一致、回滚后恢复基线摘要；用户的 Bolt 原始 checkout 摘要和 Git 状态保持不变。
+
+这仍是**引擎/验收切片，不是完整用户工作台**：当前没有面向用户的 Project 导入与分析界面、可视化 Scope 选择/编辑 UI、长期会话与证据存储或预览服务器生命周期管理；上述 Bolt 选择、操作和 Scope 是受测验收脚本构造的真实输入。MEDIA 当前仅能作为图片源字符串操作，尚无焦点裁切/多尺寸处理；TOKEN 可识别并定向源位置，但尚无共享 token 系统和页面/组件级 override 数据模型；本轮只在一次性 Bolt worktree 实际应用/回滚，未修改用户的 Bolt 原始 checkout。**Git worktree 只隔离源码版本，不是 OS 级进程沙箱**；本轮只执行用户提供的 Bolt 构建，禁止把该执行模式用于不可信任的任意仓库；面向任意工程前需补进程/文件系统/网络边界和权限 UI。旧 A CaseRuntime/UI 尚未迁出或删除，进入产品工作台切换前必须完成旧结构清理。
 
 ## 核心不变量
 
@@ -80,3 +84,10 @@ Approval + RevisionStore（应用同一补丁、冲突检测、回溯）
 - C 媒体、样式 Token、多状态交互、多工程适配和用户收益评估持续补足。
 
 **分支可做契约和回归试验，但不得将单元测试通过宣称为真实站点已修改。当前主分支应用功能和 B 包均不应因这套契约的存在自动认定完成。**
+
+## 成熟技术、许可证与复用边界
+
+- 采用仓库已有 TypeScript Compiler API（项目自身已依赖 TypeScript），而没有另加 `ts-morph` 包装层；B 的 ts-morph 图谱原型用于对照其识别目标，但通用导入解析和更多构建系统尚需压力测试。
+- Git worktree、Git patch/hash、Playwright 与 pixelmatch/pngjs 都沿用成熟能力。截图算法没有自研；B 包锁定的 pixelmatch 8.0.0 为 ISC，pngjs 7.0.0 为 MIT。Playwright 是现有项目开发依赖。候选 runner 重实现了显式 Scope、组合修改、源码摘要、EOL 一致性和清理安全，不直接复制 B 的 `draftFor`/字符串首匹配等缺陷实现。
+- [Cursor Design Mode 文档](https://prod.cursor.com/docs/agent/design-mode)（闭源产品）和 [Onlook React 选择器](https://www.onlook.ai/for/react) / [Apache-2.0 仓库](https://github.com/onlook-dev/onlook)仅作交互与身份模型参考，本轮未复制代码。[stagewise 仓库](https://github.com/stagewise-io/stagewise)采用 AGPL-3.0，因此未引入其实现代码。
+- [Shopify 图片焦点点位](https://help.shopify.com/en/manual/online-store/images/theme-images)、[Cloudinary 自定义焦点区域](https://cloudinary.com/documentation/custom_focus_areas)以及 [Storybook 视觉测试说明](https://storybook.js.org/docs/8/writing-tests/visual-testing)用于后续设计参考；本轮只复用了 B 已有本地像素差异能力，尚未实现可编辑图像焦点、共享覆盖规则或 SaaS 视觉基线服务。C 素材包已经检查来源声明，但没有把素材搬进 Ripple/Bolt 代码或误当作商品实拍。

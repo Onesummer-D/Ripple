@@ -8,6 +8,10 @@ function requireCondition(condition: unknown, message: string): asserts conditio
 }
 const unique = (xs: string[]) => new Set(xs).size === xs.length
 const currentRun = (session: EditSession): VerificationRun | undefined => session.runs.find((run) => run.id === session.approval?.verificationRunId)
+const routePath = (value: string): string | undefined => {
+  try { return new URL(value, 'http://ripple.local').pathname.replace(/\/+$/, '') || '/' }
+  catch { return undefined }
+}
 
 export function openSession(id: string, revision: ProjectRevision, rawIntent: string, selectedElementRefs: string[] = []): EditSession {
   requireCondition(!!id && !!revision.projectId && !!revision.sourceDigest && !!revision.runtimeFingerprint, 'Project revision must be identified')
@@ -51,9 +55,20 @@ export function registerVerification(session: EditSession, run: VerificationRun)
   requireCondition(!!patch && !!session.scope, 'Candidate and scope required')
   requireCondition(run.candidateId === patch.id && run.baseSourceDigest === patch.baseSourceDigest && run.patchHash === patch.patchHash && run.candidateTreeDigest === patch.candidateTreeDigest && run.runtimeFingerprint === session.projectRevision.runtimeFingerprint, 'Verification does not match candidate code/environment')
   requireCondition(!session.runs.some(r => r.id === run.id), 'Verification run identity already exists')
+  const startedAt = Date.parse(run.startedAt), completedAt = Date.parse(run.completedAt)
+  requireCondition(Number.isFinite(startedAt) && Number.isFinite(completedAt) && completedAt >= startedAt, 'Verification run time window is invalid')
   requireCondition(run.checks.some(c => c.mandatory) && unique(run.checks.map(c => c.id)) && unique(run.evidence.map(e => e.id)) && unique(run.evidence.map(e => e.checkId)), 'Mandatory checks and unique check/evidence identities required')
   const checks = new Map(run.checks.map(c => [c.id, c]))
-  requireCondition(run.evidence.every(e => { const c = checks.get(e.checkId); return !!c && e.pageUrl.length > 0 && e.capturedAt.length > 0 && e.viewport.width === c.viewport.width && e.viewport.height === c.viewport.height && e.runtimeState === c.state && (e.result !== 'pass' || !!e.artifactPath) }), 'Evidence must correspond to a real check, viewport and state; passes need artifacts')
+  requireCondition(run.evidence.every(e => {
+    const check = checks.get(e.checkId)
+    const capturedAt = Date.parse(e.capturedAt)
+    let pageUrl: URL | undefined
+    try { pageUrl = new URL(e.pageUrl) } catch { /* malformed or relative evidence URLs are not verifiable */ }
+    return !!check && !!pageUrl && ['http:', 'https:'].includes(pageUrl.protocol) && routePath(e.pageUrl) === routePath(check.route) &&
+      Number.isFinite(capturedAt) && capturedAt >= startedAt && capturedAt <= completedAt &&
+      unique(e.elementRefs) && e.viewport.width === check.viewport.width && e.viewport.height === check.viewport.height && e.runtimeState === check.state &&
+      (e.result !== 'pass' || (!!e.artifactPath && !!e.artifactHash && /^[a-f0-9]{64}$/i.test(e.artifactHash)))
+  }), 'Evidence must match candidate page, viewport, state and run time; passes need a hashed artifact')
   const verified = new Set(run.evidence.filter(e => e.result === 'pass').map(e => e.checkId))
   const complete = run.checks.filter(c => c.mandatory).every(c => verified.has(c.id))
   const hasRisks = run.evidence.some(e => e.result === 'risk' || e.result === 'failed-to-run')
