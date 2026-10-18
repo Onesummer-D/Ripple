@@ -1,1 +1,112 @@
-YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éí×®¶N‹Z–‹­¦ëeŠw¬Õ¥µÁ½ÉĞìÉ•…Ñ•I•ÅÕ¥É”ô™É½´€¹½‘”éµ½‘Õ±”œ)¥µÁ½ÉĞÁ…Ñ ™É½´€¹½‘”éÁ…Ñ œ)¥µÁ½ÉĞìÍ½ÕÉ•¹¹½Ñ…Ñ¥½¹A±Õ¥¸ô™É½´€œ¸½Í½ÕÉ”µ…¹¹½Ñ…Ñ¥½¸¹ÑÌœ()½¹ÍĞÉ•ÅÕ¥É”€ôÉ•…Ñ•I•ÅÕ¥É” œ½É¥ÁÁ±”½½É”½Á…­…”¹©Í½¸œ¤)½¹ÍĞÑÌ€ôÉ•ÅÕ¥É” œ½É¥ÁÁ±”½¹½‘•}µ½‘Õ±•Ì½ÑåÁ•ÍÉ¥ÁĞœ¤)½¹ÍĞÉ•…Ñ5½‘Õ±”€ôÉ•ÅÕ¥É” Ù¥Ñ•©Ì½Á±Õ¥¸µÉ•…Ğœ¤)½¹ÍĞÉ•…Ğ€ôÉ•…Ñ5½‘Õ±”¹‘•™…Õ±Ğ€üüÉ•…Ñ5½‘Õ±”()™Õ¹Ñ¥½¸Í•±•Ñ¥½¹	É¥‘” ¤ì(€½¹ÍĞÍÉ¥ÁĞ€ô€ñÍÉ¥ÁĞø(  ¤€ôøì(€±•Ğ…Ñ¥Ù”€ô™…±Í”ì(€±•ĞÑ½­•¸€ô€œœì(€±•Ğ…¹‘¥‘…Ñ•%€ô€œœì(€±•Ğ¡½Ù•É•€ô¹Õ±°ì(€½¹ÍĞÍÑå±”€ô‘½Õµ•¹Ğ¹É•…Ñ•±•µ•¹Ğ ÍÑå±”œ¤ì(€ÍÑå±”¹Ñ•áÑ½¹Ñ•¹Ğ€ô€m‘…Ñ„µÉ¥ÁÁ±”µÍ•±•Ğµ¡½Ù•Èô‰ÑÉÕ”‰uí½ÕÑ±¥¹”èÉÁàÍ½±¥€„áŒĞÜÜ…¥µÁ½ÉÑ…¹Ğí½ÕÑ±¥¹”µ½™™Í•ĞèÉÁà…¥µÁ½ÉÑ…¹ĞíÕÉÍ½ÈéÉ½ÍÍ¡…¥È…¥µÁ½ÉÑ…¹Ñôœì(€‘½Õµ•¹Ğ¹¡•…¹…ÁÁ•¹¡ÍÑå±”¤ì(€½¹ÍĞ±•…É!½Ù•È€ô€ ¤€ôøì¥˜€¡¡½Ù•É•¤¡½Ù•É•¹É•µ½Ù•ÑÑÉ¥‰ÕÑ” ‘…Ñ„µÉ¥ÁÁ±”µÍ•±•Ğµ¡½Ù•Èœ¤ì¡½Ù•É•€ô¹Õ±°ìôì(€İ¥¹‘½Ü¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È µ•ÍÍ…”œ°•Ù•¹Ğ€ôøì(€€€½¹ÍĞ‘…Ñ„€ô•Ù•¹Ğ¹‘…Ñ„ì(€€€¥˜€¡•Ù•¹Ğ¹Í½ÕÉ”€„ôôİ¥¹‘½Ü¹Á…É•¹Ğñğ€…‘…Ñ„ñğ‘…Ñ„¹ÑåÁ”€„ôô€É¥ÁÁ±”éÍ•±•Ñ¥½¸µµ½‘”œ¤É•ÑÕÉ¸ì(€€€Ñ½­•¸€ôÑåÁ•½˜‘…Ñ„¹Ñ½­•¸€ôôô€ÍÑÉ¥¹œœ€ü‘…Ñ„¹Ñ½­•¸€è€œœì(€€€…¹‘¥‘…Ñ•%€ôÑåÁ•½˜‘…Ñ„¹…¹‘¥‘…Ñ•%€ôôô€ÍÑÉ¥¹œœ€ü‘…Ñ„¹…¹‘¥‘…Ñ•%€è€œœì(€€€…Ñ¥Ù”€ô‘…Ñ„¹•¹…‰±•€ôôôÑÉÕ”€˜˜€„…Ñ½­•¸€˜˜€„……¹‘¥‘…Ñ•%ì(€€€¥˜€ ……Ñ¥Ù”¤±•…É!½Ù•È ¤ì(€€€‘½Õµ•¹Ğ¹‘½Õµ•¹Ñ±•µ•¹Ğ¹ÍÑå±”¹ÕÉÍ½È€ô…Ñ¥Ù”€ü€É½ÍÍ¡…¥Èœ€è€œœì(€ô¤ì(€‘½Õµ•¹Ğ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È Á½¥¹Ñ•É½Ù•Èœ°•Ù•¹Ğ€ôøì(€€€¥˜€ ……Ñ¥Ù”ñğ€„¡•Ù•¹Ğ¹Ñ…É•Ğ¥¹ÍÑ…¹•½˜±•µ•¹Ğ¤¤É•ÑÕÉ¸ì(€€€½¹ÍĞÑ…É•Ğ€ô•Ù•¹Ğ¹Ñ…É•Ğ¹±½Í•ÍĞ m‘‡®¶¶‰ËkºwµçUá=˜ œ¨œ¤€„ôôÑ…É•Ğ¹±…ÍÑ%¹‘•á=˜ œ¨œ¤¤½¹Ñ¥¹Õ”(€€€½¹ÍĞÁÉ•™¥à€ôÁ…ÑÑ•É¸¹Í±¥” À°İ¥±‘…É¤¹É•Á±…” ½l¸¨¬ıx‘íô ¥ñmquqqt½œ°€qp˜œ¤(€€€½¹ÍĞÍÕ™™¥à€ôÁ…ÑÑ•É¸¹Í±¥”¡İ¥±‘…É€¬€Ä¤¹É•Á±…” ½l¸¨¬ıx‘íô ¥ñmquqqt½œ°€qp˜œ¤(€€€½¹ÍĞÑ…É•Ñ%¹‘•à€ôÑ…É•Ğ¹¥¹‘•á=˜ œ¨œ¤(€€€½¹ÍĞÑ…É•ÑAÉ•™¥à€ôÑ…É•Ğ¹Í±¥” À°Ñ…É•Ñ%¹‘•à¤(€€€½¹ÍĞÑ…É•ÑMÕ™™¥à€ôÑ…É•Ğ¹Í±¥”¡Ñ…É•Ñ%¹‘•à€¬€Ä¤(€€€…±¥…Í•Ì¹ÁÕÍ ¡ì(€€€€€™¥¹è¹•ÜI•áÀ¡x‘íÁÉ•™¥áô ¸¨¤‘íÍÕ™™¥áô‘€¤°(€€€€€É•Á±…•µ•¹Ğè€‘íÁ…Ñ ¹É•Í½±Ù”¡Á…ÉÍ•¹½ÁÑ¥½¹Ì¹‰…Í•UÉ°€üü€œ½İ½É¬œ°Ñ…É•ÑAÉ•™¥à¥ôÄ‘íÑ…É•ÑMÕ™™¥áõ€°(€€€ô¤(€ô(€É•ÑÕÉ¸…±¥…Í•Ì)ô()•áÁ½ÉĞ‘•™…Õ±Ğì(€½¹™¥¥±”è™…±Í”°(€É½½Ğè€œ½İ½É¬œ°(€Á±Õ¥¹ÌèmÍ½ÕÉ•¹¹½Ñ…Ñ¥½¹A±Õ¥¸ œ½İ½É¬œ¤°É•…Ğ ¤°Í•±•Ñ¥½¹	É¥‘” ¥t°(€É•Í½±Ù”èì…±¥…ÌèÑåÁ•ÍÉ¥ÁÑ±¥…Í•Ì ¤ô°(€…¡•¥Èè€œ½ÑµÀ½É¥ÁÁ±”µÙ¥Ñ”µ…¡”œ°(€Í•ÉÙ•Èèì(€€€¡½ÍĞè€œÀ¸À¸À¸Àœ°(€€€Á½ÉĞè€ÔÄÜÌ°(€€€ÍÑÉ¥ÑA½ÉĞèÑÉÕ”°(€€€¡µÈè™…±Í”°(€€€½ÉÌèì½É¥¥¸è€¹Õ±°œô°(€€€™ÌèìÍÑÉ¥ĞèÑÉÕ”°…±±½Üèlœ½İ½É¬œ°€œ½‘•ÁÌœ°€œ½É¥ÁÁ±”½½É”œ°€œ½É¥ÁÁ±”½¹½‘•}µ½‘Õ±•Ìtô°(€€€¡•…‘•ÉÌèì(€€€€€€½¹Ñ•¹ĞµÍ•ÕÉ¥ÑäµÁ½±¥äœè€‰‘•™…Õ±ĞµÍÉŒ€Í•±˜œ‘…Ñ„è‰±½ˆèìÍÉ¥ÁĞµÍÉŒ€Í•±˜œ€Õ¹Í…™”µ¥¹±¥¹”œ€Õ¹Í…™”µ•Ù…°œìÍÑå±”µÍÉŒ€Í•±˜œ€Õ¹Í…™”µ¥¹±¥¹”œ¡ÑÑÁÌè¼½™½¹ÑÌ¹½½±•…Á¥Ì¹½´ì™½¹ĞµÍÉŒ€Í•±˜œ‘…Ñ„è¡ÑÑÁÌè¼½™½¹ÑÌ¹ÍÑ…Ñ¥Œ¹½´ì¥µœµÍÉŒ€Í•±˜œ‘…Ñ„è‰±½ˆè¡ÑÑÁÌèìµ•‘¥„µÍÉŒ€Í•±˜œ‘…Ñ„è‰±½ˆèì½¹¹•ĞµÍÉŒ€Í•±˜œì™½É´µ…Ñ¥½¸€¹½¹”œì½‰©•ĞµÍÉŒ€¹½¹”œì‰…Í”µÕÉ¤€¹½¹”œì™É…µ”µÍÉŒ€¹½¹”œˆ°(€€€€€€É•™•ÉÉ•ÈµÁ½±¥äœè€¹¼µÉ•™•ÉÉ•Èœ°(€€€€€€àµ½¹Ñ•¹ĞµÑåÁ”µ½ÁÑ¥½¹Ìœè€¹½Í¹¥™˜œ°(€€€ô°(€ô°)ô(
+import { createRequire } from 'node:module'
+import path from 'node:path'
+import { sourceAnnotationPlugin } from './source-annotation.ts'
+
+const require = createRequire('/ripple/core/package.json')
+const ts = require('/ripple/node_modules/typescript')
+const reactModule = require('@vitejs/plugin-react')
+const react = reactModule.default ?? reactModule
+
+function selectionBridge() {
+  const script = `<script>
+(() => {
+  let active = false;
+  let token = '';
+  let candidateId = '';
+  let hovered = null;
+  const style = document.createElement('style');
+  style.textContent = '[data-ripple-select-hover="true"]{outline:2px solid #a8c477!important;outline-offset:2px!important;cursor:crosshair!important}';
+  document.head.append(style);
+  const clearHover = () => { if (hovered) hovered.removeAttribute('data-ripple-select-hover'); hovered = null; };
+  window.addEventListener('message', event => {
+    const data = event.data;
+    if (event.source !== window.parent || !data || data.type !== 'ripple:selection-mode') return;
+    token = typeof data.token === 'string' ? data.token : '';
+    candidateId = typeof data.candidateId === 'string' ? data.candidateId : '';
+    active = data.enabled === true && !!token && !!candidateId;
+    if (!active) clearHover();
+    document.documentElement.style.cursor = active ? 'crosshair' : '';
+  });
+  document.addEventListener('pointerover', event => {
+    if (!active || !(event.target instanceof Element)) return;
+    const target = event.target.closest('[data-ripple-source]');
+    if (target === hovered) return;
+    clearHover();
+    hovered = target;
+    if (hovered) hovered.setAttribute('data-ripple-select-hover', 'true');
+  }, true);
+  document.addEventListener('click', event => {
+    if (!active || !(event.target instanceof Element)) return;
+    const target = event.target.closest('[data-ripple-source]');
+    if (!target) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.parent.postMessage({
+      type: 'ripple:element-selected', token, candidateId,
+      sourceRef: target.getAttribute('data-ripple-source'),
+      runtimeInstanceId: target.getAttribute('data-ripple-instance'),
+      identityCertainty: target.getAttribute('data-ripple-identity-certainty') || 'unknown',
+      tagName: target.tagName.toLowerCase(), text: (target.textContent || '').trim().slice(0, 300)
+    }, '*');
+  }, true);
+})();
+</script>`
+  return {
+    name: 'ripple-candidate-selection-bridge',
+    transformIndexHtml: { order: 'post', handler: (html) => html.replace('</body>', `${script}</body>`) },
+  }
+}
+
+function typescriptAliases() {
+  const configPath = ['tsconfig.json', 'tsconfig.app.json', 'jsconfig.json']
+    .map(name => path.join('/work', name))
+    .find(file => ts.sys.fileExists(file))
+  if (!configPath) return []
+
+  const config = ts.readConfigFile(configPath, ts.sys.readFile)
+  if (config.error) return []
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, path.dirname(configPath), undefined, configPath)
+  const aliases = []
+  for (const [pattern, destinations] of Object.entries(parsed.options.paths ?? {})) {
+    if (destinations.length !== 1) continue
+    const target = destinations[0]
+    const wildcard = pattern.indexOf('*')
+    if (wildcard < 0) {
+      if (!target.includes('*')) aliases.push({ find: pattern, replacement: path.resolve(parsed.options.baseUrl ?? '/work', target) })
+      continue
+    }
+    if (pattern.indexOf('*', wildcard + 1) >= 0 || target.indexOf('*') !== target.lastIndexOf('*')) continue
+    const prefix = pattern.slice(0, wildcard).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const suffix = pattern.slice(wildcard + 1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const targetIndex = target.indexOf('*')
+    const targetPrefix = target.slice(0, targetIndex)
+    const targetSuffix = target.slice(targetIndex + 1)
+    aliases.push({
+      find: new RegExp(`^${prefix}(.*)${suffix}$`),
+      replacement: `${path.resolve(parsed.options.baseUrl ?? '/work', targetPrefix)}$1${targetSuffix}`,
+    })
+  }
+  return aliases
+}
+
+export default {
+  configFile: false,
+  root: '/work',
+  plugins: [sourceAnnotationPlugin('/work'), react(), selectionBridge()],
+  resolve: { alias: typescriptAliases() },
+  cacheDir: '/tmp/ripple-vite-cache',
+  optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    hmr: false,
+    cors: { origin: 'null' },
+    fs: { strict: true, allow: ['/work', '/deps', '/ripple/core', '/ripple/node_modules'] },
+    headers: {
+      'content-security-policy': "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self'; form-action 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'",
+      'referrer-policy': 'no-referrer',
+      'x-content-type-options': 'nosniff',
+    },
+  },
+}

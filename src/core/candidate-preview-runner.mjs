@@ -1,7 +1,9 @@
 import { createServer } from 'vite'
 import config from './candidate-preview-vite.config.mjs'
 
+console.log('Ripple candidate preview: creating Vite server')
 const server = await createServer(config)
+console.log('Ripple candidate preview: Vite server configured')
 await server.listen()
 console.log('Ripple candidate preview server is ready')
 
