@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sourceProvenPageImpact } from './scope'
+import { evaluateOperationPageScope, expectedTextForPage, sourceProvenPageImpact } from './scope'
 import type { SourceGraph } from './model'
 
 const graph: SourceGraph = {
@@ -45,3 +45,31 @@ describe('source-proven page impact', () => {
     expect(affected.certainty).toBe('partial')
   })
 })
+
+describe('shared page Scope evaluation', () => {
+  it('uses the same conflict and preservation decisions for enforcement and preview', () => {
+    const shared = { strategy: 'shared' as const, includedRefs: ['page:home'], excludedRefs: [], protectedRefs: [] }
+    expect(evaluateOperationPageScope(shared, ['page:home'])).toEqual([{ pageRef: 'page:home', effect: 'change' }])
+    expect(evaluateOperationPageScope(shared, ['page:products'])).toEqual([{ pageRef: 'page:products', effect: 'conflict', reason: 'Scope 尚未明确包含受影响页面：page:products' }])
+    expect(evaluateOperationPageScope({ ...shared, protectedRefs: ['page:products'] }, ['page:products'])).toContainEqual(expect.objectContaining({ effect: 'conflict', reason: expect.stringContaining('排除或保护') }))
+
+    const local = { ...shared, strategy: 'page-override' as const, localPageRef: 'page:home', protectedRefs: ['page:products'] }
+    expect(evaluateOperationPageScope(local, ['page:home', 'page:products'])).toEqual([
+      { pageRef: 'page:home', effect: 'change' },
+      { pageRef: 'page:products', effect: 'preserve' },
+    ])
+    expect(evaluateOperationPageScope({ ...local, protectedRefs: [] }, ['page:products'])[0].effect).toBe('conflict')
+  })
+
+  it('computes current effective values from page override before applying a planned text change', () => {
+    const source = { value: '$10', pageOverrides: { 'page:home': '$9' } }
+    const operation = { id: 'edit', kind: 'TEXT' as const, targetRef: 'data:shared-price', before: '$10', after: '$8' }
+    expect(expectedTextForPage(source, operation, {
+      strategy: 'page-override', localPageRef: 'page:home', includedRefs: ['page:home'], excludedRefs: ['page:products'], protectedRefs: [],
+    }, 'page:home')).toEqual({ baselineText: '$9', candidateText: '$8', shouldChange: true })
+    expect(expectedTextForPage(source, operation, {
+      strategy: 'page-override', localPageRef: 'page:home', includedRefs: ['page:home'], excludedRefs: ['page:products'], protectedRefs: [],
+    }, 'page:products')).toEqual({ baselineText: '$10', candidateText: '$10', shouldChange: false })
+  })
+})
+

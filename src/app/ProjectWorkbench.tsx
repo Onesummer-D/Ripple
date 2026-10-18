@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BrowserVerificationContract, EditKind, EditOperation, EvidenceResult, ScopeDecision } from '../core/model'
 import { VerificationContractEditor } from './VerificationContractEditor'
+import { ScopeEffectPreview } from './ScopeEffectPreview'
+import { buildScopeEffectPreview, type PageScopeChoice } from './scope-effect-preview'
 import { projectPreviewViewports } from '../core/project-viewports'
 import { createVerificationContractDraft, incompleteVerificationDeclarations, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
 import './project-workbench.css'
@@ -81,7 +83,7 @@ interface SourceSelection {
   tagName: string
   text: string
 }
-type PageScope = 'include' | 'exclude' | 'protect' | ''
+type PageScope = PageScopeChoice
 const operationKind = (kind: TargetSummary['kind']): EditKind => kind === 'data' ? 'TEXT' : kind === 'media' ? 'MEDIA' : 'TOKEN'
 const candidateStorageKey = 'ripple.workbench.activeCandidate'
 const previewSizes = projectPreviewViewports
@@ -212,6 +214,23 @@ export default function ProjectWorkbench() {
   const scopesComplete = !!analysis && analysis.routes.every(route => !!pageScope[route.id])
   const includedRoutes = analysis?.routes.filter(route => pageScope[route.id] === 'include') ?? []
   const scopesValid = scopeStrategy === 'shared' || (includedRoutes.length === 1 && includedRoutes[0].id === localPageRef)
+  const scopePageDecision = useMemo(() => ({
+    strategy: scopeStrategy,
+    ...(scopeStrategy === 'page-override' ? { localPageRef } : {}),
+    includedRefs: [...new Set([
+      ...operations.map(operation => operation.targetRef),
+      ...(analysis?.routes.filter(route => pageScope[route.id] === 'include').map(route => route.id) ?? []),
+    ])],
+    excludedRefs: analysis?.routes.filter(route => pageScope[route.id] === 'exclude').map(route => route.id) ?? [],
+    protectedRefs: analysis?.routes.filter(route => pageScope[route.id] === 'protect').map(route => route.id) ?? [],
+  }), [analysis, operations, pageScope, scopeStrategy, localPageRef])
+  const scopeEffectRows = useMemo(() => buildScopeEffectPreview({
+    routes: analysis?.routes ?? [],
+    targets: analysis?.targets ?? [],
+    operations,
+    choices: pageScope,
+    scope: scopePageDecision,
+  }), [analysis, operations, pageScope, scopePageDecision])
   useEffect(() => {
     if (!candidate || !previewUrl) return
     previewFrame.current?.contentWindow?.postMessage({
@@ -348,12 +367,8 @@ export default function ProjectWorkbench() {
     if (!analysis || !operations.length || !intent.trim() || !scopesComplete) return
     setBusy(true); setError('')
     const scope: ScopeDecision = {
+      ...scopePageDecision,
       id: `scope-${crypto.randomUUID()}`, version: 1,
-      strategy: scopeStrategy,
-      ...(scopeStrategy === 'page-override' ? { localPageRef } : {}),
-      includedRefs: [...operations.map(operation => operation.targetRef), ...analysis.routes.filter(route => pageScope[route.id] === 'include').map(route => route.id)],
-      excludedRefs: analysis.routes.filter(route => pageScope[route.id] === 'exclude').map(route => route.id),
-      protectedRefs: analysis.routes.filter(route => pageScope[route.id] === 'protect').map(route => route.id),
       decidedBy: 'local-user', decidedAt: new Date().toISOString(),
     }
     try {
@@ -530,6 +545,7 @@ export default function ProjectWorkbench() {
           {scopeStrategy === 'page-override' && <label className="local-page-choice">覆盖页面<select aria-label="选择局部覆盖页面" value={localPageRef} onChange={event => void invalidateCandidate().then(ok => { if (ok) { const pageRef = event.target.value; setLocalPageRef(pageRef); setAfter(target?.pageOverrides?.[pageRef] ?? target?.value ?? '') } })}>{analysis.routes.map(route => <option key={route.id} value={route.id}>{route.label}</option>)}</select><small>当前执行器支持 JSX 文本；MEDIA、TOKEN 和运行时单实例覆盖仍未接入。</small></label>}
         </fieldset>
         {analysis.routes.length === 0 ? <p className="empty-note">尚未解析出路由，当前不能生成页面范围候选。</p> : <div className="scope-grid">{analysis.routes.map(route => <label className={`scope-route ${pageScope[route.id] ? `scope-${pageScope[route.id]}` : ''}`} key={route.id}><span className="scope-route-head"><strong>{route.label}</strong><code>{route.id}</code></span><select data-testid={`scope-${route.id}`} aria-label={`${route.label} 页面范围`} value={pageScope[route.id] ?? ''} disabled={busy || previewBusy || verificationBusy} onChange={event => { const value = event.target.value as PageScope; void invalidateCandidate().then(ok => { if (ok) setPageScope(current => ({ ...current, [route.id]: value })) }) }}><option value="">请选择范围</option><option value="include">包含在候选中</option><option value="exclude">明确排除</option><option value="protect">保护，不得修改</option></select>{impactedPages.includes(route.id) && <small>目标源码的已证明消费者</small>}</label>)}</div>}
+        <ScopeEffectPreview rows={scopeEffectRows} />
         <VerificationContractEditor routes={analysis.routes} value={verificationContractDraft} disabled={busy || previewBusy || verificationBusy || !!candidate} onChange={setVerificationContractDraft} />
         {incompleteVerificationDeclarations(verificationContractDraft) > 0 && <p className="verification-contract-note" role="status">有 {incompleteVerificationDeclarations(verificationContractDraft)} 项验收信息尚未填写完整；不完整项不会送入执行器，相关断言将保持 UNKNOWN。</p>}
         <div className="scope-footer"><span>{operations.length} 项操作 · {impactedPages.length} 个已证明页面消费者{scopeStrategy === 'page-override' ? ' · 一项页面覆盖' : ''}</span><button type="button" data-testid="create-real-candidate" onClick={() => void createCandidate()} disabled={busy || previewBusy || verificationBusy || !analysis || !intent.trim() || !operations.length || !scopesComplete || !scopesValid}>{busy ? '正在创建隔离候选…' : '创建真实隔离候选'}<span>↗</span></button></div>
@@ -554,3 +570,4 @@ export default function ProjectWorkbench() {
     <footer className="workbench-footer"><span>RIPPLE / PROJECT-FIRST CORE</span><span>candidate workspace is isolated · original checkout stays untouched</span></footer>
   </main>
 }
+

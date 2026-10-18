@@ -103,6 +103,24 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await page.getByLabel('选择局部覆盖页面').selectOption('page:home')
   await page.getByLabel('home 页面访问路径').fill('/')
   await page.getByLabel('home 页面标记文字').fill('Home route')
+  const scopePlan = page.getByTestId('scope-effect-preview')
+  await expect(scopePlan).toContainText('计划预览 · 不是浏览器 Evidence')
+  const homePlan = scopePlan.locator('.scope-effect-row').filter({ has: page.getByText('page:home', { exact: true }) })
+  const autumnPlan = scopePlan.locator('.scope-effect-row').filter({ has: page.getByText('page:autumn', { exact: true }) })
+  await expect(homePlan).toHaveCount(2)
+  const titlePlan = homePlan.filter({ hasText: 'Baseline title' })
+  const actionPlan = homePlan.filter({ hasText: 'Browse items' })
+  await expect(titlePlan).toHaveCount(1)
+  await expect(titlePlan).toContainText('Candidate title')
+  await expect(titlePlan).toContainText('将修改')
+  await expect(actionPlan).toHaveCount(1)
+  await expect(actionPlan).toContainText('Explore items')
+  await expect(actionPlan).toContainText('将修改')
+  await expect(autumnPlan).toHaveCount(2)
+  for (const row of await autumnPlan.all()) {
+    await expect(row).toContainText('保持当前值')
+    await expect(row).not.toContainText('Candidate title')
+  }
   await page.getByTestId('create-real-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toBeVisible({ timeout: 30_000 })
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
@@ -506,3 +524,4 @@ test('opens the supplied Bolt project in the workbench and builds a shared-scope
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
   candidateId = ''
 })
+

@@ -15,23 +15,62 @@ export interface PageImpact {
   certainty: 'source-proven' | 'partial' | 'unknown'
 }
 
+export type ScopePageDecision = Pick<ScopeDecision, 'strategy' | 'localPageRef' | 'includedRefs' | 'excludedRefs' | 'protectedRefs'>
+
+export type OperationPageEffect =
+  | { pageRef: string; effect: 'change' }
+  | { pageRef: string; effect: 'preserve' }
+  | { pageRef: string; effect: 'conflict'; reason: string }
+
 export interface PageTextExpectation {
   baselineText: string
   candidateText: string
   shouldChange: boolean
 }
 
-export function expectedTextForScope(scope: ScopeDecision, pageRef: string, baselineText: string, requestedText: string): PageTextExpectation {
+export function expectedTextForScope(scope: ScopePageDecision, pageRef: string, baselineText: string, requestedText: string): PageTextExpectation {
   const shouldChange = scope.strategy === 'page-override'
     ? scope.localPageRef === pageRef
     : scope.includedRefs.includes(pageRef)
   return { baselineText, candidateText: shouldChange ? requestedText : baselineText, shouldChange }
 }
 
-export function expectedTextForPage(source: Pick<SourceNode, 'value' | 'pageOverrides'>, operation: EditOperation, scope: ScopeDecision, pageRef: string): PageTextExpectation {
+export function pageTextValues(source: Pick<SourceNode, 'value' | 'pageOverrides'>, operation: EditOperation, pageRef: string): Pick<PageTextExpectation, 'baselineText'> & { requestedText: string } {
   const baselineText = source.pageOverrides?.[pageRef] ?? source.value ?? operation.before
   const requestedText = operation.overrideAction === 'remove' ? source.value ?? operation.before : operation.after
+  return { baselineText, requestedText }
+}
+
+export function expectedTextForPage(source: Pick<SourceNode, 'value' | 'pageOverrides'>, operation: EditOperation, scope: ScopePageDecision, pageRef: string): PageTextExpectation {
+  const { baselineText, requestedText } = pageTextValues(source, operation, pageRef)
   return expectedTextForScope(scope, pageRef, baselineText, requestedText)
+}
+
+/** Shared page-level Scope decision used by candidate enforcement and the workbench preview. */
+export function evaluateOperationPageScope(scope: ScopePageDecision, affectedPageRefs: readonly string[]): OperationPageEffect[] {
+  const included = new Set(scope.includedRefs)
+  const excluded = new Set(scope.excludedRefs)
+  const protectedRefs = new Set(scope.protectedRefs)
+  const isExcluded = (pageRef: string) => excluded.has(pageRef) || protectedRefs.has(pageRef)
+
+  if (scope.strategy !== 'page-override') {
+    return affectedPageRefs.map(pageRef => {
+      if (isExcluded(pageRef)) return { pageRef, effect: 'conflict', reason: `操作会影响 Scope 排除或保护的页面：${pageRef}` }
+      if (!included.has(pageRef)) return { pageRef, effect: 'conflict', reason: `Scope 尚未明确包含受影响页面：${pageRef}` }
+      return { pageRef, effect: 'change' }
+    })
+  }
+
+  const localPageRef = scope.localPageRef
+  if (!localPageRef || !included.has(localPageRef) || isExcluded(localPageRef)) {
+    return affectedPageRefs.map(pageRef => ({ pageRef, effect: 'conflict', reason: '页面覆盖需要明确包含一个未排除或未保护的目标页面' }))
+  }
+
+  return affectedPageRefs.map(pageRef => {
+    if (pageRef === localPageRef) return { pageRef, effect: 'change' }
+    if (isExcluded(pageRef)) return { pageRef, effect: 'preserve' }
+    return { pageRef, effect: 'conflict', reason: `页面覆盖要求明确排除或保护其他共享消费者：${pageRef}` }
+  })
 }
 
 /** Follows only source-proven consumer edges; candidate writes fail closed on incomplete proof. */
@@ -99,3 +138,4 @@ export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): P
     certainty: uniqueUnresolved.length ? pageRefs.size ? 'partial' : 'unknown' : 'source-proven',
   }
 }
+

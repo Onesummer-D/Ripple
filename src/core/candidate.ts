@@ -6,7 +6,7 @@ import ts from 'typescript'
 import type { CandidatePatch, EditOperation, ScopeDecision, SourceGraph, SourceNode } from './model'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot } from './project'
 import { ensureRuntimeImports, findPageOverrideMarkers, newPageOverrideTargetId, readPageOverrideRegistry, removeRuntimeImports, writePageOverrideRegistry, type PageOverrideMarker } from './page-overrides'
-import { sourceProvenPageImpact } from './scope'
+import { evaluateOperationPageScope, sourceProvenPageImpact } from './scope'
 
 export class CandidateError extends Error {
   constructor(message: string) { super(message); this.name = 'CandidateError' }
@@ -78,14 +78,9 @@ function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditO
         throw new CandidateError('当前页面覆盖只支持具有确定页面消费者的 JSX 文本；MEDIA/TOKEN 和非目标页面尚不支持覆盖')
       }
       if (operation.overrideAction === 'remove' && !operation.targetRef.startsWith('override:')) throw new CandidateError('只能移除已保存的页面覆盖规则')
-      for (const pageRef of impact.pageRefs) {
-        if (pageRef !== localPageRef && !excluded.has(pageRef)) throw new CandidateError(`页面覆盖要求明确排除或保护其他共享消费者：${pageRef}`)
-      }
-      continue
     }
-    for (const pageRef of impact.pageRefs) {
-      if (excluded.has(pageRef)) throw new CandidateError(`操作会影响 Scope 排除或保护的页面：${pageRef}`)
-      if (!included.has(pageRef)) throw new CandidateError(`Scope 尚未明确包含受影响页面：${pageRef}`)
+    for (const pageEffect of evaluateOperationPageScope(scope, impact.pageRefs)) {
+      if (pageEffect.effect === 'conflict') throw new CandidateError(pageEffect.reason)
     }
   }
   return nodes
@@ -514,3 +509,4 @@ function emptyCandidateParent(candidateRoot: string): void {
   if (!fs.existsSync(parent) || !fs.statSync(parent).isDirectory() || fs.readdirSync(parent).length) return
   fs.rmdirSync(parent)
 }
+
