@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
+import { trackedProjectFiles } from './project'
 
 export class CandidatePreviewError extends Error {
   constructor(message: string) { super(message); this.name = 'CandidatePreviewError' }
@@ -28,6 +29,32 @@ export function addressOnPreviewNetwork(networksJson: string, networkName: strin
 export async function resolveCandidatePreviewAddress(preview: CandidatePreview): Promise<string> {
   const networks = await docker(['inspect', '--format', '{{json .NetworkSettings.Networks}}', preview.containerName])
   return addressOnPreviewNetwork(networks, preview.networkName)
+}
+
+export function trustedOriginsFromSources(sources: string[]): string[] {
+  const origins = new Set<string>()
+  for (const source of sources) {
+    for (const match of source.matchAll(/https:\/\/[^\s"'`<>()[\]{}]+/g)) {
+      try {
+        const url = new URL(match[0].replace(/[),.;]+$/, ''))
+        if (url.protocol === 'https:' && !url.username && !url.password) origins.add(url.origin)
+      } catch { /* Non-URL text is not a trusted origin. */ }
+    }
+  }
+  if (origins.has('https://fonts.googleapis.com')) origins.add('https://fonts.gstatic.com')
+  return [...origins].sort()
+}
+
+export function trustedPreviewResourceOrigins(projectRoot: string): string[] {
+  const sources: string[] = []
+  for (const relative of trackedProjectFiles(projectRoot)) {
+    if (!/\.(?:[cm]?[jt]sx?|css|html?|svg|json)$/i.test(relative)) continue
+    const file = path.join(projectRoot, relative)
+    const stat = fs.lstatSync(file)
+    if (stat.isSymbolicLink() || !stat.isFile() || stat.size > 2 * 1024 * 1024) continue
+    sources.push(fs.readFileSync(file, 'utf8'))
+  }
+  return trustedOriginsFromSources(sources)
 }
 
 const previews = new Map<string, CandidatePreview>()
@@ -82,10 +109,7 @@ async function waitUntilReady(preview: CandidatePreview, containerIp: string): P
     for (const endpoint of endpoints) {
       try {
         const response = await fetch(endpoint, { signal: AbortSignal.timeout(1_500) })
-        if (response.ok) {
-          preview.url = endpoint
-          return
-        }
+        if (response.ok) return
         lastResponse = `${endpoint}: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`
       } catch (error) {
         const cause = error instanceof Error && 'cause' in error ? String(error.cause) : ''
@@ -144,6 +168,7 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
   if (!fs.existsSync(dependencyPath)) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
   const dependencies = fs.realpathSync(dependencyPath)
   if (!fs.statSync(dependencies).isDirectory()) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
+  if (process.platform !== 'linux') throw new CandidatePreviewError('隔离预演使用 Linux 容器并挂载原生依赖；请在 Linux 或 WSL2 中运行 Ripple 与目标项目，并将两者放在 Linux 文件系统中')
   const candidateRoot = fs.realpathSync(candidate.candidateRoot!)
   for (const file of ['package.json', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb']) {
     const baseFile = path.join(projectRoot, file)
@@ -172,6 +197,7 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
       '--label', `com.ripple.candidate=${candidate.id}`,
       '--network', networkName,
       '--publish', `127.0.0.1:${port}:5173`,
+      '--env', `RIPPLE_PREVIEW_RESOURCE_ORIGINS=${JSON.stringify(trustedPreviewResourceOrigins(projectRoot))}`,
       '--read-only', '--user', '1000:1000',
       '--memory', '1g', '--cpus', '2', '--pids-limit', '128',
       '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
