@@ -11,6 +11,7 @@ import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBa
 import { attestBrowserExecution } from './verification-receipt'
 import { expectedTextForPage, sourceProvenPageImpact } from './scope'
 import { verificationContractHash } from './verification-contract'
+import { projectPreviewViewports } from './project-viewports'
 
 export class VerificationRunnerError extends Error {
   constructor(message: string) { super(message); this.name = 'VerificationRunnerError' }
@@ -116,6 +117,7 @@ interface ExecutionManifest {
   candidateTreeDigest: string
   runtimeFingerprint: string
   verificationContractHash?: string
+  viewports: Array<{ name: string; width: number; height: number }>
   checks: Array<{ id: string; route: string; viewport: { width: number; height: number }; state: string; passed: boolean }>
   baselineComparisons: BaselineComparison[]
   scopeObservations: ScopePropagationObservation[]
@@ -168,6 +170,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
       runtimeFingerprint: session.projectRevision.runtimeFingerprint,
       verificationContractHash: verificationContractHash(session.verificationContract),
+      viewports: projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height })),
       previewHost: await resolveCandidatePreviewAddress(preview), baselineHost: baseline.address,
       targetBindings: sourceBindings(candidate, baseGraph, candidateGraph, session),
       baselineComparisonPageRef: session.verificationContract?.pages.filter(page => page.path === '/' && !page.navigateBy).length === 1
@@ -203,10 +206,11 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   const recordStat = fs.lstatSync(recordPath)
   if (recordStat.isSymbolicLink() || !recordStat.isFile()) throw new VerificationRunnerError('Playwright 执行记录不是普通文件')
   const manifest = JSON.parse(fs.readFileSync(recordPath, 'utf8')) as ExecutionManifest
+  const plannedViewports = projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height }))
   if (manifest.schemaVersion !== 2 || manifest.executor !== 'playwright' || manifest.completed !== true || manifest.runId !== runId || manifest.candidateId !== candidate.id ||
     manifest.scopeDecisionId !== candidate.scopeDecisionId || manifest.scopeVersion !== candidate.scopeVersion || manifest.baseSourceDigest !== candidate.baseSourceDigest ||
     manifest.patchHash !== candidate.patchHash || manifest.candidateTreeDigest !== candidate.candidateTreeDigest || manifest.runtimeFingerprint !== session.projectRevision.runtimeFingerprint ||
-    manifest.verificationContractHash !== verificationContractHash(session.verificationContract)) {
+    manifest.verificationContractHash !== verificationContractHash(session.verificationContract) || JSON.stringify(manifest.viewports) !== JSON.stringify(plannedViewports)) {
     throw new VerificationRunnerError('隔离浏览器返回的执行记录与候选、Scope 或源码版本不匹配')
   }
   const actualAssertionIds = new Set(manifest.assertions.map(assertion => assertion.id))

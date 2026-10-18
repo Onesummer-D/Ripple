@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { projectPreviewViewports } from '../src/core/project-viewports'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
@@ -11,6 +12,7 @@ const projectRoot = path.join(sandbox, 'site')
 const boltProjectRoot = process.env.RIPPLE_BOLT_PROJECT
 const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence')
 const dockerAvailable = process.platform === 'linux' && spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
+const expectedProjectViewports = projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height }))
 let candidateId = ''
 fs.mkdirSync(evidenceRoot, { recursive: true })
 
@@ -135,7 +137,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
     const previewUrl = await page.getByTestId('candidate-preview').getAttribute('src')
     const previewFrame = page.frames().find(frame => frame.url() === previewUrl)
     expect(previewFrame).toBeTruthy()
-    for (const width of [1440, 768, 390]) {
+    for (const { width } of projectPreviewViewports) {
       await page.getByTestId(`preview-viewport-${width}`).click()
       await expect.poll(() => previewFrame!.evaluate(() => window.innerWidth)).toBe(width)
       expect(await previewFrame!.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
@@ -199,15 +201,16 @@ test('opens a real local project, keeps multiple operations and explicit local S
     await expect(assertionCards.filter({ hasText: 'interaction' })).toContainText('UNKNOWN')
     await expect(assertionCards.filter({ hasText: 'scope-propagation' })).toContainText('UNKNOWN')
     const verificationImages = page.getByTestId('verification-evidence').locator('img')
-    await expect(verificationImages).toHaveCount(3)
+    await expect(verificationImages).toHaveCount(projectPreviewViewports.length)
     await expect.poll(() => verificationImages.evaluateAll(images => images.every(image => {
       const rendered = image as HTMLImageElement
       return rendered.complete && rendered.naturalWidth > 0
     }))).toBe(true)
     expect(executionRecord).toMatchObject({ candidateId, patchHash: expect.any(String), candidateTreeDigest: expect.any(String), scopeVersion: 1 })
-    expect(executionRecord.evidence.map((item: { viewport: { width: number } }) => item.viewport.width)).toEqual([1440, 768, 390])
+    expect(executionRecord.viewports).toEqual(expectedProjectViewports)
+    expect(executionRecord.evidence.map((item: { viewport: { width: number } }) => item.viewport.width)).toEqual(expectedProjectViewports.map(viewport => viewport.width))
     expect(executionRecord.evidence.every((item: { result: string }) => item.result === 'pass')).toBe(true)
-    expect(executionRecord.baselineComparisons).toHaveLength(3)
+    expect(executionRecord.baselineComparisons).toHaveLength(projectPreviewViewports.length)
     expect(executionRecord.baselineComparisons.every((comparison: { matched: boolean; baselineDigest: string; candidateDigest: string; maskedOperationIds: string[] }) =>
       comparison.matched && comparison.baselineDigest === comparison.candidateDigest && comparison.maskedOperationIds.length === 2)).toBe(true)
     const screenshotUrls = await verificationImages.evaluateAll(images => images.map(image => (image as HTMLImageElement).src))
@@ -217,7 +220,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
       const bytes = await screenshot.body()
       expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
       expect(createHash('sha256').update(bytes).digest('hex')).toBe(executionRecord.evidence[index].artifactHash)
-      fs.writeFileSync(path.join(evidenceRoot, `workbench-verification-${[1440, 768, 390][index]}.png`), bytes)
+      fs.writeFileSync(path.join(evidenceRoot, `workbench-verification-${projectPreviewViewports[index].width}.png`), bytes)
     }
     await page.getByTestId('toggle-element-selection').click()
     await page.getByTestId('toggle-candidate-preview').click()
@@ -260,7 +263,7 @@ test('creates a centralized page-only override for a shared JSX text target', as
   candidateId = ''
 })
 
-test('records trusted three-viewport evidence while unsupported assertions stay unknown', async ({ page }) => {
+test('records trusted four-viewport evidence while unsupported assertions stay unknown', async ({ page }) => {
   test.setTimeout(180_000)
   test.skip(!dockerAvailable, 'Docker-backed ProjectRunner and VerificationRunner are required')
   await page.goto('/')
@@ -295,9 +298,10 @@ test('records trusted three-viewport evidence while unsupported assertions stay 
   expect(executionRecord).toMatchObject({ candidateId, patchHash: expect.any(String), candidateTreeDigest: expect.any(String), scopeVersion: 1 })
   fs.writeFileSync(path.join(evidenceRoot, 'workbench-single-target-verification.json'), JSON.stringify(executionRecord, null, 2))
   const images = page.getByTestId('verification-evidence').locator('img')
-  await expect(images).toHaveCount(3)
+  await expect(images).toHaveCount(projectPreviewViewports.length)
   const urls = await images.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))
-  expect(executionRecord.evidence.map((item: { viewport: { width: number } }) => item.viewport.width)).toEqual([1440, 768, 390])
+  expect(executionRecord.viewports).toEqual(expectedProjectViewports)
+  expect(executionRecord.evidence.map((item: { viewport: { width: number } }) => item.viewport.width)).toEqual(expectedProjectViewports.map(viewport => viewport.width))
   expect(executionRecord.evidence.every((item: { result: string }) => item.result === 'pass')).toBe(true)
   for (const [index, url] of urls.entries()) {
     const screenshot = await page.request.get(url)
@@ -305,7 +309,7 @@ test('records trusted three-viewport evidence while unsupported assertions stay 
     const bytes = await screenshot.body()
     expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(executionRecord.evidence[index].artifactHash)
-    fs.writeFileSync(path.join(evidenceRoot, `workbench-single-target-${[1440, 768, 390][index]}.png`), bytes)
+    fs.writeFileSync(path.join(evidenceRoot, `workbench-single-target-${projectPreviewViewports[index].width}.png`), bytes)
   }
 
   await page.getByTestId('discard-candidate').click()
@@ -364,7 +368,7 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
   const execution = await executionResponse.json()
   expect(execution).toMatchObject({ candidateId, patchHash, verificationContractHash: expect.stringMatching(/^[a-f0-9]{64}$/) })
   expect(execution.scopeObservations).toHaveLength(6)
-  expect(execution.interactionObservations).toHaveLength(3)
+  expect(execution.interactionObservations).toHaveLength(projectPreviewViewports.length)
   expect(execution.scopeObservations.every((item: { baselineMarkerVisible: boolean; candidateMarkerVisible: boolean }) => item.baselineMarkerVisible && item.candidateMarkerVisible)).toBe(true)
 
   await page.getByTestId('approve-candidate').click()

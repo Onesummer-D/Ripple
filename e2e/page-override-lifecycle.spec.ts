@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { projectPreviewViewports } from '../src/core/project-viewports'
 import { build } from 'vite'
 import react from '@vitejs/plugin-react'
 import { createHash } from 'node:crypto'
@@ -156,7 +157,8 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
     baselinePage = await page.context().newPage()
     baselinePage.on('pageerror', onPageError)
     baselinePage.on('console', onConsole)
-    for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024 }, { width: 390, height: 844 }]) {
+    for (const { width, height } of projectPreviewViewports) {
+      const viewport = { width, height }
       await page.setViewportSize(viewport)
       await baselinePage.setViewportSize(viewport)
       await baselinePage.goto(baselineRelay.url)
@@ -251,7 +253,7 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
     { id: 'non-target-preserved', result: 'pass', detail: 'Playwright navigated to the non-target route and asserted baseline shared labels.' },
     { id: 'scope-propagation', result: 'pass', detail: 'Home override changed only the included page; autumn retained the shared source text.' },
     { id: 'interaction', result: 'pass', detail: 'Route switching and the home counter event handler worked.' },
-    { id: 'responsive-layout', result: 'pass', detail: 'No horizontal overflow at 1440, 768, and 390 pixel viewports.' },
+    { id: 'responsive-layout', result: 'pass', detail: 'No horizontal overflow at the 1440, 768, 375 and 390 pixel viewports.' },
     { id: 'source-mapping', result: 'pass', detail: 'Runtime DOM source annotation resolves to Navigation.jsx and has an instance identity.' },
     { id: 'browser-errors', result: 'pass', detail: 'Playwright observed no page errors or console errors.' },
   ]
@@ -407,7 +409,7 @@ test('page override identities and source transforms remain maintainable across 
   fs.writeFileSync(path.join(evidenceRoot, 'page-override-lifecycle.json'), JSON.stringify({
     schemaVersion: 1, completed: true, formalVerification: 'not-run-for-final-build-candidate',
     fixture: 'generated React/Vite project, not the Bolt repository', cycleEvidence,
-    assertions: ['stable target IDs persisted through three applied baselines', 'existing page override was updated in place', 'a second override reused the source import and route provider', 'removing the first override removed only its marker and registry rule', 'three-viewport Playwright checks passed for each applied candidate', 'final candidate Vite build passed', 'source worktree is clean and prior applied revisions remain in Git history'],
+    assertions: ['stable target IDs persisted through three applied baselines', 'existing page override was updated in place', 'a second override reused the source import and route provider', 'removing the first override removed only its marker and registry rule', 'four-viewport Playwright checks passed for each applied candidate', 'final candidate Vite build passed', 'source worktree is clean and prior applied revisions remain in Git history'],
   }, null, 2))
   expect(git('log', '-6', '--format=%s').split(/\r?\n/)).toHaveLength(6)
 })
