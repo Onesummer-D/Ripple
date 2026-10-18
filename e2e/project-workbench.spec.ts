@@ -99,6 +99,10 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await page.getByTestId('scope-page:autumn').selectOption('exclude')
   await page.getByRole('radio', { name: /仅在一个页面创建可维护覆盖/ }).check()
   await page.getByLabel('选择局部覆盖页面').selectOption('page:home')
+  await page.getByTestId('verification-contract').fill(JSON.stringify({
+    pages: [{ pageRef: 'page:home', path: '/', markerText: 'Home route' }],
+    interactions: [],
+  }))
   await page.getByTestId('create-real-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toBeVisible({ timeout: 30_000 })
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
@@ -190,10 +194,12 @@ test('opens a real local project, keeps multiple operations and explicit local S
     const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
     expect(recordResponse.ok()).toBe(true)
     const executionRecord = await recordResponse.json()
+    fs.writeFileSync(path.join(evidenceRoot, 'workbench-verification-execution.json'), JSON.stringify(executionRecord, null, 2))
     await expect(assertionCards.filter({ hasText: 'target-change' })).toContainText('PASS')
     await expect(assertionCards.filter({ hasText: 'non-target-preserved' })).toContainText('PASS')
     await expect(assertionCards.filter({ hasText: 'source-mapping' })).toContainText('PASS')
     await expect(assertionCards.filter({ hasText: 'interaction' })).toContainText('UNKNOWN')
+    await expect(assertionCards.filter({ hasText: 'scope-propagation' })).toContainText('UNKNOWN')
     const verificationImages = page.getByTestId('verification-evidence').locator('img')
     await expect(verificationImages).toHaveCount(3)
     await expect.poll(() => verificationImages.evaluateAll(images => images.every(image => {
@@ -206,7 +212,6 @@ test('opens a real local project, keeps multiple operations and explicit local S
     expect(executionRecord.baselineComparisons).toHaveLength(3)
     expect(executionRecord.baselineComparisons.every((comparison: { matched: boolean; baselineDigest: string; candidateDigest: string; maskedOperationIds: string[] }) =>
       comparison.matched && comparison.baselineDigest === comparison.candidateDigest && comparison.maskedOperationIds.length === 2)).toBe(true)
-    fs.writeFileSync(path.join(evidenceRoot, 'workbench-verification-execution.json'), JSON.stringify(executionRecord, null, 2))
     const screenshotUrls = await verificationImages.evaluateAll(images => images.map(image => (image as HTMLImageElement).src))
     const screenshotResponses = await Promise.all(screenshotUrls.map(url => page.request.get(url)))
     for (const [index, screenshot] of screenshotResponses.entries()) {
