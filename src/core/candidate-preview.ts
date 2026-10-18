@@ -102,14 +102,15 @@ function availablePort(): Promise<number> {
 
 async function waitUntilReady(preview: CandidatePreview, containerIp: string): Promise<void> {
   const deadline = Date.now() + 60_000
-  const endpoints = [...(containerIp ? [`http://${containerIp}:5173/`] : []), preview.url]
+  const endpoints = [preview.url, ...(containerIp ? [`http://${containerIp}:5173/`] : [])]
   let inspectAt = 0
   let lastResponse = 'no response'
   while (Date.now() < deadline) {
     for (const endpoint of endpoints) {
       try {
         const response = await fetch(endpoint, { signal: AbortSignal.timeout(1_500) })
-        if (response.ok) return
+        if (response.ok && endpoint === preview.url) return
+        if (response.ok) continue
         lastResponse = `${endpoint}: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`
       } catch (error) {
         const cause = error instanceof Error && 'cause' in error ? String(error.cause) : ''
