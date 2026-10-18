@@ -329,7 +329,7 @@ test('page override identities and source transforms remain maintainable across 
   cycleEvidence.candidateIds.push(first.candidate.id)
   const maintainedBinding = sourceBindings(first.candidate, graph, analyzeProject(first.candidate.candidateRoot!, false), first.session)[0]
   expect(maintainedBinding.pageExpectations['page:home']).toMatchObject({ baselineText: 'Home only', candidateText: 'Home maintained', shouldChange: true })
-  expect(maintainedBinding.pageExpectations['page:autumn']).toMatchObject({ baselineText: 'Shared navigation brand', candidateText: 'Shared navigation brand', shouldChange: false })
+  expect(maintainedBinding.pageExpectations['page:autumn']).toMatchObject({ baselineText: 'Home', candidateText: 'Home', shouldChange: false })
   let navigation = fs.readFileSync(path.join(first.candidate.candidateRoot!, 'src', 'components', 'Navigation.jsx'), 'utf8')
   let app = fs.readFileSync(path.join(first.candidate.candidateRoot!, 'src', 'App.jsx'), 'utf8')
   expect(navigation.match(/targetRef="override:/g)).toHaveLength(1)
