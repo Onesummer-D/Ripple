@@ -4,10 +4,17 @@ const consumerRelations = new Set<Relation['kind']>([
   'reads',
   'uses-token',
   'asset-consumer',
-  'imports',
   'renders',
   'css-cascade',
 ])
+
+const mediaConsumerRelations = new Set<Relation['kind']>([
+  'asset-consumer',
+  'renders',
+  'css-cascade',
+])
+
+const fileDependencyRelations = new Set<Relation['kind']>(['imports'])
 
 export interface PageImpact {
   pageRefs: string[]
@@ -79,9 +86,17 @@ export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): P
   const target = nodes.get(sourceRef)
   if (!target) return { pageRefs: [], unresolved: [`目标不在当前源码图中：${sourceRef}`], certainty: 'unknown' }
 
+  // Imports describe file dependencies, not proof that a file consumes a resource.
+  // TEXT and TOKEN still use them to trace shared source definitions through modules;
+  // MEDIA impact must start from an actual asset-consumer relation instead of the
+  // definition file's `reads` edge or any page that merely imports that file.
+  const traversableRelations = target.kind === 'media'
+    ? mediaConsumerRelations
+    : consumerRelations
+
   const incoming = new Map<string, Relation[]>()
   for (const edge of graph.edges) {
-    if (!consumerRelations.has(edge.kind)) continue
+    if (!traversableRelations.has(edge.kind) && !(target.kind !== 'media' && fileDependencyRelations.has(edge.kind))) continue
     if (!incoming.has(edge.to)) incoming.set(edge.to, [])
     incoming.get(edge.to)!.push(edge)
   }

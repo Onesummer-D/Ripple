@@ -44,6 +44,54 @@ describe('source-proven page impact', () => {
     expect(affected.unresolved).toHaveLength(1)
     expect(affected.certainty).toBe('partial')
   })
+
+  it('does not treat imported media definitions as consumption, while retaining TEXT and TOKEN import propagation', () => {
+    const pages = ['home', 'shop', 'about', 'contact']
+    const nodes: SourceGraph['nodes'] = [
+      ...pages.flatMap(page => [
+        { id: `page:${page}`, kind: 'route' as const, label: page, page },
+        { id: `component:${page}`, kind: 'component' as const, label: page },
+        { id: `file:${page}`, kind: 'file' as const, label: `${page}.tsx` },
+      ]),
+      { id: 'file:src/data/products.ts', kind: 'file', label: 'products.ts' },
+      { id: 'file:src/styles/tokens.css', kind: 'file', label: 'tokens.css' },
+      { id: 'media:unconsumed', kind: 'media', label: 'image', value: '/unused.jpg' },
+      { id: 'media:consumed', kind: 'media', label: 'image', value: '/used.jpg' },
+      { id: 'data:shared-label', kind: 'data', label: 'Shared label', value: 'Shop' },
+      { id: 'token:accent', kind: 'token', label: '--accent', value: '#246' },
+    ]
+    const edges: SourceGraph['edges'] = [
+      { id: 'definition:unconsumed', from: 'file:src/data/products.ts', to: 'media:unconsumed', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'definition:consumed', from: 'file:src/data/products.ts', to: 'media:consumed', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'definition:text', from: 'file:src/data/products.ts', to: 'data:shared-label', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'token-use', from: 'file:src/styles/tokens.css', to: 'token:accent', kind: 'uses-token', certainty: 'source-proven', evidenceRefs: [] },
+      ...pages.flatMap(page => [
+        { id: `route-render:${page}`, from: `page:${page}`, to: `component:${page}`, kind: 'renders' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
+        { id: `component-file:${page}`, from: `component:${page}`, to: `file:${page}`, kind: 'imports' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
+        { id: `data-import:${page}`, from: `file:${page}`, to: 'file:src/data/products.ts', kind: 'imports' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
+        { id: `token-import:${page}`, from: `file:${page}`, to: 'file:src/styles/tokens.css', kind: 'imports' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
+      ]),
+      { id: 'actual-image-use', from: 'component:home', to: 'media:consumed', kind: 'asset-consumer', certainty: 'source-proven', evidenceRefs: [] },
+    ]
+    const sourceGraph: SourceGraph = { ...graph, nodes, edges }
+
+    expect(sourceProvenPageImpact(sourceGraph, 'media:unconsumed')).toMatchObject({
+      pageRefs: [],
+      certainty: 'unknown',
+    })
+    expect(sourceProvenPageImpact(sourceGraph, 'media:consumed')).toMatchObject({
+      pageRefs: ['page:home'],
+      certainty: 'source-proven',
+    })
+    expect(sourceProvenPageImpact(sourceGraph, 'data:shared-label')).toMatchObject({
+      pageRefs: ['page:about', 'page:contact', 'page:home', 'page:shop'],
+      certainty: 'source-proven',
+    })
+    expect(sourceProvenPageImpact(sourceGraph, 'token:accent')).toMatchObject({
+      pageRefs: ['page:about', 'page:contact', 'page:home', 'page:shop'],
+      certainty: 'source-proven',
+    })
+  })
 })
 
 describe('shared page Scope evaluation', () => {
