@@ -78,6 +78,56 @@ describe('source-proven page impact', () => {
     })
   })
 
+  it('requires concrete TEXT reads and TOKEN uses beyond imports of definition files', () => {
+    const nodes: SourceGraph['nodes'] = [
+      { id: 'page:home', kind: 'route', label: 'home', page: 'home' },
+      { id: 'page:about', kind: 'route', label: 'about', page: 'about' },
+      { id: 'component:Home', kind: 'component', label: 'Home' },
+      { id: 'component:About', kind: 'component', label: 'About' },
+      { id: 'file:src/pages/Home.tsx', kind: 'file', label: 'Home.tsx' },
+      { id: 'file:src/pages/About.tsx', kind: 'file', label: 'About.tsx' },
+      { id: 'file:src/copy.ts', kind: 'file', label: 'copy.ts' },
+      { id: 'file:src/tokens.css', kind: 'file', label: 'tokens.css' },
+      { id: 'data:home-title', kind: 'data', label: 'title', value: 'Home' },
+      { id: 'token:accent', kind: 'token', label: '--accent', value: '#246' },
+    ]
+    const importOnlyEdges: SourceGraph['edges'] = [
+      { id: 'home-render', from: 'page:home', to: 'component:Home', kind: 'renders', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'about-render', from: 'page:about', to: 'component:About', kind: 'renders', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'home-file', from: 'component:Home', to: 'file:src/pages/Home.tsx', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'about-file', from: 'component:About', to: 'file:src/pages/About.tsx', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'home-copy-import', from: 'file:src/pages/Home.tsx', to: 'file:src/copy.ts', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'about-copy-import', from: 'file:src/pages/About.tsx', to: 'file:src/copy.ts', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'home-token-import', from: 'file:src/pages/Home.tsx', to: 'file:src/tokens.css', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'about-token-import', from: 'file:src/pages/About.tsx', to: 'file:src/tokens.css', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'copy-definition', from: 'file:src/copy.ts', to: 'data:home-title', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'token-definition', from: 'file:src/tokens.css', to: 'token:accent', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+    ]
+    const importOnly: SourceGraph = { ...graph, nodes, edges: importOnlyEdges }
+
+    expect(sourceProvenPageImpact(importOnly, 'data:home-title')).toMatchObject({
+      pageRefs: [], certainty: 'unknown',
+    })
+    expect(sourceProvenPageImpact(importOnly, 'token:accent')).toMatchObject({
+      pageRefs: [], certainty: 'unknown',
+    })
+
+    const consumed: SourceGraph = {
+      ...importOnly,
+      edges: [
+        ...importOnlyEdges,
+        { id: 'home-title-read', from: 'component:Home', to: 'data:home-title', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+        { id: 'home-token-use', from: 'component:Home', to: 'token:accent', kind: 'uses-token', certainty: 'source-proven', evidenceRefs: [] },
+      ],
+    }
+    expect(sourceProvenPageImpact(consumed, 'data:home-title')).toMatchObject({
+      pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
+    })
+    expect(sourceProvenPageImpact(consumed, 'token:accent')).toMatchObject({
+      pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
+    })
+  })
+
   it('does not treat imported media definitions as consumption and follows concrete TEXT reads and imported CSS token use', () => {
     const pages = ['home', 'shop', 'about', 'contact']
     const nodes: SourceGraph['nodes'] = [
