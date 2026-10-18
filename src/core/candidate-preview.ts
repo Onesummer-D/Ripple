@@ -61,17 +61,24 @@ function availablePort(): Promise<number> {
   })
 }
 
-async function waitUntilReady(preview: CandidatePreview): Promise<void> {
+async function waitUntilReady(preview: CandidatePreview, containerIp: string): Promise<void> {
   const deadline = Date.now() + 60_000
+  const endpoints = [...(containerIp ? [`http://${containerIp}:5173/`] : []), preview.url]
   let inspectAt = 0
   let lastResponse = 'no response'
   while (Date.now() < deadline) {
-    try {
-      const response = await fetch(preview.url, { signal: AbortSignal.timeout(1_500) })
-      if (response.ok) return
-      lastResponse = `HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`
-    } catch (error) {
-      lastResponse = error instanceof Error ? error.message : String(error)
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, { signal: AbortSignal.timeout(1_500) })
+        if (response.ok) {
+          preview.url = endpoint
+          return
+        }
+        lastResponse = `${endpoint}: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`
+      } catch (error) {
+        const cause = error instanceof Error && 'cause' in error ? String(error.cause) : ''
+        lastResponse = `${endpoint}: ${error instanceof Error ? error.message : String(error)}${cause ? ` (${cause})` : ''}`
+      }
     }
     if (Date.now() >= inspectAt) {
       inspectAt = Date.now() + 2_000
@@ -112,7 +119,8 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
   if (existing) {
     const running = await docker(['inspect', '--format', '{{.State.Running}}', existing.containerName])
     if (running === 'true') {
-      await waitUntilReady(existing)
+      const containerIp = await docker(['inspect', '--format', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', existing.containerName])
+      await waitUntilReady(existing, containerIp)
       assertCandidateCurrent(candidate)
       return existing
     }
@@ -165,7 +173,8 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
       image,
       'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /ripple/core/candidate-preview-runner.mjs',
     ], 120_000)
-    await waitUntilReady(preview)
+    const containerIp = await docker(['inspect', '--format', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', containerName])
+    await waitUntilReady(preview, containerIp)
     assertCandidateCurrent(candidate)
     return preview
   } catch (error) {
