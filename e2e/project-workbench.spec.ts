@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { execFileSync, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 
-const testTempRoot = path.join(process.cwd(), 'node_modules', '.tmp')
-fs.mkdirSync(testTempRoot, { recursive: true })
-const sandbox = fs.mkdtempSync(path.join(testTempRoot, 'ripple-workbench-browser-'))
+const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-workbench-browser-'))
 const projectRoot = path.join(sandbox, 'site')
 const boltProjectRoot = process.env.RIPPLE_BOLT_PROJECT
 const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence')
@@ -16,6 +15,7 @@ fs.mkdirSync(evidenceRoot, { recursive: true })
 test.beforeAll(() => {
   fs.mkdirSync(path.join(projectRoot, 'src', 'pages'), { recursive: true })
   fs.mkdirSync(path.join(projectRoot, 'src', 'components'), { recursive: true })
+  fs.writeFileSync(path.join(projectRoot, '.gitignore'), 'node_modules/\n')
   fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'workbench-browser-project', private: true }))
   fs.writeFileSync(path.join(projectRoot, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.tsx"></script>')
   fs.writeFileSync(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
@@ -24,6 +24,7 @@ test.beforeAll(() => {
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), `export function HomePage(){return <main><h1>Baseline title</h1><button>Browse items</button></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'AutumnPage.tsx'), `export function AutumnPage(){return <main><h1>Autumn baseline</h1></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'components', 'Navigation.tsx'), `export function Navigation(){return <nav>Shared navigation brand</nav>}`)
+  fs.symlinkSync(path.join(process.cwd(), 'node_modules'), path.join(projectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
   const git = (...args: string[]) => execFileSync('git', ['-C', projectRoot, ...args], { stdio: 'pipe' })
   git('init', '-q'); git('config', 'user.email', 'ripple-browser@example.invalid'); git('config', 'user.name', 'Ripple browser test'); git('add', '.'); git('commit', '-qm', 'test project baseline')
 })
