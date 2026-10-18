@@ -19,8 +19,11 @@ interface BrowserExecutionManifest {
   patchHash: string
   candidateTreeDigest: string
   runtimeFingerprint: string
+  verificationContractHash?: string
   checks: Array<{ id: string; route: string; viewport: { width: number; height: number }; state: string; passed: boolean }>
   baselineComparisons?: BaselineComparison[]
+  scopeObservations?: NonNullable<VerificationRun['scopeObservations']>
+  interactionObservations?: NonNullable<VerificationRun['interactionObservations']>
   assertions: VerificationAssertion[]
   evidence: Array<Omit<VerificationRun['evidence'][number], 'artifactPath'> & { artifactPath?: string }>
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
@@ -57,7 +60,8 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   const root = path.dirname(absoluteRecord)
   if (manifest.schemaVersion !== 1 || manifest.executor !== 'playwright' || manifest.completed !== true ||
     manifest.runId !== run.id || manifest.candidateId !== run.candidateId || manifest.scopeDecisionId !== run.scopeDecisionId || manifest.scopeVersion !== run.scopeVersion || manifest.baseSourceDigest !== run.baseSourceDigest ||
-    manifest.patchHash !== run.patchHash || manifest.candidateTreeDigest !== run.candidateTreeDigest || manifest.runtimeFingerprint !== run.runtimeFingerprint) {
+    manifest.patchHash !== run.patchHash || manifest.candidateTreeDigest !== run.candidateTreeDigest || manifest.runtimeFingerprint !== run.runtimeFingerprint ||
+    manifest.verificationContractHash !== run.verificationContractHash) {
     throw new VerificationEvidenceError('Playwright execution record does not match this candidate run')
   }
   const checks = new Map(manifest.checks.map(check => [check.id, check]))
@@ -128,6 +132,20 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   if (nonTargetAssertion?.result === 'pass' && (baselineComparisons.length !== run.checks.length || baselineComparisons.some(comparison =>
     !comparison.matched || !comparison.baselineDigest || !comparison.candidateDigest || !comparison.artifactPath || !comparison.artifactHash || comparison.maskedOperationIds.length === 0))) {
     throw new VerificationEvidenceError('Non-target PASS requires a successful bound baseline comparison for every checked viewport')
+  }
+  if (assertions.get('scope-propagation')?.result === 'pass') {
+    if (!Array.isArray(manifest.scopeObservations) || JSON.stringify(manifest.scopeObservations) !== JSON.stringify(run.scopeObservations) || !manifest.scopeObservations.length) {
+      throw new VerificationEvidenceError('Scope PASS requires bound original/candidate page observations')
+    }
+  } else if (JSON.stringify(manifest.scopeObservations ?? []) !== JSON.stringify(run.scopeObservations ?? [])) {
+    throw new VerificationEvidenceError('Scope observations do not match the Playwright execution record')
+  }
+  if (assertions.get('interaction')?.result === 'pass') {
+    if (!Array.isArray(manifest.interactionObservations) || JSON.stringify(manifest.interactionObservations) !== JSON.stringify(run.interactionObservations) || !manifest.interactionObservations.length) {
+      throw new VerificationEvidenceError('Interaction PASS requires bound browser interaction observations')
+    }
+  } else if (JSON.stringify(manifest.interactionObservations ?? []) !== JSON.stringify(run.interactionObservations ?? [])) {
+    throw new VerificationEvidenceError('Interaction observations do not match the Playwright execution record')
   }
 
   const executionEvidence = new Map(manifest.evidence.map(item => [item.id, item]))
@@ -200,4 +218,3 @@ export function assertTrustedBrowserExecution(run: VerificationRun): void {
   }
   if (validateRunRecord(run, run.execution.recordPath) !== run.execution.recordHash) throw new VerificationEvidenceError('Playwright execution record changed after capture')
 }
-

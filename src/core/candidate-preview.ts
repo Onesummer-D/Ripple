@@ -34,9 +34,60 @@ export function addressOnPreviewNetwork(networksJson: string, networkName: strin
   return address
 }
 
+export interface PreviewContainerInspection {
+  status: string
+  exitCode: number
+  error: string
+  oomKilled: boolean
+  networks: Record<string, { IPAddress?: string }>
+}
+
+export function parsePreviewContainerInspection(value: string): PreviewContainerInspection {
+  const separator = value.indexOf('|')
+  if (separator < 0) throw new CandidatePreviewError('Docker inspect 没有返回预演容器状态与网络')
+  try {
+    const state = JSON.parse(value.slice(0, separator)) as { Status?: unknown; ExitCode?: unknown; Error?: unknown; OOMKilled?: unknown }
+    const networks = JSON.parse(value.slice(separator + 1)) as Record<string, { IPAddress?: string }>
+    if (typeof state.Status !== 'string' || typeof state.ExitCode !== 'number' || typeof state.Error !== 'string' || typeof state.OOMKilled !== 'boolean' || !networks || typeof networks !== 'object') {
+      throw new Error('invalid state fields')
+    }
+    return { status: state.Status, exitCode: state.ExitCode, error: state.Error, oomKilled: state.OOMKilled, networks }
+  } catch (error) {
+    throw new CandidatePreviewError(`Docker inspect 返回了无效的预演状态：${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+export async function waitForPreviewNetworkAddress(networkName: string, containerName: string, inspectContainer: () => Promise<PreviewContainerInspection>, timeoutMs = 15_000): Promise<string> {
+  const deadline = Date.now() + timeoutMs
+  let lastNetworks: Record<string, { IPAddress?: string }> = {}
+  while (Date.now() < deadline) {
+    const inspection = await inspectContainer()
+    lastNetworks = inspection.networks
+    if (inspection.status !== 'running') {
+      throw new CandidatePreviewError(`预演容器 ${containerName} 未处于 running 状态（status=${inspection.status}, exit=${inspection.exitCode}, oom=${inspection.oomKilled}, error=${inspection.error || 'none'}, attached=${Object.keys(lastNetworks).join(',') || 'none'}）`)
+    }
+    try { return addressOnPreviewNetwork(JSON.stringify(inspection.networks), networkName) }
+    catch (error) {
+      if (!(error instanceof CandidatePreviewError) || !/未加入预期/.test(error.message)) throw error
+    }
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  throw new CandidatePreviewError(`预演容器 ${containerName} 仍在运行，但没有分配到预期网络 ${networkName} 的 IPv4 地址（attached=${Object.keys(lastNetworks).join(',') || 'none'}；等待 ${timeoutMs} ms）`)
+}
+
 export async function resolveCandidatePreviewAddress(preview: CandidatePreview): Promise<string> {
-  const networks = await docker(['inspect', '--format', '{{json .NetworkSettings.Networks}}', preview.containerName])
-  return addressOnPreviewNetwork(networks, preview.networkName)
+  try {
+    return await waitForPreviewNetworkAddress(preview.networkName, preview.containerName, async () => parsePreviewContainerInspection(
+      await docker(['inspect', '--format', '{{json .State}}|{{json .NetworkSettings.Networks}}', preview.containerName]),
+    ))
+  } catch (error) {
+    const [state, network, logs] = await Promise.all([
+      docker(['inspect', '--format', '{{json .State}}|{{json .NetworkSettings.Networks}}', preview.containerName]).catch(failure => failure instanceof Error ? failure.message : 'unknown'),
+      docker(['network', 'inspect', '--format', '{{json .Containers}}', preview.networkName]).catch(failure => failure instanceof Error ? failure.message : 'network inspect unavailable'),
+      docker(['logs', '--tail', '80', preview.containerName], 10_000, true).catch(failure => failure instanceof Error ? failure.message : 'no container logs'),
+    ])
+    throw new CandidatePreviewError(`${error instanceof Error ? error.message : '无法取得预演容器网络地址'}（容器状态/端点=${state}；网络端点=${network}）：${logs.slice(-4000)}`)
+  }
 }
 
 export function previewRelayRejection(request: { method?: string; url?: string; host?: string; origin?: string }, expectedHost: string): { status: number; message: string } | undefined {
@@ -206,6 +257,17 @@ async function removeContainer(name: string): Promise<void> {
   }
 }
 
+async function closePreviewResources(candidateId: string, preview: CandidatePreview): Promise<void> {
+  await closeHostRelay(relays.get(candidateId))
+  relays.delete(candidateId)
+  await removeContainer(preview.containerName)
+  try { await docker(['network', 'rm', preview.networkName]) }
+  catch (error) {
+    if (!(error instanceof CandidatePreviewError) || !/not found|No such network/i.test(error.message)) throw error
+  }
+  previews.delete(candidateId)
+}
+
 async function launchProjectContainer(candidateId: string, projectRoot: string, sourceRoot: string, networkName: string, containerName: string, authorizedResourceUrls: string[], role: 'candidate' | 'baseline'): Promise<string> {
   if (process.platform !== 'linux') throw new CandidatePreviewError('隔离预演使用 Linux 容器并挂载原生依赖；请在 Linux 或 WSL2 中运行 Ripple 与目标项目，并将两者放在 Linux 文件系统中')
   const dependencyPath = path.join(projectRoot, 'node_modules')
@@ -216,7 +278,7 @@ async function launchProjectContainer(candidateId: string, projectRoot: string, 
   const rippleDependencies = fs.realpathSync(path.join(rippleRoot, 'node_modules'))
   const probe: CandidatePreview = { candidateId, url: '', containerName, networkName, authorizedResourceUrls }
   await docker([
-    'run', '--detach', '--rm', '--name', containerName,
+    'run', '--detach', '--name', containerName,
     '--label', 'com.ripple.preview=true', '--label', `com.ripple.candidate=${candidateId}`, '--label', `com.ripple.preview.role=${role}`,
     '--network', networkName,
     '--env', `RIPPLE_PREVIEW_RESOURCE_URLS=${JSON.stringify(authorizedResourceUrls)}`,
@@ -275,7 +337,7 @@ async function launchCandidatePreview(candidate: CandidateRecord, authorizedReso
     })
     if (running === 'true') {
       if (JSON.stringify(existing.authorizedResourceUrls) !== JSON.stringify(authorizedResourceUrls)) {
-        await stopCandidatePreview(candidate.id)
+        await closePreviewResources(candidate.id, existing)
       } else {
         const containerIp = await resolveCandidatePreviewAddress(existing)
         const relay = relays.get(candidate.id)
@@ -285,7 +347,8 @@ async function launchCandidatePreview(candidate: CandidateRecord, authorizedReso
         return existing
       }
     }
-    if (previews.has(candidate.id)) await stopCandidatePreview(candidate.id)
+    const stalePreview = previews.get(candidate.id)
+    if (stalePreview) await closePreviewResources(candidate.id, stalePreview)
   }
 
   const projectRoot = fs.realpathSync(candidate.projectRoot)
@@ -342,13 +405,5 @@ export async function stopCandidatePreview(candidateId: string): Promise<void> {
   if (pending) await pending.catch(() => undefined)
   const preview = previews.get(candidateId)
   if (!preview) return
-  await closeHostRelay(relays.get(candidateId))
-  relays.delete(candidateId)
-  await removeContainer(preview.containerName)
-  try { await docker(['network', 'rm', preview.networkName]) }
-  catch (error) {
-    if (!(error instanceof CandidatePreviewError) || !/not found|No such network/i.test(error.message)) throw error
-  }
-  previews.delete(candidateId)
+  await closePreviewResources(candidateId, preview)
 }
-

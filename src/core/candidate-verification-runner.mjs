@@ -19,6 +19,8 @@ const checks = []
 const evidence = []
 const artifacts = []
 const baselineComparisons = []
+const scopeObservations = []
+const interactionObservations = []
 const targetResults = []
 const mappedResults = []
 const nonTargetResults = []
@@ -64,6 +66,33 @@ async function snapshotOutsideTargets(page, bindings, baseline) {
     }
     return { ok: true, snapshot: clone.outerHTML, maskedOperationIds }
   }, specs)
+}
+
+async function visitContractPage(page, host, spec) {
+  await page.goto(`http://${host}:5173${spec.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
+  await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
+  await page.waitForFunction(() => !!document.querySelector('#root')?.textContent?.trim(), undefined, { timeout: 15_000 })
+  if (spec.navigateBy) await page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
+  return page.getByText(spec.markerText, { exact: true }).first().isVisible().catch(() => false)
+}
+
+async function mappedValues(page, sourceRef) {
+  return page.locator('[data-ripple-source]').evaluateAll((elements, ref) => elements
+    .filter(element => element.getAttribute('data-ripple-source') === ref)
+    .map(element => (element.textContent ?? '').trim()), sourceRef)
+}
+
+async function visitWithErrors(spec, host, viewport) {
+  const page = await browser.newPage({ viewport })
+  page.on('pageerror', error => browserErrors.push(error.message))
+  page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()) })
+  try {
+    const markerVisible = await visitContractPage(page, host, spec)
+    return { page, markerVisible }
+  } catch (error) {
+    browserErrors.push(error instanceof Error ? error.message : String(error))
+    return { page, markerVisible: false }
+  }
 }
 
 const browser = await chromium.launch({ headless: true })
@@ -168,6 +197,52 @@ try {
       screenshotHash = sha256(fs.readFileSync(absoluteScreenshot))
       artifacts.push({ checkId, path: screenshotPath, sha256: screenshotHash })
       if (!noOverflow) runtimeState = 'horizontal-overflow'
+
+      for (const spec of input.verificationContract?.pages ?? []) {
+        const [baselineProbe, candidateProbe] = await Promise.all([
+          visitWithErrors(spec, input.baselineHost, viewport),
+          visitWithErrors(spec, input.previewHost, viewport),
+        ])
+        const operations = []
+        for (const binding of input.targetBindings) {
+          const [baselineValues, candidateValues] = await Promise.all([
+            binding.baselineSourceRefs.length === 1 ? mappedValues(baselineProbe.page, binding.baselineSourceRefs[0]) : [],
+            binding.sourceRefs.length === 1 ? mappedValues(candidateProbe.page, binding.sourceRefs[0]) : [],
+          ])
+          operations.push({ operationId: binding.operationId, baselineValues, candidateValues })
+        }
+        scopeObservations.push({
+          pageRef: spec.pageRef, route: spec.path, viewport: { width: viewport.width, height: viewport.height },
+          markerText: spec.markerText, baselineMarkerVisible: baselineProbe.markerVisible, candidateMarkerVisible: candidateProbe.markerVisible, operations,
+        })
+        await Promise.all([baselineProbe.page.close(), candidateProbe.page.close()])
+      }
+
+      for (let interactionIndex = 0; interactionIndex < (input.verificationContract?.interactions ?? []).length; interactionIndex += 1) {
+        const interaction = input.verificationContract.interactions[interactionIndex]
+        const spec = input.verificationContract.pages.find(pageSpec => pageSpec.pageRef === interaction.pageRef)
+        if (!spec) continue
+        const [baselineProbe, candidateProbe] = await Promise.all([
+          visitWithErrors(spec, input.baselineHost, viewport),
+          visitWithErrors(spec, input.previewHost, viewport),
+        ])
+        const activate = async page => {
+          try {
+            await page.getByRole(interaction.role, { name: interaction.name, exact: true }).click()
+            return await page.getByText(interaction.expectedText, { exact: true }).first().isVisible()
+          } catch (error) {
+            browserErrors.push(error instanceof Error ? error.message : String(error))
+            return false
+          }
+        }
+        const [baselinePassed, candidatePassed] = await Promise.all([activate(baselineProbe.page), activate(candidateProbe.page)])
+        interactionObservations.push({
+          interactionIndex, pageRef: interaction.pageRef, route: spec.path,
+          viewport: { width: viewport.width, height: viewport.height }, role: interaction.role,
+          name: interaction.name, expectedText: interaction.expectedText, baselinePassed, candidatePassed,
+        })
+        await Promise.all([baselineProbe.page.close(), candidateProbe.page.close()])
+      }
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error)
       localErrors.push(failure)
@@ -195,6 +270,37 @@ try {
 
 const all = (values, predicate) => values.length > 0 && values.every(predicate)
 const any = (values, predicate) => values.some(predicate)
+const contractPages = input.verificationContract?.pages ?? []
+const contractInteractions = input.verificationContract?.interactions ?? []
+const pageRefs = contractPages.map(page => page.pageRef).sort()
+const supportedScopeContract = contractPages.length > 0 && JSON.stringify(pageRefs) === JSON.stringify([...input.routeRefs].sort()) &&
+  input.operations.length > 0 && input.operations.every(operation => operation.kind === 'TEXT' && !operation.overrideAction &&
+    (input.scopeTargetPageRefs[operation.id] ?? []).length === contractPages.length && contractPages.every(page => input.scopeTargetPageRefs[operation.id].includes(page.pageRef))) &&
+  input.targetBindings.length === input.operations.length && input.targetBindings.every(binding => binding.sourceRefs.length === 1 && binding.baselineSourceRefs.length === 1)
+const scopePassed = supportedScopeContract && scopeObservations.length === contractPages.length * viewportPlan.length && scopeObservations.every(observation => {
+  if (!observation.baselineMarkerVisible || !observation.candidateMarkerVisible) return false
+  const pageShouldChange = input.scope.strategy === 'page-override'
+    ? input.scope.localPageRef === observation.pageRef
+    : input.scope.includedRefs.includes(observation.pageRef)
+  return observation.operations.length === input.operations.length && input.operations.every(operation => {
+    const values = observation.operations.find(item => item.operationId === operation.id)
+    const expectedCandidate = pageShouldChange ? operation.after : operation.before
+    return !!values && values.baselineValues.length > 0 && values.candidateValues.length > 0 &&
+      values.baselineValues.every(value => value.includes(operation.before)) && values.candidateValues.every(value => value.includes(expectedCandidate))
+  })
+})
+const scopeFailed = supportedScopeContract && scopeObservations.some(observation =>
+  observation.baselineMarkerVisible && observation.candidateMarkerVisible && observation.operations.some(item =>
+    item.baselineValues.length > 0 && item.candidateValues.length > 0 && input.operations.some(operation => {
+      if (operation.id !== item.operationId) return false
+      const pageShouldChange = input.scope.strategy === 'page-override'
+        ? input.scope.localPageRef === observation.pageRef
+        : input.scope.includedRefs.includes(observation.pageRef)
+      return !item.baselineValues.every(value => value.includes(operation.before)) || !item.candidateValues.every(value => value.includes(pageShouldChange ? operation.after : operation.before))
+    })))
+const interactionsSupported = contractInteractions.length > 0 && interactionObservations.length === contractInteractions.length * viewportPlan.length
+const interactionsPassed = interactionsSupported && interactionObservations.every(item => item.baselinePassed && item.candidatePassed)
+const interactionsFailed = interactionObservations.some(item => !item.baselinePassed || !item.candidatePassed)
 const assertions = [
   {
     id: 'target-change',
@@ -210,8 +316,8 @@ const assertions = [
         ? 'The original project and candidate rendered different non-target DOM content on / at one or more tested viewports.'
         : 'The baseline comparison could not uniquely mask every edited text target or both projects did not render on every viewport.',
   },
-  { id: 'scope-propagation', result: 'unknown', detail: 'Route-state traversal and per-page baseline assertions are not defined for this project.' },
-  { id: 'interaction', result: 'unknown', detail: 'No project-specific interaction contract was supplied; arbitrary controls were not activated.' },
+  { id: 'scope-propagation', result: scopePassed ? 'pass' : scopeFailed ? 'risk' : 'unknown', detail: scopePassed ? `Declared page markers and every changed shared TEXT target matched the selected Scope across ${scopeObservations.length} original/candidate route-viewport observations.` : scopeFailed ? 'A declared page marker or target value did not match the original baseline and selected Scope.' : 'A complete supported route contract and unique shared TEXT source bindings were not supplied; Scope propagation remains unknown.' },
+  { id: 'interaction', result: interactionsPassed ? 'pass' : interactionsFailed ? 'risk' : 'unknown', detail: interactionsPassed ? `The declared accessible interactions reached their expected visible state in both original and candidate browsers at all ${viewportPlan.length} viewports.` : interactionsFailed ? 'At least one declared accessible interaction failed in the original or candidate project.' : 'No complete supported button/link interaction contract was supplied; interaction remains unknown.' },
   { id: 'responsive-layout', result: overflowObserved ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: overflowObserved ? 'At least one tested viewport had horizontal document overflow.' : loadedViewports === viewportPlan.length ? 'Candidate rendered without horizontal document overflow at desktop, tablet and mobile widths.' : 'Not all planned viewports rendered, so responsive behavior is incomplete.' },
   {
     id: 'source-mapping',
@@ -237,12 +343,14 @@ const manifest = {
   patchHash: input.patchHash,
   candidateTreeDigest: input.candidateTreeDigest,
   runtimeFingerprint: input.runtimeFingerprint,
+  verificationContractHash: input.verificationContractHash,
   checks,
   baselineComparisons,
+  scopeObservations,
+  interactionObservations,
   assertions,
   evidence,
   artifacts,
 }
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2), { flag: 'wx' })
 console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.length ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))
-

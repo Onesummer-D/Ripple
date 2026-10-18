@@ -6,9 +6,11 @@ import { fileURLToPath } from 'node:url'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { analyzeProject } from './project'
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type EditSession, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
+import { sourceProvenPageImpact } from './scope'
+import { verificationContractHash } from './verification-contract'
 
 export class VerificationRunnerError extends Error {
   constructor(message: string) { super(message); this.name = 'VerificationRunnerError' }
@@ -99,8 +101,11 @@ interface ExecutionManifest {
   patchHash: string
   candidateTreeDigest: string
   runtimeFingerprint: string
+  verificationContractHash?: string
   checks: Array<{ id: string; route: string; viewport: { width: number; height: number }; state: string; passed: boolean }>
   baselineComparisons: BaselineComparison[]
+  scopeObservations: ScopePropagationObservation[]
+  interactionObservations: InteractionObservation[]
   assertions: VerificationAssertion[]
   evidence: Array<Omit<VerificationEvidence, 'artifactPath'> & { artifactPath?: string }>
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
@@ -148,8 +153,14 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
       baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
       runtimeFingerprint: session.projectRevision.runtimeFingerprint,
+      verificationContractHash: verificationContractHash(session.verificationContract),
       previewHost: await resolveCandidatePreviewAddress(preview), baselineHost: baseline.address,
       targetBindings: sourceBindings(candidate, baseGraph, candidateGraph, session),
+      routeRefs: baseGraph.nodes.filter(node => node.kind === 'route').map(node => node.id),
+      scope: session.scope,
+      operations: session.operations,
+      scopeTargetPageRefs: Object.fromEntries(session.operations.map(operation => [operation.id, sourceProvenPageImpact(baseGraph, operation.targetRef).pageRefs])),
+      verificationContract: session.verificationContract,
     }), { flag: 'wx' })
     await docker([
       'run', '--rm', '--init', '--name', containerName,
@@ -177,7 +188,8 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   const manifest = JSON.parse(fs.readFileSync(recordPath, 'utf8')) as ExecutionManifest
   if (manifest.schemaVersion !== 1 || manifest.executor !== 'playwright' || manifest.completed !== true || manifest.runId !== runId || manifest.candidateId !== candidate.id ||
     manifest.scopeDecisionId !== candidate.scopeDecisionId || manifest.scopeVersion !== candidate.scopeVersion || manifest.baseSourceDigest !== candidate.baseSourceDigest ||
-    manifest.patchHash !== candidate.patchHash || manifest.candidateTreeDigest !== candidate.candidateTreeDigest || manifest.runtimeFingerprint !== session.projectRevision.runtimeFingerprint) {
+    manifest.patchHash !== candidate.patchHash || manifest.candidateTreeDigest !== candidate.candidateTreeDigest || manifest.runtimeFingerprint !== session.projectRevision.runtimeFingerprint ||
+    manifest.verificationContractHash !== verificationContractHash(session.verificationContract)) {
     throw new VerificationRunnerError('隔离浏览器返回的执行记录与候选、Scope 或源码版本不匹配')
   }
   const actualAssertionIds = new Set(manifest.assertions.map(assertion => assertion.id))
@@ -194,14 +206,16 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     ...item,
     ...(item.artifactPath ? { artifactPath: evidenceFile(artifactRoot, item.artifactPath) } : {}),
   }))
+  const scopeObservations = manifest.scopeObservations
+  const interactionObservations = manifest.interactionObservations
   const run: VerificationRun = {
     id: runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint: session.projectRevision.runtimeFingerprint,
+    verificationContractHash: manifest.verificationContractHash,
     startedAt: evidence.length ? evidence[0].capturedAt : new Date().toISOString(),
     completedAt: evidence.length ? evidence[evidence.length - 1].capturedAt : new Date().toISOString(),
-    checks, assertions: manifest.assertions, evidence, baselineComparisons, status: 'incomplete',
+    checks, assertions: manifest.assertions, evidence, baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
   }
   return attestBrowserExecution(run, recordPath)
 }
-

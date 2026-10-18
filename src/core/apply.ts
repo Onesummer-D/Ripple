@@ -7,6 +7,7 @@ import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from './project'
 import { assertTrustedBrowserExecution } from './verification'
+import { assertVerificationContractResults } from './session'
 
 const appliedTreeDigest = (root: string, candidate: CandidateRecord) => digestTrackedTree(root, [...new Set([...trackedProjectFiles(root), ...candidate.modifiedPaths])].filter(file => fs.existsSync(path.join(root, file))))
 
@@ -30,6 +31,7 @@ function approvedCandidate(session: EditSession, candidate: CandidateRecord) {
     throw new PatchApplyError('只有当前已验证并获批的同一候选补丁可以应用')
   }
   assertTrustedBrowserExecution(run)
+  assertVerificationContractResults(session, run)
   return { approval }
 }
 
@@ -84,6 +86,7 @@ export function rollbackAppliedCandidate(session: EditSession, candidate: Candid
   const run = session.runs.find(item => item.id === applied.approval.verificationRunId)
   if (!run || run.status !== 'passed') throw new PatchApplyError('回滚记录没有当前通过的验证运行')
   assertTrustedBrowserExecution(run)
+  assertVerificationContractResults(session, run)
   const current = readProjectSnapshot(candidate.projectRoot, false)
   if (current.revision.gitCommit !== applied.commit || appliedTreeDigest(candidate.projectRoot, candidate) !== applied.targetSourceDigest) {
     throw new PatchApplyError('原工程在应用后又发生变化；拒绝回滚以免覆盖新修改')

@@ -71,6 +71,7 @@ describe('loopback Project API', () => {
         { id: 'title-op', kind: 'TEXT', targetRef: title.id, before: title.value, after: 'Candidate title' },
         { id: 'cta-op', kind: 'TEXT', targetRef: cta.id, before: cta.value, after: 'Explore items' },
       ],
+      verificationContract: { pages: [{ pageRef: 'page:home', path: '/', markerText: 'Baseline title' }], interactions: [] },
     }) })
     expect(candidateResponse.status).toBe(200)
     const candidate = await candidateResponse.json() as { sessionId: string; candidate: { id: string; patchHash: string; candidateTreeDigest: string; operations: unknown[]; diff: string }; verification: { state: string } }
@@ -94,12 +95,19 @@ describe('loopback Project API', () => {
     expect((await failedRun.json()).error).toMatch(/项目 node_modules/)
     const restoredResponse = await fetch(`${baseUrl}/__ripple/api/candidate/restore`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(restoredResponse.status).toBe(200)
-    const restored = await restoredResponse.json() as { rawIntent: string; candidate: { id: string; patchHash: string; diff: string; operations: unknown[] }; verification: { state: string; reason?: string } }
+    const restored = await restoredResponse.json() as { rawIntent: string; verificationContract: { pages: Array<{ pageRef: string; markerText: string }> }; candidate: { id: string; patchHash: string; diff: string; operations: unknown[] }; verification: { state: string; reason?: string } }
     expect(restored.rawIntent).toBe('Update the home hero while preserving other pages')
+    expect(restored.verificationContract.pages).toEqual([{ pageRef: 'page:home', path: '/', markerText: 'Baseline title' }])
     expect(restored.candidate).toMatchObject({ id: candidate.candidate.id, patchHash: candidate.candidate.patchHash, diff: candidate.candidate.diff })
     expect(restored.candidate.operations).toHaveLength(2)
     expect(restored.verification).toMatchObject({ state: 'failed-to-run' })
     expect(restored.verification.reason).toMatch(/项目 node_modules/)
+    const invalidContract = await fetch(`${baseUrl}/__ripple/api/candidate`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({
+      projectId: analysis.revision.projectId, rawIntent: 'Reject a remote browser path', scope,
+      operations: [{ id: 'invalid-path-op', kind: 'TEXT', targetRef: title.id, before: title.value, after: 'Another title' }],
+      verificationContract: { pages: [{ pageRef: 'page:home', path: 'https://attacker.invalid/', markerText: 'Home' }], interactions: [] },
+    }) })
+    expect(invalidContract.status).toBe(400)
     const discard = await fetch(`${baseUrl}/__ripple/api/discard`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(discard.status).toBe(200)
     expect((await discard.json()).removed).toBe(true)

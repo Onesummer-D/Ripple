@@ -13,6 +13,7 @@ import { approve, beginVerification, chooseScope, openSession, recordAppliedRevi
 import { assertTrustedBrowserExecution, restoreBrowserExecution } from './verification-receipt'
 import { runCandidateVerification } from './verification-runner'
 import type { EditOperation, EditSession, ScopeDecision, SourceGraph, VerificationRun } from './model'
+import { normalizeVerificationContract, VerificationContractError } from './verification-contract'
 import { listStoredCandidates, readStoredCandidate, workbenchStateRoot, writeStoredCandidate, type CandidateLifecycle } from './workbench-store'
 
 interface OpenProject { root: string; graph: SourceGraph }
@@ -282,6 +283,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     if (typeof body.projectId !== 'string' || typeof body.rawIntent !== 'string' || !Array.isArray(body.operations) || !body.scope || typeof body.scope !== 'object') return reject(response, 400, '候选需要 projectId、原始意图、操作列表和 Scope 决策')
     const project = projects.get(body.projectId)
     if (!project) return reject(response, 404, '项目分析已过期，请重新读取')
+    const routeRefs = project.graph.nodes.filter(node => node.kind === 'route').map(node => node.id)
+    const verificationContract = normalizeVerificationContract(body.verificationContract, routeRefs)
     const operations = body.operations as EditOperation[]
     const scope = body.scope as ScopeDecision
     const candidateId = `candidate-${randomUUID()}`
@@ -289,7 +292,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     const stateRoot = workbenchStateRoot()
     const artifactRoot = path.join(stateRoot, sessionId, 'artifacts')
     const candidateRoot = path.join(stateRoot, sessionId, 'candidate')
-    const session = recordSourceGraph(openSession(sessionId, project.graph.revision, body.rawIntent), project.graph.id, project.graph.revision.sourceDigest)
+    const session = recordSourceGraph(openSession(sessionId, project.graph.revision, body.rawIntent, [], verificationContract), project.graph.id, project.graph.revision.sourceDigest)
     const scoped = chooseScope(session, scope)
     const staged = stageOperations(scoped, operations)
     const record = createCandidate({ projectRoot: project.root, candidateRoot, artifactRoot, graph: project.graph, scope, operations, candidateId })
@@ -457,6 +460,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return json(response, 200, {
       analysis: { projectRoot: project.root, ...routeGraph(project.graph, project.root) },
       rawIntent: live.session.rawIntent,
+      verificationContract: live.session.verificationContract,
       scope: live.session.scope,
       candidate: candidateView(live.record),
       verification: verificationView(live.session.runs.at(-1), live.record.id, live.session.verificationFailure),
@@ -503,7 +507,7 @@ export function localProjectApiPlugin(): Plugin {
         void handle(request, response).catch(error => {
           const failure = error instanceof Error ? error as Error & { statusCode?: number } : undefined
           const code = failure && 'code' in failure ? failure.code : undefined
-          const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' || failure?.name === 'VerificationRunnerError' ? 503 : failure instanceof PatchApplyError || failure?.name === 'CandidateError' || failure?.name === 'SessionInvariantError' || failure?.name === 'VerificationEvidenceError' ? 409 : failure?.name === 'PreviewResourcePolicyError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
+          const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' || failure?.name === 'VerificationRunnerError' ? 503 : failure instanceof PatchApplyError || failure?.name === 'CandidateError' || failure?.name === 'SessionInvariantError' || failure?.name === 'VerificationEvidenceError' ? 409 : failure instanceof VerificationContractError || failure?.name === 'PreviewResourcePolicyError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
           reject(response, status, error instanceof Error ? error.message : 'Project API failed')
         })
       })

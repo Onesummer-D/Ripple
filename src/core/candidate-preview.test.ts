@@ -2,7 +2,7 @@
 import { createServer, request as httpRequest } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import { addressOnPreviewNetwork, previewRelayRejection, startHostRelay } from './candidate-preview'
+import { addressOnPreviewNetwork, parsePreviewContainerInspection, previewRelayRejection, startHostRelay, waitForPreviewNetworkAddress } from './candidate-preview'
 
 const relays: Array<{ close: () => Promise<void> }> = []
 afterEach(async () => { await Promise.all(relays.splice(0).map(relay => relay.close())) })
@@ -18,6 +18,26 @@ describe('candidate preview network address', () => {
   it('rejects missing networks and unusable addresses', () => {
     expect(() => addressOnPreviewNetwork('{}', 'ripple-preview-net-candidate')).toThrow(/未加入预期/)
     expect(() => addressOnPreviewNetwork(JSON.stringify({ 'ripple-preview-net-candidate': { IPAddress: '' } }), 'ripple-preview-net-candidate')).toThrow(/未加入预期/)
+  })
+
+  it('waits for Docker to attach the container before resolving its internal IPv4 address', async () => {
+    let inspections = 0
+    const address = await waitForPreviewNetworkAddress('ripple-preview-net', 'ripple-candidate', async () => {
+      inspections += 1
+      return { status: 'running', exitCode: 0, error: '', oomKilled: false, networks: { 'ripple-preview-net': { IPAddress: inspections < 3 ? '' : '172.24.0.3' } } }
+    }, 1000)
+    expect(address).toBe('172.24.0.3')
+    expect(inspections).toBe(3)
+  })
+
+  it('fails immediately when the container stopped instead of waiting for an address timeout', async () => {
+    const inspect = async () => ({ status: 'exited', exitCode: 137, error: 'OOM', oomKilled: true, networks: {} })
+    await expect(waitForPreviewNetworkAddress('ripple-preview-net', 'ripple-candidate', inspect, 15_000)).rejects.toThrow(/status=exited, exit=137, oom=true/)
+  })
+
+  it('parses Docker state and attached endpoints as one inspection', () => {
+    expect(parsePreviewContainerInspection(JSON.stringify({ Status: 'running', ExitCode: 0, Error: '', OOMKilled: false }) + '|' + JSON.stringify({ preview: { IPAddress: '172.24.0.3' } })))
+      .toEqual({ status: 'running', exitCode: 0, error: '', oomKilled: false, networks: { preview: { IPAddress: '172.24.0.3' } } })
   })
 })
 

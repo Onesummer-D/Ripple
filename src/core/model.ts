@@ -60,6 +60,45 @@ export interface ScopeDecision {
   decidedBy: Id
   decidedAt: string
 }
+export type BrowserControlRole = 'button' | 'link'
+export interface BrowserVerificationContract {
+  pages: Array<{
+    pageRef: Id
+    path: string
+    markerText: string
+    navigateBy?: { role: BrowserControlRole; name: string }
+  }>
+  interactions: Array<{
+    pageRef: Id
+    role: BrowserControlRole
+    name: string
+    expectedText: string
+  }>
+}
+export interface ScopePropagationObservation {
+  pageRef: Id
+  route: string
+  viewport: { width: number; height: number }
+  markerText: string
+  baselineMarkerVisible: boolean
+  candidateMarkerVisible: boolean
+  operations: Array<{
+    operationId: Id
+    baselineValues: string[]
+    candidateValues: string[]
+  }>
+}
+export interface InteractionObservation {
+  interactionIndex: number
+  pageRef: Id
+  route: string
+  viewport: { width: number; height: number }
+  role: BrowserControlRole
+  name: string
+  expectedText: string
+  baselinePassed: boolean
+  candidatePassed: boolean
+}
 export interface EditOperation {
   id: Id
   kind: EditKind
@@ -126,12 +165,15 @@ export interface VerificationRun {
   patchHash: string
   candidateTreeDigest: string
   runtimeFingerprint: string
+  verificationContractHash?: string
   startedAt: string
   completedAt: string
   checks: VerificationCheck[]
   assertions: VerificationAssertion[]
   evidence: VerificationEvidence[]
   baselineComparisons?: BaselineComparison[]
+  scopeObservations?: ScopePropagationObservation[]
+  interactionObservations?: InteractionObservation[]
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }
@@ -171,6 +213,7 @@ export interface EditSession {
   operations: EditOperation[]
   status: SessionStatus
   sourceGraphId?: Id
+  verificationContract?: BrowserVerificationContract
   scope?: ScopeDecision
   candidate?: CandidatePatch
   runs: VerificationRun[]
@@ -179,4 +222,3 @@ export interface EditSession {
   rollback?: RollbackRevision
   verificationFailure?: VerificationFailure
 }
-

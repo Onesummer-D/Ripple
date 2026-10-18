@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { createHash } from 'node:crypto'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { createServer } from 'node:net'
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-workbench-browser-'))
 const projectRoot = path.join(sandbox, 'site')
@@ -21,8 +22,8 @@ test.beforeAll(() => {
   fs.writeFileSync(path.join(projectRoot, 'index.html'), '<!doctype html><html><head><meta charset="UTF-8"></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>')
   fs.writeFileSync(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
   fs.writeFileSync(path.join(projectRoot, 'src', 'main.tsx'), `import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />)`)
-  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), `/* suggested asset https://assets.example.test/preview-check.gif; injected hostile URL https://untrusted.example.invalid/pixel.gif */ import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; import { AutumnPage } from './pages/AutumnPage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <><Navigation/><HomePage/></>}{page === 'autumn' && <><Navigation/><AutumnPage/></>}</>}`)
-  fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), `export function HomePage(){return <main><h1>Baseline title</h1><img alt="approved test image" src="https://assets.example.test/preview-check.gif"/><img alt="not approved image" src="https://untrusted.example.invalid/pixel.gif"/><a href="https://untrusted.example.invalid/leave">External navigation</a><button>Browse items</button></main>}`)
+  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), `/* suggested asset https://assets.example.test/preview-check.gif; injected hostile URL https://untrusted.example.invalid/pixel.gif */ import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; import { AutumnPage } from './pages/AutumnPage'; export function App(){const [page,setPage]=useState('home'); return <><button onClick={()=>setPage('home')}>Home route</button><button onClick={()=>setPage('autumn')}>Autumn route</button>{page === 'home' && <><Navigation/><HomePage/></>}{page === 'autumn' && <><Navigation/><AutumnPage/></>}</>}`)
+  fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), `import { useState } from 'react'; export function HomePage(){const [clicks,setClicks]=useState(0); return <main><h1>Baseline title</h1><img alt="approved test image" src="https://assets.example.test/preview-check.gif"/><img alt="not approved image" src="https://untrusted.example.invalid/pixel.gif"/><a href="https://untrusted.example.invalid/leave">External navigation</a><button>Browse items</button><button onClick={()=>setClicks(clicks+1)}>Clicks {clicks}</button></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'AutumnPage.tsx'), `export function AutumnPage(){return <main><h1>Autumn baseline</h1></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'components', 'Navigation.tsx'), `export function Navigation(){return <nav>Shared navigation brand</nav>}`)
   fs.symlinkSync(path.join(process.cwd(), 'node_modules'), path.join(projectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
@@ -40,6 +41,25 @@ async function expectCandidateRetired(id: string) {
   expect(response.status, 'discarding an already-retired candidate must not find a stale API entry').toBe(404)
   const worktrees = execFileSync('git', ['-C', projectRoot, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' }).split(/\r?\n/).filter(line => line.startsWith('worktree '))
   expect(worktrees, 'candidate cleanup must leave only the source project worktree').toHaveLength(1)
+}
+
+function createApprovalProject(): string {
+  const root = path.join(sandbox, 'approval-flow-project')
+  fs.mkdirSync(path.join(root, 'src', 'components'), { recursive: true })
+  fs.mkdirSync(path.join(root, 'src', 'pages'), { recursive: true })
+  fs.writeFileSync(path.join(root, '.gitignore'), 'node_modules/\ndist/\n')
+  fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'ripple-approval-flow', private: true, type: 'module' }))
+  fs.writeFileSync(path.join(root, 'index.html'), '<!doctype html><html><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>')
+  fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
+  fs.writeFileSync(path.join(root, 'src', 'main.tsx'), "import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />)")
+  fs.writeFileSync(path.join(root, 'src', 'App.tsx'), "import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; import { AutumnPage } from './pages/AutumnPage'; export function App(){const [page,setPage]=useState('home'); return <><button onClick={()=>setPage('home')}>Home route</button><button onClick={()=>setPage('autumn')}>Autumn route</button><Navigation/>{page==='home' && <HomePage/>}{page==='autumn' && <AutumnPage/>}</>}")
+  fs.writeFileSync(path.join(root, 'src', 'components', 'Navigation.tsx'), 'export function Navigation(){return <nav aria-label="Primary"><a>Shared navigation brand</a></nav>}')
+  fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), "import { useState } from 'react'; export function HomePage(){const [clicks,setClicks]=useState(0); return <main><h1>Home page</h1><button onClick={()=>setClicks(clicks+1)}>Clicks {clicks}</button></main>}")
+  fs.writeFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), 'export function AutumnPage(){return <main><h1>Autumn page</h1></main>}')
+  fs.symlinkSync(path.join(process.cwd(), 'node_modules'), path.join(root, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
+  const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe' })
+  git('init', '-q'); git('config', 'user.email', 'ripple-approval@example.invalid'); git('config', 'user.name', 'Ripple approval test'); git('add', '.'); git('commit', '-qm', 'trusted local workflow baseline')
+  return root
 }
 
 test('opens a real local project, keeps multiple operations and explicit local Scope in one isolated candidate', async ({ page }) => {
@@ -290,6 +310,114 @@ test('records trusted three-viewport evidence while unsupported assertions stay 
   candidateId = ''
 })
 
+test('approves, applies, rolls back and restores a contract-verified shared TEXT page override through the workbench UI', async ({ page }) => {
+  test.setTimeout(360_000)
+  if (!dockerAvailable) {
+    if (process.env.CI) throw new Error('Docker-backed approval/apply/rollback workflow is mandatory in CI')
+    test.skip(true, 'Docker-backed candidate and baseline previews are unavailable locally')
+  }
+  const approvalProject = createApprovalProject()
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByTestId('project-path').fill(approvalProject)
+  await page.getByTestId('analyze-project').click()
+  await expect(page.getByTestId('target-select').locator('option').filter({ hasText: 'Shared navigation brand' })).toHaveCount(1, { timeout: 30_000 })
+  const targetSelect = page.getByTestId('target-select')
+  const targetId = await targetSelect.locator('option').filter({ hasText: 'Shared navigation brand' }).getAttribute('value')
+  expect(targetId).toBeTruthy()
+  await targetSelect.selectOption(targetId!)
+  await page.getByTestId('intent-input').fill('Change the shared navigation only on Home; preserve Autumn and the counter interaction.')
+  await page.getByRole('radio', { name: /仅在一个页面创建可维护覆盖/ }).check()
+  await page.getByLabel('选择局部覆盖页面').selectOption('page:home')
+  await page.getByTestId('after-input').fill('Home-only brand')
+  await page.getByTestId('add-operation').click()
+  await page.getByTestId('scope-page:home').selectOption('include')
+  await page.getByTestId('scope-page:autumn').selectOption('exclude')
+  await page.getByTestId('verification-contract').fill(JSON.stringify({
+    pages: [
+      { pageRef: 'page:home', path: '/', markerText: 'Home page' },
+      { pageRef: 'page:autumn', path: '/', markerText: 'Autumn page', navigateBy: { role: 'button', name: 'Autumn route' } },
+    ],
+    interactions: [{ pageRef: 'page:home', role: 'button', name: 'Clicks 0', expectedText: 'Clicks 1' }],
+  }, null, 2))
+  await page.getByTestId('create-real-candidate').click()
+  await expect(page.getByTestId('candidate-id')).toBeVisible({ timeout: 30_000 })
+  candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
+  const patchHash = (await page.locator('.hash-grid > div').nth(1).locator('code').innerText()).trim()
+  expect(patchHash).toMatch(/^[a-f0-9]{64}$/)
+  await page.getByTestId('verify-candidate').click()
+  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 180_000 })
+  const assertions = page.getByTestId('verification-assertions')
+  for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
+    await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
+  }
+  const recordHref = await page.locator('.verification-record a').getAttribute('href')
+  expect(recordHref).toBeTruthy()
+  const executionResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
+  expect(executionResponse.ok()).toBe(true)
+  const execution = await executionResponse.json()
+  expect(execution).toMatchObject({ candidateId, patchHash, verificationContractHash: expect.stringMatching(/^[a-f0-9]{64}$/) })
+  expect(execution.scopeObservations).toHaveLength(6)
+  expect(execution.interactionObservations).toHaveLength(3)
+  expect(execution.scopeObservations.every((item: { baselineMarkerVisible: boolean; candidateMarkerVisible: boolean }) => item.baselineMarkerVisible && item.candidateMarkerVisible)).toBe(true)
+
+  await page.getByTestId('approve-candidate').click()
+  await expect(page.getByTestId('candidate-workflow')).toContainText('已批准')
+  await page.getByTestId('apply-candidate').click()
+  await expect(page.getByTestId('candidate-workflow')).toContainText('applied')
+  const git = (...args: string[]) => execFileSync('git', ['-C', approvalProject, ...args], { encoding: 'utf8' }).trim()
+  expect(fs.readFileSync(path.join(approvalProject, 'src', 'components', 'Navigation.tsx'), 'utf8')).toContain('<RippleText')
+  expect(fs.readFileSync(path.join(approvalProject, 'src', 'App.tsx'), 'utf8')).toContain('RipplePageForState')
+  expect(git('status', '--porcelain')).not.toBe('')
+
+  const portProbe = createServer()
+  await new Promise<void>(resolve => portProbe.listen(0, '127.0.0.1', resolve))
+  const runtimePort = (portProbe.address() as { port: number }).port
+  await new Promise<void>((resolve, reject) => portProbe.close(error => error ? reject(error) : resolve()))
+  const viteCli = path.join(process.cwd(), 'node_modules', 'vite', 'bin', 'vite.js')
+  const runtimeServer = spawn(process.execPath, [viteCli, '--host', '127.0.0.1', '--port', String(runtimePort), '--strictPort'], { cwd: approvalProject, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+  let runtimeLogs = ''
+  runtimeServer.stdout.setEncoding('utf8').on('data', chunk => { runtimeLogs += chunk })
+  runtimeServer.stderr.setEncoding('utf8').on('data', chunk => { runtimeLogs += chunk })
+  const runtimeUrl = `http://127.0.0.1:${runtimePort}/`
+  const runtimePage = await page.context().newPage()
+  try {
+    await expect.poll(async () => (await fetch(runtimeUrl).catch(() => undefined))?.ok ?? false, { timeout: 30_000 }).toBe(true)
+    await runtimePage.goto(runtimeUrl)
+    await expect(runtimePage.getByRole('heading', { name: 'Home page' })).toBeVisible()
+    await expect(runtimePage.getByText('Home-only brand', { exact: true })).toBeVisible()
+    await runtimePage.getByRole('button', { name: 'Autumn route' }).click()
+    await expect(runtimePage.getByRole('heading', { name: 'Autumn page' })).toBeVisible()
+    await expect(runtimePage.getByText('Shared navigation brand', { exact: true })).toBeVisible()
+    await expect(runtimePage.getByText('Home-only brand', { exact: true })).toHaveCount(0)
+
+    await page.getByTestId('rollback-candidate').click()
+    await expect(page.getByTestId('candidate-workflow')).toContainText('rolled-back')
+    expect(git('status', '--porcelain')).toBe('')
+    await runtimePage.goto(runtimeUrl)
+    await expect(runtimePage.getByText('Shared navigation brand', { exact: true })).toBeVisible()
+    await expect(runtimePage.getByText('Home-only brand', { exact: true })).toHaveCount(0)
+
+    const historyRecord = page.getByTestId('candidate-history').locator('article').filter({ hasText: candidateId })
+    await expect(historyRecord).toContainText('rolled-back')
+    await expect(historyRecord).toContainText(patchHash.slice(0, 16))
+    await historyRecord.getByRole('button', { name: '恢复记录' }).click()
+    await expect(page.getByTestId('candidate-id')).toHaveText(candidateId)
+    await expect(page.getByTestId('verification-state')).toContainText('PASSED')
+    await expect(page.getByTestId('candidate-workflow')).toContainText('rolled-back')
+    const restoredHistory = await page.request.get('http://127.0.0.1:4173/__ripple/api/history')
+    const history = await restoredHistory.json()
+    expect(history.history.find((item: { candidateId: string }) => item.candidateId === candidateId)).toMatchObject({ lifecycle: 'rolled-back', patchHash })
+    candidateId = ''
+  } catch (error) {
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\nApplied project Vite logs:\n${runtimeLogs}`)
+  } finally {
+    await runtimePage.close()
+    runtimeServer.kill('SIGTERM')
+    await new Promise<void>(resolve => runtimeServer.once('close', () => resolve()))
+  }
+})
+
 test('opens the supplied Bolt project in the workbench and builds a shared-scope candidate', async ({ page }) => {
   test.skip(!boltProjectRoot, 'RIPPLE_BOLT_PROJECT is only available in the private Bolt acceptance workflow')
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -332,4 +460,3 @@ test('opens the supplied Bolt project in the workbench and builds a shared-scope
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
   candidateId = ''
 })
-

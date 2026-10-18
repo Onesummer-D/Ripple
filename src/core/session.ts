@@ -1,6 +1,7 @@
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type AppliedRevision, type Approval, type CandidatePatch, type EditOperation, type EditSession, type ProjectRevision, type RollbackRevision, type ScopeDecision, type VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type AppliedRevision, type Approval, type BrowserVerificationContract, type CandidatePatch, type EditOperation, type EditSession, type ProjectRevision, type RollbackRevision, type ScopeDecision, type VerificationRun } from './model'
 import { assertTrustedBrowserExecution } from './verification'
 import { carryTrustedBrowserExecution } from './verification-receipt'
+import { verificationContractHash } from './verification-contract'
 
 export class SessionInvariantError extends Error {
   constructor(message: string) { super(message); this.name = 'SessionInvariantError' }
@@ -15,10 +16,10 @@ const routePath = (value: string): string | undefined => {
   catch { return undefined }
 }
 
-export function openSession(id: string, revision: ProjectRevision, rawIntent: string, selectedElementRefs: string[] = []): EditSession {
+export function openSession(id: string, revision: ProjectRevision, rawIntent: string, selectedElementRefs: string[] = [], verificationContract?: BrowserVerificationContract): EditSession {
   requireCondition(!!id && !!revision.projectId && !!revision.sourceDigest && !!revision.runtimeFingerprint, 'Project revision must be identified')
   requireCondition(!!rawIntent.trim(), 'Original user intent is required')
-  return { id, projectRevision: revision, rawIntent, selectedElementRefs: [...selectedElementRefs], operations: [], status: 'draft', runs: [] }
+  return { id, projectRevision: revision, rawIntent, selectedElementRefs: [...selectedElementRefs], operations: [], ...(verificationContract ? { verificationContract } : {}), status: 'draft', runs: [] }
 }
 
 export function recordSourceGraph(session: EditSession, graphId: string, sourceDigest: string): EditSession {
@@ -89,8 +90,9 @@ export function registerVerification(session: EditSession, run: VerificationRun)
   const patch = session.candidate
   requireCondition(session.status === 'candidate' || session.status === 'verified', 'Candidate must exist before verification')
   requireCondition(!!patch && !!session.scope, 'Candidate and scope required')
-  requireCondition(run.candidateId === patch.id && run.scopeDecisionId === patch.scopeDecisionId && run.scopeVersion === patch.scopeVersion && run.baseSourceDigest === patch.baseSourceDigest && run.patchHash === patch.patchHash && run.candidateTreeDigest === patch.candidateTreeDigest && run.runtimeFingerprint === session.projectRevision.runtimeFingerprint, 'Verification does not match candidate scope/code/environment')
+  requireCondition(run.candidateId === patch.id && run.scopeDecisionId === patch.scopeDecisionId && run.scopeVersion === patch.scopeVersion && run.baseSourceDigest === patch.baseSourceDigest && run.patchHash === patch.patchHash && run.candidateTreeDigest === patch.candidateTreeDigest && run.runtimeFingerprint === session.projectRevision.runtimeFingerprint && run.verificationContractHash === verificationContractHash(session.verificationContract), 'Verification does not match candidate scope/code/environment/contract')
   assertTrustedBrowserExecution(run)
+  assertVerificationContractResults(session, run)
   requireCondition(!session.runs.some(r => r.id === run.id), 'Verification run identity already exists')
   const startedAt = Date.parse(run.startedAt), completedAt = Date.parse(run.completedAt)
   requireCondition(Number.isFinite(startedAt) && Number.isFinite(completedAt) && completedAt >= startedAt, 'Verification run time window is invalid')
@@ -116,11 +118,62 @@ export function registerVerification(session: EditSession, run: VerificationRun)
   return { ...session, runs: [...session.runs, registeredRun], approval: undefined, verificationFailure: undefined, status: status === 'passed' ? 'verified' : 'candidate' }
 }
 
+export function assertVerificationContractResults(session: EditSession, run: VerificationRun): void {
+  const assertion = (id: string) => run.assertions.find(item => item.id === id)?.result
+  const scopeResult = assertion('scope-propagation')
+  if (scopeResult === 'pass') {
+    const contract = session.verificationContract
+    const scope = session.scope
+    const observations = run.scopeObservations ?? []
+    const pages = contract?.pages ?? []
+    const routeRefs = scope ? [...scope.includedRefs, ...scope.excludedRefs, ...scope.protectedRefs].filter(ref => ref.startsWith('page:')) : []
+    const viewports = [...new Map(run.checks.map(check => [`${check.viewport.width}x${check.viewport.height}`, check.viewport])).values()]
+    const expectedCount = pages.length * viewports.length
+    requireCondition(!!contract && !!scope && pages.length > 0 &&
+      routeRefs.length > 0 && routeRefs.every(ref => pages.some(page => page.pageRef === ref)) && pages.every(page => routeRefs.includes(page.pageRef)) &&
+      observations.length === expectedCount && expectedCount > 0, 'Scope PASS needs browser observations for every contracted and scoped page at each checked viewport')
+    const seen = new Set<string>()
+    for (const observation of observations) {
+      const page = pages.find(item => item.pageRef === observation.pageRef)
+      const key = `${observation.pageRef}:${observation.viewport.width}x${observation.viewport.height}`
+      requireCondition(!!page && page.path === observation.route && viewports.some(viewport => viewport.width === observation.viewport.width && viewport.height === observation.viewport.height) && !seen.has(key), 'Scope observations must uniquely bind declared pages and checked viewports')
+      seen.add(key)
+      requireCondition(observation.markerText === page.markerText && observation.baselineMarkerVisible && observation.candidateMarkerVisible, 'Scope PASS requires the declared page marker in both original and candidate projects')
+      requireCondition(observation.operations.length === session.operations.length && session.operations.every(operation => {
+        const values = observation.operations.find(item => item.operationId === operation.id)
+        const shouldChange = scope.strategy === 'page-override' ? scope.localPageRef === observation.pageRef : scope.includedRefs.includes(observation.pageRef)
+        const expectedCandidate = shouldChange ? operation.after : operation.before
+        return !!values && values.baselineValues.length > 0 && values.candidateValues.length > 0 &&
+          values.baselineValues.every(value => value.includes(operation.before)) && values.candidateValues.every(value => value.includes(expectedCandidate))
+      }), 'Scope PASS target values must match the original baseline and selected page decision')
+    }
+  }
+  const interactionResult = assertion('interaction')
+  if (interactionResult === 'pass') {
+    const contract = session.verificationContract
+    const observations = run.interactionObservations ?? []
+    const viewports = [...new Map(run.checks.map(check => [`${check.viewport.width}x${check.viewport.height}`, check.viewport])).values()]
+    const expectedCount = (contract?.interactions.length ?? 0) * viewports.length
+    requireCondition(!!contract && contract.interactions.length > 0 && observations.length === expectedCount && expectedCount > 0, 'Interaction PASS needs an executed observation for each declared interaction at every checked viewport')
+    for (let interactionIndex = 0; interactionIndex < contract.interactions.length; interactionIndex += 1) {
+      const interaction = contract.interactions[interactionIndex]
+      for (const viewport of viewports) {
+        const match = observations.filter(item => item.interactionIndex === interactionIndex && item.pageRef === interaction.pageRef &&
+          item.viewport.width === viewport.width && item.viewport.height === viewport.height)
+        requireCondition(match.length === 1 && match[0].route === contract.pages.find(page => page.pageRef === interaction.pageRef)?.path &&
+          match[0].role === interaction.role && match[0].name === interaction.name && match[0].expectedText === interaction.expectedText &&
+          match[0].baselinePassed && match[0].candidatePassed, 'Interaction PASS requires the declared accessible control and expected state in original and candidate browsers')
+      }
+    }
+  }
+}
+
 export function approve(session: EditSession, approval: Approval): EditSession {
   requireCondition(session.status === 'verified' && !!session.candidate, 'Only a verified candidate can be approved')
   const run = session.runs.at(-1)
   requireCondition(!!approval.by && !!approval.at && approval.candidateId === session.candidate.id && !!run && run.id === approval.verificationRunId && run.candidateId === session.candidate.id && run.status === 'passed' && !session.verificationFailure, 'Approval must bind to the latest passed verification run of the current candidate')
   assertTrustedBrowserExecution(run)
+  assertVerificationContractResults(session, run)
   return { ...session, approval: { ...approval }, status: 'approved' }
 }
 
@@ -132,6 +185,7 @@ export function recordAppliedRevision(session: EditSession, applied: AppliedRevi
   const run = currentRun(session)
   requireCondition(run?.status === 'passed', 'Verification evidence is no longer current')
   assertTrustedBrowserExecution(run)
+  assertVerificationContractResults(session, run)
   return { ...session, applied: { ...applied }, status: 'applied' }
 }
 
@@ -144,5 +198,6 @@ export function recordRollback(session: EditSession, rollback: RollbackRevision)
     rollback.restoredSourceDigest === applied.baseSourceDigest && !!rollback.rolledBackAt, 'Rollback must identify the applied patch and restored baseline')
   requireCondition(run.status === 'passed', 'Rollback record needs the original passed verification')
   assertTrustedBrowserExecution(run)
+  assertVerificationContractResults(session, run)
   return { ...session, rollback: { ...rollback }, status: 'rolled-back' }
 }

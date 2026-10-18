@@ -10,9 +10,10 @@ import { sourceProvenPageImpact } from './scope'
 import * as verificationApi from './verification'
 import { applyApprovedCandidate, rollbackAppliedCandidate } from './apply'
 import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
-import type { EditOperation, ScopeDecision, VerificationRun } from './model'
+import type { BrowserVerificationContract, EditOperation, ScopeDecision, VerificationRun } from './model'
 import { attestBrowserExecution } from './verification-receipt'
 import { sourceBindings } from './verification-runner'
+import { verificationContractHash } from './verification-contract'
 
 const temporaryRoots: string[] = []
 const temp = () => {
@@ -24,12 +25,24 @@ const temp = () => {
 }
 const git = (root: string, ...args: string[]) => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe' })
 
-function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFingerprint: string, targetRef: string, artifactRoot: string): VerificationRun {
+function contractFor(scope: ScopeDecision): BrowserVerificationContract {
+  const pageRefs = [...scope.includedRefs, ...scope.excludedRefs, ...scope.protectedRefs].filter(ref => ref.startsWith('page:'))
+  const pages = [...new Set(pageRefs)].map(pageRef => ({
+    pageRef,
+    path: '/',
+    markerText: pageRef === 'page:autumn' ? 'Autumn page' : 'Home page',
+    ...(pageRef === 'page:autumn' ? { navigateBy: { role: 'button' as const, name: 'Autumn route' } } : {}),
+  }))
+  return { pages, interactions: [{ pageRef: 'page:home', role: 'button', name: 'Home route', expectedText: 'Home page' }] }
+}
+
+function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFingerprint: string, targetRef: string, artifactRoot: string, scope: ScopeDecision): VerificationRun {
   fs.mkdirSync(artifactRoot, { recursive: true })
   const id = 'apply-run'
   const startedAt = '2026-10-18T00:00:00Z'
   const completedAt = '2026-10-18T00:01:00Z'
   const viewport = { width: 1280, height: 800 }
+  const contract = contractFor(scope)
   const check = { id: 'home', route: '/', viewport, state: 'home-ready', description: 'Heading is visible', mandatory: true }
   const assertions = ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors'].map(assertionId => ({ id: assertionId, result: 'pass' as const, detail: `verified ${assertionId}` }))
   const artifactPath = path.join(artifactRoot, 'home.png')
@@ -41,19 +54,22 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   fs.writeFileSync(comparisonPath, comparisonBytes)
   const comparisonDigest = createHash('sha256').update(baselineSnapshot).digest('hex')
   const baselineComparisons = [{ route: '/', viewport, baselineDigest: comparisonDigest, candidateDigest: comparisonDigest, maskedOperationIds: ['test-operation'], matched: true, artifactPath: comparisonPath, artifactHash: createHash('sha256').update(comparisonBytes).digest('hex') }]
+  const scopeObservations = contract.pages.map(page => ({ pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true, operations: candidate.operations.map(operation => ({ operationId: operation.id, baselineValues: [operation.before], candidateValues: [(scope.strategy === 'page-override' ? scope.localPageRef === page.pageRef : scope.includedRefs.includes(page.pageRef)) ? operation.after : operation.before] })) }))
+  const interactionObservations = [{ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button' as const, name: 'Home route', expectedText: 'Home page', baselinePassed: true, candidatePassed: true }]
   const run: VerificationRun = {
     id, candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     candidateTreeDigest: candidate.candidateTreeDigest, runtimeFingerprint, startedAt, completedAt, checks: [check], assertions,
-    evidence: [{ id: 'evidence-home', checkId: check.id, result: 'pass', capturedAt: '2026-10-18T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: check.state, elementRefs: [targetRef], artifactPath, artifactHash: createHash('sha256').update(screenshot).digest('hex') }], baselineComparisons, status: 'incomplete',
+    verificationContractHash: verificationContractHash(contract),
+    evidence: [{ id: 'evidence-home', checkId: check.id, result: 'pass', capturedAt: '2026-10-18T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: check.state, elementRefs: [targetRef], artifactPath, artifactHash: createHash('sha256').update(screenshot).digest('hex') }], baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
     schemaVersion: 1, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
-    runtimeFingerprint, checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
-    baselineComparisons: [{ ...baselineComparisons[0], artifactPath: path.basename(comparisonPath) }], assertions,
+    runtimeFingerprint, verificationContractHash: verificationContractHash(contract), checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
+    baselineComparisons: [{ ...baselineComparisons[0], artifactPath: path.basename(comparisonPath) }], scopeObservations, interactionObservations, assertions,
     evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
     artifacts: [{ checkId: check.id, path: 'home.png', sha256: createHash('sha256').update(screenshot).digest('hex') }],
   }))
@@ -193,12 +209,12 @@ describe('real project graph and candidate executor', () => {
     const scope: ScopeDecision = { id: 'scope-record', version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() }
     const operation: EditOperation = { id: 'record-op', kind: 'TEXT', targetRef: target.id, before: target.value!, after: 'Verified title' }
     const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-record'), artifactRoot: path.join(container, 'record-artifacts'), graph, scope, operations: [operation], candidateId: 'record-check' })
-    const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'record-artifacts'))
+    const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'record-artifacts'), scope)
     const recordPath = run.execution!.recordPath
     const record = JSON.parse(fs.readFileSync(recordPath, 'utf8')) as { checks: Array<{ passed: boolean }> }
     record.checks[0].passed = false
     fs.writeFileSync(recordPath, JSON.stringify(record))
-    const session = openSession('record-session', graph.revision, 'Change one title')
+    const session = openSession('record-session', graph.revision, 'Change one title', [], contractFor(scope))
     const staged = stageCandidate(stageOperations(chooseScope(recordSourceGraph(session, graph.id, graph.revision.sourceDigest), scope), [operation]), candidate)
     try {
       expect(() => registerVerification(staged, run)).toThrow(/execution checks do not match/i)
@@ -281,7 +297,7 @@ describe('real project graph and candidate executor', () => {
       execFileSync(process.execPath, ['scripts/build-candidate-check.mjs', candidate.candidateRoot!, dist], { cwd: process.cwd(), stdio: 'pipe', env: { ...process.env, RIPPLE_BUILD_ONLY: '1' } })
       const builtJavaScript = fs.readdirSync(path.join(dist, 'assets')).filter(file => file.endsWith('.js')).map(file => fs.readFileSync(path.join(dist, 'assets', file), 'utf8')).join('\n')
       expect(builtJavaScript).toContain('Home only brand')
-      let session = recordSourceGraph(openSession('page-override-session', graph.revision, 'Change the shared label only on home'), graph.id, graph.revision.sourceDigest)
+      let session = recordSourceGraph(openSession('page-override-session', graph.revision, 'Change the shared label only on home', [], contractFor(scope)), graph.id, graph.revision.sourceDigest)
       session = stageCandidate(stageOperations(chooseScope(session, scope), candidate.operations), candidate)
       const candidateGraph = analyzeProject(candidate.candidateRoot!, false)
       const binding = sourceBindings(candidate, graph, candidateGraph, session)[0]
@@ -290,7 +306,7 @@ describe('real project graph and candidate executor', () => {
       expect(binding.baselineSourceRefs).toHaveLength(1)
       expect(binding.sourceRefs).toHaveLength(1)
       expect(binding.sourceRefs[0]).toMatch(/^jsx:src\/components\/Navigation\.tsx#/)
-      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'override-evidence'))
+      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'override-evidence'), scope)
       session = registerVerification(session, run)
       session = approve(session, { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-18T00:02:00Z' })
       session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
@@ -310,10 +326,10 @@ describe('real project graph and candidate executor', () => {
     const operation: EditOperation = { id: 'apply-title', kind: 'TEXT', targetRef: target.id, before: target.value!, after: 'Exact approved title' }
     const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-apply'), artifactRoot: path.join(container, 'apply-artifacts'), graph, scope, operations: [operation], candidateId: 'apply-rollback' })
     try {
-      let session = recordSourceGraph(openSession('apply-session', graph.revision, 'Update the home title'), graph.id, graph.revision.sourceDigest)
+      let session = recordSourceGraph(openSession('apply-session', graph.revision, 'Update the home title', [], contractFor(scope)), graph.id, graph.revision.sourceDigest)
       session = chooseScope(session, scope)
       session = stageCandidate(stageOperations(session, candidate.operations), candidate)
-      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'evidence'))
+      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'evidence'), scope)
       session = registerVerification(session, run)
       session = approve(session, { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-18T00:02:00Z' })
 
@@ -339,9 +355,9 @@ describe('real project graph and candidate executor', () => {
     const operation: EditOperation = { id: 'rollback-conflict-title', kind: 'TEXT', targetRef: target.id, before: target.value!, after: 'Approved title' }
     const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-rollback-conflict'), artifactRoot: path.join(container, 'rollback-conflict-artifacts'), graph, scope, operations: [operation], candidateId: 'rollback-conflict' })
     try {
-      let session = recordSourceGraph(openSession('rollback-conflict-session', graph.revision, 'Update title'), graph.id, graph.revision.sourceDigest)
+      let session = recordSourceGraph(openSession('rollback-conflict-session', graph.revision, 'Update title', [], contractFor(scope)), graph.id, graph.revision.sourceDigest)
       session = stageCandidate(stageOperations(chooseScope(session, scope), candidate.operations), candidate)
-      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'rollback-conflict-evidence'))
+      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'rollback-conflict-evidence'), scope)
       session = approve(registerVerification(session, run), { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-18T00:02:00Z' })
       session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
       const appliedFile = path.join(root, target.location!.path)
@@ -364,4 +380,3 @@ describe('real project graph and candidate executor', () => {
     expect(fs.readFileSync(path.join(root, 'untracked.txt'), 'utf8')).toBe('preserve')
   }, 15_000)
 })
-
