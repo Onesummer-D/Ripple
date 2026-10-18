@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-10-18T15:30:33.204Z",
-  "rippleHead": "d88486a0ea0173492cae81525947a54e668156ac",
+  "generatedAt": "2026-10-18T15:55:40.347Z",
+  "rippleHead": "0b43e96445a2105b244b7fcf68e1d896624f88f8",
   "projects": [
     {
       "name": "qingye-bolt",
       "rootEnv": "RIPPLE_PROBE_QINGYE",
       "frozenSha": "f7e4998a5c77ab4aeb3232dbc31e61196e9051a6",
-      "nodes": 571,
+      "nodes": 574,
       "edges": 480,
       "kinds": {
         "file": 26,
         "component": 8,
         "media": 13,
         "token": 50,
-        "jsx-element": 347,
+        "jsx-element": 350,
         "route": 4,
         "data": 123
       },
@@ -158,13 +158,13 @@
       "name": "mountain-spirit",
       "rootEnv": "RIPPLE_PROBE_MOUNTAIN",
       "frozenSha": "f838ae3361e78219559426c9931bab6a3a7f5889",
-      "nodes": 713,
+      "nodes": 715,
       "edges": 562,
       "kinds": {
         "file": 101,
         "component": 50,
         "token": 102,
-        "jsx-element": 332,
+        "jsx-element": 334,
         "data": 116,
         "media": 12
       },
