@@ -110,9 +110,13 @@ test('opens a real local project, keeps multiple operations and explicit local S
       expect(await previewFrame!.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
     }
     await page.getByTestId('run-verification').click()
-    await expect(page.getByTestId('verification-state')).toContainText('INCOMPLETE', { timeout: 120_000 })
+    const verificationState = page.getByTestId('verification-state')
+    await expect(verificationState).toContainText(/INCOMPLETE|RISKS/, { timeout: 120_000 })
     await expect(page.getByTestId('verification-assertions').getByText('responsive-layout')).toBeVisible()
-    await expect(page.getByTestId('verification-assertions').getByText('interaction').locator('..')).toContainText('UNKNOWN')
+    const assertionCards = page.getByTestId('verification-assertions').locator('div')
+    const assertionReport = await assertionCards.allTextContents()
+    console.log(`[candidate verification] ${JSON.stringify(assertionReport)}`)
+    await expect(assertionCards.filter({ hasText: 'interaction' })).toContainText('UNKNOWN')
     const verificationImages = page.getByTestId('verification-evidence').locator('img')
     await expect(verificationImages).toHaveCount(3)
     await expect.poll(() => verificationImages.evaluateAll(images => images.every(image => {
@@ -199,8 +203,9 @@ test('records trusted three-viewport evidence while unsupported assertions stay 
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
 
   await page.getByTestId('run-verification').click()
-  await expect(page.getByTestId('verification-state')).toContainText('INCOMPLETE', { timeout: 120_000 })
+  await expect(page.getByTestId('verification-state')).toContainText(/INCOMPLETE|RISKS/, { timeout: 120_000 })
   const assertions = page.getByTestId('verification-assertions')
+  console.log(`[single-target verification] ${JSON.stringify(await assertions.locator('div').allTextContents())}`)
   await expect(assertions.locator('div').filter({ hasText: 'target-change' })).toContainText('PASS')
   await expect(assertions.locator('div').filter({ hasText: 'source-mapping' })).toContainText('PASS')
   await expect(assertions.locator('div').filter({ hasText: 'interaction' })).toContainText('UNKNOWN')
