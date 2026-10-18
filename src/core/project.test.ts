@@ -69,10 +69,10 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
-    schemaVersion: 2, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
+    schemaVersion: 3, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
-    runtimeFingerprint, verificationContractHash: verificationContractHash(contract), checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
+    runtimeFingerprint, verificationContractHash: verificationContractHash(contract), viewports: [{ name: 'desktop', width: viewport.width, height: viewport.height }], checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
     baselineComparisons: [{ ...baselineComparisons[0], artifactPath: path.basename(comparisonPath) }], scopeObservations, interactionObservations, assertions,
     evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
     artifacts: [{ checkId: check.id, path: 'home.png', sha256: createHash('sha256').update(screenshot).digest('hex') }],

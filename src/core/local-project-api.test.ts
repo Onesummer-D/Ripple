@@ -209,9 +209,10 @@ describe('loopback Project API', () => {
     }
     const recordPath = path.join(verificationRoot, 'execution.json')
     fs.writeFileSync(recordPath, JSON.stringify({
-      schemaVersion: 2, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
+      schemaVersion: 3, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
       scopeDecisionId: run.scopeDecisionId, scopeVersion: run.scopeVersion, baseSourceDigest: run.baseSourceDigest,
       patchHash: run.patchHash, candidateTreeDigest: run.candidateTreeDigest, runtimeFingerprint: run.runtimeFingerprint,
+      viewports: [{ name: 'restart', width: viewport.width, height: viewport.height }],
       checks: run.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })),
       assertions, evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
       artifacts: [{ checkId: 'home-desktop', path: path.basename(screenshotPath), sha256: artifactHash }],

@@ -5,11 +5,7 @@ import { chromium } from '/ripple/node_modules/playwright/index.mjs'
 
 const input = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const outputPath = '/evidence/execution.json'
-const viewportPlan = [
-  { name: 'desktop', width: 1440, height: 900 },
-  { name: 'tablet', width: 768, height: 1024 },
-  { name: 'mobile', width: 390, height: 844 },
-]
+const viewportPlan = input.viewports
 const requiredAssertions = [
   'target-change', 'non-target-preserved', 'scope-propagation', 'interaction',
   'responsive-layout', 'source-mapping', 'browser-errors',
@@ -329,7 +325,7 @@ if (assertions.length !== requiredAssertions.length || assertions.some(assertion
 }
 
 const manifest = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   executor: 'playwright',
   completed: true,
   runId: input.runId,
@@ -341,6 +337,7 @@ const manifest = {
   candidateTreeDigest: input.candidateTreeDigest,
   runtimeFingerprint: input.runtimeFingerprint,
   verificationContractHash: input.verificationContractHash,
+  viewports: viewportPlan,
   checks,
   baselineComparisons,
   scopeObservations,

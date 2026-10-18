@@ -23,6 +23,39 @@ Ripple 的 Project-first 核心对象定义在 `src/core/model.ts`，会话转�
 
 这些对象的字段与约束以 TypeScript 定义和领域断言为准。适配器可以转换外部格式，但不应改变 ID、范围和证据含义。
 
+## 稳定边界与实验边界（2026-10-18）
+
+| 状态 | 契约 / 实现 | B 集成约定 |
+|---|---|---|
+| 稳定 | `ProjectRevision` 的 `projectId`、`sourceDigest`、可选 Git commit/ref、`runtimeFingerprint` | 使用 Ripple 读取器产生的版本和摘要；B 可提供补充分析事实，但不维护第二份项目版本状态。 |
+| 稳定 | `SourceGraph` 节点、关系 `certainty` 与 `evidenceRefs` | TEXT/MEDIA/TOKEN 可复用同一图；只有可追溯的 `source-proven` 消费关系进入自动写入影响闭包。 |
+| 稳定 | `EditSession`、版本化 `ScopeDecision`、候选/验证/审批/应用生命周期 | B 的操作加入同一个 session，并通过已有 `stageOperations` / `createCandidate` 流程；不得另建媒体或 Token 候选生命周期。 |
+| 稳定 | `CandidatePatch` 的基线、Scope 版本、补丁 SHA-256、候选树摘要 | B 的操作最终由唯一候选执行器落到同一个 worktree 和同一份补丁；工具输出不能自行声明已应用。 |
+| 稳定 | `VerificationRun` / `VerificationEvidence` 的可信执行器与版本绑定 | 浏览器截图和 Playwright 记录由执行器生成并由接收边界复算；分析器或媒体工具只能报告观察，不得制造 `pass`。 |
+| 稳定 | `.ripple/overrides.json` schema v2 的 UUID 目标及页面覆盖维护语义 | 复用目标身份、更新与删除规则；禁止以源码偏移生成长期 ID 或建立第二个覆盖注册表。 |
+| 待确认 | `ProjectAdapter`、`CandidateExecutor`、`VerificationExecutor` 的接口名称与具体调用形状 | 作为职责草案，B 可给出现有函数映射；不为形式统一增加空包装器。 |
+| 实验 | `EditOperation.before` / `after` 目前是字符串 | 当前经过执行器验证的是 TEXT。MEDIA 焦点/裁切与 TOKEN 值结构尚未定型；B 应提交带 kind 判别的值样例与序列化需求，双方评审后再决定最小类型联合，不要把 JSON 编码塞入字符串后宣称契约冻结。 |
+| 实验 | `RuntimeSourceMap` 的实例级写入授权 | 浏览器点选可用于源码导航；在宿主核验实例唯一性、候选、源码摘要、页面状态及运行时指纹前，不可授权实例精准修改。 |
+| 实验 | 任意 React/Vite 工程的运行命令与完整浏览器验收 | 当前受限预演适配是已验证的窄路径，不等同于一般项目的构建兼容承诺。 |
+
+### 适配器交接的最小输入输出
+
+- 项目/媒体/Token 分析返回 `SourceGraph` 增量事实或可映射节点与关系；明确指出证据来源和 certainty。不能返回独立 session、scope 或 candidate ID 空间。
+- 编辑工具只生成一个 `EditOperation` 值提案（kind、targetRef、before/after、必要的目标元数据）；用户确认后进入原 `EditSession.operations`。同一次会话可混合 kind，但候选执行器必须拒绝自身尚未支持的 kind，不能静默忽略。
+- Candidate 执行输入必须携带当前 `ProjectRevision`、完整图、ScopeDecision 和操作列表。候选及 patchHash 仍由 Ripple 唯一执行器生成。
+- Verification 输入使用已确认的 CandidatePatch 和受支持检查契约；输出为页面/视口/状态观察及截图引用。原工程基线、scope 与操作影响的真实性不能由 B 的工具摘要替代。
+- 覆盖维护使用同一个 UUID registry；相同 AST 锚点重复编辑更新旧 rule，来源删除或映射不唯一时返回 conflict/unknown，不按相近文案猜测恢复。
+
+### 必须由共同测试锁定的行为
+
+1. 同一 EditSession 可序列化、恢复混合 kind 操作；旧的 TEXT 操作及审批数据不因增加操作种类改变语义。
+2. `included`、`excluded`、`protected`、共享影响及页面覆盖传播由唯一 Scope 规则计算，执行器对越界影响拒绝补丁。
+3. 一次 CandidatePatch 含全部已确认操作；候选 SHA、树摘要、审批及应用记录指向相同字节。
+4. B 工具不能自行构造可信 Evidence；执行失败、缺图、哈希不匹配或 stale 版本均不可批准。
+5. 页面覆盖在重新分析、连续修改、规则移除、冲突恢复后保持唯一规则和幂等 AST 变换。
+
+**冻结条件补充：** 上表标为“稳定”的语义可以由 B 映射使用；Adapter 名称、非 TEXT 的 operation value schema 及运行时实例授权仍待双方审查和同一组契约测试，不因本文进入 PR 就自动视为冻结。
+
 ## 建议的窄适配接口
 
 下面是供讨论的形状，不是要求一次性实现新的抽象层。现有 `analyzeProject`、`createCandidate` 和 `runCandidateVerification` 可逐步满足这些职责，无需为了接口形式增加空包装。

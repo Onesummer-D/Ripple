@@ -8,7 +8,7 @@ export class VerificationEvidenceError extends Error {
 }
 
 interface BrowserExecutionManifest {
-  schemaVersion: 2
+  schemaVersion: 3
   executor: 'playwright'
   completed: boolean
   runId: string
@@ -20,6 +20,7 @@ interface BrowserExecutionManifest {
   candidateTreeDigest: string
   runtimeFingerprint: string
   verificationContractHash?: string
+  viewports: Array<{ name: string; width: number; height: number }>
   checks: Array<{ id: string; route: string; viewport: { width: number; height: number }; state: string; passed: boolean }>
   baselineComparisons?: BaselineComparison[]
   scopeObservations?: NonNullable<VerificationRun['scopeObservations']>
@@ -58,17 +59,35 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   try { manifest = JSON.parse(recordBytes.toString('utf8')) as BrowserExecutionManifest }
   catch { throw new VerificationEvidenceError('Playwright execution record is not valid JSON') }
   const root = path.dirname(absoluteRecord)
-  if (manifest.schemaVersion !== 2 || manifest.executor !== 'playwright' || manifest.completed !== true ||
+  if (manifest.schemaVersion !== 3 || manifest.executor !== 'playwright' || manifest.completed !== true ||
     manifest.runId !== run.id || manifest.candidateId !== run.candidateId || manifest.scopeDecisionId !== run.scopeDecisionId || manifest.scopeVersion !== run.scopeVersion || manifest.baseSourceDigest !== run.baseSourceDigest ||
     manifest.patchHash !== run.patchHash || manifest.candidateTreeDigest !== run.candidateTreeDigest || manifest.runtimeFingerprint !== run.runtimeFingerprint ||
     manifest.verificationContractHash !== run.verificationContractHash) {
     throw new VerificationEvidenceError('Playwright execution record does not match this candidate run')
   }
   const checks = new Map(manifest.checks.map(check => [check.id, check]))
+  const viewportKey = (viewport: { width: number; height: number }) => `${viewport.width}x${viewport.height}`
+  if (!Array.isArray(manifest.viewports) || manifest.viewports.length === 0 || manifest.viewports.some(viewport =>
+    !viewport || typeof viewport.name !== 'string' || !viewport.name || !Number.isInteger(viewport.width) || viewport.width <= 0 || !Number.isInteger(viewport.height) || viewport.height <= 0) ||
+    new Set(manifest.viewports.map(viewport => viewport.name)).size !== manifest.viewports.length) {
+    throw new VerificationEvidenceError('Playwright execution record has an invalid viewport plan')
+  }
+  const plannedViewportKeys = manifest.viewports.map(viewport => viewportKey(viewport))
+  if (new Set(plannedViewportKeys).size !== plannedViewportKeys.length) throw new VerificationEvidenceError('Playwright execution record repeats a viewport size')
+  const checkedViewportKeys = new Set(manifest.checks.map(check => viewportKey(check.viewport)))
+  const evidencedViewportKeys = new Set(manifest.evidence.map(item => viewportKey(item.viewport)))
+  if (plannedViewportKeys.some(key => !checkedViewportKeys.has(key) || !evidencedViewportKeys.has(key)) ||
+    [...checkedViewportKeys, ...evidencedViewportKeys].some(key => !plannedViewportKeys.includes(key))) {
+    throw new VerificationEvidenceError('Playwright checks and screenshot evidence must cover exactly the declared viewport plan')
+  }
+  if (manifest.evidence.some(item => {
+    const check = checks.get(item.checkId)
+    return !check || !sameViewport(item.viewport, check.viewport)
+  })) throw new VerificationEvidenceError('Playwright screenshot evidence must match its checked viewport')
   if (checks.size !== run.checks.length || run.checks.some(check => {
     const executed = checks.get(check.id)
     const evidence = run.evidence.find(item => item.checkId === check.id)
-    return !executed || !evidence || executed.passed !== (evidence.result === 'pass') || executed.route !== check.route || !sameViewport(executed.viewport, check.viewport) || executed.state !== check.state
+    return !executed || !evidence || executed.passed !== (evidence.result === 'pass') || executed.route !== check.route || !sameViewport(executed.viewport, check.viewport) || !sameViewport(evidence.viewport, check.viewport) || executed.state !== check.state
   })) throw new VerificationEvidenceError('Playwright execution checks do not match the registered run')
   if (manifest.baselineComparisons !== undefined && !Array.isArray(manifest.baselineComparisons)) throw new VerificationEvidenceError('Playwright execution record has invalid original-project baseline comparisons')
   const baselineComparisons = manifest.baselineComparisons ?? []
