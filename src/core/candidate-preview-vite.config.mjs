@@ -93,9 +93,9 @@ export default {
   configFile: false,
   root: '/work',
   plugins: [sourceAnnotationPlugin('/work'), react(), selectionBridge()],
-  resolve: { alias: typescriptAliases() },
+  resolve: { alias: typescriptAliases(), preserveSymlinks: true },
   cacheDir: '/tmp/ripple-vite-cache',
-  optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'] },
+  optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'], esbuildOptions: { preserveSymlinks: true } },
   server: {
     host: '0.0.0.0',
     port: 5173,
