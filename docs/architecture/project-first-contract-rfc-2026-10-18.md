@@ -1,6 +1,6 @@
 # RFC：Ripple Project-first 领域架构与迁移路线
 
-**日期：2026-10-18** · **状态：Project-first 核心与本机工作台已接通；真实 Bolt 局部/共享候选验收通过；正式预演 UI、MEDIA/TOKEN 覆盖与进程沙箱仍未完成**  
+**日期：2026-10-18** · **状态：Project-first 核心与本机工作台已接通；当前 PR head 的真实 Bolt 手动工作流尚未运行；正式预演 UI、MEDIA/TOKEN 覆盖与进程沙箱仍未完成**  
 来源：[产品与架构复审 v2](../strategy/Ripple_产品定位与架构复审_v2_2026-10-18.md) · [独立架构审计](./architecture-independent-audit-2026-10-18.md)。
 
 ## 已做出的技术决策
@@ -22,7 +22,9 @@
 - `scripts/bolt-integration-acceptance.mjs`（`npm run acceptance:bolt -- <Bolt-project> <work-root>`）：原 Bolt checkout 外创建 baseline/local/shared candidate worktree；验证真实首页局部两项编辑不会传播到其它页面；验证 Footer 共享编辑在四个页面传播而页面主体不变；执行真实导航与三视口响应式断言、DOM→精确 JSX 来源映射、重复实例 ID 和浏览器错误检查。`pixelmatch/pngjs` 只留作差异工件，不作为通过标准。最后在一次性 worktree 应用并回滚已获批的同一补丁。依赖、浏览器、screenshots 和执行 JSON 均在 Bolt 原目录之外。
 - `.github/workflows/ci.yml`：自动运行类型检查、单元/API 测试、构建和 Playwright，保留截图、trace、机器可读报告；`bolt-acceptance.yml` 手动检出私有 Bolt 工程，在工作台 UI 与核心执行器两条路径运行真实项目验收并保存工件。
 
-本轮执行结果见 PR #2 的验收记录。工作台已经能在真实 Bolt 项目上分析图谱并创建/展示共享候选；独立验收脚本还覆盖局部/共享真实浏览器行为与同补丁应用/回滚。工作台 UI 当前仍将浏览器预演/验证/批准/应用显示为 `NOT RUN`，它还没有托管站点生命周期、执行信任边界和持久化 EditSession。MEDIA 目前只支持源码字符串候选，不含焦点裁切/多尺寸规则；TOKEN 能识别来源但缺共享颜色系统与页面/组件 override 数据模型。Git worktree 只隔离源码版本，不是 OS 级进程沙箱；当前仅对用户提供的 Bolt 工程执行依赖安装与 build，不可开放任意不可信仓库执行。原 Fixture `App`、CaseRuntime 等模块尚未删除，但已从默认入口和正式 E2E 中卸下，不能继续作为真实项目数据源。
+验收边界以 PR #2 对应 Actions run 的执行记录为准，不把通用合成 React/Vite 工程测试写成 Bolt 验收。当前 PR head 的自动 CI 为 3 项 Playwright 通过、1 项跳过；其中 Bolt 专项因没有 `RIPPLE_BOLT_PROJECT` 而跳过，手动 Bolt workflow 尚无本 head 的执行记录。`scripts/bolt-integration-acceptance.mjs` 和手动 workflow 已提交，但只有实际运行并下载对应工件后，才能报告真实 Bolt 局部/共享浏览器行为及同补丁应用/回滚通过。GitHub 仅允许从默认分支上已存在的 workflow 手动派发；本 PR 尚未进入默认分支，因此当前不能据此声称手动验收已经执行。
+
+工作台 UI 当前仍将浏览器预演/验证/批准/应用显示为 `NOT RUN`，它还没有托管站点生命周期、执行信任边界和持久化 EditSession。浏览器页面刷新现在能从本机进程恢复活动候选、Scope 和操作；这不是跨进程持久化，Ripple 服务关闭时会清理完整候选，异常/哈希不匹配现场保留并拒绝作为有效候选。MEDIA 目前只支持源码字符串候选，不含焦点裁切/多尺寸规则；TOKEN 能识别来源但缺共享颜色系统与页面/组件 override 数据模型。Git worktree 只隔离源码版本，不是 OS 级进程沙箱；不得开放任意不可信仓库执行。原 Fixture `App`、CaseRuntime 等模块尚未删除，但已从默认入口和正式 E2E 中卸下，不能继续作为真实项目数据源。
 
 ## 核心不变量
 

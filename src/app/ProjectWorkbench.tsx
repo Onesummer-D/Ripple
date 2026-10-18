@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { EditKind, EditOperation, ScopeDecision } from '../core/model'
 import './project-workbench.css'
 
@@ -33,6 +33,7 @@ interface CandidateView {
 }
 type PageScope = 'include' | 'exclude' | 'protect' | ''
 const operationKind = (kind: TargetSummary['kind']): EditKind => kind === 'data' ? 'TEXT' : kind === 'media' ? 'MEDIA' : 'TOKEN'
+const candidateStorageKey = 'ripple.workbench.activeCandidate'
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`/__ripple/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -54,6 +55,39 @@ export default function ProjectWorkbench() {
   const [candidate, setCandidate] = useState<CandidateView>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const candidateId = window.sessionStorage.getItem(candidateStorageKey)
+    if (!candidateId) return
+    let active = true
+    setBusy(true)
+    post<{ analysis: Analysis; rawIntent: string; scope?: ScopeDecision; candidate: CandidateView }>('candidate/restore', { candidateId })
+      .then(restored => {
+        if (!active) return
+        setProjectPath(restored.analysis.projectRoot)
+        setAnalysis(restored.analysis)
+        setIntent(restored.rawIntent)
+        setCandidate(restored.candidate)
+        setOperations(restored.candidate.operations)
+        setTargetId(restored.candidate.operations[0]?.targetRef ?? '')
+        setAfter(restored.candidate.operations[0]?.after ?? '')
+        setScopeStrategy(restored.scope?.strategy ?? 'shared')
+        setLocalPageRef(restored.scope?.localPageRef ?? restored.analysis.routes[0]?.id ?? '')
+        setPageScope(Object.fromEntries(restored.analysis.routes.map(route => {
+          const scope = restored.scope
+          const value: PageScope = scope?.protectedRefs.includes(route.id) ? 'protect' : scope?.excludedRefs.includes(route.id) ? 'exclude' : scope?.includedRefs.includes(route.id) ? 'include' : ''
+          return [route.id, value]
+        })))
+      })
+      .catch(cause => {
+        if (!active) return
+        window.sessionStorage.removeItem(candidateStorageKey)
+        setError(cause instanceof Error ? `上次候选无法恢复：${cause.message}` : '上次候选已失效，请重新分析项目')
+      })
+      .finally(() => { if (active) setBusy(false) })
+    return () => { active = false }
+  }, [])
+
   const target = analysis?.targets.find(item => item.id === targetId)
   const impactedPages = useMemo(() => [...new Set(operations.flatMap(operation => analysis?.targets.find(item => item.id === operation.targetRef)?.impact.pageRefs ?? []))].sort(), [analysis, operations])
   const scopesComplete = !!analysis && analysis.routes.every(route => !!pageScope[route.id])
@@ -67,6 +101,7 @@ export default function ProjectWorkbench() {
       setProjectPath(next.projectRoot)
       setAnalysis(next)
       setCandidate(undefined)
+      window.sessionStorage.removeItem(candidateStorageKey)
       setOperations([])
       const firstEditable = next.targets.find(item => item.value !== undefined && item.impact.pageRefs.length > 0 && item.impact.unresolved.length === 0)
       if (firstEditable) { setTargetId(firstEditable.id); setAfter(firstEditable.value ?? '') }
@@ -83,6 +118,7 @@ export default function ProjectWorkbench() {
     try {
       await post('discard', { candidateId: candidate.id })
       setCandidate(current => current?.id === candidate.id ? undefined : current)
+      if (window.sessionStorage.getItem(candidateStorageKey) === candidate.id) window.sessionStorage.removeItem(candidateStorageKey)
       return true
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '无法清理过期候选')
@@ -114,6 +150,7 @@ export default function ProjectWorkbench() {
     try {
       const result = await post<{ candidate: CandidateView }>('candidate', { projectId: analysis.revision.projectId, rawIntent: intent, operations, scope, previousCandidateId: candidate?.id })
       setCandidate(result.candidate)
+      window.sessionStorage.setItem(candidateStorageKey, result.candidate.id)
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法创建隔离候选') }
     finally { setBusy(false) }
   }

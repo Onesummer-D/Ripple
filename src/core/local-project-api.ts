@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { assertCandidateCurrent, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
-import { analyzeProject, readProjectSnapshot } from './project'
+import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot } from './project'
 import { sourceProvenPageImpact } from './scope'
 import { chooseScope, openSession, recordSourceGraph, stageCandidate, stageOperations } from './session'
 import type { EditOperation, EditSession, ScopeDecision, SourceGraph } from './model'
@@ -65,6 +65,18 @@ function routeGraph(graph: SourceGraph) {
   }
 }
 
+function candidateView(record: CandidateRecord) {
+  return {
+    id: record.id,
+    baseSourceDigest: record.baseSourceDigest,
+    patchHash: record.patchHash,
+    candidateTreeDigest: record.candidateTreeDigest,
+    operations: record.operations,
+    modifiedPaths: record.modifiedPaths,
+    diff: fs.readFileSync(record.diffArtifact, 'utf8'),
+  }
+}
+
 function retireProjectCandidates(projectId: string, preserveUntilLast?: string): void {
   const matching = [...candidates].filter(([, live]) => live.session.projectRevision.projectId === projectId)
   matching.sort(([left], [right]) => Number(left === preserveUntilLast) - Number(right === preserveUntilLast))
@@ -120,20 +132,42 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     try {
       const candidateSession = stageCandidate(staged, record)
       assertCandidateCurrent(record)
-      const diff = fs.readFileSync(record.diffArtifact, 'utf8')
       if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== project.graph.revision.projectId) retireCandidate(body.previousCandidateId)
       retireProjectCandidates(project.graph.revision.projectId, typeof body.previousCandidateId === 'string' ? body.previousCandidateId : undefined)
       candidates.set(record.id, { record, session: candidateSession })
       return json(response, 200, {
         sessionId,
         status: candidateSession.status,
-        candidate: { id: record.id, baseSourceDigest: record.baseSourceDigest, patchHash: record.patchHash, candidateTreeDigest: record.candidateTreeDigest, operations: record.operations, modifiedPaths: record.modifiedPaths, diff },
+        candidate: candidateView(record),
         verification: { state: 'not-run', reason: '当前工作台阶段不会执行目标项目代码；浏览器预演、审核与应用入口保持关闭。' },
       })
     } catch (error) {
       if (fs.existsSync(record.markerPath)) removeCandidate(record)
       throw error
     }
+  }
+
+  if (url.pathname === '/__ripple/api/candidate/restore') {
+    const body = await readJson(request)
+    if (typeof body.candidateId !== 'string') return reject(response, 400, '需要 candidateId')
+    const live = candidates.get(body.candidateId)
+    if (!live) return reject(response, 404, '候选不存在或已清理')
+    const projectId = live.session.projectRevision.projectId
+    const project = projects.get(projectId)
+    if (!project) return reject(response, 409, '项目分析状态已过期，请重新读取')
+
+    const currentRevision = readProjectSnapshot(project.root, false).revision
+    if (currentRevision.sourceDigest !== live.record.baseSourceDigest || !isProjectWorkingTreeClean(project.root)) {
+      retireCandidate(body.candidateId)
+      return reject(response, 409, '候选基线已过期，隔离 worktree 已清理；请重新分析项目')
+    }
+    assertCandidateCurrent(live.record)
+    return json(response, 200, {
+      analysis: { projectRoot: project.root, ...routeGraph(project.graph) },
+      rawIntent: live.session.rawIntent,
+      scope: live.session.scope,
+      candidate: candidateView(live.record),
+    })
   }
 
   if (url.pathname === '/__ripple/api/discard') {

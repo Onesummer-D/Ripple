@@ -68,9 +68,17 @@ describe('loopback Project API', () => {
     expect(candidate.candidate.diff).toContain('Explore items')
     expect(candidate.verification.state).toBe('not-run')
     expect(fs.readFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), 'utf8')).toContain('Baseline title')
+    const restoredResponse = await fetch(`${baseUrl}/__ripple/api/candidate/restore`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
+    expect(restoredResponse.status).toBe(200)
+    const restored = await restoredResponse.json() as { rawIntent: string; candidate: { id: string; patchHash: string; diff: string; operations: unknown[] } }
+    expect(restored.rawIntent).toBe('Update the home hero while preserving other pages')
+    expect(restored.candidate).toMatchObject({ id: candidate.candidate.id, patchHash: candidate.candidate.patchHash, diff: candidate.candidate.diff })
+    expect(restored.candidate.operations).toHaveLength(2)
     const discard = await fetch(`${baseUrl}/__ripple/api/discard`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(discard.status).toBe(200)
     expect((await discard.json()).removed).toBe(true)
+    const missingRestore = await fetch(`${baseUrl}/__ripple/api/candidate/restore`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
+    expect(missingRestore.status).toBe(404)
   }, 30_000)
 
   it('retires superseded and reanalyzed candidates without leaving Git worktrees behind', async () => {
@@ -101,6 +109,21 @@ describe('loopback Project API', () => {
     expect(reanalysis.status).toBe(200)
     expect(worktreeCount()).toBe(1)
     expect((await request('discard', { candidateId: second.candidate.id })).status).toBe(404)
+
+    const currentAnalysis = await (await request('analyze', { projectRoot })).json() as { revision: { projectId: string }; targets: Array<{ id: string; value: string }> }
+    const currentTarget = currentAnalysis.targets.find(item => item.value === 'Baseline title')!
+    const staleResponse = await request('candidate', {
+      projectId: currentAnalysis.revision.projectId, rawIntent: 'Change the title',
+      scope: { id: 'scope-stale-source', version: 1, includedRefs: [currentTarget.id, 'page:home'], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() },
+      operations: [{ id: 'op-stale-source', kind: 'TEXT', targetRef: currentTarget.id, before: currentTarget.value, after: 'Candidate title' }],
+    })
+    const staleCandidate = await staleResponse.json() as { candidate: { id: string } }
+    expect(staleResponse.status).toBe(200)
+    expect(worktreeCount()).toBe(2)
+    fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), `export function HomePage(){return <main><h1>Externally changed title</h1><button>Browse items</button></main>}`)
+    expect((await request('candidate/restore', { candidateId: staleCandidate.candidate.id })).status).toBe(409)
+    expect(worktreeCount()).toBe(1)
+    expect((await request('discard', { candidateId: staleCandidate.candidate.id })).status).toBe(404)
   }, 30_000)
 
   it('rejects foreign origins, non-POST methods and dirty project roots', async () => {

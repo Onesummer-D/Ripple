@@ -72,6 +72,12 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await expect(page.getByTestId('verification-state')).toContainText('NOT RUN')
   await page.screenshot({ path: path.join(evidenceRoot, 'workbench-candidate-1440.png'), fullPage: true })
 
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByTestId('candidate-id')).toHaveText(candidateId)
+  await expect(page.getByTestId('candidate-diff')).toContainText('Candidate title')
+  await expect(page.getByTestId('verification-state')).toContainText('NOT RUN')
+
   for (const viewport of [{ width: 768, height: 1024 }, { width: 375, height: 812 }]) {
     await page.setViewportSize(viewport)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

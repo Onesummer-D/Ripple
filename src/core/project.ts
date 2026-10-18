@@ -34,6 +34,10 @@ function trackedFiles(root: string): string[] {
 
 export function trackedProjectFiles(root: string): string[] { return trackedFiles(gitRoot(root)) }
 
+export function isProjectWorkingTreeClean(input: string): boolean {
+  return runGit(gitRoot(input), ['status', '--porcelain', '--untracked-files=normal']) === ''
+}
+
 function fileBytes(root: string, relative: string): Uint8Array {
   const absolute = path.resolve(root, relative)
   const rel = path.relative(root, absolute)
@@ -66,7 +70,7 @@ function runtimeFingerprint(root: string): string {
 
 export function readProjectSnapshot(input: string, requireClean = true): ProjectSnapshot {
   const root = gitRoot(input)
-  if (requireClean && runGit(root, ['status', '--porcelain', '--untracked-files=normal'])) {
+  if (requireClean && !isProjectWorkingTreeClean(root)) {
     throw new ProjectReadError('项目工作树不干净；先提交或收起现有改动，再创建候选')
   }
   const files = trackedFiles(root)
