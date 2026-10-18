@@ -130,3 +130,69 @@ describe('media provenance upgrade', () => {
     expect(edges.length).toBe(0)
   })
 })
+
+describe('media provenance soundness guardrails (independent review P1 regressions)', () => {
+  const cardFixture = (root: string, dataBody: string) => {
+    scaffold(root)
+    write(root, 'src/data/products.ts', dataBody)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';
+import { ProductCard } from '../components/ProductCard';
+export function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+  }
+  const cardEdgesOf = (root: string) => {
+    const graph = analyzeProject(root)
+    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
+    return assetEdges(graph, cardId)
+  }
+
+  it('refuses to drill a reassigned let declaration', () => {
+    const root = temp()
+    cardFixture(root, `export type Product = { id: string; image: string };
+let products: Product[] = [{ id: 'p1', image: 'https://images.pexels.com/photos/1/pexels-photo-1.jpeg?auto=compress' }];
+products = [];
+export { products };`)
+    expect(cardEdgesOf(root).length).toBe(0)
+  })
+
+  it('refuses to upgrade when only one conditional arm is drillable', () => {
+    const root = temp()
+    cardFixture(root, `export type Product = { id: string; image: string };
+const fresh: Product[] = [{ id: 'p1', image: 'https://images.pexels.com/photos/2/pexels-photo-2.jpeg?auto=compress' }];
+declare const coin: boolean;
+function loadRemote(): Product[] { return [] }
+const products = coin ? fresh : loadRemote();
+export { products };`)
+    expect(cardEdgesOf(root).length).toBe(0)
+  })
+
+  it('skips object literals with a spread that may override the property', () => {
+    const root = temp()
+    cardFixture(root, `export type Product = { id: string; image: string };
+declare const overrides: Partial<Product>;
+export const products: Product[] = [{ id: 'p1', image: 'https://images.pexels.com/photos/3/pexels-photo-3.jpeg?auto=compress', ...overrides } as Product];`)
+    expect(cardEdgesOf(root).length).toBe(0)
+  })
+
+  it('skips duplicated property keys instead of emitting a possibly-dead edge', () => {
+    const root = temp()
+    cardFixture(root, `export const products = [{ id: 'p1', image: 'https://images.pexels.com/photos/4/pexels-photo-4.jpeg?auto=compress', image: 'https://images.pexels.com/photos/5/pexels-photo-5.jpeg?auto=compress' }];`)
+    const edges = cardEdgesOf(root)
+    expect(edges.filter(edge => edge.certainty === 'source-proven').length).toBe(0)
+  })
+
+  it('does not apply the @/ fallback when tsconfig declares paths', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'tsconfig.json', JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler', baseUrl: '.', paths: { '@/*': ['./lib/*'] } }, include: ['src'] }))
+    write(root, 'src/assets/hero.jpg', Buffer.from([0xff, 0xd8]))
+    write(root, 'src/pages/HomePage.tsx', `import heroImage from '@/assets/hero.jpg';
+export function HomePage() { return <main><img src={heroImage} alt="hero" /></main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.some(entry => entry.includes('@/assets/hero.jpg'))).toBe(true)
+  })
+})
