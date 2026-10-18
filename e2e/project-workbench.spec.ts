@@ -327,10 +327,10 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
   expect(targetId).toBeTruthy()
   await targetSelect.selectOption(targetId!)
   await page.getByTestId('intent-input').fill('Change the shared navigation only on Home; preserve Autumn and the counter interaction.')
-  await page.getByRole('radio', { name: /仅在一个页面创建可维护覆盖/ }).check()
-  await page.getByLabel('选择局部覆盖页面').selectOption('page:home')
   await page.getByTestId('after-input').fill('Home-only brand')
   await page.getByTestId('add-operation').click()
+  await page.getByRole('radio', { name: /仅在一个页面创建可维护覆盖/ }).check()
+  await page.getByLabel('选择局部覆盖页面').selectOption('page:home')
   await page.getByTestId('scope-page:home').selectOption('include')
   await page.getByTestId('scope-page:autumn').selectOption('exclude')
   await page.getByTestId('verification-contract').fill(JSON.stringify({

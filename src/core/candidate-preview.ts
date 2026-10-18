@@ -292,7 +292,7 @@ async function launchProjectContainer(candidateId: string, projectRoot: string, 
     '--mount', mount(coreRoot, '/ripple/core'),
     '--mount', mount(rippleDependencies, '/ripple/node_modules'),
     '--workdir', '/work', image,
-    'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /ripple/core/candidate-preview-runner.mjs',
+    'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -rf /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /ripple/core/candidate-preview-runner.mjs',
   ], 120_000)
   const address = await resolveCandidatePreviewAddress(probe)
   await waitForEndpoint(`http://${address}:5173/`, probe, address)
