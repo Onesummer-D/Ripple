@@ -149,7 +149,7 @@ describe('real project graph and candidate executor', () => {
     expect(snapshot.revision.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
   })
 
-  it('proves imported CSS token impact only when the token is actually consumed', () => {
+  it('proves component token use but keeps imported CSS token usage unknown without cascade evidence', () => {
     const { root } = sampleProject()
     const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')
     const aboutPath = path.join(root, 'src', 'pages', 'AutumnPage.tsx')
@@ -157,20 +157,25 @@ describe('real project graph and candidate executor', () => {
     fs.writeFileSync(path.join(root, 'src', 'styles', 'a-theme.css'), ':root { --unused-accent: #123; --brand-accent: #456; }')
     fs.writeFileSync(path.join(root, 'src', 'styles', 'z-card.css'), '.home-card { color: var(--brand-accent); }')
     const homeSource = fs.readFileSync(homePath, 'utf8')
-    if (!homeSource.includes('className="text-ink-900"')) throw new Error('Expected Home heading fixture class')
-    fs.writeFileSync(homePath, `import '../styles/a-theme.css';\nimport '../styles/z-card.css';\n${homeSource.replace('className="text-ink-900"', 'className="home-card text-ink-900"')}`)
-    fs.writeFileSync(aboutPath, `import '../styles/a-theme.css';\n${fs.readFileSync(aboutPath, 'utf8')}`)
+    expect(homeSource).not.toContain('home-card')
+    fs.writeFileSync(homePath, `import '../styles/a-theme.css';\\nimport '../styles/z-card.css';\\n${homeSource}`)
+    fs.writeFileSync(aboutPath, `import '../styles/a-theme.css';\\n${fs.readFileSync(aboutPath, 'utf8')}`)
     git(root, 'add', '.')
-    git(root, 'commit', '-qm', 'add CSS token consumption fixture')
+    git(root, 'commit', '-qm', 'add CSS token import without matching selector')
 
     const graph = analyzeProject(root)
     const unused = graph.nodes.find(node => node.kind === 'token' && node.label === '--unused-accent')!
-    const used = graph.nodes.find(node => node.kind === 'token' && node.label === '--brand-accent')!
+    const importedCssToken = graph.nodes.find(node => node.kind === 'token' && node.label === '--brand-accent')!
+    const jsxToken = graph.nodes.find(node => node.kind === 'token' && node.label === 'ink.900')!
 
     expect(sourceProvenPageImpact(graph, unused.id)).toMatchObject({
       pageRefs: [], certainty: 'unknown',
     })
-    expect(sourceProvenPageImpact(graph, used.id)).toMatchObject({
+    expect(sourceProvenPageImpact(graph, importedCssToken.id)).toMatchObject({
+      pageRefs: [], certainty: 'unknown',
+    })
+    expect(graph.edges.some(edge => edge.kind === 'uses-token' && edge.from === 'component:src/pages/HomePage.tsx')).toBe(false)
+    expect(sourceProvenPageImpact(graph, jsxToken.id)).toMatchObject({
       pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
     })
   })
