@@ -168,9 +168,10 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
       expect(await mapped.getAttribute('data-ripple-source')).toMatch(/^jsx:src\/components\/Navigation\.jsx#\d+$/)
       expect(await mapped.getAttribute('data-ripple-instance')).toBeTruthy()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
+      const baselineComparisonPageRef = session.verificationContract?.pages.find(spec => spec.path === '/' && !spec.navigateBy)?.pageRef
       const [baselineSnapshot, candidateSnapshot] = await Promise.all([
-        snapshotOutsideTargets(baselinePage, bindings, true, session.verificationContract?.pages.find(spec => spec.path === '/' && !spec.navigateBy)?.pageRef),
-        snapshotOutsideTargets(page, bindings, false),
+        snapshotOutsideTargets(baselinePage, bindings, true, baselineComparisonPageRef),
+        snapshotOutsideTargets(page, bindings, false, baselineComparisonPageRef),
       ])
       if (!baselineSnapshot.ok) throw new Error(baselineSnapshot.reason)
       if (!candidateSnapshot.ok) throw new Error(candidateSnapshot.reason)
