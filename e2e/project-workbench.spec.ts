@@ -30,6 +30,13 @@ test.afterAll(async () => {
   fs.rmSync(sandbox, { recursive: true, force: true })
 })
 
+async function expectCandidateRetired(id: string) {
+  const response = await fetch('http://127.0.0.1:4173/__ripple/api/discard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ candidateId: id }) })
+  expect(response.status, 'discarding an already-retired candidate must not find a stale API entry').toBe(404)
+  const worktrees = execFileSync('git', ['-C', projectRoot, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' }).split(/\r?\n/).filter(line => line.startsWith('worktree '))
+  expect(worktrees, 'candidate cleanup must leave only the source project worktree').toHaveLength(1)
+}
+
 test('opens a real local project, keeps multiple operations and explicit local Scope in one isolated candidate', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
@@ -72,6 +79,8 @@ test('opens a real local project, keeps multiple operations and explicit local S
   }
   await page.getByTestId('discard-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
+  const discardedId = candidateId
+  await expectCandidateRetired(discardedId)
   candidateId = ''
 })
 
@@ -99,6 +108,8 @@ test('creates a centralized page-only override for a shared JSX text target', as
   await expect(page.getByTestId('candidate-diff')).toContainText('RipplePageForState')
   expect(fs.readFileSync(path.join(projectRoot, 'src', 'components', 'Navigation.tsx'), 'utf8')).toContain('Shared navigation brand')
   await page.getByTestId('discard-candidate').click()
+  await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
+  await expectCandidateRetired(candidateId)
   candidateId = ''
 })
 
