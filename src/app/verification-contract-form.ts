@@ -26,7 +26,7 @@ export function createVerificationContractDraft(
       const saved = contract?.pages.find(page => page.pageRef === route.id)
       return {
         pageRef: route.id,
-        path: saved?.path ?? '/',
+        path: saved?.path ?? '',
         markerText: saved?.markerText ?? '',
         navigationRole: saved?.navigateBy?.role ?? 'button',
         navigationName: saved?.navigateBy?.name ?? '',
@@ -56,7 +56,7 @@ export function toBrowserVerificationContract(draft: VerificationContractDraft):
 }
 
 export function incompleteVerificationDeclarations(draft: VerificationContractDraft): number {
-  const incompletePages = draft.pages.filter(page => !!page.markerText.trim() && !(page.path.trim() && page.markerText.trim())).length
+  const incompletePages = draft.pages.filter(page => !!page.path.trim() !== !!page.markerText.trim()).length
   const declaredPages = new Set(draft.pages.filter(page => page.path.trim() && page.markerText.trim()).map(page => page.pageRef))
   const incompleteInteractions = draft.interactions.filter(interaction =>
     !!(interaction.name.trim() || interaction.expectedText.trim()) &&
