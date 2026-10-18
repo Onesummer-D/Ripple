@@ -24,6 +24,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Assert checkout credentials were not persisted
+        run: node --experimental-transform-types scripts/assert-no-checkout-credentials.ts "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/bolt-source"
       - run: npm ci
       - name: Install Bolt dependencies without running lifecycle scripts
         run: npm ci --ignore-scripts --no-audit --no-fund --prefix bolt-source/project
@@ -61,4 +63,3 @@ jobs:
           path: ${{ runner.temp }}/ripple-acceptance/artifacts/
           if-no-files-found: warn
           retention-days: 30
-
