@@ -68,6 +68,9 @@ describe('loopback Project API', () => {
     expect(candidate.candidate.diff).toContain('Explore items')
     expect(candidate.verification.state).toBe('not-run')
     expect(fs.readFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), 'utf8')).toContain('Baseline title')
+    const previewWithoutProjectDependencies = await fetch(`${baseUrl}/__ripple/api/candidate/preview`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id, dependencyRoot: process.cwd() }) })
+    expect(previewWithoutProjectDependencies.status).toBe(503)
+    expect((await previewWithoutProjectDependencies.json()).error).toMatch(/项目 node_modules/)
     const restoredResponse = await fetch(`${baseUrl}/__ripple/api/candidate/restore`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(restoredResponse.status).toBe(200)
     const restored = await restoredResponse.json() as { rawIntent: string; candidate: { id: string; patchHash: string; diff: string; operations: unknown[] } }

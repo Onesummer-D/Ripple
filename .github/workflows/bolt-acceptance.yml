@@ -19,10 +19,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Install Bolt dependencies without running lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix bolt-source/project
       - name: Install Chromium for the acceptance runner
         run: mkdir -p "$RUNNER_TEMP/ripple-acceptance/playwright-browsers" && npx playwright install --with-deps chromium
         env:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
+      - name: Require Docker for isolated candidate preview
+        run: docker info --format '{{.ServerVersion}}'
       - name: Verify the real Bolt project through the Ripple workbench
         run: npm run test:browser
         env:

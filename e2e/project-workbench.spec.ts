@@ -145,6 +145,17 @@ test('opens the supplied Bolt project in the workbench and builds a shared-scope
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
   await expect(page.getByTestId('candidate-diff')).toContainText('山野器物 · Ripple UI验收')
   await expect(page.getByTestId('verification-state')).toContainText('NOT RUN')
+  await page.getByTestId('toggle-candidate-preview').click()
+  await expect(page.getByTestId('candidate-preview')).toBeVisible({ timeout: 75_000 })
+  const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
+  await expect(preview.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible({ timeout: 30_000 })
+  for (const label of ['秋日手作节', '商品专题', '品牌故事']) {
+    await preview.getByRole('button', { name: label, exact: true }).first().click()
+    await expect(preview.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible()
+  }
+  await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-isolated-preview.png'), fullPage: true })
+  await page.getByTestId('toggle-candidate-preview').click()
+  await expect(page.getByTestId('candidate-preview')).toHaveCount(0)
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-shared-candidate.png'), fullPage: true })
   await page.getByTestId('discard-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)

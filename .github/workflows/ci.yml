@@ -21,6 +21,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --run
       - run: npm run build
+      - name: Require Docker for isolated candidate browser preview
+        run: docker info --format '{{.ServerVersion}}'
       - run: npm run test:browser
       - name: Preserve browser screenshots, traces and run record
         if: always()

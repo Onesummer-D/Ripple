@@ -4,7 +4,8 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
-import { assertCandidateCurrent, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
+import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
+import { startCandidatePreview, stopCandidatePreview } from './candidate-preview'
 import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot } from './project'
 import { sourceProvenPageImpact } from './scope'
 import { chooseScope, openSession, recordSourceGraph, stageCandidate, stageOperations } from './session'
@@ -77,18 +78,15 @@ function candidateView(record: CandidateRecord) {
   }
 }
 
-function retireProjectCandidates(projectId: string, preserveUntilLast?: string): void {
+async function retireProjectCandidates(projectId: string): Promise<void> {
   const matching = [...candidates].filter(([, live]) => live.session.projectRevision.projectId === projectId)
-  matching.sort(([left], [right]) => Number(left === preserveUntilLast) - Number(right === preserveUntilLast))
-  for (const [id, live] of matching) {
-    removeCandidate(live.record)
-    candidates.delete(id)
-  }
+  for (const [id] of matching) await retireCandidate(id)
 }
 
-function retireCandidate(candidateId: string): void {
+async function retireCandidate(candidateId: string): Promise<void> {
   const live = candidates.get(candidateId)
   if (!live) return
+  await stopCandidatePreview(candidateId)
   removeCandidate(live.record)
   candidates.delete(candidateId)
 }
@@ -107,8 +105,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     const snapshot = readProjectSnapshot(root)
     const graph = analyzeProject(root)
     if (snapshot.revision.sourceDigest !== graph.revision.sourceDigest) return reject(response, 409, '分析期间项目源码发生变化，请重新读取')
-    if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== snapshot.revision.projectId) retireCandidate(body.previousCandidateId)
-    retireProjectCandidates(snapshot.revision.projectId, typeof body.previousCandidateId === 'string' ? body.previousCandidateId : undefined)
+    if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== snapshot.revision.projectId) await retireCandidate(body.previousCandidateId)
+    await retireProjectCandidates(snapshot.revision.projectId)
     projects.set(snapshot.revision.projectId, { root, graph })
     return json(response, 200, { projectRoot: root, ...routeGraph(graph) })
   }
@@ -132,8 +130,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     try {
       const candidateSession = stageCandidate(staged, record)
       assertCandidateCurrent(record)
-      if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== project.graph.revision.projectId) retireCandidate(body.previousCandidateId)
-      retireProjectCandidates(project.graph.revision.projectId, typeof body.previousCandidateId === 'string' ? body.previousCandidateId : undefined)
+      if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== project.graph.revision.projectId) await retireCandidate(body.previousCandidateId)
+      await retireProjectCandidates(project.graph.revision.projectId)
       candidates.set(record.id, { record, session: candidateSession })
       return json(response, 200, {
         sessionId,
@@ -143,6 +141,25 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       })
     } catch (error) {
       if (fs.existsSync(record.markerPath)) removeCandidate(record)
+      throw error
+    }
+  }
+
+  if (url.pathname === '/__ripple/api/candidate/preview' || url.pathname === '/__ripple/api/candidate/preview/stop') {
+    const body = await readJson(request)
+    if (typeof body.candidateId !== 'string') return reject(response, 400, '需要 candidateId')
+    const live = candidates.get(body.candidateId)
+    if (!live) return reject(response, 404, '候选不存在或已清理')
+    if (url.pathname.endsWith('/stop')) {
+      await stopCandidatePreview(body.candidateId)
+      return json(response, 200, { stopped: true, candidateId: body.candidateId })
+    }
+    try {
+      assertCandidateCurrent(live.record)
+      const preview = await startCandidatePreview(live.record)
+      return json(response, 200, { candidateId: preview.candidateId, url: preview.url, verification: { state: 'not-run' } })
+    } catch (error) {
+      if (error instanceof CandidateError) await retireCandidate(body.candidateId)
       throw error
     }
   }
@@ -158,7 +175,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 
     const currentRevision = readProjectSnapshot(project.root, false).revision
     if (currentRevision.sourceDigest !== live.record.baseSourceDigest || !isProjectWorkingTreeClean(project.root)) {
-      retireCandidate(body.candidateId)
+      await retireCandidate(body.candidateId)
       return reject(response, 409, '候选基线已过期，隔离 worktree 已清理；请重新分析项目')
     }
     assertCandidateCurrent(live.record)
@@ -175,18 +192,19 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     if (typeof body.candidateId !== 'string') return reject(response, 400, '需要 candidateId')
     const live = candidates.get(body.candidateId)
     if (!live) return reject(response, 404, '候选不存在或已清理')
-    removeCandidate(live.record)
-    candidates.delete(body.candidateId)
+    await retireCandidate(body.candidateId)
     return json(response, 200, { removed: true, candidateId: body.candidateId })
   }
   return reject(response, 404, '未知 Project API 路径')
 }
 
-function cleanupCandidates(): void {
-  for (const [id, live] of candidates) {
-    try { removeCandidate(live.record); candidates.delete(id) }
-    catch { /* Keep the candidate on disk when identity or patch integrity no longer matches. */ }
+async function cleanupCandidates(): Promise<void> {
+  const failures: unknown[] = []
+  for (const [id] of candidates) {
+    try { await retireCandidate(id) }
+    catch (error) { failures.push(error) }
   }
+  if (failures.length) throw new AggregateError(failures, 'Some candidate worktrees were preserved because safe cleanup failed')
 }
 
 export function localProjectApiPlugin(): Plugin {
@@ -199,11 +217,13 @@ export function localProjectApiPlugin(): Plugin {
         void handle(request, response).catch(error => {
           const failure = error instanceof Error ? error as Error & { statusCode?: number } : undefined
           const code = failure && 'code' in failure ? failure.code : undefined
-          const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidateError' ? 409 : failure?.name === 'SessionInvariantError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
+          const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' ? 503 : failure?.name === 'CandidateError' ? 409 : failure?.name === 'SessionInvariantError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
           reject(response, status, error instanceof Error ? error.message : 'Project API failed')
         })
       })
-      server.httpServer?.once('close', cleanupCandidates)
+      server.httpServer?.once('close', () => {
+        void cleanupCandidates().catch(error => server.config.logger.error(String(error)))
+      })
     },
   }
 }

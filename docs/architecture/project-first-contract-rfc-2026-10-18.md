@@ -1,6 +1,6 @@
 # RFC：Ripple Project-first 领域架构与迁移路线
 
-**日期：2026-10-18** · **状态：Project-first 核心与本机工作台已接通；当前 PR head 的真实 Bolt 手动工作流尚未运行；正式预演 UI、MEDIA/TOKEN 覆盖与进程沙箱仍未完成**  
+**日期：2026-10-18** · **状态：Project-first 核心与 Docker 隔离候选预演入口已接通；本轮容器端到端与真实 Bolt 手动验收待 CI/workflow 执行；正式验证、批准/应用 UI、持久化 Evidence、MEDIA/TOKEN 覆盖仍未完成**
 来源：[产品与架构复审 v2](../strategy/Ripple_产品定位与架构复审_v2_2026-10-18.md) · [独立架构审计](./architecture-independent-audit-2026-10-18.md)。
 
 ## 已做出的技术决策
@@ -18,13 +18,14 @@
 - `src/core/candidate.ts`：将干净基线创建为 Git worktree；校验 Scope included/excluded/protected 与真实页面传播；在同一文件按倒序源码偏移组合多项 TEXT/MEDIA/TOKEN 修改；生成真实 Git 补丁、补丁 SHA-256 和候选树摘要；原工程漂移、检出字节不一致、越界/符号链接路径、Scope 冲突、旧候选哈希都会拒绝。
 - `src/core/apply.ts`：只接受当前已验证且获批的 `CandidateRecord`；再检查原工程摘要/HEAD、候选目录和补丁工件哈希后，`git apply --check` 并应用工件中的同一补丁；落地摘要须等于已验证候选树。回滚要求工程仍精确处于该候选树，反向应用同一补丁后必须恢复基线摘要。
 - `src/core/verification.ts`：只有运行记录与 candidate/source/runtime/check/viewport/state 一致、截图确为 PNG 且实际文件哈希重算匹配时，才签发当前进程内的执行收据；Evidence 对象本身或调用者填写的截图路径/哈希不能通过 `registerVerification`。浏览器检查记录未通过也不能登记为通过。
-- `src/app/ProjectWorkbench.tsx` 与 `src/core/local-project-api.ts`：默认工作台可打开用户指定的本机 Git 工程、展示真实页面/共享组件/源码目标及确定性、记录原始意图、多项 TEXT/MEDIA/TOKEN 操作、逐页 include/exclude/protect，生成和展示隔离 worktree 的 patch/diff/hash，并丢弃候选。API 只绑定 loopback，不运行目标工程脚本。浏览器/批准/应用状态明确为 `NOT RUN`。
+- `src/core/candidate-preview.ts` 与 `candidate-preview-vite.config.mjs`：候选可在 UI 内启动/停止真正的 Docker 预演。容器仅将候选源码复制到有大小上限的 tmpfs，项目源码、依赖、Ripple 注解器均只读挂载；使用 internal Docker network、loopback 端口、非 root 用户、资源上限、丢弃 capabilities、no-new-privileges，并以 CSP 与不含 `allow-same-origin` 的 sandbox iframe 承载浏览器页面。执行 Ripple 提供的 Vite 配置，不加载目标 Vite 配置或执行其 npm scripts；依赖清单未改变且项目已有 `node_modules` 才可启动。Scope/候选替换、重分析、丢弃及服务关闭会回收对应预演容器、网络和 worktree。该 Docker 容器仍共享宿主内核，不能表述为 VM 或完整 OS 级安全边界；浏览器预演不产生验证证据。
+- `src/app/ProjectWorkbench.tsx` 与 `src/core/local-project-api.ts`：默认工作台可打开用户指定的本机 Git 工程、展示真实页面/共享组件/源码目标及确定性、记录原始意图、多项 TEXT/MEDIA/TOKEN 操作、逐页 include/exclude/protect，生成和展示隔离 worktree 的 patch/diff/hash，并运行/关闭实际候选预演。API 只绑定 loopback；预演失败、候选过期或 Docker 不可用均不会显示验证通过。正式验证、批准和应用仍明确为 `NOT RUN`。
 - `scripts/bolt-integration-acceptance.mjs`（`npm run acceptance:bolt -- <Bolt-project> <work-root>`）：原 Bolt checkout 外创建 baseline/local/shared candidate worktree；验证真实首页局部两项编辑不会传播到其它页面；验证 Footer 共享编辑在四个页面传播而页面主体不变；执行真实导航与三视口响应式断言、DOM→精确 JSX 来源映射、重复实例 ID 和浏览器错误检查。`pixelmatch/pngjs` 只留作差异工件，不作为通过标准。最后在一次性 worktree 应用并回滚已获批的同一补丁。依赖、浏览器、screenshots 和执行 JSON 均在 Bolt 原目录之外。
 - `.github/workflows/ci.yml`：自动运行类型检查、单元/API 测试、构建和 Playwright，保留截图、trace、机器可读报告；`bolt-acceptance.yml` 手动检出私有 Bolt 工程，在工作台 UI 与核心执行器两条路径运行真实项目验收并保存工件。
 
-验收边界以 PR #2 对应 Actions run 的执行记录为准，不把通用合成 React/Vite 工程测试写成 Bolt 验收。当前 PR head 的自动 CI 为 3 项 Playwright 通过、1 项跳过；其中 Bolt 专项因没有 `RIPPLE_BOLT_PROJECT` 而跳过，手动 Bolt workflow 尚无本 head 的执行记录。`scripts/bolt-integration-acceptance.mjs` 和手动 workflow 已提交，但只有实际运行并下载对应工件后，才能报告真实 Bolt 局部/共享浏览器行为及同补丁应用/回滚通过。GitHub 仅允许从默认分支上已存在的 workflow 手动派发；本 PR 尚未进入默认分支，因此当前不能据此声称手动验收已经执行。
+验收边界以 PR #2 对应 Actions run 的执行记录为准，不把通用合成 React/Vite 工程测试写成 Bolt 验收。本轮 CI 新增 Docker 必需检查及候选预演用例；本机无 Docker 时该用例仅在本地跳过，CI 中 Docker 缺失会失败。Bolt 自动用例也会在 `RIPPLE_BOLT_PROJECT` 未设置时跳过；`bolt-acceptance.yml` 则需从默认分支上的 `workflow_dispatch` 手动执行，并由 `BOLT_REPO_TOKEN` 提供私有仓库读取权限。只有下载该次工作流保存的工作台截图、预演截图和执行记录后，才能报告真实 Bolt 预演通过；只有可信测试执行器、定向断言和 candidate-bound Evidence 接通后，才可将预演提升为正式验证。
 
-工作台 UI 当前仍将浏览器预演/验证/批准/应用显示为 `NOT RUN`，它还没有托管站点生命周期、执行信任边界和持久化 EditSession。浏览器页面刷新现在能从本机进程恢复活动候选、Scope 和操作；这不是跨进程持久化，Ripple 服务关闭时会清理完整候选，异常/哈希不匹配现场保留并拒绝作为有效候选。MEDIA 目前只支持源码字符串候选，不含焦点裁切/多尺寸规则；TOKEN 能识别来源但缺共享颜色系统与页面/组件 override 数据模型。Git worktree 只隔离源码版本，不是 OS 级进程沙箱；不得开放任意不可信仓库执行。原 Fixture `App`、CaseRuntime 等模块尚未删除，但已从默认入口和正式 E2E 中卸下，不能继续作为真实项目数据源。
+工作台的真实候选预演现在可运行，但预演不等于验证，正式验证/批准/应用仍为 `NOT RUN`；持久化 Evidence、跨进程 EditSession、交互式元素选择和实例级编辑仍未接通。浏览器页面刷新现在能从本机进程恢复活动候选、Scope 和操作；这不是跨进程持久化，Ripple 服务关闭时会清理候选及预演容器，异常/哈希不匹配现场保留并拒绝作为有效候选。预演需要已安装的项目依赖且不支持本轮同时改依赖清单；执行环境为 Docker 容器但仍共享宿主内核。MEDIA 目前只支持源码字符串候选，不含焦点裁切/多尺寸规则；TOKEN 能识别来源但缺共享颜色系统与页面/组件 override 数据模型。Git worktree 只隔离源码版本，不得单独视作代码执行沙箱。原 Fixture `App`、CaseRuntime 等模块尚未删除，但已从默认入口和正式 E2E 中卸下，不能继续作为真实项目数据源。
 
 ## 核心不变量
 
