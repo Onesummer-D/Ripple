@@ -1,10 +1,17 @@
 # B 组工程对齐与实施方案
 
-**日期**：2026-10-18
+**日期**：2026-10-18（同日修订一轮，见下方修订记录）
 **作者**：B（thisisCarys + 开发 AI）
 **状态**：待负责人与 A 评审；确认前不代表 B 开始修改共享核心代码
 **基线**：`feat/project-first-core-20261018` @ `91b0b83dd32cd294e1202ee6a7ce65374bf07765`
 **输入材料**：A《Project-first 扩展契约提案》（`docs/architecture/project-first-extension-contract-proposal-2026-10-18.md`）、PR #2 独立审查评论（comment-6250535989）、B 第二份交付包 `ripple-B-package2-2026-10-14.tar.gz`（SHA-256 `fceb17feb7ee4af3d537e233df74c0a4a874828dc1472a589776cae7f9463956`）
+
+**修订记录（2026-10-18 晚，按负责人评审意见）**：
+
+1. §1 撤回"PR #2 无 CI 运行记录"结论——Actions 对 `91b0b83` 有成功运行，`gh pr checks` 为空系命令报告限制。
+2. §2.1 更正 main 描述：含原 Fixture 原型可运行代码，Project-first 核心在 PR #2。
+3. §4.1 payload 草案改为真正的 TypeScript 判别联合（`kind` 与 `payload` 类型绑定），标注待与 A 的 AI 讨论后冻结。
+4. §4.2 接受资源中立覆盖生命周期，但**暂不迁移 TEXT 已稳定的 registry v2**；先用 MEDIA/TOKEN 真实任务验证目标 ID 稳定性与结构化覆盖值，再决定是否抽象 v3。
 
 ---
 
@@ -17,7 +24,7 @@
 - 逐文件阅读：`src/core/model.ts`、`session.ts`、`candidate.ts`、`scope.ts`、`page-overrides.ts`、`project.ts`、`verification-contract.ts`、`verification-runner.ts`、`page-overrides.test.ts`、`session.test.ts` 等
 - B 第二包全部源码（`tools/lib/graph.ts`、`adapter.ts`、`pipeline.ts`、`preview.ts`、`assert.ts`、`server/index.ts`，共约 2100 行）与其 evidence 产出物
 
-**CI 事实**：仓库存在 `.github/workflows/ci.yml` 与 `bolt-acceptance.yml`，但 `gh pr checks 2` 返回 *no checks reported on the 'feat/project-first-core-20261018' branch*。即 **PR #2 当前没有任何已报告的 CI 检查运行记录**——审查评论中"此前 CI 对已覆盖路径通过"的说法，与 GitHub 当前可见状态不符，需 A 确认是触发条件未命中还是检查结果已过期。B 后续验证结论一律以本机实跑为准，不以"CI 曾绿"作为依据。
+**CI 事实（2026-10-18 修订，撤回先前结论）**：仓库存在 `.github/workflows/ci.yml` 与 `bolt-acceptance.yml`。此前本节称"PR #2 没有任何已报告的 CI 检查运行记录"，该结论**撤回**：GitHub Actions 已对 PR #2 的提交 `91b0b83` 有成功运行记录，PR #3、PR #4 的分支同样均有运行记录；`gh pr checks` 返回空系该命令的报告限制（checks 挂接方式导致其不列出条目），不能作为"无 CI 运行"的证据。审查评论中"此前 CI 对已覆盖路径通过"的说法与 Actions 运行记录一致。B 后续验证结论仍以本机实跑为准。
 
 ---
 
@@ -25,7 +32,7 @@
 
 ### 2.1 main 分支
 
-`main`（`f19ec7d`）近三次提交全部为 `docs(...)`，**不含可运行核心代码**。可运行的一切都在 PR #2。
+`main`（`f19ec7d`）包含**原来的 Fixture 原型，代码完整可运行**（`src/` 分析器、候选执行、验证回执、工作台 UI 均在，近三次提交为 `docs(...)` 文档）。新版 Project-first 核心（领域契约重构、真实项目闭环）在 PR #2；近期功能开发（MEDIA 溯源、四视口验证）在各自 feature 分支上以 PR #2 为基线。
 
 ### 2.2 PR #2 已真实实现（有代码 + 测试支撑）
 
@@ -90,33 +97,42 @@
 
 **接受**审查诊断：`EditOperation.before/after: string` 确实只能表达受限文本/字面量替换（`candidate.ts:344-367` 按源偏移整体替换），无法表达二进制资产、焦点坐标、响应式变体、CSS 声明结构化修改。
 
-**不接受**"把复杂负载编码成 JSON 字符串塞进 after"的妥协方向，也**不接受**新建平行 Operation 状态机。建议的最小契约改动：
+**不接受**"把复杂负载编码成 JSON 字符串塞进 after"的妥协方向，也**不接受**新建平行 Operation 状态机。负责人已接受"增加结构化 MEDIA/TOKEN 负载"的方向；以下按"真正的 TypeScript 判别联合"重写（**待与 A 的 AI 讨论后冻结**），使 `kind` 与 `payload` 在类型层面绑定，杜绝 `kind: 'MEDIA'` 配 `TokenPayload` 的不匹配：
 
 ```ts
-export interface EditOperation {
+// 公共字段：所有变体共享（漂移校验、回滚、覆盖语义不变）
+interface EditOperationBase {
   id: Id
-  kind: EditKind
   targetRef: Id
-  before: string            // 保持：源码基线值（供漂移校验与回滚语义）
-  after: string             // 保持：候选值（源码级投影；字面量路径不变）
+  before: string            // 源码基线值（供漂移校验与回滚语义）
+  after: string             // 候选值（源码级投影；字面量路径不变）
   overrideAction?: 'remove'
-  payload?: MediaOperationPayload | TokenOperationPayload   // 新增：类型判别负载
 }
+
+export type EditOperation =
+  | (EditOperationBase & { kind: 'TEXT'; payload?: never })     // 现状语义，接口不动
+  | (EditOperationBase & { kind: 'MEDIA'; payload: MediaOperationPayload })
+  | (EditOperationBase & { kind: 'TOKEN'; payload: TokenOperationPayload })
+  | (EditOperationBase & { kind: 'CODE'; payload?: never })     // 现状语义，接口不动
+
 export interface MediaOperationPayload {
-  discriminant: 'media'
   assetRef: string          // 候选树内相对路径，如 assets/hero.autumn.webp
   assetHash: string         // SHA-256，与 CandidatePatch 同一哈希纪律
-  focalPoint?: { x: number; y: number }                    // 0..1 归一化
+  focalPoint?: { x: number; y: number }                        // 0..1 归一化
   variants?: Array<{ viewport: 'mobile' | 'tablet' | 'desktop'; assetRef: string; assetHash: string }>
-  containerHint?: { selector: string; aspect: number }     // 目标容器，供验证断言
+  containerHint?: { selector: string; aspect: number }         // 目标容器，供验证断言
 }
 export interface TokenOperationPayload {
-  discriminant: 'token'
   declarationRef: Id        // CSS 变量定义节点（现有 token 节点即可承担）
   value: string             // 新值
   localScope?: { pageRef: Id; mechanism: 'css-override' | 'style-prop' }  // 局部覆盖机制，由项目自然机制承担
 }
 ```
+
+与先前草案的两点实质差异：
+
+1. **`payload?: MediaOperationPayload | TokenOperationPayload`（宽松联合）改为判别联合**——`payload` 的存在与形状由 `kind` 决定，`payload?: never` 显式禁止 TEXT/CODE 携带负载；`switch (operation.kind)` 处 TypeScript 自动收窄，消费方（`candidate.ts` 执行器、验证器）无需运行时判别。
+2. **保留 `before/after` 源码级语义**（如 import 路径字符串替换），`payload` 只承载源码表达不了的结构化意图，二者同生同校验。
 
 设计理由：
 
@@ -135,7 +151,12 @@ export interface TokenOperationPayload {
 
 **拒绝**把图片/样式强塞进 `RippleText` 式运行时组件注入。理由（代码依据）：`RippleText` 方案依赖两个 TEXT 专属前提——JSX 文本节点的 fallback 可被运行时组件无损替换（`candidate.ts:267-281`），以及页面状态由 `state === 'label'` 字面量映射（`candidate.ts:160-169`，`routeStateMapping` 要求页面状态唯一确定）。媒体与样式不满足此前提：图片消费点是 `<img src>`/CSS background/组件 props 三种异质形态，强行组件化会把业务 JSX 改得面目全非，违背"优先使用原项目自然机制"（任务书 §五.2）。
 
-**建议调整**：把 `PageOverrideRegistry` 抽象为资源中立的 `OverrideRegistry`（schema v3，迁移工具从 v2 升级）：
+**建议调整（2026-10-18 修订：暂不迁移 registry v2）**：资源中立的局部覆盖生命周期方向被接受，但**现阶段不大规模迁移 TEXT 已稳定的 registry v2**。先用 MEDIA/TOKEN 真实任务证明需要怎样的结构，重点验证两个未决问题：
+
+1. **目标 ID 跨源码修改的稳定性**：`override:<uuid>` 目标 ID 以 SourceGraph 节点为锚；MEDIA/TOKEN 编辑（资产替换、CSS 变量改值）会改变节点值甚至节点集合，需实测 registry 规则在源码演进后仍指向同一逻辑目标（现有 v2 对 TEXT 的 `fallback` 关联机制能否原样复用）。
+2. **结构化覆盖值**：TEXT 的覆盖值是字符串；MEDIA 的覆盖值含 `assetRef/focalPoint/variants`，TOKEN 含 `value/localScope`，registry 的 schema 校验与幂等变换需要容纳结构化值而不破坏 v2 的校验器。
+
+验证完成后再决定是否抽象 `OverrideRegistry`（schema v3，迁移工具从 v2 升级）。届时建议的规则形态（供讨论，非冻结）：
 
 ```ts
 interface OverrideRule {
@@ -143,7 +164,7 @@ interface OverrideRule {
   targetRef: Id                  // SourceGraph 节点（data/media/token 均可）
   original: string               // 共享基线值
   pageRef: Id                    // 局部作用页面
-  value: string                  // 页面生效值
+  value: string                  // 页面生效值（MEDIA/TOKEN 可为 JSON 化结构化值）
   projection: 'ripple-text' | 'asset-config' | 'css-custom-property' | 'style-prop'
   updatedAt: string
 }
