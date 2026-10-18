@@ -11,7 +11,6 @@ const consumerRelations = new Set<Relation['kind']>([
 const mediaConsumerRelations = new Set<Relation['kind']>([
   'asset-consumer',
   'renders',
-  'css-cascade',
 ])
 
 const fileDependencyRelations = new Set<Relation['kind']>(['imports'])
