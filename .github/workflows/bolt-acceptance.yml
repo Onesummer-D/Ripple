@@ -3,17 +3,23 @@ name: Bolt real-project acceptance
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   bolt-acceptance:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: Onesummer-D/ripple-qingye-bolt
           token: ${{ secrets.BOLT_REPO_TOKEN }}
           path: bolt-source
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -55,3 +61,4 @@ jobs:
           path: ${{ runner.temp }}/ripple-acceptance/artifacts/
           if-no-files-found: warn
           retention-days: 30
+
