@@ -171,13 +171,22 @@ interface AdapterCapabilities {
 }
 ```
 
-- 首轮支持矩阵（B 基于第二包实测给出，非承诺）：
+- 首轮支持矩阵（2026-10-18 晚已用 `analyzeProject` 对两个真实仓库实测更新，探针脚本与复现命令见本节末尾）：
 
 | 工程 | 可读/分析 | 可运行 | TEXT | MEDIA | TOKEN | 备注 |
 |---|---|---|---|---|---|---|
 | 青野/栖光（自有 React/Vite，锁定版本） | ✅ | ✅ | ✅ | ✅(P0 目标) | ✅(P1 目标) | B 包2 已实测 |
+| 青野 Bolt 基线 `ripple-qingye-bolt@f7e4998` | ✅ 571 节点 / 496 边 / unresolved=0 | 待验 | 结构可达 | ⚠️ 见下方实测-1 | 结构可达 | 路由经 App.tsx 状态字面量识别，4 页全中 |
+| Lovable TanStack Start `mountain-spirit-showcase@f838ae3` | ⚠️ 部分：701 节点但 **route=0**、unresolved=16 | 待验 | 受阻 | ❌ 无 media 节点 | 结构可达 | 见下方实测-2 |
 | 任意 React/Vite 第三方工程 | ✅/部分 | 待验 | 待验 | 待验 | 待验 | P2，逐仓库冻结版本后填 |
-| Lovable TanStack Start | ❌ 无访问权限 | unknown | unknown | unknown | unknown | **B 当前无仓库权限，已向负责人申请**；获批前全部记 unknown |
+
+**实测-1（青野 MEDIA 的真实风险）**：13 个 media 节点全部是外部 Pexels URL；`asset-consumer` 边仅 1 条 `source-proven`、26 条 `semantic-candidate`。按 `scope.ts:72-76` 的 fail-closed 规则，对这些外部图做 MEDIA 修改会因非确定消费边被**拒绝生成候选**。即：当前 core 下青野的图改不动——这是 P0 必须解决的真实 blocker（需要把 JSX `src={...}` 绑定链的 certainty 升级机制做出来，或明确降级为不支持并如实上报）。
+
+**实测-2（TanStack Start 的两个具体适配缺口）**：
+1. 路由识别为零：分析器路由检测依赖 App.tsx 内 `state === 'label'` 字面量映射（`project.ts:415`），TanStack Start 的文件路由（`src/routes/*.tsx` + `router.tsx`）不满足该范式，产出 0 个 route 节点——共享/覆盖编辑的影响闭包无从谈起。
+2. 路径别名未解析：`@/assets/*.jpg` 形式的 16 个 import 全部进入 `graph.unresolved`，且 `?url` 后缀（`../styles.css?url`）同样未处理。无 route 节点时这些 unresolved 不毒化影响闭包，但一旦路由识别补上，它们将按 `scope.ts:82-92` 变为拒绝条件。
+
+**复现方式**：`npx vitest run src/core/b-capability-probe.test.ts`（探针含 qingye/mountain 两组断言与 JSON 输出；脚本由 B 在开发分支提供，本文不夹带代码）。
 
 - `supports` 保持 fail-closed：任一关键项为 `unknown` 时，UI 与执行器不得展示为"支持"。
 
