@@ -1,6 +1,6 @@
 # RFC：Ripple Project-first 领域架构与迁移路线
 
-**日期：2026-10-18** · **状态：Project-first 核心、Docker 隔离候选预演入口、候选页点选到候选源码图映射及跨提交页面覆盖维护路径已接通；容器端到端与真实 Bolt 手动验收待 CI/workflow 执行；正式验证、批准/应用 UI、持久化 Evidence、MEDIA/TOKEN 覆盖仍未完成**
+**日期：2026-10-18** · **状态：Project-first 核心、Docker 隔离候选预演、候选页点选到 JSX/实例映射及跨提交页面覆盖维护路径，已在合成 React/Vite 的 PR #2 Actions run #46 验证；真实 Bolt 手动验收尚未执行；正式验证、批准/应用 UI、持久化 Evidence、MEDIA/TOKEN 覆盖仍未完成**
 来源：[产品与架构复审 v2](../strategy/Ripple_产品定位与架构复审_v2_2026-10-18.md) · [独立架构审计](./architecture-independent-audit-2026-10-18.md)。
 
 ## 已做出的技术决策
@@ -27,9 +27,9 @@
 
 `e2e/page-override-lifecycle.spec.ts` 在生成的真实 React/Vite Git 工程上执行跨已应用提交的连续流程：创建首页局部覆盖、受信任 Playwright 三视口和交互检查、批准并应用同一补丁、提交形成新基线、重新分析、更新同一 UUID 目标、添加第二项规则、移除第一项并保留第二项，最后移除全部覆盖并检查 JSX、import、provider、registry、Git worktree 与最终构建。CI 需有 Docker 并执行全流程；无 Docker 的本机只报告该测试跳过，不把它算作通过，也不把合成工程结果算成 Bolt 验收。
 
-验收边界以 PR #2 对应 Actions run 的执行记录为准，不把通用合成 React/Vite 工程测试写成 Bolt 验收。本轮 CI 新增 Docker 必需检查及候选预演用例；本机无 Docker 时该用例仅在本地跳过，CI 中 Docker 缺失会失败。Bolt 自动用例也会在 `RIPPLE_BOLT_PROJECT` 未设置时跳过；`bolt-acceptance.yml` 则需从默认分支上的 `workflow_dispatch` 手动执行，并由 `BOLT_REPO_TOKEN` 提供私有仓库读取权限。只有下载该次工作流保存的工作台截图、预演截图和执行记录后，才能报告真实 Bolt 预演通过；只有可信测试执行器、定向断言和 candidate-bound Evidence 接通后，才可将预演提升为正式验证。
+验收边界以 PR #2 对应 Actions run 的执行记录为准，不把通用合成 React/Vite 工程测试写成 Bolt 验收。Actions [run #46](https://github.com/Onesummer-D/Ripple/actions/runs/39100396641) 实际通过类型检查、78 项单测、构建及 Docker Playwright（5 passed / 1 skipped）；唯一跳过项是未配置私有工程路径的 Bolt 专项验收。浏览器证据保存在该 run 的 artifact 中。本机无 Docker 时 Docker 用例仅报告跳过，CI 中 Docker 缺失会失败。`bolt-acceptance.yml` 需从默认分支上的 `workflow_dispatch` 手动执行，并由 `BOLT_REPO_TOKEN` 提供私有仓库读取权限；在该工作流成功且检查其工件前，不报告真实 Bolt 预演通过。只有可信测试执行器、定向断言和 candidate-bound Evidence 接通后，才可将预演提升为正式验证。
 
-工作台的真实候选预演现在可运行，点选来源能够解析到候选版本的 JSX 与直接文本消费者；预演仍不等于验证，正式验证/批准/应用仍为 `NOT RUN`。点选与身份是当前预演的只读定位信息，运行时实例级编辑尚未接通；持久化 Evidence 与跨进程 EditSession 仍未接通。浏览器页面刷新现在能从本机进程恢复活动候选、Scope 和操作；这不是跨进程持久化，Ripple 服务关闭时会清理候选及预演容器，异常/哈希不匹配现场保留并拒绝作为有效候选。预演需要已安装的项目依赖且不支持本轮同时改依赖清单；执行环境为 Docker 容器但仍共享宿主内核。MEDIA 目前只支持源码字符串候选，不含焦点裁切/多尺寸规则；TOKEN 能识别来源但缺共享颜色系统与页面/组件 override 数据模型。Git worktree 只隔离源码版本，不得单独视作代码执行沙箱。原 Fixture `App`、CaseRuntime 等模块尚未删除，但已从默认入口和正式 E2E 中卸下，不能继续作为真实项目数据源。
+工作台的候选预演和真实页面点选已由合成 React/Vite Docker CI 验证：页面可渲染，点选来源解析到候选 JSX 与直接文本消费者，稳定 React 实例身份与 stable key 身份有区分，1440/768/390 视口及布局边界检查通过。预演仍不等于验证，正式验证/批准/应用仍为 `NOT RUN`。点选与身份是当前预演的只读定位信息，运行时实例级编辑尚未接通；持久化 Evidence 与跨进程 EditSession 仍未接通。浏览器页面刷新现在能从本机进程恢复活动候选、Scope 和操作；这不是跨进程持久化，Ripple 服务关闭时会清理候选及预演容器，异常/哈希不匹配现场保留并拒绝作为有效候选。预演需要已安装的项目依赖且不支持本轮同时改依赖清单；执行环境为 Docker 容器但仍共享宿主内核。本轮没有 Bolt 通过记录。MEDIA 目前只支持源码字符串候选，不含焦点裁切/多尺寸规则；TOKEN 能识别来源但缺共享颜色系统与页面/组件 override 数据模型。Git worktree 只隔离源码版本，不得单独视作代码执行沙箱。原 Fixture `App`、CaseRuntime 等模块尚未删除，但已从默认入口和正式 E2E 中卸下，不能继续作为真实项目数据源。
 
 ## 核心不变量
 
