@@ -15,7 +15,7 @@ function App() {
   const [unkeyedLabels, setUnkeyedLabels] = useState(['Component Alpha', 'Component Beta'])
   const [visible, setVisible] = useState(true)
   const [page, setPage] = useState('catalog')
-  return <main>
+  return <main><span data-testid="static-instance">Static instance</span>
     <button id="reorder" onClick={() => setProducts(current => [...current].reverse())}>Reorder</button>
     <button id="reorder-raw" onClick={() => setLabels(current => [...current].reverse())}>Reorder raw list</button>
     <button id="reorder-components" onClick={() => setUnkeyedLabels(current => [...current].reverse())}>Reorder unkeyed components</button>

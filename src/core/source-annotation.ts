@@ -31,7 +31,8 @@ const RippleIdentityContext = createContext(null)
 export function useRippleIdentity() { return useContext(RippleIdentityContext) }
 export function RippleIdentity({ instanceKey, sourceRef, certainty, children }) {
   const parent = useRippleIdentity()
-  const identity = { path: [parent?.path, sourceRef, instanceKey].filter(Boolean).join('/'), certainty: certainty === 'position-dependent' || parent?.certainty === 'position-dependent' ? 'position-dependent' : 'stable-keyed-instance' }
+  const identityCertainty = certainty === 'position-dependent' || parent?.certainty === 'position-dependent' ? 'position-dependent' : certainty === 'unknown' || parent?.certainty === 'unknown' ? 'unknown' : certainty
+  const identity = { path: [parent?.path, sourceRef, instanceKey].filter(Boolean).join('/'), certainty: identityCertainty }
   return createElement(RippleIdentityContext.Provider, { value: identity }, children)
 }
 `

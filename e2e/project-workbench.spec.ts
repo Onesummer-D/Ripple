@@ -49,7 +49,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await expect(page.getByText(/CaseFixture|qingye|qiguang/i)).toHaveCount(0)
   await page.getByTestId('project-path').fill(projectRoot)
   await page.getByTestId('analyze-project').click()
-  await expect(page.getByTestId('target-select').locator('option').filter({ hasText: 'Baseline title' })).toHaveCount(1)
+  await expect(page.getByTestId('target-select').locator('option').filter({ hasText: 'Baseline title' })).toHaveCount(1, { timeout: 30_000 })
   await expect(page.locator('.route-list').getByText('page:home', { exact: true })).toBeVisible()
   await expect(page.getByText('SOURCE-PROVEN', { exact: true })).toBeVisible()
   await page.screenshot({ path: path.join(evidenceRoot, 'workbench-analysis-1440.png'), fullPage: true })

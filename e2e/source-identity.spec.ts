@@ -35,6 +35,7 @@ test('keeps keyed identities stable and marks unkeyed component and raw list pos
   expect(betaBefore).toBeTruthy()
   expect(alphaBefore).not.toBe(betaBefore)
   expect(alphaSource).toBe(betaSource)
+  expect(await page.getByTestId('static-instance').getAttribute('data-ripple-identity-certainty')).toBe('stable-react-instance')
   expect(await page.getByTestId('card-a').getAttribute('data-ripple-identity-certainty')).toBe('stable-keyed-instance')
 
   const rawAlpha = page.getByTestId('raw-Raw Alpha')
