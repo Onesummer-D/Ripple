@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressOnPreviewNetwork } from './candidate-preview'
+import { addressOnPreviewNetwork, trustedOriginsFromSources } from './candidate-preview'
 
 describe('candidate preview network address', () => {
   it('uses only the address assigned on the candidate internal network', () => {
@@ -16,3 +16,18 @@ describe('candidate preview network address', () => {
     }), 'ripple-preview-net-candidate')).toThrow(/未加入预期/)
   })
 })
+
+describe('candidate preview resource policy', () => {
+  it('allows only HTTPS origins already present in tracked project source', () => {
+    expect(trustedOriginsFromSources([
+      `/* image: https://assets.example.test/path/image.webp */ @import url('https://fonts.googleapis.com/css?family=Inter');`,
+      `const external = 'https://untrusted.invalid/'; const local = 'http://insecure.example.test/a.png';`,
+    ])).toEqual([
+      'https://assets.example.test',
+      'https://fonts.googleapis.com',
+      'https://fonts.gstatic.com',
+      'https://untrusted.invalid',
+    ])
+  })
+})
+

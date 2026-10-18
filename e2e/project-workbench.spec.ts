@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -8,7 +9,7 @@ const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-workbench-browser-
 const projectRoot = path.join(sandbox, 'site')
 const boltProjectRoot = process.env.RIPPLE_BOLT_PROJECT
 const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence')
-const dockerAvailable = spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
+const dockerAvailable = process.platform === 'linux' && spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
 let candidateId = ''
 fs.mkdirSync(evidenceRoot, { recursive: true })
 
@@ -20,7 +21,7 @@ test.beforeAll(() => {
   fs.writeFileSync(path.join(projectRoot, 'index.html'), '<!doctype html><html><head><meta charset="UTF-8"></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>')
   fs.writeFileSync(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
   fs.writeFileSync(path.join(projectRoot, 'src', 'main.tsx'), `import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />)`)
-  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), `import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; import { AutumnPage } from './pages/AutumnPage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <><Navigation/><HomePage/></>}{page === 'autumn' && <><Navigation/><AutumnPage/></>}</>}`)
+  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), `/* trusted preview asset origin: https://assets.example.test/ */ import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; import { AutumnPage } from './pages/AutumnPage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <><Navigation/><HomePage/></>}{page === 'autumn' && <><Navigation/><AutumnPage/></>}</>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), `export function HomePage(){return <main><h1>Baseline title</h1><button>Browse items</button></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'AutumnPage.tsx'), `export function AutumnPage(){return <main><h1>Autumn baseline</h1></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'components', 'Navigation.tsx'), `export function Navigation(){return <nav>Shared navigation brand</nav>}`)
@@ -91,6 +92,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
     await page.screenshot({ path: path.join(evidenceRoot, `workbench-candidate-${viewport.width}.png`), fullPage: true })
   }
   if (dockerAvailable) {
+    await page.route('https://assets.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', 'base64') }))
     await page.getByTestId('toggle-candidate-preview').click()
     const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toBeVisible({ timeout: 90_000 })
@@ -102,27 +104,47 @@ test('opens a real local project, keeps multiple operations and explicit local S
     await expect(page.getByTestId('selected-source')).toContainText('Patch')
     await expect(page.getByTestId('selected-source')).toContainText('stable-react-instance')
     const previewUrl = await page.getByTestId('candidate-preview').getAttribute('src')
+    const previewFrame = page.frames().find(frame => frame.url() === previewUrl)
+    expect(previewFrame).toBeTruthy()
     for (const width of [1440, 768, 390]) {
       await page.getByTestId(`preview-viewport-${width}`).click()
-      const previewFrame = page.frames().find(frame => frame.url() === previewUrl)
-      expect(previewFrame).toBeTruthy()
       await expect.poll(() => previewFrame!.evaluate(() => window.innerWidth)).toBe(width)
       expect(await previewFrame!.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
     }
+    expect(new URL(previewUrl!).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
+    const previewResponse = await page.request.get(previewUrl!)
+    const previewCsp = previewResponse.headers()['content-security-policy'] ?? ''
+    expect(previewCsp).toContain('https://assets.example.test')
+    expect(previewCsp).not.toMatch(/img-src[^;]*\bhttps:\s*(?:;|$)/)
+    const permittedImageWidth = await previewFrame!.evaluate(async () => {
+      const image = new Image()
+      image.src = 'https://assets.example.test/preview-check.gif'
+      document.body.append(image)
+      await image.decode()
+      return image.naturalWidth
+    })
+    expect(permittedImageWidth).toBe(1)
+    const blockedUrl = 'https://untrusted.example.invalid/pixel.gif'
+    const blockedRequest = page.waitForEvent('requestfailed', request => request.url() === blockedUrl)
+    await previewFrame!.evaluate((url: string) => {
+      const image = new Image()
+      image.src = url
+      document.body.append(image)
+    }, blockedUrl)
+    expect((await blockedRequest).failure()?.errorText).toContain('BLOCKED_BY_CSP')
     await page.getByTestId('run-verification').click()
     const verificationState = page.getByTestId('verification-state')
     await expect(verificationState).toContainText(/INCOMPLETE|RISKS/, { timeout: 120_000 })
     await expect(page.getByTestId('verification-assertions').getByText('responsive-layout')).toBeVisible()
     const assertionCards = page.getByTestId('verification-assertions').locator('div')
-    const assertionReport = await assertionCards.allTextContents()
-    console.log(`[candidate verification] ${JSON.stringify(assertionReport)}`)
     const verificationLink = page.locator('.verification-record a')
     const recordHref = await verificationLink.getAttribute('href')
     expect(recordHref).toBeTruthy()
     const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
     expect(recordResponse.ok()).toBe(true)
     const executionRecord = await recordResponse.json()
-    console.log(`[candidate verification evidence] ${JSON.stringify(executionRecord.evidence)}`)
+    await expect(assertionCards.filter({ hasText: 'target-change' })).toContainText('PASS')
+    await expect(assertionCards.filter({ hasText: 'source-mapping' })).toContainText('PASS')
     await expect(assertionCards.filter({ hasText: 'interaction' })).toContainText('UNKNOWN')
     const verificationImages = page.getByTestId('verification-evidence').locator('img')
     await expect(verificationImages).toHaveCount(3)
@@ -131,6 +153,8 @@ test('opens a real local project, keeps multiple operations and explicit local S
       return rendered.complete && rendered.naturalWidth > 0
     }))).toBe(true)
     expect(executionRecord).toMatchObject({ candidateId, patchHash: expect.any(String), candidateTreeDigest: expect.any(String), scopeVersion: 1 })
+    expect(executionRecord.evidence.map((item: { viewport: { width: number } }) => item.viewport.width)).toEqual([1440, 768, 390])
+    expect(executionRecord.evidence.every((item: { result: string }) => item.result === 'pass')).toBe(true)
     fs.writeFileSync(path.join(evidenceRoot, 'workbench-verification-execution.json'), JSON.stringify(executionRecord, null, 2))
     const screenshotUrls = await verificationImages.evaluateAll(images => images.map(image => (image as HTMLImageElement).src))
     const screenshotResponses = await Promise.all(screenshotUrls.map(url => page.request.get(url)))
@@ -138,6 +162,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
       expect(screenshot.ok()).toBe(true)
       const bytes = await screenshot.body()
       expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(executionRecord.evidence[index].artifactHash)
       fs.writeFileSync(path.join(evidenceRoot, `workbench-verification-${[1440, 768, 390][index]}.png`), bytes)
     }
     await page.getByTestId('toggle-element-selection').click()
@@ -205,31 +230,27 @@ test('records trusted three-viewport evidence while unsupported assertions stay 
   await page.getByTestId('run-verification').click()
   await expect(page.getByTestId('verification-state')).toContainText(/INCOMPLETE|RISKS/, { timeout: 120_000 })
   const assertions = page.getByTestId('verification-assertions')
-  console.log(`[single-target verification] ${JSON.stringify(await assertions.locator('div').allTextContents())}`)
   const recordHref = await page.locator('.verification-record a').getAttribute('href')
   expect(recordHref).toBeTruthy()
   const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
   expect(recordResponse.ok()).toBe(true)
   const executionRecord = await recordResponse.json()
-  console.log(`[single-target evidence] ${JSON.stringify(executionRecord.evidence)}`)
   await expect(assertions.locator('div').filter({ hasText: 'target-change' })).toContainText('PASS')
   await expect(assertions.locator('div').filter({ hasText: 'source-mapping' })).toContainText('PASS')
   await expect(assertions.locator('div').filter({ hasText: 'interaction' })).toContainText('UNKNOWN')
-  const href = await page.locator('.verification-record a').getAttribute('href')
-  expect(href).toBeTruthy()
-  const response = await page.request.get(new URL(href!, 'http://127.0.0.1:4173').toString())
-  expect(response.ok()).toBe(true)
-  const record = await response.json()
-  expect(record).toMatchObject({ candidateId, patchHash: expect.any(String), candidateTreeDigest: expect.any(String), scopeVersion: 1 })
-  fs.writeFileSync(path.join(evidenceRoot, 'workbench-single-target-verification.json'), JSON.stringify(record, null, 2))
+  expect(executionRecord).toMatchObject({ candidateId, patchHash: expect.any(String), candidateTreeDigest: expect.any(String), scopeVersion: 1 })
+  fs.writeFileSync(path.join(evidenceRoot, 'workbench-single-target-verification.json'), JSON.stringify(executionRecord, null, 2))
   const images = page.getByTestId('verification-evidence').locator('img')
   await expect(images).toHaveCount(3)
   const urls = await images.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))
+  expect(executionRecord.evidence.map((item: { viewport: { width: number } }) => item.viewport.width)).toEqual([1440, 768, 390])
+  expect(executionRecord.evidence.every((item: { result: string }) => item.result === 'pass')).toBe(true)
   for (const [index, url] of urls.entries()) {
     const screenshot = await page.request.get(url)
     expect(screenshot.ok()).toBe(true)
     const bytes = await screenshot.body()
     expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(executionRecord.evidence[index].artifactHash)
     fs.writeFileSync(path.join(evidenceRoot, `workbench-single-target-${[1440, 768, 390][index]}.png`), bytes)
   }
 
@@ -280,3 +301,4 @@ test('opens the supplied Bolt project in the workbench and builds a shared-scope
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
   candidateId = ''
 })
+

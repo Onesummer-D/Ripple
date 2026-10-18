@@ -6,6 +6,28 @@ const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
 const reactModule = require('@vitejs/plugin-react')
 const react = reactModule.default ?? reactModule
+const previewOrigins = JSON.parse(process.env.RIPPLE_PREVIEW_RESOURCE_ORIGINS ?? '[]')
+if (!Array.isArray(previewOrigins) || previewOrigins.some(origin => {
+  if (typeof origin !== 'string') return true
+  try {
+    const url = new URL(origin)
+    return url.protocol !== 'https:' || url.origin !== origin || url.username !== '' || url.password !== ''
+  } catch { return true }
+})) throw new Error('Ripple preview resource allowlist is invalid')
+const externalResources = previewOrigins.join(' ')
+const contentSecurityPolicy = [
+  "default-src 'self' data: blob:",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  `style-src 'self' 'unsafe-inline' ${externalResources}`,
+  `font-src 'self' data: ${externalResources}`,
+  `img-src 'self' data: blob: ${externalResources}`,
+  `media-src 'self' data: blob: ${externalResources}`,
+  "connect-src 'self'",
+  "form-action 'none'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-src 'none'",
+].join('; ')
 
 function selectionBridge() {
   const script = `<script>
@@ -104,9 +126,10 @@ export default {
     cors: { origin: 'null' },
     fs: { strict: true, allow: ['/work', '/deps', '/ripple/core', '/ripple/node_modules'] },
     headers: {
-      'content-security-policy': "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self'; form-action 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'",
+      'content-security-policy': contentSecurityPolicy,
       'referrer-policy': 'no-referrer',
       'x-content-type-options': 'nosniff',
     },
   },
 }
+
