@@ -108,15 +108,24 @@ const stringValue = (node: ts.Node | undefined): ts.StringLiteral | ts.NoSubstit
 const imageLike = (value: string) => /(?:\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$|^https?:\/\/[^\s]+(?:images|photos|pexels)[^\s]*|^data:image\/)/i.test(value)
 const assetFileLike = (file: string) => /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(file)
 
-/** Values of `property` across object literals in an array literal (bounded, syntactic only). */
-function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string): string[] {
-  const values: string[] = []
+type DrilledProperty = { kind: 'value'; text: string } | { kind: 'asset'; assetFile: string }
+
+/** Values of `property` across object literals in an array literal (bounded, syntactic only).
+ *  Identifier initializers are resolved through `resolveAsset` (imported-image bindings). */
+function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
+  const values: DrilledProperty[] = []
+  const arrayFile = array.getSourceFile()
   for (const element of array.elements) {
     if (!ts.isObjectLiteralExpression(element)) continue
     for (const entry of element.properties) {
       if (!ts.isPropertyAssignment(entry) || propertyName(entry) !== property) continue
       const literal = stringValue(entry.initializer)
-      if (literal) values.push(literal.text)
+      if (literal) {
+        values.push({ kind: 'value', text: literal.text })
+      } else if (entry.initializer && ts.isIdentifier(entry.initializer)) {
+        const assetFile = resolveAsset(entry.initializer.text, arrayFile)
+        if (assetFile) values.push({ kind: 'asset', assetFile })
+      }
     }
   }
   return values
@@ -124,27 +133,49 @@ function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property:
 
 /**
  * Bounded backward drill from a JSX attribute / callback expression to the string
- * literal values of `property`, through identifiers bound to array literals and
- * `.map` / `.filter` / `.slice` chains. Anything outside this shape yields [] —
- * the caller keeps the honest lower-certainty result instead of guessing.
+ * literal values (or imported asset files) of `property`, through identifiers bound
+ * to array literals, callback parameters of `.map` / `.filter` / `.slice`, and chained
+ * calls of those methods. Anything outside this shape yields [] — the caller keeps the
+ * honest lower-certainty result instead of guessing.
  */
-function arrayValuesForProperty(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>): string[] {
+function arrayDrill(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
   if (visited.has(expression)) return []
   visited.add(expression)
   if (ts.isIdentifier(expression) || ts.isPropertyAccessExpression(expression)) {
     const symbol = checker.getSymbolAtLocation(ts.isIdentifier(expression) ? expression : expression.name)
+    // Export aliases (`export const products`) carry no valueDeclaration on the alias symbol.
     const declaration = symbol?.valueDeclaration
+      ?? ((symbol?.flags ?? 0) & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol!).valueDeclaration : undefined)
+      ?? symbol?.declarations?.find(ts.isVariableDeclaration)
     if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
       let initializer: ts.Expression = declaration.initializer
       if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
-      if (ts.isArrayLiteralExpression(initializer)) return objectLiteralPropertyValues(initializer, property)
+      if (ts.isParenthesizedExpression(initializer)) return arrayDrill(initializer.expression, property, checker, visited, resolveAsset)
+      if (ts.isConditionalExpression(initializer)) {
+        // `const x = cond ? a.filter(...) : b.map(...)` — both arms must yield; union them.
+        const whenTrue = arrayDrill(initializer.whenTrue, property, checker, visited, resolveAsset)
+        const whenFalse = arrayDrill(initializer.whenFalse, property, checker, visited, resolveAsset)
+        return [...whenTrue, ...whenFalse]
+      }
+      if (ts.isArrayLiteralExpression(initializer)) return objectLiteralPropertyValues(initializer, property, resolveAsset)
+      return []
+    }
+    if (declaration && ts.isParameter(declaration)) {
+      let fn: ts.Node | undefined = declaration.parent
+      while (fn && !(ts.isArrowFunction(fn) || ts.isFunctionExpression(fn))) fn = fn.parent
+      let call: ts.Node | undefined = fn?.parent
+      while (call && !ts.isCallExpression(call)) call = call.parent
+      if (call && ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression) &&
+        ['map', 'filter', 'slice'].includes(call.expression.name.text) && call.expression.expression) {
+        return arrayDrill(call.expression.expression, property, checker, visited, resolveAsset)
+      }
     }
     return []
   }
   if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
     const method = expression.expression.name.text
     if (method === 'map' || method === 'filter' || method === 'slice') {
-      return arrayValuesForProperty(expression.expression.expression, property, checker, visited)
+      return arrayDrill(expression.expression.expression, property, checker, visited, resolveAsset)
     }
     return []
   }
@@ -346,6 +377,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   // no source offsets — editing it is an asset-swap candidate, not a literal replacement.
   const assetImportBindings = new Map<string, Map<string, string>>()
   const componentUsages: Array<{ targetId: string; element: ts.JsxOpeningLikeElement; source: ts.SourceFile; file: string }> = []
+  const pendingDrills: Array<{ ownerId: string; paramName: string; property: string; position: number; file: string }> = []
   for (const [absolute, source] of sourceFiles) {
     const relative = relativeTo(snapshot.root, absolute)
     const imports = new Map<string, ImportTarget>()
@@ -431,32 +463,15 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         // `product` prop is fed at usage sites by expressions traceable to array literals
         // (identifier → array literal; `.map`/`.filter`/`.slice` chains). Only exact
         // single matches upgrade to source-proven; ambiguity stays semantic-candidate.
+        // Resolved in a post-pass: usage sites in other files may not be visited yet.
         if (!linked) {
           const objectSymbol = checker.getSymbolAtLocation(node.expression)
           const objectDeclaration = objectSymbol?.valueDeclaration
           const paramName = objectDeclaration && (ts.isParameter(objectDeclaration) || ts.isBindingElement(objectDeclaration)) && ts.isIdentifier(objectDeclaration.name)
             ? objectDeclaration.name.text : undefined
           if (paramName) {
-            const values = new Set<string>()
-            for (const usage of componentUsages) {
-              if (usage.targetId !== ownerComponent.id) continue
-              const attribute = usage.element.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === paramName)
-              const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
-              const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
-              if (!expression) continue
-              for (const value of arrayValuesForProperty(expression, node.name.text, checker, new Set())) values.add(value)
-            }
-            for (const value of values) {
-              const matches = mediaByValue.get(value) ?? []
-              if (matches.length === 1) {
-                addEdge(ownerComponent.id, matches[0].id, 'asset-consumer', `asset:${ownerComponent.id}:${matches[0].id}:${node.getStart(source)}`)
-              } else {
-                for (const match of matches) addEdge(ownerComponent.id, match.id, 'asset-consumer', `asset-candidate:${ownerComponent.id}:${match.id}:${node.getStart(source)}`, 'semantic-candidate')
-              }
-            }
-            // Drilling produced a definitive answer (even an ambiguous one); do not also
-            // emit the coarser name-based candidates for the same access.
-            if (values.size) linked = true
+            pendingDrills.push({ ownerId: ownerComponent.id, paramName, property: node.name.text, position: node.getStart(source), file: relative })
+            linked = true
           }
         }
         if (!linked) {
@@ -538,6 +553,41 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     visit(source)
     void importedModules
   }
+
+  // Post-pass: prop-drilling provenance needs usage sites from every file collected first.
+  {
+    const resolveAsset = (name: string, sourceFile: ts.SourceFile) => assetImportBindings.get(relativeTo(snapshot.root, sourceFile.fileName))?.get(name)
+    for (const drill of pendingDrills) {
+      const drilled = new Map<string, DrilledProperty>()
+      for (const usage of componentUsages) {
+        if (usage.targetId !== drill.ownerId) continue
+        const attribute = usage.element.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === drill.paramName)
+        const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
+        const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
+        if (!expression) continue
+        const items = arrayDrill(expression, drill.property, checker, new Set(), resolveAsset)
+        for (const item of items) drilled.set(JSON.stringify(item), item)
+      }
+      for (const item of drilled.values()) {
+        if (item.kind === 'asset') {
+          if (nodeById.has(assetMediaId(item.assetFile))) {
+            addEdge(drill.ownerId, assetMediaId(item.assetFile), 'asset-consumer', `asset:${drill.ownerId}:${assetMediaId(item.assetFile)}:${drill.position}`)
+          }
+          continue
+        }
+        const matches = mediaByValue.get(item.text) ?? []
+        if (matches.length === 1) {
+          addEdge(drill.ownerId, matches[0].id, 'asset-consumer', `asset:${drill.ownerId}:${matches[0].id}:${drill.position}`)
+        } else {
+          for (const match of matches) addEdge(drill.ownerId, match.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${match.id}:${drill.position}`, 'semantic-candidate')
+        }
+      }
+      // A component whose prop drilling finds nothing anywhere stays honestly unproven:
+      // no edge is emitted here, and the visit-time code already suppressed the coarse
+      // name-based fallback for prop-sourced accesses.
+    }
+  }
+  void pendingDrills
 
   const routedComponentIds = new Set([...pageTargets.values()].flatMap(targets => [...targets]))
   const sharedAppComponents = [...appDirect].filter(id => !routedComponentIds.has(id))
