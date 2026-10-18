@@ -89,6 +89,13 @@ export function attestBrowserExecution(run: VerificationRun, recordPath: string)
   return attested
 }
 
+/** Preserve a receipt only while the domain layer changes executor-owned status metadata. */
+export function carryTrustedBrowserExecution(source: VerificationRun, target: VerificationRun): VerificationRun {
+  assertTrustedBrowserExecution(source)
+  receipts.set(target, JSON.stringify(target))
+  return target
+}
+
 export function assertTrustedBrowserExecution(run: VerificationRun): void {
   const snapshot = receipts.get(run)
   if (!snapshot || snapshot !== JSON.stringify(run) || run.execution?.executor !== 'playwright') {

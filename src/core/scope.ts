@@ -12,17 +12,15 @@ const consumerRelations = new Set<Relation['kind']>([
 export interface PageImpact {
   pageRefs: string[]
   unresolved: string[]
+  certainty: 'source-proven' | 'partial' | 'unknown'
 }
 
 /** Follows only source-proven consumer edges; candidate writes fail closed on incomplete proof. */
 export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): PageImpact {
   const nodes = new Map(graph.nodes.map(node => [node.id, node]))
   const target = nodes.get(sourceRef)
-  if (!target) return { pageRefs: [], unresolved: [`目标不在当前源码图中：${sourceRef}`] }
+  if (!target) return { pageRefs: [], unresolved: [`目标不在当前源码图中：${sourceRef}`], certainty: 'unknown' }
 
-  const unresolved = graph.unresolved.length
-    ? [`源码图含有未解析依赖：${graph.unresolved.join('；')}`]
-    : []
   const incoming = new Map<string, Relation[]>()
   for (const edge of graph.edges) {
     if (!consumerRelations.has(edge.kind)) continue
@@ -31,6 +29,7 @@ export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): P
   }
 
   const pageRefs = new Set<string>()
+  const unresolved: string[] = []
   const visited = new Set<string>()
   const queue = [sourceRef]
   while (queue.length) {
@@ -59,6 +58,25 @@ export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): P
     }
   }
 
+  // An unresolved import matters only when its importing file is in this target's
+  // proven consumer subgraph. Unrelated project dependencies do not poison every edit.
+  const reachableFiles = new Set([...visited].filter(ref => ref.startsWith('file:')))
+  for (const ref of visited) {
+    const node = nodes.get(ref)
+    if (node?.location?.path) reachableFiles.add(`file:${node.location.path}`)
+  }
+  for (const dependency of graph.unresolved) {
+    const delimiter = dependency.indexOf(' → ')
+    if (delimiter < 0) continue
+    const importer = `file:${dependency.slice(0, delimiter)}`
+    if (reachableFiles.has(importer)) unresolved.push(`受影响子图含有未解析依赖：${dependency}`)
+  }
+
   if (!pageRefs.size) unresolved.push(`目标没有可证明的页面消费者：${sourceRef}`)
-  return { pageRefs: [...pageRefs].sort(), unresolved: [...new Set(unresolved)] }
+  const uniqueUnresolved = [...new Set(unresolved)]
+  return {
+    pageRefs: [...pageRefs].sort(),
+    unresolved: uniqueUnresolved,
+    certainty: uniqueUnresolved.length ? pageRefs.size ? 'partial' : 'unknown' : 'source-proven',
+  }
 }

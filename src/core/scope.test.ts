@@ -9,7 +9,7 @@ const graph: SourceGraph = {
     { id: 'page:home', kind: 'route', label: 'home', page: 'home' },
     { id: 'page:products', kind: 'route', label: 'products', page: 'products' },
     { id: 'component:ProductCard', kind: 'component', label: 'ProductCard', pages: ['home', 'products'] },
-    { id: 'component:HomeHero', kind: 'component', label: 'HomeHero', pages: ['home'] },
+    { id: 'component:HomeHero', kind: 'component', label: 'HomeHero', pages: ['home'], location: { path: 'src/pages/HomeHero.tsx' } },
     { id: 'data:shared-price', kind: 'data', label: 'price', value: '$10' },
     { id: 'data:hero-title', kind: 'data', label: 'title', value: 'Home' },
   ],
@@ -26,13 +26,22 @@ const graph: SourceGraph = {
 
 describe('source-proven page impact', () => {
   it('finds all consumers of a shared source and only the local page for a local source', () => {
-    expect(sourceProvenPageImpact(graph, 'data:shared-price')).toEqual({ pageRefs: ['page:home', 'page:products'], unresolved: [] })
-    expect(sourceProvenPageImpact(graph, 'data:hero-title')).toEqual({ pageRefs: ['page:home'], unresolved: [] })
+    expect(sourceProvenPageImpact(graph, 'data:shared-price')).toEqual({ pageRefs: ['page:home', 'page:products'], unresolved: [], certainty: 'source-proven' })
+    expect(sourceProvenPageImpact(graph, 'data:hero-title')).toEqual({ pageRefs: ['page:home'], unresolved: [], certainty: 'source-proven' })
   })
 
   it('does not promote semantic suggestions to proven impact and fails closed on incomplete graph data', () => {
     expect(sourceProvenPageImpact(graph, 'data:hero-title').pageRefs).not.toContain('page:products')
-    expect(sourceProvenPageImpact({ ...graph, unresolved: ['src/routes/extra.tsx → @/components/Unknown'] }, 'data:hero-title').unresolved).toHaveLength(1)
+    const independent = sourceProvenPageImpact({ ...graph, unresolved: ['src/routes/extra.tsx → @/components/Unknown'] }, 'data:hero-title')
+    expect(independent.unresolved).toEqual([])
+    expect(independent.certainty).toBe('source-proven')
     expect(sourceProvenPageImpact(graph, 'missing').unresolved[0]).toContain('不在当前源码图中')
+  })
+
+  it('keeps uncertainty when an unresolved import belongs to the affected consumer file', () => {
+    const affected = sourceProvenPageImpact({ ...graph, unresolved: ['src/pages/HomeHero.tsx → ./missing-component'] }, 'data:hero-title')
+    expect(affected.pageRefs).toEqual(['page:home'])
+    expect(affected.unresolved).toHaveLength(1)
+    expect(affected.certainty).toBe('partial')
   })
 })

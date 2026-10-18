@@ -65,6 +65,22 @@ function routeGraph(graph: SourceGraph) {
   }
 }
 
+function retireProjectCandidates(projectId: string, preserveUntilLast?: string): void {
+  const matching = [...candidates].filter(([, live]) => live.session.projectRevision.projectId === projectId)
+  matching.sort(([left], [right]) => Number(left === preserveUntilLast) - Number(right === preserveUntilLast))
+  for (const [id, live] of matching) {
+    removeCandidate(live.record)
+    candidates.delete(id)
+  }
+}
+
+function retireCandidate(candidateId: string): void {
+  const live = candidates.get(candidateId)
+  if (!live) return
+  removeCandidate(live.record)
+  candidates.delete(candidateId)
+}
+
 async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? '127.0.0.1'}`)
   if (!url.pathname.startsWith('/__ripple/api/')) return
@@ -79,6 +95,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     const snapshot = readProjectSnapshot(root)
     const graph = analyzeProject(root)
     if (snapshot.revision.sourceDigest !== graph.revision.sourceDigest) return reject(response, 409, '分析期间项目源码发生变化，请重新读取')
+    if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== snapshot.revision.projectId) retireCandidate(body.previousCandidateId)
+    retireProjectCandidates(snapshot.revision.projectId, typeof body.previousCandidateId === 'string' ? body.previousCandidateId : undefined)
     projects.set(snapshot.revision.projectId, { root, graph })
     return json(response, 200, { projectRoot: root, ...routeGraph(graph) })
   }
@@ -103,6 +121,8 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       const candidateSession = stageCandidate(staged, record)
       assertCandidateCurrent(record)
       const diff = fs.readFileSync(record.diffArtifact, 'utf8')
+      if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== project.graph.revision.projectId) retireCandidate(body.previousCandidateId)
+      retireProjectCandidates(project.graph.revision.projectId, typeof body.previousCandidateId === 'string' ? body.previousCandidateId : undefined)
       candidates.set(record.id, { record, session: candidateSession })
       return json(response, 200, {
         sessionId,
@@ -111,7 +131,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         verification: { state: 'not-run', reason: '当前工作台阶段不会执行目标项目代码；浏览器预演、审核与应用入口保持关闭。' },
       })
     } catch (error) {
-      removeCandidate(record)
+      if (fs.existsSync(record.markerPath)) removeCandidate(record)
       throw error
     }
   }

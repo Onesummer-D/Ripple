@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
-import type { ProjectRevision, Relation, SourceGraph, SourceNode } from './model'
+import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeSourceMap, SourceGraph, SourceNode } from './model'
 
 export class ProjectReadError extends Error {
   constructor(message: string) { super(message); this.name = 'ProjectReadError' }
@@ -32,6 +32,8 @@ function trackedFiles(root: string): string[] {
   return output.split('\0').filter(Boolean).sort((a, b) => a.localeCompare(b, 'en'))
 }
 
+export function trackedProjectFiles(root: string): string[] { return trackedFiles(gitRoot(root)) }
+
 function fileBytes(root: string, relative: string): Uint8Array {
   const absolute = path.resolve(root, relative)
   const rel = path.relative(root, absolute)
@@ -45,7 +47,7 @@ function fileBytes(root: string, relative: string): Uint8Array {
 export function digestTrackedTree(root: string, files = trackedFiles(gitRoot(root))): string {
   const absoluteRoot = gitRoot(root)
   const hash = createHash('sha256')
-  for (const relative of files) {
+  for (const relative of [...new Set(files)].sort((left, right) => left.localeCompare(right, 'en'))) {
     const bytes = fileBytes(absoluteRoot, relative)
     hash.update(String(Buffer.byteLength(relative))).update(':').update(relative).update(':')
       .update(String(bytes.byteLength)).update(':').update(sha256(bytes)).update('\n')
@@ -404,8 +406,24 @@ export function resolveJsxSourceElement(graph: SourceGraph, sourceRef: string): 
   return { element, editableText }
 }
 
-export function resolveRuntimeElement(graph: SourceGraph, selection: { sourceRef: string; runtimeInstanceId: string }): { element: SourceNode; runtimeInstanceId: string; editableText: SourceNode[] } {
+export function createRuntimeSourceMap(graph: SourceGraph, observations: RuntimeElementObservation[]): RuntimeSourceMap {
+  const nodes = new Map(graph.nodes.filter(node => node.kind === 'jsx-element').map(node => [node.id, node]))
+  const ids = new Set<string>()
+  for (const observation of observations) {
+    if (!nodes.has(observation.sourceRef)) throw new ProjectReadError(`运行时元素引用了未映射的 JSX 源码：${observation.sourceRef}`)
+    if (!observation.runtimeInstanceId || ids.has(observation.runtimeInstanceId)) throw new ProjectReadError('运行时实例标识缺失或重复')
+    if (observation.certainty === 'unmapped') throw new ProjectReadError('未映射的运行时元素不能进入源码选择')
+    ids.add(observation.runtimeInstanceId)
+  }
+  return { graphId: graph.id, sourceDigest: graph.revision.sourceDigest, runtimeFingerprint: graph.revision.runtimeFingerprint, observations: observations.map(item => ({ ...item })) }
+}
+
+export function resolveRuntimeElement(graph: SourceGraph, selection: { sourceRef: string; runtimeInstanceId: string }, runtimeMap: RuntimeSourceMap): { element: SourceNode; runtimeInstanceId: string; editableText: SourceNode[] } {
   if (!selection.runtimeInstanceId || selection.runtimeInstanceId === selection.sourceRef) throw new ProjectReadError('运行时实例标识必须与 JSX 源码锚点分离')
+  if (runtimeMap.graphId !== graph.id || runtimeMap.sourceDigest !== graph.revision.sourceDigest || runtimeMap.runtimeFingerprint !== graph.revision.runtimeFingerprint) throw new ProjectReadError('运行时映射不再对应当前源码图或运行环境')
+  const observation = runtimeMap.observations.find(item => item.runtimeInstanceId === selection.runtimeInstanceId)
+  if (!observation || observation.sourceRef !== selection.sourceRef) throw new ProjectReadError('运行时实例与 JSX 源码锚点的双向映射不匹配')
+  if (observation.certainty === 'position-dependent') throw new ProjectReadError('列表实例缺少稳定 key，不能作为长期编辑目标')
   const resolved = resolveJsxSourceElement(graph, selection.sourceRef)
   return { ...resolved, runtimeInstanceId: selection.runtimeInstanceId }
 }

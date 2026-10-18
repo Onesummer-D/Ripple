@@ -4,7 +4,10 @@ import * as fs from 'node:fs'
 import type { AppliedRevision, EditSession } from './model'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
-import { digestTrackedTree, readProjectSnapshot } from './project'
+import { digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from './project'
+import { assertTrustedBrowserExecution } from './verification'
+
+const appliedTreeDigest = (root: string, candidate: CandidateRecord) => digestTrackedTree(root, [...new Set([...trackedProjectFiles(root), ...candidate.modifiedPaths])])
 
 export class PatchApplyError extends Error {
   constructor(message: string) { super(message); this.name = 'PatchApplyError' }
@@ -25,6 +28,7 @@ function approvedCandidate(session: EditSession, candidate: CandidateRecord) {
       run.candidateTreeDigest !== candidate.candidateTreeDigest || !session.projectRevision.gitCommit) {
     throw new PatchApplyError('只有当前已验证并获批的同一候选补丁可以应用')
   }
+  assertTrustedBrowserExecution(run)
   return { approval }
 }
 
@@ -46,14 +50,14 @@ export function applyApprovedCandidate(session: EditSession, candidate: Candidat
   git(candidate.projectRoot, ['apply', '--check', '--binary', '--', patchPath])
   git(candidate.projectRoot, ['apply', '--binary', '--', patchPath])
 
-  const targetDigest = digestTrackedTree(candidate.projectRoot)
+  const targetDigest = appliedTreeDigest(candidate.projectRoot, candidate)
   if (targetDigest !== candidate.candidateTreeDigest) {
     try {
       git(candidate.projectRoot, ['apply', '--reverse', '--binary', '--', patchPath])
     } catch (rollbackError) {
       throw new PatchApplyError(`应用后的源码与已验证候选不一致，自动恢复也失败；现场已保留以便人工处理：${String(rollbackError)}`)
     }
-    if (digestTrackedTree(candidate.projectRoot) !== candidate.baseSourceDigest) {
+    if (digestTrackedTree(candidate.projectRoot, trackedProjectFiles(candidate.projectRoot)) !== candidate.baseSourceDigest) {
       throw new PatchApplyError('应用结果不匹配候选，补丁已逆向但原基线摘要仍不匹配；现场已保留')
     }
     throw new PatchApplyError('补丁应用结果与已验证候选树摘要不一致；已恢复原基线')
@@ -76,14 +80,17 @@ export function rollbackAppliedCandidate(session: EditSession, candidate: Candid
       applied.commit !== session.projectRevision.gitCommit) {
     throw new PatchApplyError('回滚身份与已应用的候选补丁不匹配')
   }
+  const run = session.runs.find(item => item.id === applied.approval.verificationRunId)
+  if (!run || run.status !== 'passed') throw new PatchApplyError('回滚记录没有当前通过的验证运行')
+  assertTrustedBrowserExecution(run)
   const current = readProjectSnapshot(candidate.projectRoot, false)
-  if (current.revision.gitCommit !== applied.commit || current.revision.sourceDigest !== applied.targetSourceDigest) {
+  if (current.revision.gitCommit !== applied.commit || appliedTreeDigest(candidate.projectRoot, candidate) !== applied.targetSourceDigest) {
     throw new PatchApplyError('原工程在应用后又发生变化；拒绝回滚以免覆盖新修改')
   }
   const patchPath = readPatch(candidate)
   git(candidate.projectRoot, ['apply', '--reverse', '--check', '--binary', '--', patchPath])
   git(candidate.projectRoot, ['apply', '--reverse', '--binary', '--', patchPath])
-  if (digestTrackedTree(candidate.projectRoot) !== applied.baseSourceDigest) {
+  if (digestTrackedTree(candidate.projectRoot, trackedProjectFiles(candidate.projectRoot)) !== applied.baseSourceDigest) {
     throw new PatchApplyError('回滚后工程摘要不等于候选基线；现场已保留以便人工处理')
   }
 }

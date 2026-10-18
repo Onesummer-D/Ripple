@@ -10,7 +10,7 @@ interface TargetSummary {
   label: string
   value?: string
   location?: { path: string; start?: number; end?: number }
-  impact: { pageRefs: string[]; unresolved: string[] }
+  impact: { pageRefs: string[]; unresolved: string[]; certainty: 'source-proven' | 'partial' | 'unknown' }
 }
 interface Analysis {
   projectRoot: string
@@ -49,58 +49,76 @@ export default function ProjectWorkbench() {
   const [after, setAfter] = useState('')
   const [operations, setOperations] = useState<EditOperation[]>([])
   const [pageScope, setPageScope] = useState<Record<string, PageScope>>({})
+  const [scopeStrategy, setScopeStrategy] = useState<'shared' | 'page-override'>('shared')
+  const [localPageRef, setLocalPageRef] = useState('')
   const [candidate, setCandidate] = useState<CandidateView>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const target = analysis?.targets.find(item => item.id === targetId)
   const impactedPages = useMemo(() => [...new Set(operations.flatMap(operation => analysis?.targets.find(item => item.id === operation.targetRef)?.impact.pageRefs ?? []))].sort(), [analysis, operations])
   const scopesComplete = !!analysis && analysis.routes.every(route => !!pageScope[route.id])
+  const includedRoutes = analysis?.routes.filter(route => pageScope[route.id] === 'include') ?? []
+  const scopesValid = scopeStrategy === 'shared' || (includedRoutes.length === 1 && includedRoutes[0].id === localPageRef)
 
   async function analyze() {
-    setBusy(true); setError(''); setCandidate(undefined); setOperations([]); setAnalysis(undefined)
+    setBusy(true); setError('')
     try {
-      const next = await post<Analysis>('analyze', { projectRoot: projectPath })
+      const next = await post<Analysis>('analyze', { projectRoot: projectPath, previousCandidateId: candidate?.id })
       setProjectPath(next.projectRoot)
       setAnalysis(next)
+      setCandidate(undefined)
+      setOperations([])
       const firstEditable = next.targets.find(item => item.value !== undefined && item.impact.pageRefs.length > 0 && item.impact.unresolved.length === 0)
       if (firstEditable) { setTargetId(firstEditable.id); setAfter(firstEditable.value ?? '') }
       setPageScope(Object.fromEntries(next.routes.map(route => [route.id, ''])))
+      setLocalPageRef(next.routes[0]?.id ?? '')
+      setScopeStrategy('shared')
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法分析项目') }
     finally { setBusy(false) }
   }
 
-  function addOperation() {
+  async function invalidateCandidate(): Promise<boolean> {
+    if (!candidate) return true
+    setBusy(true); setError('')
+    try {
+      await post('discard', { candidateId: candidate.id })
+      setCandidate(current => current?.id === candidate.id ? undefined : current)
+      return true
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '无法清理过期候选')
+      return false
+    } finally { setBusy(false) }
+  }
+
+  async function addOperation() {
     if (!target || target.value === undefined || target.value === after) return
     if (operations.some(operation => operation.targetRef === target.id)) { setError('同一候选中每个源码目标只能编辑一次'); return }
+    if (!await invalidateCandidate()) return
     const operation: EditOperation = { id: `operation-${crypto.randomUUID()}`, kind: operationKind(target.kind), targetRef: target.id, before: target.value, after }
     setOperations(current => [...current, operation])
-    setCandidate(undefined); setError('')
+    setError('')
   }
 
   async function createCandidate() {
     if (!analysis || !operations.length || !intent.trim() || !scopesComplete) return
-    setBusy(true); setError(''); setCandidate(undefined)
+    setBusy(true); setError('')
     const scope: ScopeDecision = {
       id: `scope-${crypto.randomUUID()}`, version: 1,
+      strategy: scopeStrategy,
+      ...(scopeStrategy === 'page-override' ? { localPageRef } : {}),
       includedRefs: [...operations.map(operation => operation.targetRef), ...analysis.routes.filter(route => pageScope[route.id] === 'include').map(route => route.id)],
       excludedRefs: analysis.routes.filter(route => pageScope[route.id] === 'exclude').map(route => route.id),
       protectedRefs: analysis.routes.filter(route => pageScope[route.id] === 'protect').map(route => route.id),
       decidedBy: 'local-user', decidedAt: new Date().toISOString(),
     }
     try {
-      const result = await post<{ candidate: CandidateView }>('candidate', { projectId: analysis.revision.projectId, rawIntent: intent, operations, scope })
+      const result = await post<{ candidate: CandidateView }>('candidate', { projectId: analysis.revision.projectId, rawIntent: intent, operations, scope, previousCandidateId: candidate?.id })
       setCandidate(result.candidate)
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法创建隔离候选') }
     finally { setBusy(false) }
   }
 
-  async function discardCandidate() {
-    if (!candidate) return
-    setBusy(true); setError('')
-    try { await post('discard', { candidateId: candidate.id }); setCandidate(undefined) }
-    catch (cause) { setError(cause instanceof Error ? cause.message : '无法清理候选') }
-    finally { setBusy(false) }
-  }
+  async function discardCandidate() { await invalidateCandidate() }
 
   return <main className="workbench-shell">
     <header className="workbench-header">
@@ -136,18 +154,24 @@ export default function ProjectWorkbench() {
 
         <section className="panel edit-panel">
           <div className="section-title compact"><span className="step-badge">03</span><div><h2>意图与操作</h2><p>一条 EditSession 支持多项 TEXT / MEDIA / TOKEN 修改</p></div></div>
-          <label className="field-label" htmlFor="intent">保留用户原始意图</label><textarea id="intent" data-testid="intent-input" className="intent-field" value={intent} onChange={event => setIntent(event.target.value)} placeholder="例如：只优化首页主标题和按钮文案，保留青野网站的视觉设计。" />
-          <div className="target-fields"><label><span className="field-label">真实源码目标</span><select data-testid="target-select" value={targetId} onChange={event => { const nextId = event.target.value; const nextTarget = analysis.targets.find(item => item.id === nextId); setTargetId(nextId); setAfter(nextTarget?.value ?? '') }}><option value="">选择分析到的目标</option>{analysis.targets.map(item => <option key={item.id} value={item.id}>{operationKind(item.kind)} · {item.label} · {item.location?.path}#{item.location?.start}</option>)}</select></label><label><span className="field-label">候选值</span><input data-testid="after-input" value={after} onChange={event => setAfter(event.target.value)} placeholder="输入新的源码值" /></label></div>
+          <label className="field-label" htmlFor="intent">保留用户原始意图</label><textarea id="intent" data-testid="intent-input" className="intent-field" value={intent} disabled={!!candidate} onChange={event => setIntent(event.target.value)} placeholder="例如：只优化首页主标题和按钮文案，保留青野网站的视觉设计。" />
+          <div className="target-fields"><label><span className="field-label">真实源码目标</span><select data-testid="target-select" value={targetId} disabled={!!candidate} onChange={event => { const nextId = event.target.value; const nextTarget = analysis.targets.find(item => item.id === nextId); setTargetId(nextId); setAfter(nextTarget?.value ?? '') }}><option value="">选择分析到的目标</option>{analysis.targets.map(item => <option key={item.id} value={item.id}>{operationKind(item.kind)} · {item.label} · {item.location?.path}#{item.location?.start}</option>)}</select></label><label><span className="field-label">候选值</span><input data-testid="after-input" value={after} disabled={!!candidate} onChange={event => setAfter(event.target.value)} placeholder="输入新的源码值" /></label></div>
           {target && <div className="target-proof"><span className="proof-check">✓</span><div><strong>{target.location?.path}#{target.location?.start}</strong><small>{target.impact.pageRefs.length ? `可证明消费：${target.impact.pageRefs.map(ref => ref.replace('page:', '/')).join('、')}` : '没有可证明的页面消费者'}{target.impact.unresolved.length ? ` · 待确认 ${target.impact.unresolved.length} 项` : ''}</small></div><code>{target.impact.unresolved.length ? 'UNRESOLVED' : 'SOURCE-PROVEN'}</code></div>}
-          <button type="button" data-testid="add-operation" className="add-operation" onClick={addOperation} disabled={!target || !after || target.value === after || !!target?.impact.unresolved.length}>＋ 加入本次修改</button>
-          {operations.length > 0 && <div className="operation-list"><h3>本次 EditSession <span>{operations.length} 项</span></h3>{operations.map(operation => <article className="operation-row" key={operation.id}><span className="op-kind">{operation.kind}</span><div><code>{analysis.targets.find(item => item.id === operation.targetRef)?.location?.path}</code><p><del>{operation.before}</del><b>→</b><strong>{operation.after}</strong></p></div><button type="button" aria-label="移除此操作" onClick={() => { setOperations(current => current.filter(item => item.id !== operation.id)); setCandidate(undefined) }}>×</button></article>)}</div>}
+          <button type="button" data-testid="add-operation" className="add-operation" onClick={() => void addOperation()} disabled={busy || !target || !after || target.value === after || !!target?.impact.unresolved.length}>＋ 加入本次修改</button>
+          {operations.length > 0 && <div className="operation-list"><h3>本次 EditSession <span>{operations.length} 项</span></h3>{operations.map(operation => <article className="operation-row" key={operation.id}><span className="op-kind">{operation.kind}</span><div><code>{analysis.targets.find(item => item.id === operation.targetRef)?.location?.path}</code><p><del>{operation.before}</del><b>→</b><strong>{operation.after}</strong></p></div><button type="button" aria-label="移除此操作" disabled={busy} onClick={() => void invalidateCandidate().then(ok => { if (ok) setOperations(current => current.filter(item => item.id !== operation.id)) })}>×</button></article>)}</div>}
         </section>
       </div>
 
       <section className="panel scope-panel">
         <div className="section-title compact"><span className="step-badge">04</span><div><h2>明确 Scope</h2><p>每个实际页面都要明确选择包含、排除或保护；共享来源的传播会在执行器内复核。</p></div></div>
-        {analysis.routes.length === 0 ? <p className="empty-note">尚未解析出路由，当前不能生成页面范围候选。</p> : <div className="scope-grid">{analysis.routes.map(route => <label className={`scope-route ${pageScope[route.id] ? `scope-${pageScope[route.id]}` : ''}`} key={route.id}><span className="scope-route-head"><strong>{route.label}</strong><code>{route.id}</code></span><select data-testid={`scope-${route.id}`} aria-label={`${route.label} 页面范围`} value={pageScope[route.id] ?? ''} onChange={event => { setPageScope(current => ({ ...current, [route.id]: event.target.value as PageScope })); setCandidate(undefined) }}><option value="">请选择范围</option><option value="include">包含在候选中</option><option value="exclude">明确排除</option><option value="protect">保护，不得修改</option></select>{impactedPages.includes(route.id) && <small>目标源码的已证明消费者</small>}</label>)}</div>}
-        <div className="scope-footer"><span>{operations.length} 项操作 · {impactedPages.length} 个已证明页面消费者</span><button type="button" data-testid="create-real-candidate" onClick={() => void createCandidate()} disabled={busy || !analysis || !intent.trim() || !operations.length || !scopesComplete}>{busy ? '正在创建隔离候选…' : '创建真实隔离候选'}<span>↗</span></button></div>
+        <fieldset className="scope-strategy" disabled={busy || !operations.length}>
+          <legend>共享源码冲突时的处理方式</legend>
+          <label><input type="radio" name="scope-strategy" value="shared" checked={scopeStrategy === 'shared'} onChange={() => void invalidateCandidate().then(ok => { if (ok) setScopeStrategy('shared') })} /> 修改共享来源，并纳入全部受影响页面</label>
+          <label><input type="radio" name="scope-strategy" value="page-override" checked={scopeStrategy === 'page-override'} onChange={() => void invalidateCandidate().then(ok => { if (ok) setScopeStrategy('page-override') })} /> 仅在一个页面创建可维护覆盖，不改共享值</label>
+          {scopeStrategy === 'page-override' && <label className="local-page-choice">覆盖页面<select aria-label="选择局部覆盖页面" value={localPageRef} onChange={event => void invalidateCandidate().then(ok => { if (ok) setLocalPageRef(event.target.value) })}>{analysis.routes.map(route => <option key={route.id} value={route.id}>{route.label}</option>)}</select><small>当前执行器支持 JSX 文本；MEDIA、TOKEN 和运行时单实例覆盖仍未接入。</small></label>}
+        </fieldset>
+        {analysis.routes.length === 0 ? <p className="empty-note">尚未解析出路由，当前不能生成页面范围候选。</p> : <div className="scope-grid">{analysis.routes.map(route => <label className={`scope-route ${pageScope[route.id] ? `scope-${pageScope[route.id]}` : ''}`} key={route.id}><span className="scope-route-head"><strong>{route.label}</strong><code>{route.id}</code></span><select data-testid={`scope-${route.id}`} aria-label={`${route.label} 页面范围`} value={pageScope[route.id] ?? ''} disabled={busy} onChange={event => { const value = event.target.value as PageScope; void invalidateCandidate().then(ok => { if (ok) setPageScope(current => ({ ...current, [route.id]: value })) }) }}><option value="">请选择范围</option><option value="include">包含在候选中</option><option value="exclude">明确排除</option><option value="protect">保护，不得修改</option></select>{impactedPages.includes(route.id) && <small>目标源码的已证明消费者</small>}</label>)}</div>}
+        <div className="scope-footer"><span>{operations.length} 项操作 · {impactedPages.length} 个已证明页面消费者{scopeStrategy === 'page-override' ? ' · 一项页面覆盖' : ''}</span><button type="button" data-testid="create-real-candidate" onClick={() => void createCandidate()} disabled={busy || !analysis || !intent.trim() || !operations.length || !scopesComplete || !scopesValid}>{busy ? '正在创建隔离候选…' : '创建真实隔离候选'}<span>↗</span></button></div>
       </section>
 
       {candidate && <section className="panel candidate-panel"><div className="candidate-head"><div><span className="eyebrow">ISOLATED CANDIDATE</span><h2>候选补丁已生成</h2><p>这是真实 Git worktree 中产生的源码差异，尚未运行目标项目或应用。</p></div><button type="button" data-testid="discard-candidate" className="quiet-button" onClick={() => void discardCandidate()} disabled={busy}>清理候选</button></div><div className="hash-grid"><div><span>候选 ID</span><code data-testid="candidate-id">{candidate.id}</code></div><div><span>Patch SHA-256</span><code>{candidate.patchHash}</code></div><div><span>候选树摘要</span><code>{candidate.candidateTreeDigest}</code></div></div><div className="candidate-files"><span>修改文件</span>{candidate.modifiedPaths.map(file => <code key={file}>{file}</code>)}</div><pre className="diff-view" data-testid="candidate-diff" aria-label="真实候选补丁差异">{candidate.diff}</pre><div className="verification-state" data-testid="verification-state"><span>NOT RUN</span><p>浏览器预演、正式验证、批准、应用和回滚仍关闭；本阶段不会把未执行的检查显示为通过。</p></div></section>}

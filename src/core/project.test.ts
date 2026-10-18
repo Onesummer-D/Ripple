@@ -4,8 +4,9 @@ import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidate } from './candidate'
-import { analyzeProject, readProjectSnapshot, resolveJsxSourceElement, resolveRuntimeElement } from './project'
+import { analyzeProject, createRuntimeSourceMap, digestTrackedTree, readProjectSnapshot, resolveJsxSourceElement, resolveRuntimeElement, trackedProjectFiles } from './project'
 import { sourceAnnotationPlugin } from './source-annotation'
+import { sourceProvenPageImpact } from './scope'
 import * as verificationApi from './verification'
 import { applyApprovedCandidate, rollbackAppliedCandidate } from './apply'
 import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
@@ -55,7 +56,9 @@ function sampleProject() {
   fs.mkdirSync(path.join(root, 'src', 'components'), { recursive: true })
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'sample', scripts: { build: 'vite build' } }))
   fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
-  fs.writeFileSync(path.join(root, 'src', 'App.tsx'), `import { useState } from 'react';\nimport { Navigation } from './components/Navigation';\nimport { HomePage } from './pages/HomePage';\nimport { AutumnPage } from './pages/AutumnPage';\nexport function App() { const [currentPage, setCurrentPage] = useState('home'); return <><Navigation />{currentPage === 'home' && <HomePage />}{currentPage === 'autumn' && <AutumnPage />}</>; }`)
+  fs.writeFileSync(path.join(root, 'index.html'), `<!doctype html><html><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>`)
+  fs.writeFileSync(path.join(root, 'src', 'main.tsx'), `import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />);`)
+  fs.writeFileSync(path.join(root, 'src', 'App.tsx'), `import { useState } from 'react';\nimport { Navigation } from './components/Navigation';\nimport { HomePage } from './pages/HomePage';\nimport { AutumnPage } from './pages/AutumnPage';\nexport function App() { const [currentPage, setCurrentPage] = useState('home'); return <><button aria-label="Home route" onClick={() => setCurrentPage('home')} /><button aria-label="Autumn route" onClick={() => setCurrentPage('autumn')} />{currentPage === 'home' && <><Navigation /><HomePage /></>}{currentPage === 'autumn' && <><Navigation /><AutumnPage /></>}</>; }`)
   fs.writeFileSync(path.join(root, 'src', 'components', 'Navigation.tsx'), `export function Navigation() { return <nav><a>Home</a></nav> }`)
   fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `export function HomePage() {
       const product = { image: '/images/a.webp' };
@@ -124,12 +127,49 @@ describe('real project graph and candidate executor', () => {
     const transformed = await Reflect.apply(plugin.transform, undefined, [source, file]) as { code?: string } | string | null
     const transformedCode = typeof transformed === 'object' && transformed && 'code' in transformed ? transformed.code : transformed
     expect(transformedCode).toContain(`data-ripple-source="jsx:src/pages/HomePage.tsx#${source.indexOf('<main>')}`)
-    expect(transformedCode).toContain('data-ripple-instance={(() =>')
+    expect(transformedCode).toContain('data-ripple-instance={window.location.pathname +')
+    expect(transformedCode).toContain('useId as __rippleUseId')
+    expect(transformedCode).not.toContain('__rippleInstanceCounters')
     const graph = analyzeProject(root)
-    expect(() => resolveRuntimeElement(graph, { sourceRef: 'jsx:src/pages/HomePage.tsx#0', runtimeInstanceId: 'jsx:src/pages/HomePage.tsx#0' })).toThrow(/必须与 JSX/)
     const headingSource = graph.nodes.find(node => node.kind === 'jsx-element' && node.label === '<h1>')!
-    expect(resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: `${headingSource.id}@0` }).element.id).toBe(headingSource.id)
+    const runtimeMap = createRuntimeSourceMap(graph, [{ sourceRef: headingSource.id, runtimeInstanceId: 'route:/home:card:42', certainty: 'stable-keyed-instance' }])
+    expect(() => resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: headingSource.id }, runtimeMap)).toThrow(/必须与 JSX/)
+    expect(resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: 'route:/home:card:42' }, runtimeMap).element.id).toBe(headingSource.id)
+    expect(() => resolveRuntimeElement(graph, { sourceRef: 'jsx:src/pages/HomePage.tsx#0', runtimeInstanceId: 'route:/home:card:42' }, runtimeMap)).toThrow(/双向映射不匹配/)
+    expect(() => createRuntimeSourceMap(graph, [{ sourceRef: headingSource.id, runtimeInstanceId: 'position-1', certainty: 'position-dependent' }])).not.toThrow()
+    const positionalMap = createRuntimeSourceMap(graph, [{ sourceRef: headingSource.id, runtimeInstanceId: 'position-1', certainty: 'position-dependent' }])
+    expect(() => resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: 'position-1' }, positionalMap)).toThrow(/缺少稳定 key/)
+    expect(() => resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: 'route:/home:card:42' }, { ...runtimeMap, sourceDigest: 'old-source' })).toThrow(/不再对应/)
     expect(fs.readFileSync(file, 'utf8')).toBe(source)
+  })
+
+  it('injects stable-key identity into JSX without adding TypeScript-only syntax', async () => {
+    const { root } = sampleProject()
+    const file = path.join(root, 'src', 'pages', 'List.jsx')
+    const source = `export const ProductList = ({ products }) => <ul>{products.map(product => <li key={product.id}><img src={product.image} />{product.name}</li>)}</ul>`
+    const plugin = sourceAnnotationPlugin(root)
+    if (!plugin.transform || typeof plugin.transform !== 'function') throw new Error('Expected a transform hook')
+    const transformed = await Reflect.apply(plugin.transform, undefined, [source, file]) as { code?: string } | string | null
+    const result = typeof transformed === 'object' && transformed && 'code' in transformed ? transformed.code! : String(transformed)
+    expect(result).toContain(`data-ripple-source="jsx:src/pages/List.jsx#${source.indexOf('<ul>')}`)
+    expect(result).toContain('data-ripple-list-key={String(product.id)}')
+    expect(result).toContain('stable-react-instance')
+    expect(result).toContain('String(product.id)')
+    expect(result).not.toMatch(/\bas\s+(?:typeof|const|globalThis)\b/)
+    expect(result).not.toMatch(/:\s*(?:string|number)\b/)
+    expect(result).not.toContain('__rippleInstanceCounters')
+  })
+
+  it('marks unkeyed mapped elements as position-dependent instead of claiming stable identity', async () => {
+    const { root } = sampleProject()
+    const file = path.join(root, 'src', 'pages', 'List.jsx')
+    const source = `export const ProductList = ({ products }) => <ul>{products.map(product => <li>{product.name}</li>)}</ul>`
+    const plugin = sourceAnnotationPlugin(root)
+    if (!plugin.transform || typeof plugin.transform !== 'function') throw new Error('Expected a transform hook')
+    const transformed = await Reflect.apply(plugin.transform, undefined, [source, file]) as { code?: string } | string | null
+    const result = typeof transformed === 'object' && transformed && 'code' in transformed ? transformed.code! : String(transformed)
+    expect(result).toContain('position-dependent')
+    expect(result).not.toContain('__rippleInstanceCounters')
   })
 
   it('rejects an execution record whose browser check is recorded as failed', () => {
@@ -188,6 +228,47 @@ describe('real project graph and candidate executor', () => {
     const operation: EditOperation = { id: 'local-nav', kind: 'TEXT', targetRef: target.id, before: target.value!, after: 'Only home navigation' }
     expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-local-nav'), artifactRoot: path.join(container, 'local-nav-artifacts'), graph, scope, operations: [operation] })).toThrow(/影响 Scope 排除或保护的页面：page:autumn/)
     expect(readProjectSnapshot(root).revision.sourceDigest).toBe(graph.revision.sourceDigest)
+  }, 15_000)
+
+  it('stores a page-local override centrally while preserving the shared source value', async () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const target = graph.nodes.find(node => node.kind === 'data' && node.label === 'Home')!
+    expect(sourceProvenPageImpact(graph, target.id).pageRefs).toEqual(['page:autumn', 'page:home'])
+    const scope: ScopeDecision = {
+      id: 'scope-home-override', version: 1, strategy: 'page-override', localPageRef: 'page:home',
+      includedRefs: [target.id, 'page:home'], excludedRefs: ['page:autumn'], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString(),
+    }
+    const operation: EditOperation = { id: 'local-nav-brand', kind: 'TEXT', targetRef: target.id, before: target.value!, after: 'Home only brand' }
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-local-override'), artifactRoot: path.join(container, 'override-artifacts'), graph, scope, operations: [operation] })
+    try {
+      const patch = fs.readFileSync(candidate.artifactPath!, 'utf8')
+      const navigation = fs.readFileSync(path.join(candidate.candidateRoot!, 'src', 'components', 'Navigation.tsx'), 'utf8')
+      const registry = JSON.parse(fs.readFileSync(path.join(candidate.candidateRoot!, '.ripple', 'overrides.json'), 'utf8')) as { pages: Record<string, Record<string, string>> }
+      expect(navigation).toContain('<RippleText')
+      expect(navigation).not.toContain('Home only brand')
+      expect(registry.pages['page:home'][target.id]).toBe('Home only brand')
+      expect(fs.readFileSync(path.join(candidate.candidateRoot!, 'src', 'App.tsx'), 'utf8')).toContain('<RipplePageForState state={currentPage}')
+      expect(patch).toContain('overrides-runtime.js')
+      expect(candidate.modifiedPaths).toContain('.ripple/overrides.json')
+      expect(candidate.candidateTreeDigest).not.toBe(candidate.baseSourceDigest)
+      expect(readProjectSnapshot(root).revision.sourceDigest).toBe(graph.revision.sourceDigest)
+      const dist = path.join(container, 'page-override-build')
+      execFileSync(process.execPath, ['scripts/build-candidate-check.mjs', candidate.candidateRoot!, dist], { cwd: process.cwd(), stdio: 'pipe' })
+      const builtJavaScript = fs.readdirSync(path.join(dist, 'assets')).filter(file => file.endsWith('.js')).map(file => fs.readFileSync(path.join(dist, 'assets', file), 'utf8')).join('\n')
+      expect(builtJavaScript).toContain('Home only brand')
+      let session = recordSourceGraph(openSession('page-override-session', graph.revision, 'Change the shared label only on home'), graph.id, graph.revision.sourceDigest)
+      session = stageCandidate(stageOperations(chooseScope(session, scope), candidate.operations), candidate)
+      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'override-evidence'))
+      session = registerVerification(session, run)
+      session = approve(session, { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-18T00:02:00Z' })
+      session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
+      expect(digestTrackedTree(root, [...trackedProjectFiles(root), ...candidate.modifiedPaths])).toBe(candidate.candidateTreeDigest)
+      expect(fs.existsSync(path.join(root, '.ripple', 'overrides.json'))).toBe(true)
+      rollbackAppliedCandidate(session, candidate)
+      expect(fs.existsSync(path.join(root, '.ripple', 'overrides.json'))).toBe(false)
+      expect(digestTrackedTree(root)).toBe(graph.revision.sourceDigest)
+    } finally { removeCandidate(candidate) }
   }, 15_000)
 
   it('applies the exact approved patch to the project and rolls back only that unchanged result', () => {

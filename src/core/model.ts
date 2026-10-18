@@ -36,9 +36,22 @@ export interface SourceGraph {
   edges: Relation[]
   unresolved: string[]
 }
+export interface RuntimeElementObservation {
+  sourceRef: Id
+  runtimeInstanceId: Id
+  certainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unmapped'
+}
+export interface RuntimeSourceMap {
+  graphId: Id
+  sourceDigest: string
+  runtimeFingerprint: string
+  observations: RuntimeElementObservation[]
+}
 export interface ScopeDecision {
   id: Id
   version: number
+  strategy?: 'shared' | 'page-override'
+  localPageRef?: Id
   includedRefs: Id[]
   excludedRefs: Id[]
   protectedRefs: Id[]

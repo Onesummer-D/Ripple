@@ -1,5 +1,6 @@
 import type { AppliedRevision, Approval, CandidatePatch, EditOperation, EditSession, ProjectRevision, ScopeDecision, VerificationRun } from './model'
 import { assertTrustedBrowserExecution } from './verification'
+import { carryTrustedBrowserExecution } from './verification-receipt'
 
 export class SessionInvariantError extends Error {
   constructor(message: string) { super(message); this.name = 'SessionInvariantError' }
@@ -87,13 +88,15 @@ export function registerVerification(session: EditSession, run: VerificationRun)
   const complete = run.checks.filter(c => c.mandatory).every(c => verified.has(c.id))
   const hasRisks = run.evidence.some(e => e.result === 'risk' || e.result === 'failed-to-run')
   const status: VerificationRun['status'] = hasRisks ? 'risks' : complete ? 'passed' : 'incomplete'
-  return { ...session, runs: [...session.runs, { ...run, status }], approval: undefined, status: status === 'passed' ? 'verified' : 'candidate' }
+  const registeredRun = carryTrustedBrowserExecution(run, { ...run, status })
+  return { ...session, runs: [...session.runs, registeredRun], approval: undefined, status: status === 'passed' ? 'verified' : 'candidate' }
 }
 
 export function approve(session: EditSession, approval: Approval): EditSession {
   requireCondition(session.status === 'verified' && !!session.candidate, 'Only a verified candidate can be approved')
   const run = session.runs.find(r => r.id === approval.verificationRunId)
   requireCondition(!!approval.by && !!approval.at && approval.candidateId === session.candidate.id && !!run && run.candidateId === session.candidate.id && run.status === 'passed', 'Approval must bind to a passed verification run of the current candidate')
+  assertTrustedBrowserExecution(run)
   return { ...session, approval: { ...approval }, status: 'approved' }
 }
 
@@ -102,6 +105,8 @@ export function recordAppliedRevision(session: EditSession, applied: AppliedRevi
   requireCondition(session.status === 'approved' && !!patch && !!session.approval, 'Candidate must be approved before applying')
   requireCondition(applied.candidateId === patch.id && applied.appliedPatchHash === patch.patchHash && applied.baseSourceDigest === patch.baseSourceDigest && applied.targetSourceDigest === patch.candidateTreeDigest, 'Applied code must be exactly the verified candidate tree')
   requireCondition(applied.approval.verificationRunId === session.approval.verificationRunId && applied.approval.candidateId === patch.id, 'Application does not match approval')
-  requireCondition(currentRun(session)?.status === 'passed', 'Verification evidence is no longer current')
+  const run = currentRun(session)
+  requireCondition(run?.status === 'passed', 'Verification evidence is no longer current')
+  assertTrustedBrowserExecution(run)
   return { ...session, applied: { ...applied }, status: 'applied' }
 }

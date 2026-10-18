@@ -52,7 +52,7 @@ describe('loopback Project API', () => {
     expect(analysis.routes.map(route => route.id)).toEqual(['page:home'])
     const title = analysis.targets.find(target => target.label === 'Baseline title')!
     const cta = analysis.targets.find(target => target.label === 'Browse items')!
-    expect(title.impact).toEqual({ pageRefs: ['page:home'], unresolved: [] })
+    expect(title.impact).toEqual({ pageRefs: ['page:home'], unresolved: [], certainty: 'source-proven' })
     const scope = { id: 'scope-local-home', version: 1, includedRefs: ['page:home', title.id, cta.id], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() }
     const candidateResponse = await fetch(`${baseUrl}/__ripple/api/candidate`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({
       projectId: analysis.revision.projectId, rawIntent: 'Update the home hero while preserving other pages', scope,
@@ -71,6 +71,36 @@ describe('loopback Project API', () => {
     const discard = await fetch(`${baseUrl}/__ripple/api/discard`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(discard.status).toBe(200)
     expect((await discard.json()).removed).toBe(true)
+  }, 30_000)
+
+  it('retires superseded and reanalyzed candidates without leaving Git worktrees behind', async () => {
+    const projectRoot = makeGitProject()
+    await startApi()
+    const request = async (route: string, body: unknown) => fetch(`${baseUrl}/__ripple/api/${route}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify(body) })
+    const worktreeCount = () => execFileSync('git', ['-C', projectRoot, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' }).split(/\r?\n/).filter(line => line.startsWith('worktree ')).length
+    const analysisResponse = await request('analyze', { projectRoot })
+    const analysis = await analysisResponse.json() as { revision: { projectId: string }; targets: Array<{ id: string; value: string; impact: { pageRefs: string[] } }> }
+    const target = analysis.targets.find(item => item.value === 'Baseline title')!
+    const makeCandidate = (previousCandidateId?: string) => request('candidate', {
+      projectId: analysis.revision.projectId, rawIntent: 'Change the title', previousCandidateId,
+      scope: { id: `scope-${crypto.randomUUID()}`, version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() },
+      operations: [{ id: `op-${crypto.randomUUID()}`, kind: 'TEXT', targetRef: target.id, before: target.value, after: 'Replacement title' }],
+    })
+    const firstResponse = await makeCandidate()
+    expect(firstResponse.status).toBe(200)
+    const first = await firstResponse.json() as { candidate: { id: string } }
+    expect(worktreeCount()).toBe(2)
+
+    const secondResponse = await makeCandidate(first.candidate.id)
+    expect(secondResponse.status).toBe(200)
+    const second = await secondResponse.json() as { candidate: { id: string } }
+    expect(worktreeCount()).toBe(2)
+    expect((await request('discard', { candidateId: first.candidate.id })).status).toBe(404)
+
+    const reanalysis = await request('analyze', { projectRoot, previousCandidateId: second.candidate.id })
+    expect(reanalysis.status).toBe(200)
+    expect(worktreeCount()).toBe(1)
+    expect((await request('discard', { candidateId: second.candidate.id })).status).toBe(404)
   }, 30_000)
 
   it('rejects foreign origins, non-POST methods and dirty project roots', async () => {
