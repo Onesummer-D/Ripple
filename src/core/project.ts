@@ -110,22 +110,37 @@ const assetFileLike = (file: string) => /\.(avif|gif|jpe?g|png|svg|webp)$/i.test
 
 type DrilledProperty = { kind: 'value'; text: string } | { kind: 'asset'; assetFile: string }
 
+const IMAGE_PROPERTY = /^(src|srcSet|image|cover|poster|thumbnail|heroImage|avatar)$/i
+
 /** Values of `property` across object literals in an array literal (bounded, syntactic only).
- *  Identifier initializers are resolved through `resolveAsset` (imported-image bindings). */
+ *  Identifier initializers are resolved through `resolveAsset` (imported-image bindings).
+ *  Conservative by design: literals containing a spread, or a duplicated property key, are
+ *  skipped — their runtime value cannot be proven from syntax alone. */
 function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
   const values: DrilledProperty[] = []
   const arrayFile = array.getSourceFile()
   for (const element of array.elements) {
     if (!ts.isObjectLiteralExpression(element)) continue
+    if (element.properties.some(ts.isSpreadAssignment)) continue
+    const byName = new Map<string, ts.PropertyAssignment[]>()
     for (const entry of element.properties) {
-      if (!ts.isPropertyAssignment(entry) || propertyName(entry) !== property) continue
-      const literal = stringValue(entry.initializer)
-      if (literal) {
-        values.push({ kind: 'value', text: literal.text })
-      } else if (entry.initializer && ts.isIdentifier(entry.initializer)) {
-        const assetFile = resolveAsset(entry.initializer.text, arrayFile)
-        if (assetFile) values.push({ kind: 'asset', assetFile })
-      }
+      if (!ts.isPropertyAssignment(entry)) continue
+      const name = propertyName(entry)
+      if (!name) continue
+      if (!byName.has(name)) byName.set(name, [])
+      byName.get(name)!.push(entry)
+    }
+    const entries = byName.get(property)
+    // Duplicated key: runtime keeps the last value but provenance of which is "live" is
+    // not ours to guess — skip rather than emit a possibly-dead edge.
+    if (!entries || entries.length !== 1) continue
+    const initializer = entries[0].initializer
+    const literal = stringValue(initializer)
+    if (literal) {
+      values.push({ kind: 'value', text: literal.text })
+    } else if (initializer && ts.isIdentifier(initializer)) {
+      const assetFile = resolveAsset(initializer.text, arrayFile)
+      if (assetFile) values.push({ kind: 'asset', assetFile })
     }
   }
   return values
@@ -137,6 +152,8 @@ function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property:
  * to array literals, callback parameters of `.map` / `.filter` / `.slice`, and chained
  * calls of those methods. Anything outside this shape yields [] — the caller keeps the
  * honest lower-certainty result instead of guessing.
+ * Soundness rules: only `const` declarations are drilled (a reassigned `let` makes the
+ * initializer value non-provable); a conditional must have BOTH arms drillable.
  */
 function arrayDrill(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
   if (visited.has(expression)) return []
@@ -148,13 +165,19 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
       ?? ((symbol?.flags ?? 0) & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol!).valueDeclaration : undefined)
       ?? symbol?.declarations?.find(ts.isVariableDeclaration)
     if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
+      // A non-const declaration may be reassigned after initialization; the initializer's
+      // literals are then not the runtime values. Fail closed. (`const` lives on the
+      // VariableDeclarationList, so check both levels defensively.)
+      const constFlag = (declaration.flags | (ts.isVariableDeclarationList(declaration.parent) ? declaration.parent.flags : 0)) & ts.NodeFlags.Const
+      if (!constFlag) return []
       let initializer: ts.Expression = declaration.initializer
       if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
       if (ts.isParenthesizedExpression(initializer)) return arrayDrill(initializer.expression, property, checker, visited, resolveAsset)
       if (ts.isConditionalExpression(initializer)) {
-        // `const x = cond ? a.filter(...) : b.map(...)` — both arms must yield; union them.
+        // Only when BOTH arms drill do we know the property value regardless of runtime branch.
         const whenTrue = arrayDrill(initializer.whenTrue, property, checker, visited, resolveAsset)
         const whenFalse = arrayDrill(initializer.whenFalse, property, checker, visited, resolveAsset)
+        if (!whenTrue.length || !whenFalse.length) return []
         return [...whenTrue, ...whenFalse]
       }
       if (ts.isArrayLiteralExpression(initializer)) return objectLiteralPropertyValues(initializer, property, resolveAsset)
@@ -387,10 +410,17 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const specifier = statement.moduleSpecifier.text
       const scriptResolved = ts.resolveModuleName(specifier, absolute, compilerOptions, ts.sys).resolvedModule?.resolvedFileName
       const cssResolved = /\.css$/i.test(specifier) ? path.resolve(path.dirname(absolute), specifier) : undefined
-      // Vite convention fallback: `@/…` aliases to `<root>/src` when the project tsconfig does
-      // not declare paths (evidence: Lovable TanStack Start ships the alias only in vite.config).
+      // Alias resolution for asset specifiers the type checker refuses to resolve (e.g.
+      // `.jpg` imports): honor a declared `@/*` paths mapping when present, else the Vite
+      // convention `@/ → <root>/src` (evidence: Lovable TanStack Start declares paths
+      // `@/* → ./src/*` yet ts.resolveModuleName still fails on image files).
+      const declaredPaths = compilerOptions.paths ? Object.entries(compilerOptions.paths) : []
+      const aliasMapping = declaredPaths.find(([pattern]) => pattern === '@/*')
       const aliasResolved = specifier.startsWith('@/')
-        ? path.resolve(snapshot.root, 'src', specifier.slice(2)) : undefined
+        ? aliasMapping
+          ? path.resolve(snapshot.root, aliasMapping[1][0].replace(/\*$/, ''), specifier.slice(2))
+          : path.resolve(snapshot.root, 'src', specifier.slice(2))
+        : undefined
       const resolved = scriptResolved ?? (cssResolved && tracked.has(normalize(cssResolved)) ? cssResolved : undefined)
         ?? (aliasResolved && tracked.has(normalize(aliasResolved)) ? aliasResolved : undefined)
       if (!resolved || !tracked.has(normalize(resolved))) {
@@ -444,7 +474,10 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         if (literal && imageLike(literal.text)) {
           const sourcePath = relativeTo(snapshot.root, declaration!.getSourceFile().fileName)
           const media = mediaBySource.get(`${sourcePath}#${literal.getStart(declaration!.getSourceFile()) + 1}`)
-          if (media) {
+          // Same uniqueness rule as the drilling post-pass: upgrading requires that the value
+          // identifies exactly one media node; otherwise the edge stays a semantic candidate.
+          const unique = (mediaByValue.get(literal.text) ?? []).length === 1
+          if (media && unique) {
             addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset:${ownerComponent.id}:${media.id}:${node.getStart(source)}`)
             linked = true
           }
@@ -469,7 +502,9 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           const objectDeclaration = objectSymbol?.valueDeclaration
           const paramName = objectDeclaration && (ts.isParameter(objectDeclaration) || ts.isBindingElement(objectDeclaration)) && ts.isIdentifier(objectDeclaration.name)
             ? objectDeclaration.name.text : undefined
-          if (paramName) {
+          // Only image-bearing props can carry media provenance; queueing every prop access
+          // would cost a usage scan per access and strip unrelated name-based candidates.
+          if (paramName && IMAGE_PROPERTY.test(node.name.text)) {
             pendingDrills.push({ ownerId: ownerComponent.id, paramName, property: node.name.text, position: node.getStart(source), file: relative })
             linked = true
           }
