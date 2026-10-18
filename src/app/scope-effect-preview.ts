@@ -51,7 +51,7 @@ export function buildScopeEffectPreview({ routes, targets, operations, choices, 
       }
 
       if (!target.impact.pageRefs.includes(route.id)) {
-        return { ...base, outcome: 'preserve' as const, reason: '源码关系图未发现该页面消费此目标；没有可展示的页面级文本值。' }
+        return { ...base, outcome: 'unknown' as const, reason: '当前源码图没有证明该页面消费此目标，也没有足够证据确认其保持不变。' }
       }
       const { baselineText, requestedText } = pageTextValues(target, operation, route.id)
 

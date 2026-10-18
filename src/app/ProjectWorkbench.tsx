@@ -214,10 +214,12 @@ export default function ProjectWorkbench() {
   const scopeSuggestions = useMemo(() => {
     if (!analysis || !operations.length) return undefined
     const targets = operations.map(operation => analysis.targets.find(item => item.id === operation.targetRef))
-    if (targets.some(item => !item || item.impact.certainty !== 'source-proven' || item.impact.unresolved.length)) return undefined
+    if (targets.some(item => !item || item.impact.certainty !== 'source-proven' || item.impact.unresolved.length || !item.impact.pageRefs.length || item.impact.pageRefs.some(pageRef => !analysis.routes.some(route => route.id === pageRef)))) return undefined
     const operationPages = targets.map(item => new Set(item!.impact.pageRefs))
     const sharedPageRefs = [...new Set(operationPages.flatMap(pages => [...pages]))].filter(pageRef => analysis.routes.some(route => route.id === pageRef))
-    const localPageRefs = sharedPageRefs.filter(pageRef => operationPages.every(pages => pages.has(pageRef)))
+    const localPageRefs = operations.every((operation, index) => operation.kind === 'TEXT' && targets[index]?.kind === 'data')
+      ? sharedPageRefs.filter(pageRef => operationPages.every(pages => pages.has(pageRef)))
+      : []
     return { sharedPageRefs, localPageRefs }
   }, [analysis, operations])
   const scopesComplete = !!analysis && analysis.routes.every(route => !!pageScope[route.id])
@@ -568,8 +570,8 @@ export default function ProjectWorkbench() {
         <fieldset className="scope-suggestions" disabled={busy || previewBusy || verificationBusy || !operations.length || !scopeSuggestions} data-testid="scope-suggestions">
           <legend>从已证明的消费者快速填写建议</legend>
           <button type="button" data-testid="scope-preset-shared" onClick={() => void chooseScopePreset('shared')}>共享修改 · 包含所有已证明消费者</button>
-          <button type="button" data-testid="scope-preset-page" onClick={() => void chooseScopePreset('page-override')}>单页覆盖 · 只包含一个共同消费者</button>
-          <small>{scopeSuggestions ? '建议会明确填写每个页面的包含/排除值；你仍可逐页修改。下方只是计划预览，不是浏览器 Evidence。' : '当前操作缺少完整、已证明的页面消费关系；不会自动猜测范围。'}</small>
+          <button type="button" data-testid="scope-preset-page" disabled={!scopeSuggestions?.localPageRefs.length} onClick={() => void chooseScopePreset('page-override')}>单页覆盖 · 只包含一个共同消费者</button>
+          <small>{!scopeSuggestions ? '当前操作缺少完整、已证明的页面消费关系；不会自动猜测范围。' : scopeSuggestions.localPageRefs.length ? '建议会明确填写每个页面的包含/排除值；你仍可逐页修改。下方只是计划预览，不是浏览器 Evidence。' : operations.some(operation => operation.kind !== 'TEXT') ? '当前执行器仅支持 JSX 文本单页覆盖；其他操作仍可使用共享范围建议。' : '本次操作没有共同的已证明消费者，不能建议单页覆盖。'}</small>
         </fieldset>
         <fieldset className="scope-strategy" disabled={busy || previewBusy || verificationBusy || !operations.length}>
           <legend>共享源码冲突时的处理方式</legend>

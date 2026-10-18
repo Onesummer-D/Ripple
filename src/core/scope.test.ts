@@ -45,7 +45,40 @@ describe('source-proven page impact', () => {
     expect(affected.certainty).toBe('partial')
   })
 
-  it('does not treat imported media definitions as consumption, while retaining TEXT and TOKEN import propagation', () => {
+  it('distinguishes module imports from concrete TEXT reads and TOKEN uses', () => {
+    const nodes: SourceGraph['nodes'] = [
+      { id: 'page:home', kind: 'route', label: 'home', page: 'home' },
+      { id: 'page:shop', kind: 'route', label: 'shop', page: 'shop' },
+      { id: 'component:Home', kind: 'component', label: 'Home', pages: ['home'] },
+      { id: 'component:Shop', kind: 'component', label: 'Shop', pages: ['shop'] },
+      { id: 'file:src/copy.ts', kind: 'file', label: 'copy.ts' },
+      { id: 'file:src/theme.ts', kind: 'file', label: 'theme.ts' },
+      { id: 'data:home-title', kind: 'data', label: 'Home title', value: 'Home' },
+      { id: 'token:accent', kind: 'token', label: 'accent', value: '#246' },
+    ]
+    const edges: SourceGraph['edges'] = [
+      { id: 'home-render', from: 'page:home', to: 'component:Home', kind: 'renders', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'shop-render', from: 'page:shop', to: 'component:Shop', kind: 'renders', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'home-copy-import', from: 'component:Home', to: 'file:src/copy.ts', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'shop-copy-import', from: 'component:Shop', to: 'file:src/copy.ts', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'copy-definition', from: 'file:src/copy.ts', to: 'data:home-title', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'home-actual-read', from: 'component:Home', to: 'data:home-title', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'home-theme-import', from: 'component:Home', to: 'file:src/theme.ts', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'shop-theme-import', from: 'component:Shop', to: 'file:src/theme.ts', kind: 'imports', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'token-definition', from: 'file:src/theme.ts', to: 'token:accent', kind: 'reads', certainty: 'source-proven', evidenceRefs: [] },
+      { id: 'home-actual-token-use', from: 'component:Home', to: 'token:accent', kind: 'uses-token', certainty: 'source-proven', evidenceRefs: [] },
+    ]
+    const sourceGraph: SourceGraph = { ...graph, nodes, edges }
+
+    expect(sourceProvenPageImpact(sourceGraph, 'data:home-title')).toMatchObject({
+      pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
+    })
+    expect(sourceProvenPageImpact(sourceGraph, 'token:accent')).toMatchObject({
+      pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
+    })
+  })
+
+  it('does not treat imported media definitions as consumption and follows concrete TEXT reads and imported CSS token use', () => {
     const pages = ['home', 'shop', 'about', 'contact']
     const nodes: SourceGraph['nodes'] = [
       ...pages.flatMap(page => [
@@ -70,6 +103,7 @@ describe('source-proven page impact', () => {
         { id: `component-file:${page}`, from: `component:${page}`, to: `file:${page}`, kind: 'imports' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
         { id: `data-import:${page}`, from: `file:${page}`, to: 'file:src/data/products.ts', kind: 'imports' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
         { id: `token-import:${page}`, from: `file:${page}`, to: 'file:src/styles/tokens.css', kind: 'imports' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
+        { id: `actual-text-read:${page}`, from: `component:${page}`, to: 'data:shared-label', kind: 'reads' as const, certainty: 'source-proven' as const, evidenceRefs: [] },
       ]),
       { id: 'actual-image-use', from: 'component:home', to: 'media:consumed', kind: 'asset-consumer', certainty: 'source-proven', evidenceRefs: [] },
     ]
