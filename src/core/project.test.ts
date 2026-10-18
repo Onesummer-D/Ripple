@@ -158,8 +158,8 @@ describe('real project graph and candidate executor', () => {
     fs.writeFileSync(path.join(root, 'src', 'styles', 'z-card.css'), '.home-card { color: var(--brand-accent); }')
     const homeSource = fs.readFileSync(homePath, 'utf8')
     expect(homeSource).not.toContain('home-card')
-    fs.writeFileSync(homePath, `import '../styles/a-theme.css';\\nimport '../styles/z-card.css';\\n${homeSource}`)
-    fs.writeFileSync(aboutPath, `import '../styles/a-theme.css';\\n${fs.readFileSync(aboutPath, 'utf8')}`)
+    fs.writeFileSync(homePath, `import '../styles/a-theme.css';\nimport '../styles/z-card.css';\n${homeSource}`)
+    fs.writeFileSync(aboutPath, `import '../styles/a-theme.css';\n${fs.readFileSync(aboutPath, 'utf8')}`)
     git(root, 'add', '.')
     git(root, 'commit', '-qm', 'add CSS token import without matching selector')
 
