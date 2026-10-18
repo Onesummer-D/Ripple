@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { AppliedRevision, EditSession } from './model'
+import type { AppliedRevision, EditSession, RollbackRevision } from './model'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from './project'
@@ -74,7 +74,7 @@ export function applyApprovedCandidate(session: EditSession, candidate: Candidat
   }
 }
 
-export function rollbackAppliedCandidate(session: EditSession, candidate: CandidateRecord): void {
+export function rollbackAppliedCandidate(session: EditSession, candidate: CandidateRecord, at = new Date().toISOString()): RollbackRevision {
   const applied = session.applied
   if (session.status !== 'applied' || !applied || applied.candidateId !== candidate.id || applied.appliedPatchHash !== candidate.patchHash ||
       applied.baseSourceDigest !== candidate.baseSourceDigest || applied.targetSourceDigest !== candidate.candidateTreeDigest ||
@@ -93,5 +93,11 @@ export function rollbackAppliedCandidate(session: EditSession, candidate: Candid
   git(candidate.projectRoot, ['apply', '--reverse', '--binary', '--', patchPath])
   if (digestTrackedTree(candidate.projectRoot, trackedProjectFiles(candidate.projectRoot)) !== applied.baseSourceDigest) {
     throw new PatchApplyError('回滚后工程摘要不等于候选基线；现场已保留以便人工处理')
+  }
+  return {
+    candidateId: candidate.id,
+    appliedPatchHash: candidate.patchHash,
+    restoredSourceDigest: applied.baseSourceDigest,
+    rolledBackAt: at,
   }
 }

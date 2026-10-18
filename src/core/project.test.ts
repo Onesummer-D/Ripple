@@ -322,6 +322,27 @@ describe('real project graph and candidate executor', () => {
     }
   }, 15_000)
 
+  it('refuses rollback after a user adds a new edit to the applied project', () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const target = graph.nodes.find(node => node.kind === 'data' && node.label === 'Home title')!
+    const scope: ScopeDecision = { id: 'scope-rollback-conflict', version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() }
+    const operation: EditOperation = { id: 'rollback-conflict-title', kind: 'TEXT', targetRef: target.id, before: target.value!, after: 'Approved title' }
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-rollback-conflict'), artifactRoot: path.join(container, 'rollback-conflict-artifacts'), graph, scope, operations: [operation], candidateId: 'rollback-conflict' })
+    try {
+      let session = recordSourceGraph(openSession('rollback-conflict-session', graph.revision, 'Update title'), graph.id, graph.revision.sourceDigest)
+      session = stageCandidate(stageOperations(chooseScope(session, scope), candidate.operations), candidate)
+      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'rollback-conflict-evidence'))
+      session = approve(registerVerification(session, run), { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-18T00:02:00Z' })
+      session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
+      const appliedFile = path.join(root, target.location!.path)
+      fs.appendFileSync(appliedFile, '\n// user edit after Ripple application\n')
+      expect(() => rollbackAppliedCandidate(session, candidate)).toThrow(/拒绝回滚/)
+      expect(fs.readFileSync(appliedFile, 'utf8')).toContain('Approved title')
+      expect(fs.readFileSync(appliedFile, 'utf8')).toContain('user edit after Ripple application')
+    } finally { removeCandidate(candidate) }
+  }, 15_000)
+
   it('rejects a dirty baseline and rejects protected targets before creating a worktree', () => {
     const { container, root } = sampleProject()
     const graph = analyzeProject(root)

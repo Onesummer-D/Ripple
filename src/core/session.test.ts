@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import type { Approval, CandidatePatch, EditSession, ProjectRevision, ScopeDecision, VerificationRun } from './model'
-import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
+import { approve, beginVerification, chooseScope, openSession, recordAppliedRevision, recordRollback, recordSourceGraph, recordVerificationFailure, registerVerification, stageCandidate, stageOperations } from './session'
 import { attestBrowserExecution } from './verification-receipt'
 
 const revision: ProjectRevision = { projectId: 'bolt-shop', sourceDigest: 'tree-old', runtimeFingerprint: 'lock+vite+mock-data' }
@@ -105,6 +105,17 @@ describe('Project-first session invariants', () => {
     expect(verified.runs.at(-1)?.status).toBe('incomplete')
     expect(() => approve(verified, approvalFor(s.candidate!, run))).toThrow(/Only a verified/)
   })
+  it('invalidates the prior pass before a new browser attempt and persists a failed attempt without a false pass', () => {
+    const s = staged(), run = runFor(s.candidate!)
+    const verified = registerVerification(s, run)
+    const rerun = beginVerification(verified)
+    expect(rerun.status).toBe('candidate')
+    expect(rerun.runs.at(-1)?.status).toBe('stale')
+    expect(rerun.approval).toBeUndefined()
+    expect(() => approve(rerun, approvalFor(s.candidate!, run))).toThrow(/Only a verified/)
+    const failed = recordVerificationFailure(rerun, 'Docker runner exited before producing evidence', '2026-10-18T00:02:00Z')
+    expect(failed.verificationFailure).toMatchObject({ candidateId: s.candidate!.id, patchHash: s.candidate!.patchHash, reason: 'Docker runner exited before producing evidence' })
+  })
   it('marks previous evidence stale and clears candidate on scope adjustment', () => {
     const original = staged(), run = runFor(original.candidate!)
     const verified = registerVerification(original, run)
@@ -122,6 +133,14 @@ describe('Project-first session invariants', () => {
     expect(() => recordAppliedRevision(accepted, { ...applied, targetSourceDigest: 'different-tree' })).toThrow(/exactly/)
     expect(recordAppliedRevision(accepted, applied).status).toBe('applied')
     expect(() => chooseScope(recordAppliedRevision(accepted, applied), scope(2, 'scope-2'))).toThrow(/immutable/)
+  })
+  it('records rollback only for the exact applied candidate and restored baseline', () => {
+    const s = staged(), run = runFor(s.candidate!)
+    const accepted = approve(registerVerification(s, run), approvalFor(s.candidate!, run))
+    const applied = recordAppliedRevision(accepted, { candidateId: s.candidate!.id, approval: accepted.approval!, appliedPatchHash: s.candidate!.patchHash, baseSourceDigest: revision.sourceDigest, targetSourceDigest: s.candidate!.candidateTreeDigest, appliedAt: '2026-10-18T00:03:00Z' })
+    const rollback = { candidateId: s.candidate!.id, appliedPatchHash: s.candidate!.patchHash, restoredSourceDigest: revision.sourceDigest, rolledBackAt: '2026-10-18T00:04:00Z' }
+    expect(recordRollback(applied, rollback)).toMatchObject({ status: 'rolled-back', rollback })
+    expect(() => recordRollback(applied, { ...rollback, appliedPatchHash: 'different-patch' })).toThrow(/identify the applied patch/)
   })
   it('invalidates a candidate when analysis is refreshed', () => {
     const s: EditSession = staged()

@@ -117,6 +117,18 @@ export function attestBrowserExecution(run: VerificationRun, recordPath: string)
   return attested
 }
 
+/** Re-validate a saved executor record before trusting a run in a new process. */
+export function restoreBrowserExecution(run: VerificationRun): VerificationRun {
+  const recordPath = run.execution?.recordPath
+  const recordHash = run.execution?.recordHash
+  if (!recordPath || !recordHash || validateRunRecord(run, recordPath) !== recordHash) {
+    throw new VerificationEvidenceError('Saved Playwright execution record is missing, changed, or no longer matches this run')
+  }
+  const restored: VerificationRun = { ...run, assertions: run.assertions.map(assertion => ({ ...assertion })), execution: { executor: 'playwright', recordPath: path.resolve(recordPath), recordHash } }
+  receipts.set(restored, JSON.stringify(restored))
+  return restored
+}
+
 /** Preserve a receipt only while the domain layer changes executor-owned status metadata. */
 export function carryTrustedBrowserExecution(source: VerificationRun, target: VerificationRun): VerificationRun {
   assertTrustedBrowserExecution(source)

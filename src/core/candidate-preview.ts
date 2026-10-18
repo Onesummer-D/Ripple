@@ -7,7 +7,6 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
-import { trackedProjectFiles } from './project'
 
 export class CandidatePreviewError extends Error {
   constructor(message: string) { super(message); this.name = 'CandidatePreviewError' }
@@ -32,30 +31,19 @@ export async function resolveCandidatePreviewAddress(preview: CandidatePreview):
   return addressOnPreviewNetwork(networks, preview.networkName)
 }
 
-export function trustedOriginsFromSources(sources: string[]): string[] {
-  const origins = new Set<string>()
-  for (const source of sources) {
-    for (const match of source.matchAll(/https:\/\/[^\s"'`<>()[\]{}]+/g)) {
-      try {
-        const url = new URL(match[0].replace(/[),.;]+$/, ''))
-        if (url.protocol === 'https:' && !url.username && !url.password) origins.add(url.origin)
-      } catch { /* Non-URL text is not a trusted origin. */ }
-    }
-  }
-  if (origins.has('https://fonts.googleapis.com')) origins.add('https://fonts.gstatic.com')
-  return [...origins].sort()
-}
-
-export function trustedPreviewResourceOrigins(projectRoot: string): string[] {
-  const sources: string[] = []
-  for (const relative of trackedProjectFiles(projectRoot)) {
-    if (!/\.(?:[cm]?[jt]sx?|css|html?|svg|json)$/i.test(relative)) continue
-    const file = path.join(projectRoot, relative)
-    const stat = fs.lstatSync(file)
-    if (stat.isSymbolicLink() || !stat.isFile() || stat.size > 2 * 1024 * 1024) continue
-    sources.push(fs.readFileSync(file, 'utf8'))
-  }
-  return trustedOriginsFromSources(sources)
+export function previewRelayRejection(request: { method?: string; url?: string; host?: string; origin?: string }, expectedHost: string): { status: number; message: string } | undefined {
+  if (request.host?.toLowerCase() !== expectedHost.toLowerCase()) return { status: 403, message: 'Invalid preview host' }
+  if (request.origin && request.origin !== 'null' && request.origin !== `http://${expectedHost}`) return { status: 403, message: 'Cross-origin preview request denied' }
+  if (request.method !== 'GET' && request.method !== 'HEAD') return { status: 405, message: 'Preview relay allows GET and HEAD only' }
+  if (!request.url?.startsWith('/') || request.url.startsWith('//') || request.url.includes('\\')) return { status: 400, message: 'Invalid preview path' }
+  let target: URL
+  try { target = new URL(request.url, `http://${expectedHost}`) }
+  catch { return { status: 400, message: 'Invalid preview path' } }
+  let decodedPath: string
+  try { decodedPath = decodeURIComponent(target.pathname) }
+  catch { return { status: 400, message: 'Invalid preview path' } }
+  if (target.origin !== `http://${expectedHost}` || decodedPath.startsWith('//') || decodedPath.includes('\\') || decodedPath.split('/').includes('..')) return { status: 400, message: 'Invalid preview path' }
+  return undefined
 }
 
 const previews = new Map<string, CandidatePreview>()
@@ -120,21 +108,59 @@ async function waitForEndpoint(endpoint: string, preview: CandidatePreview, cont
   throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动（${state}，${lastResponse}，容器 ${containerIp}）：${logs.slice(-4000)}`)
 }
 
-function startHostRelay(containerIp: string): Promise<{ server: Server; url: string }> {
+export function startHostRelay(containerIp: string, upstreamPort = 5173): Promise<{ server: Server; url: string }> {
   const server = createServer((request, response) => {
-    if (!request.url?.startsWith('/') || request.url.startsWith('//')) {
-      response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
-      response.end('Invalid preview path')
+    const address = server.address()
+    const expectedHost = address && typeof address !== 'string' ? `127.0.0.1:${address.port}` : ''
+    const denied = previewRelayRejection({ method: request.method, url: request.url, host: request.headers.host, origin: request.headers.origin }, expectedHost)
+    if (denied) {
+      response.writeHead(denied.status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+      response.end(denied.message)
       return
     }
+    const headers: Record<string, string | string[] | undefined> = {
+      host: `${containerIp}:${upstreamPort}`,
+      connection: 'close',
+      origin: 'null',
+      accept: request.headers.accept,
+      'accept-encoding': request.headers['accept-encoding'],
+      'accept-language': request.headers['accept-language'],
+      'cache-control': request.headers['cache-control'],
+      'if-none-match': request.headers['if-none-match'],
+      'if-modified-since': request.headers['if-modified-since'],
+      range: request.headers.range,
+      'user-agent': request.headers['user-agent'],
+    }
+    const safeHeaders = Object.fromEntries(Object.entries(headers).filter(([, value]) => value !== undefined))
     const upstream = httpRequest({
       host: containerIp,
-      port: 5173,
+      port: upstreamPort,
       method: request.method,
       path: request.url,
-      headers: { ...request.headers, host: `${containerIp}:5173`, connection: 'close' },
+      headers: safeHeaders,
     }, upstreamResponse => {
-      response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers)
+      const upstreamHeaders = { ...upstreamResponse.headers }
+      delete upstreamHeaders['set-cookie']
+      delete upstreamHeaders.refresh
+      if (upstreamHeaders.location) {
+        const location = Array.isArray(upstreamHeaders.location) ? upstreamHeaders.location[0] : upstreamHeaders.location
+        try {
+          const destination = new URL(location, `http://${containerIp}:${upstreamPort}`)
+          if (destination.origin !== `http://${containerIp}:${upstreamPort}`) {
+            upstreamResponse.resume()
+            response.writeHead(403, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+            response.end('External preview redirects are blocked')
+            return
+          }
+          upstreamHeaders.location = `${destination.pathname}${destination.search}${destination.hash}`
+        } catch {
+          upstreamResponse.resume()
+          response.writeHead(502, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+          response.end('Invalid preview redirect')
+          return
+        }
+      }
+      response.writeHead(upstreamResponse.statusCode ?? 502, upstreamHeaders)
       upstreamResponse.pipe(response)
     })
     upstream.once('error', () => {
@@ -172,20 +198,23 @@ async function removeContainer(name: string): Promise<void> {
   }
 }
 
-export async function startCandidatePreview(candidate: CandidateRecord): Promise<CandidatePreview> {
+export async function startCandidatePreview(candidate: CandidateRecord, authorizedResourceUrls: string[] = []): Promise<CandidatePreview> {
   const pending = starting.get(candidate.id)
   if (pending) return pending
-  const operation = launchCandidatePreview(candidate)
+  const operation = launchCandidatePreview(candidate, authorizedResourceUrls)
   starting.set(candidate.id, operation)
   try { return await operation }
   finally { if (starting.get(candidate.id) === operation) starting.delete(candidate.id) }
 }
 
-async function launchCandidatePreview(candidate: CandidateRecord): Promise<CandidatePreview> {
+async function launchCandidatePreview(candidate: CandidateRecord, authorizedResourceUrls: string[]): Promise<CandidatePreview> {
   assertCandidateCurrent(candidate)
   const existing = previews.get(candidate.id)
   if (existing) {
-    const running = await docker(['inspect', '--format', '{{.State.Running}}', existing.containerName])
+    const running = await docker(['inspect', '--format', '{{.State.Running}}', existing.containerName]).catch(error => {
+      if (error instanceof CandidatePreviewError && /No such container|No such object|not found/i.test(error.message)) return 'false'
+      throw error
+    })
     if (running === 'true') {
       const containerIp = await resolveCandidatePreviewAddress(existing)
       const relay = relays.get(candidate.id)
@@ -222,12 +251,13 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
     await docker(['version', '--format', '{{.Server.Version}}'])
     await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', `com.ripple.candidate=${candidate.id}`, networkName])
     networkCreated = true
+    previews.set(candidate.id, preview)
     await docker([
       'run', '--detach', '--name', containerName,
       '--label', 'com.ripple.preview=true',
       '--label', `com.ripple.candidate=${candidate.id}`,
       '--network', networkName,
-      '--env', `RIPPLE_PREVIEW_RESOURCE_ORIGINS=${JSON.stringify(trustedPreviewResourceOrigins(projectRoot))}`,
+      '--env', `RIPPLE_PREVIEW_RESOURCE_URLS=${JSON.stringify(authorizedResourceUrls)}`,
       '--read-only', '--user', '1000:1000',
       '--memory', '1g', '--cpus', '2', '--pids-limit', '128',
       '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
@@ -251,13 +281,21 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
     assertCandidateCurrent(candidate)
     return preview
   } catch (error) {
-    await closeHostRelay(relays.get(candidate.id))
-    relays.delete(candidate.id)
-    await removeContainer(containerName).catch(() => undefined)
-    if (networkCreated) await docker(['network', 'rm', networkName]).catch(() => undefined)
-    previews.delete(candidate.id)
-    if (error instanceof CandidatePreviewError) throw error
-    throw new CandidatePreviewError(error instanceof Error ? error.message : '候选预演启动失败')
+    const cleanupFailures: string[] = []
+    const relay = relays.get(candidate.id)
+    try { await closeHostRelay(relay); relays.delete(candidate.id) }
+    catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
+    try { await removeContainer(containerName) }
+    catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
+    if (networkCreated) {
+      try { await docker(['network', 'rm', networkName]) }
+      catch (cleanupError) {
+        if (!(cleanupError instanceof CandidatePreviewError) || !/not found|No such network/i.test(cleanupError.message)) cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError))
+      }
+    }
+    if (!cleanupFailures.length) previews.delete(candidate.id)
+    const message = error instanceof Error ? error.message : '候选预演启动失败'
+    throw new CandidatePreviewError(cleanupFailures.length ? `${message}；清理仍需重试：${cleanupFailures.join('；')}` : message)
   }
 }
 

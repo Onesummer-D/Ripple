@@ -138,7 +138,19 @@ export interface AppliedRevision {
   appliedAt: string
   commit?: string
 }
-export type SessionStatus = 'draft' | 'analyzed' | 'scoped' | 'candidate' | 'verified' | 'approved' | 'applied'
+export interface RollbackRevision {
+  candidateId: Id
+  appliedPatchHash: string
+  restoredSourceDigest: string
+  rolledBackAt: string
+}
+export interface VerificationFailure {
+  candidateId: Id
+  patchHash: string
+  attemptedAt: string
+  reason: string
+}
+export type SessionStatus = 'draft' | 'analyzed' | 'scoped' | 'candidate' | 'verified' | 'approved' | 'applied' | 'rolled-back'
 export interface EditSession {
   id: Id
   projectRevision: ProjectRevision
@@ -152,4 +164,6 @@ export interface EditSession {
   runs: VerificationRun[]
   approval?: Approval
   applied?: AppliedRevision
+  rollback?: RollbackRevision
+  verificationFailure?: VerificationFailure
 }

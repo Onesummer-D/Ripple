@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { isIP } from 'node:net'
 import path from 'node:path'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
 
@@ -6,15 +7,20 @@ const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
 const reactModule = require('@vitejs/plugin-react')
 const react = reactModule.default ?? reactModule
-const previewOrigins = JSON.parse(process.env.RIPPLE_PREVIEW_RESOURCE_ORIGINS ?? '[]')
-if (!Array.isArray(previewOrigins) || previewOrigins.some(origin => {
-  if (typeof origin !== 'string') return true
+const approvedResourceUrls = JSON.parse(process.env.RIPPLE_PREVIEW_RESOURCE_URLS ?? '[]')
+if (!Array.isArray(approvedResourceUrls) || approvedResourceUrls.some(value => {
+  if (typeof value !== 'string') return true
   try {
-    const url = new URL(origin)
-    return url.protocol !== 'https:' || url.origin !== origin || url.username !== '' || url.password !== ''
+    const url = new URL(value)
+    const hostname = url.hostname.replace(/^\[|\]$/g, '')
+    return url.protocol !== 'https:' || !!url.username || !!url.password || !!url.hash || /[;\s'"<>\\]/.test(url.pathname) || url.pathname === '/' || url.pathname.endsWith('/') || isIP(hostname) !== 0 || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')
   } catch { return true }
-})) throw new Error('Ripple preview resource allowlist is invalid')
-const externalResources = previewOrigins.join(' ')
+})) throw new Error('Ripple preview resource authorization is invalid')
+if (approvedResourceUrls.reduce((size, value) => size + value.length + 3, 0) > 6000) throw new Error('Ripple preview resource authorization is too large')
+const externalResources = approvedResourceUrls.map(value => {
+  const url = new URL(value)
+  return `${url.origin}${url.pathname}`
+}).join(' ')
 const contentSecurityPolicy = [
   "default-src 'self' data: blob:",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
@@ -27,6 +33,7 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "base-uri 'none'",
   "frame-src 'none'",
+  "worker-src 'none'",
 ].join('; ')
 
 function selectionBridge() {
@@ -39,6 +46,20 @@ function selectionBridge() {
   const style = document.createElement('style');
   style.textContent = '[data-ripple-select-hover="true"]{outline:2px solid #a8c477!important;outline-offset:2px!important;cursor:crosshair!important}';
   document.head.append(style);
+  document.addEventListener('click', event => {
+    if (!(event.target instanceof Element)) return;
+    const anchor = event.target.closest('a[href]');
+    if (!anchor) return;
+    const destination = new URL(anchor.getAttribute('href'), location.href);
+    if (destination.origin !== location.origin) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
+  document.addEventListener('submit', event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
   const clearHover = () => { if (hovered) hovered.removeAttribute('data-ripple-select-hover'); hovered = null; };
   window.addEventListener('message', event => {
     const data = event.data;

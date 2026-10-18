@@ -1,4 +1,4 @@
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type AppliedRevision, type Approval, type CandidatePatch, type EditOperation, type EditSession, type ProjectRevision, type ScopeDecision, type VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type AppliedRevision, type Approval, type CandidatePatch, type EditOperation, type EditSession, type ProjectRevision, type RollbackRevision, type ScopeDecision, type VerificationRun } from './model'
 import { assertTrustedBrowserExecution } from './verification'
 import { carryTrustedBrowserExecution } from './verification-receipt'
 
@@ -69,6 +69,22 @@ export function stageCandidate(session: EditSession, patch: CandidatePatch): Edi
   return { ...session, candidate: { ...patch, operations: [...patch.operations] }, approval: undefined, runs: session.runs.map(r => ({ ...r, status: 'stale' })), status: 'candidate' }
 }
 
+export function beginVerification(session: EditSession): EditSession {
+  requireCondition(['candidate', 'verified', 'approved'].includes(session.status) && !!session.candidate, 'Candidate must exist before verification')
+  const runs = session.runs.map(run => {
+    if (run.status === 'stale') return run
+    assertTrustedBrowserExecution(run)
+    return carryTrustedBrowserExecution(run, { ...run, status: 'stale' })
+  })
+  return { ...session, runs, approval: undefined, verificationFailure: undefined, status: 'candidate' }
+}
+
+export function recordVerificationFailure(session: EditSession, reason: string, attemptedAt = new Date().toISOString()): EditSession {
+  const candidate = session.candidate
+  requireCondition(session.status === 'candidate' && !!candidate && !!reason.trim(), 'A failed verification attempt must belong to an active candidate')
+  return { ...session, verificationFailure: { candidateId: candidate.id, patchHash: candidate.patchHash, attemptedAt, reason: reason.slice(0, 4000) }, approval: undefined, status: 'candidate' }
+}
+
 export function registerVerification(session: EditSession, run: VerificationRun): EditSession {
   const patch = session.candidate
   requireCondition(session.status === 'candidate' || session.status === 'verified', 'Candidate must exist before verification')
@@ -97,13 +113,13 @@ export function registerVerification(session: EditSession, run: VerificationRun)
   const hasRisks = run.evidence.some(e => e.result === 'risk' || e.result === 'failed-to-run') || run.assertions.some(assertion => assertion.result === 'risk' || assertion.result === 'failed-to-run')
   const status: VerificationRun['status'] = hasRisks ? 'risks' : mandatoryEvidencePassed && assertionsPassed ? 'passed' : 'incomplete'
   const registeredRun = carryTrustedBrowserExecution(run, { ...run, status })
-  return { ...session, runs: [...session.runs, registeredRun], approval: undefined, status: status === 'passed' ? 'verified' : 'candidate' }
+  return { ...session, runs: [...session.runs, registeredRun], approval: undefined, verificationFailure: undefined, status: status === 'passed' ? 'verified' : 'candidate' }
 }
 
 export function approve(session: EditSession, approval: Approval): EditSession {
   requireCondition(session.status === 'verified' && !!session.candidate, 'Only a verified candidate can be approved')
-  const run = session.runs.find(r => r.id === approval.verificationRunId)
-  requireCondition(!!approval.by && !!approval.at && approval.candidateId === session.candidate.id && !!run && run.candidateId === session.candidate.id && run.status === 'passed', 'Approval must bind to a passed verification run of the current candidate')
+  const run = session.runs.at(-1)
+  requireCondition(!!approval.by && !!approval.at && approval.candidateId === session.candidate.id && !!run && run.id === approval.verificationRunId && run.candidateId === session.candidate.id && run.status === 'passed' && !session.verificationFailure, 'Approval must bind to the latest passed verification run of the current candidate')
   assertTrustedBrowserExecution(run)
   return { ...session, approval: { ...approval }, status: 'approved' }
 }
@@ -117,4 +133,16 @@ export function recordAppliedRevision(session: EditSession, applied: AppliedRevi
   requireCondition(run?.status === 'passed', 'Verification evidence is no longer current')
   assertTrustedBrowserExecution(run)
   return { ...session, applied: { ...applied }, status: 'applied' }
+}
+
+export function recordRollback(session: EditSession, rollback: RollbackRevision): EditSession {
+  const patch = session.candidate
+  const applied = session.applied
+  const run = currentRun(session)
+  requireCondition(session.status === 'applied' && !!patch && !!applied && !!run, 'Only an applied candidate can be rolled back')
+  requireCondition(rollback.candidateId === patch.id && rollback.appliedPatchHash === patch.patchHash &&
+    rollback.restoredSourceDigest === applied.baseSourceDigest && !!rollback.rolledBackAt, 'Rollback must identify the applied patch and restored baseline')
+  requireCondition(run.status === 'passed', 'Rollback record needs the original passed verification')
+  assertTrustedBrowserExecution(run)
+  return { ...session, rollback: { ...rollback }, status: 'rolled-back' }
 }

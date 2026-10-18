@@ -22,6 +22,7 @@ interface Analysis {
   components: ComponentSummary[]
   targets: TargetSummary[]
   relationCounts: Record<string, number>
+  previewResources: { referencedUrls: string[]; authorizedUrls: string[] }
 }
 interface CandidateView {
   id: string
@@ -33,6 +34,25 @@ interface CandidateView {
   operations: EditOperation[]
   modifiedPaths: string[]
   diff: string
+}
+interface WorkflowView {
+  lifecycle: 'active' | 'discarded' | 'stale' | 'applied' | 'rolled-back'
+  approval?: { candidateId: string; verificationRunId: string; by: string; at: string }
+  applied?: { candidateId: string; appliedPatchHash: string; baseSourceDigest: string; targetSourceDigest: string; appliedAt: string; commit?: string }
+  rollback?: { candidateId: string; appliedPatchHash: string; restoredSourceDigest: string; rolledBackAt: string }
+  rollbackAvailable: boolean
+}
+interface HistoryItem {
+  candidateId: string
+  projectId: string
+  lifecycle: WorkflowView['lifecycle']
+  patchHash: string
+  baseSourceDigest: string
+  candidateTreeDigest: string
+  updatedAt: string
+  applied?: WorkflowView['applied']
+  rollback?: WorkflowView['rollback']
+  verification: VerificationView
 }
 interface VerificationView {
   state: 'not-run' | 'passed' | 'risks' | 'incomplete' | 'stale' | 'failed-to-run'
@@ -71,6 +91,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return payload
 }
 
+async function loadHistory(): Promise<HistoryItem[]> {
+  const response = await fetch('/__ripple/api/history', { cache: 'no-store' })
+  const payload = await response.json() as { history?: HistoryItem[]; error?: string }
+  if (!response.ok) throw new Error(payload.error ?? `读取历史失败（${response.status}）`)
+  return payload.history ?? []
+}
+
 interface CandidatePreviewPaneProps {
   url: string
   selectionNonce: string
@@ -95,7 +122,7 @@ function CandidatePreviewPane({ url, selectionNonce, frameRef, onFrameLoad, onTo
   }, [])
 
   return <>
-    <div className="preview-toolbar"><div><strong>隔离浏览器预演</strong><small>运行候选前端代码；Docker 容器无网络出口，浏览器以沙箱 iframe 打开。</small></div><div className="preview-actions"><div className="preview-size-controls" role="group" aria-label="候选页面视口">{previewSizes.map(size => <button type="button" key={size.width} data-testid={`preview-viewport-${size.width}`} aria-pressed={viewportWidth === size.width} onClick={() => setViewportWidth(size.width)}>{size.label}</button>)}</div><button type="button" data-testid="toggle-element-selection" className="quiet-button" aria-pressed={!!selectionNonce} onClick={onToggleSelection}>{selectionNonce ? '取消点选' : '点选页面元素'}</button></div></div>
+    <div className="preview-toolbar"><div><strong>隔离浏览器预演</strong><small>候选运行于 Docker internal network；iframe 的外部资源默认受限，外链与表单导航会拦截。它不是用于对抗刻意恶意脚本的浏览器沙箱，请只预演可信项目。</small></div><div className="preview-actions"><div className="preview-size-controls" role="group" aria-label="候选页面视口">{previewSizes.map(size => <button type="button" key={size.width} data-testid={`preview-viewport-${size.width}`} aria-pressed={viewportWidth === size.width} onClick={() => setViewportWidth(size.width)}>{size.label}</button>)}</div><button type="button" data-testid="toggle-element-selection" className="quiet-button" aria-pressed={!!selectionNonce} onClick={onToggleSelection}>{selectionNonce ? '取消点选' : '点选页面元素'}</button></div></div>
     <div className="preview-viewport-shell" ref={host} data-testid="preview-viewport-shell" style={{ height: `${Math.ceil(viewport.height * scale)}px` }}>
       <div className="preview-viewport-surface" style={{ width: `${viewport.width}px`, height: `${viewport.height}px`, left: `${Math.max(0, (hostWidth - viewport.width * scale) / 2)}px`, transform: `scale(${scale})` }}>
         <iframe ref={frameRef} onLoad={onFrameLoad} data-testid="candidate-preview" title={`隔离候选浏览器预演 · ${viewport.label}`} src={url} width={viewport.width} height={viewport.height} sandbox="allow-scripts" referrerPolicy="no-referrer" loading="eager" />
@@ -108,6 +135,7 @@ export default function ProjectWorkbench() {
   const [projectPath, setProjectPath] = useState('')
   const [intent, setIntent] = useState('')
   const [analysis, setAnalysis] = useState<Analysis>()
+  const [resourceDraft, setResourceDraft] = useState('')
   const [targetId, setTargetId] = useState('')
   const [after, setAfter] = useState('')
   const [operations, setOperations] = useState<EditOperation[]>([])
@@ -116,6 +144,8 @@ export default function ProjectWorkbench() {
   const [localPageRef, setLocalPageRef] = useState('')
   const [candidate, setCandidate] = useState<CandidateView>()
   const [verification, setVerification] = useState<VerificationView>({ state: 'not-run', reason: '浏览器验证尚未运行。' })
+  const [workflow, setWorkflow] = useState<WorkflowView>()
+  const [history, setHistory] = useState<HistoryItem[]>([])
   const [verificationBusy, setVerificationBusy] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string>()
   const [previewBusy, setPreviewBusy] = useState(false)
@@ -126,18 +156,32 @@ export default function ProjectWorkbench() {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    let active = true
+    void loadHistory().then(items => { if (active) setHistory(items) }).catch(cause => {
+      if (active) setError(cause instanceof Error ? cause.message : '无法读取候选历史')
+    })
+    return () => { active = false }
+  }, [])
+
+  async function refreshHistory() {
+    setHistory(await loadHistory())
+  }
+
+  useEffect(() => {
     const candidateId = window.sessionStorage.getItem(candidateStorageKey)
     if (!candidateId) return
     let active = true
     setBusy(true)
-    post<{ analysis: Analysis; rawIntent: string; scope?: ScopeDecision; candidate: CandidateView; verification: VerificationView }>('candidate/restore', { candidateId })
+    post<{ analysis: Analysis; rawIntent: string; scope?: ScopeDecision; candidate: CandidateView; verification: VerificationView; workflow: WorkflowView }>('candidate/restore', { candidateId })
       .then(restored => {
         if (!active) return
         setProjectPath(restored.analysis.projectRoot)
         setAnalysis(restored.analysis)
+        setResourceDraft(restored.analysis.previewResources.authorizedUrls.join('\n'))
         setIntent(restored.rawIntent)
         setCandidate(restored.candidate)
         setVerification(restored.verification)
+        setWorkflow(restored.workflow)
         setOperations(restored.candidate.operations)
         setTargetId(restored.candidate.operations[0]?.targetRef ?? '')
         setAfter(restored.candidate.operations[0]?.after ?? '')
@@ -221,7 +265,9 @@ export default function ProjectWorkbench() {
       const next = await post<Analysis>('analyze', { projectRoot: projectPath, previousCandidateId: candidate?.id })
       setProjectPath(next.projectRoot)
       setAnalysis(next)
+      setResourceDraft(next.previewResources.authorizedUrls.join('\n'))
       setCandidate(undefined)
+      setWorkflow(undefined)
       setVerification({ state: 'not-run', reason: '浏览器验证尚未运行。' })
       setPreviewUrl(undefined)
       setSelectionNonce('')
@@ -237,17 +283,35 @@ export default function ProjectWorkbench() {
     finally { setBusy(false) }
   }
 
+  function addResourceToDraft(resourceUrl: string) {
+    setResourceDraft(current => [...new Set([...current.split(/\r?\n/).map(value => value.trim()).filter(Boolean), resourceUrl])].join('\n'))
+  }
+
+  async function savePreviewResources() {
+    if (!analysis) return
+    setBusy(true); setError('')
+    try {
+      const urls = resourceDraft.split(/\r?\n/).map(value => value.trim()).filter(Boolean)
+      const result = await post<{ previewResources: Analysis['previewResources'] }>('preview/resources', { projectId: analysis.revision.projectId, urls })
+      setAnalysis(current => current ? { ...current, previewResources: result.previewResources } : current)
+      setResourceDraft(result.previewResources.authorizedUrls.join('\n'))
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法保存预演资源授权') }
+    finally { setBusy(false) }
+  }
+
   async function invalidateCandidate(): Promise<boolean> {
     if (!candidate) return true
     setBusy(true); setError('')
     try {
       await post('discard', { candidateId: candidate.id })
       setCandidate(current => current?.id === candidate.id ? undefined : current)
+      setWorkflow(undefined)
       setVerification({ state: 'not-run', reason: '候选已清理。' })
       setPreviewUrl(undefined)
       setSelectionNonce('')
       setSelection(undefined)
       if (window.sessionStorage.getItem(candidateStorageKey) === candidate.id) window.sessionStorage.removeItem(candidateStorageKey)
+      await refreshHistory()
       return true
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '无法清理过期候选')
@@ -287,13 +351,15 @@ export default function ProjectWorkbench() {
       decidedBy: 'local-user', decidedAt: new Date().toISOString(),
     }
     try {
-      const result = await post<{ candidate: CandidateView; verification: VerificationView }>('candidate', { projectId: analysis.revision.projectId, rawIntent: intent, operations, scope, previousCandidateId: candidate?.id })
+      const result = await post<{ candidate: CandidateView; verification: VerificationView; workflow: WorkflowView }>('candidate', { projectId: analysis.revision.projectId, rawIntent: intent, operations, scope, previousCandidateId: candidate?.id })
       setCandidate(result.candidate)
       setVerification(result.verification)
+      setWorkflow(result.workflow)
       setPreviewUrl(undefined)
       setSelectionNonce('')
       setSelection(undefined)
       window.sessionStorage.setItem(candidateStorageKey, result.candidate.id)
+      await refreshHistory()
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法创建隔离候选') }
     finally { setBusy(false) }
   }
@@ -322,21 +388,88 @@ export default function ProjectWorkbench() {
     if (!candidate) return
     setVerificationBusy(true); setError('')
     try {
-      const result = await post<{ candidateId: string; previewUrl: string; verification: VerificationView }>('candidate/verify', { candidateId: candidate.id })
+      const result = await post<{ candidateId: string; previewUrl: string; verification: VerificationView; workflow: WorkflowView }>('candidate/verify', { candidateId: candidate.id })
       if (candidate?.id !== result.candidateId) return
       setVerification(result.verification)
+      setWorkflow(result.workflow)
       setPreviewUrl(result.previewUrl)
       window.sessionStorage.setItem(candidateStorageKey, candidate.id)
+      await refreshHistory()
     } catch (cause) {
       setVerification({ state: 'failed-to-run', reason: cause instanceof Error ? cause.message : '隔离浏览器验证未能启动。' })
       setError(cause instanceof Error ? cause.message : '隔离浏览器验证未能启动')
     } finally { setVerificationBusy(false) }
   }
 
+  async function restoreHistoryItem(candidateId: string) {
+    setBusy(true); setError('')
+    try {
+      const restored = await post<{ analysis: Analysis; rawIntent: string; scope?: ScopeDecision; candidate: CandidateView; verification: VerificationView; workflow: WorkflowView }>('candidate/restore', { candidateId })
+      setProjectPath(restored.analysis.projectRoot)
+      setAnalysis(restored.analysis)
+      setResourceDraft(restored.analysis.previewResources.authorizedUrls.join('\n'))
+      setIntent(restored.rawIntent)
+      setCandidate(restored.candidate)
+      setVerification(restored.verification)
+      setWorkflow(restored.workflow)
+      setOperations(restored.candidate.operations)
+      setTargetId(restored.candidate.operations[0]?.targetRef ?? '')
+      setAfter(restored.candidate.operations[0]?.after ?? '')
+      setScopeStrategy(restored.scope?.strategy ?? 'shared')
+      setLocalPageRef(restored.scope?.localPageRef ?? restored.analysis.routes[0]?.id ?? '')
+      setPageScope(Object.fromEntries(restored.analysis.routes.map(route => {
+        const scope = restored.scope
+        return [route.id, scope?.protectedRefs.includes(route.id) ? 'protect' : scope?.excludedRefs.includes(route.id) ? 'exclude' : scope?.includedRefs.includes(route.id) ? 'include' : '']
+      })))
+      window.sessionStorage.setItem(candidateStorageKey, candidateId)
+      setPreviewUrl(undefined)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法恢复候选历史') }
+    finally { setBusy(false) }
+  }
+
+  async function approveCandidate() {
+    if (!candidate || !verification.runId || verification.state !== 'passed') return
+    setBusy(true); setError('')
+    try {
+      const result = await post<{ workflow: WorkflowView }>('candidate/approve', { candidateId: candidate.id, runId: verification.runId })
+      setWorkflow(result.workflow)
+      await refreshHistory()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法审批候选') }
+    finally { setBusy(false) }
+  }
+
+  async function applyCandidate() {
+    if (!candidate || !workflow?.approval) return
+    setBusy(true); setError('')
+    try {
+      const result = await post<{ workflow: WorkflowView; analysis: Analysis }>('candidate/apply', { candidateId: candidate.id })
+      setWorkflow(result.workflow)
+      setAnalysis(result.analysis)
+      setPreviewUrl(undefined)
+      setSelectionNonce('')
+      await refreshHistory()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法应用已审批补丁') }
+    finally { setBusy(false) }
+  }
+
+  async function rollbackCandidate() {
+    if (!candidate || !workflow?.rollbackAvailable) return
+    setBusy(true); setError('')
+    try {
+      const result = await post<{ workflow: WorkflowView; analysis: Analysis }>('candidate/rollback', { candidateId: candidate.id })
+      setWorkflow(result.workflow)
+      setAnalysis(result.analysis)
+      setPreviewUrl(undefined)
+      setSelectionNonce('')
+      await refreshHistory()
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法安全回滚补丁') }
+    finally { setBusy(false) }
+  }
+
   return <main className="workbench-shell">
     <header className="workbench-header">
       <a className="brand-mark" href="#top" aria-label="Ripple 项目工作台"><span className="brand-symbol">R</span><span>ripple<span className="brand-subtitle">PROJECT WORKBENCH</span></span></a>
-      <div className="header-state"><i />本机项目模式 · 候选只在隔离容器中执行</div>
+      <div className="header-state"><i />本机项目模式 · 候选源码在容器预演，浏览器资源受限</div>
     </header>
     <section className="workbench-intro" id="top">
       <div><span className="eyebrow">SOURCE-AWARE EDITING</span><h1>从真实源码开始，<em>每一步都有边界。</em></h1><p>读取 React / Vite 工程，检查真实页面消费者，显式确认修改范围，再生成隔离候选补丁。</p></div>
@@ -375,6 +508,11 @@ export default function ProjectWorkbench() {
         </section>
       </div>
 
+      <section className="panel resource-policy-panel" data-testid="preview-resource-policy">
+        <div className="section-title compact"><span className="step-badge">↗</span><div><h2>预演外部静态资源授权</h2><p>源码 URL 仅作为建议；每项授权都由你明确保存，且只允许对应 HTTPS 路径。</p></div></div>
+        <div className="resource-policy-columns"><div><strong>源码引用（未授权）</strong>{analysis.previewResources.referencedUrls.length ? <ul>{analysis.previewResources.referencedUrls.map(url => <li key={url}><code>{url}</code><button type="button" className="quiet-button" data-testid="add-preview-resource" onClick={() => addResourceToDraft(url)} disabled={busy || !!candidate}>加入授权草稿</button></li>)}</ul> : <small>没有发现 HTTPS 静态资源引用。</small>}</div><label><strong>明确授权的 URL</strong><textarea data-testid="preview-resource-draft" value={resourceDraft} onChange={event => setResourceDraft(event.target.value)} disabled={busy || !!candidate} placeholder="每行一条 HTTPS 图片、字体或样式表 URL" spellCheck={false} /><small>每条必须是具体文件路径（不接受根目录/目录授权）；CSP 路径匹配不包含 query。源码或注释里的 URL 不会自动授权。</small><button type="button" data-testid="save-preview-resources" className="quiet-button" onClick={() => void savePreviewResources()} disabled={busy || !!candidate}>保存资源授权</button></label></div>
+      </section>
+
       <section className="panel scope-panel">
         <div className="section-title compact"><span className="step-badge">04</span><div><h2>明确 Scope</h2><p>每个实际页面都要明确选择包含、排除或保护；共享来源的传播会在执行器内复核。</p></div></div>
         <fieldset className="scope-strategy" disabled={busy || previewBusy || verificationBusy || !operations.length}>
@@ -388,19 +526,21 @@ export default function ProjectWorkbench() {
       </section>
 
       {candidate && <section className="panel candidate-panel">
-        <div className="candidate-head"><div><span className="eyebrow">ISOLATED CANDIDATE</span><h2>候选补丁已生成</h2><p>真实 Git worktree 中产生的源码差异；预演只运行隔离副本，不写入原工程。</p></div><button type="button" data-testid="discard-candidate" className="quiet-button" onClick={() => void discardCandidate()} disabled={busy || previewBusy || verificationBusy}>清理候选</button></div>
+        <div className="candidate-head"><div><span className="eyebrow">ISOLATED CANDIDATE</span><h2>候选补丁已生成</h2><p>真实 Git worktree 中产生的源码差异；预演只运行隔离副本，不写入原工程。</p></div>{workflow?.lifecycle === 'active' && <button type="button" data-testid="discard-candidate" className="quiet-button" onClick={() => void discardCandidate()} disabled={busy || previewBusy || verificationBusy}>清理候选</button>}</div>
         <div className="hash-grid"><div><span>候选 ID</span><code data-testid="candidate-id">{candidate.id}</code></div><div><span>Patch SHA-256</span><code>{candidate.patchHash}</code></div><div><span>候选树摘要</span><code>{candidate.candidateTreeDigest}</code></div></div>
         <div className="candidate-files"><span>修改文件</span>{candidate.modifiedPaths.map(file => <code key={file}>{file}</code>)}</div>
         <pre className="diff-view" data-testid="candidate-diff" aria-label="真实候选补丁差异">{candidate.diff}</pre>
-        <div className="preview-toolbar"><div><strong>隔离浏览器预演</strong><small>候选源码在无网络出口的容器中运行；受限 Playwright 浏览器也在同一隔离网络中执行。</small></div><div className="preview-actions"><button type="button" data-testid="verify-candidate" className="quiet-button" onClick={() => void verifyCandidate()} disabled={previewBusy || verificationBusy}>{verificationBusy ? '浏览器验证中…' : '运行三视口验证'}</button><button type="button" data-testid="toggle-candidate-preview" className="quiet-button" onClick={() => void togglePreview()} disabled={previewBusy || verificationBusy}>{previewBusy ? '启动中…' : previewUrl ? '关闭预演' : '启动真实预演'}</button></div></div>
+        <div className="preview-toolbar"><div><strong>隔离浏览器预演</strong><small>候选运行于 Docker internal network；iframe 的外部资源默认受限，外链与表单导航会拦截。它不是用于对抗刻意恶意脚本的浏览器沙箱，请只预演可信项目。</small></div><div className="preview-actions"><button type="button" data-testid="verify-candidate" className="quiet-button" onClick={() => void verifyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{verificationBusy ? '浏览器验证中…' : '运行三视口验证'}</button><button type="button" data-testid="toggle-candidate-preview" className="quiet-button" onClick={() => void togglePreview()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{previewBusy ? '启动中…' : previewUrl ? '关闭预演' : '启动真实预演'}</button></div></div>
         {previewUrl && <CandidatePreviewPane url={previewUrl} selectionNonce={selectionNonce} frameRef={previewFrame} onFrameLoad={syncElementSelection} onToggleSelection={toggleElementSelection} />}
         {selection && <div className="source-selection" data-testid="selected-source"><div><span className="eyebrow">CANDIDATE SOURCE MAPPING</span><strong>{selection.element.label} · &lt;{selection.tagName}&gt;</strong><code data-testid="selected-jsx-source">{selection.element.location?.path}#{selection.element.location?.start}</code></div><p>绑定候选 Patch <code>{selection.patchHash.slice(0, 16)}</code> 与源码摘要 <code>{selection.sourceDigest.slice(0, 16)}</code>。这是当前预演的定位信息，不是验证证据。</p><p>运行时实例：<code>{selection.runtimeInstanceId ?? '未提供'}</code> · 身份确定性：<strong>{selection.identityCertainty}</strong>{selection.identityCertainty === 'position-dependent' || selection.identityCertainty === 'unknown' || selection.identityCertainty === 'unmapped' ? ' · 不允许按唯一实例精准修改' : ''}</p><p>页面文本：{selection.text || '（无文本）'}</p>{selection.editableText.length > 0 ? <ul>{selection.editableText.map(item => <li key={item.id}><code>{item.location?.path}#{item.location?.start}</code> {item.label} · {item.impact.certainty}{item.impact.pageRefs.length ? ` · ${item.impact.pageRefs.map(ref => ref.replace('page:', '/')).join('、')}` : ''}</li>)}</ul> : <small>此 JSX 元素没有直接映射到可编辑文本节点。</small>}</div>}
-        <div className={`verification-state verification-${verification.state}`} data-testid="verification-state"><span>{verificationLabel(verification.state)}</span><p>{verification.reason ?? (verification.state === 'passed' ? '本次必需检查和断言均通过。用户审批、应用与回滚入口尚未接入工作台。' : verification.state === 'risks' ? '浏览器观察到明确风险；此候选不可批准。' : verification.state === 'incomplete' ? '浏览器执行已留存，但有断言未知或未运行；此候选不可批准。' : verification.state === 'stale' ? '证据对应的候选或源码已过期。' : '预演不等于验证；请运行受限浏览器检查。')}</p><button type="button" data-testid="run-verification" onClick={() => void verifyCandidate()} disabled={previewBusy || verificationBusy}>{verificationBusy ? '执行中…' : verification.state === 'not-run' || verification.state === 'failed-to-run' ? '运行验证' : '重新验证'}</button></div>
+        <div className={`verification-state verification-${verification.state}`} data-testid="verification-state"><span>{verificationLabel(verification.state)}</span><p>{verification.reason ?? (verification.state === 'passed' ? '本次必需检查和断言均通过。候选审批严格绑定此验证运行与补丁哈希。' : verification.state === 'risks' ? '浏览器观察到明确风险；此候选不可批准。' : verification.state === 'incomplete' ? '浏览器执行已留存，但有断言未知或未运行；此候选不可批准。' : verification.state === 'stale' ? '证据对应的候选或源码已过期。' : '预演不等于验证；请运行受限浏览器检查。')}</p><button type="button" data-testid="run-verification" onClick={() => void verifyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{verificationBusy ? '执行中…' : verification.state === 'not-run' || verification.state === 'failed-to-run' ? '运行验证' : '重新验证'}</button></div>
         {verification.assertions && <div className="verification-assertions" data-testid="verification-assertions">{verification.assertions.map(assertion => <div key={assertion.id}><span>{assertion.result.toUpperCase()}</span><strong>{assertion.id}</strong><p>{assertion.detail}</p></div>)}</div>}
         {verification.evidence?.length ? <div className="verification-evidence" data-testid="verification-evidence">{verification.evidence.map(evidence => <article key={evidence.id}><div><strong>{evidence.viewport.width} × {evidence.viewport.height}</strong><span>{evidence.result.toUpperCase()} · {evidence.runtimeState}</span></div>{evidence.artifactUrl ? <img src={evidence.artifactUrl} alt={`候选浏览器截图 ${evidence.viewport.width}×${evidence.viewport.height}`} /> : <p>{evidence.reason ?? '本次没有生成可验证截图。'}</p>}</article>)}</div> : null}
         {verification.recordUrl && <p className="verification-record">受信任执行记录 <a href={verification.recordUrl} target="_blank" rel="noreferrer">JSON · SHA-256 {verification.recordHash?.slice(0, 16)}</a></p>}
+        <div className="workflow-actions" data-testid="candidate-workflow"><div><span>生命周期</span><strong>{workflow?.lifecycle ?? 'unknown'}</strong>{workflow?.approval && <small>已批准 · run {workflow.approval.verificationRunId.slice(0, 18)}</small>}{workflow?.applied && <small>已应用 · {workflow.applied.appliedAt}</small>}{workflow?.rollback && <small>已回滚 · {workflow.rollback.rolledBackAt}</small>}</div><div className="workflow-buttons"><button type="button" data-testid="approve-candidate" onClick={() => void approveCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || verification.state !== 'passed' || !verification.runId || !!workflow?.approval}>批准此补丁</button><button type="button" data-testid="apply-candidate" onClick={() => void applyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || !workflow.approval}>应用同一补丁</button><button type="button" data-testid="rollback-candidate" onClick={() => void rollbackCandidate()} disabled={busy || workflow?.lifecycle !== 'applied' || !workflow.rollbackAvailable}>安全回滚</button></div>{workflow?.lifecycle === 'applied' && !workflow.rollbackAvailable && <small className="workflow-warning">应用后工程已有变化，系统拒绝覆盖并回滚。</small>}</div>
       </section>}
     </>}
+    {history.length > 0 && <section className="panel history-panel" data-testid="candidate-history"><div className="section-title compact"><span className="step-badge">↺</span><div><h2>候选与版本历史</h2><p>从本机持久记录恢复原补丁与验证证据；这里不会重新生成修改。</p></div></div><div className="history-list">{history.map(item => <article key={item.candidateId}><div><strong>{item.lifecycle}</strong><code>{item.candidateId}</code><small>Patch {item.patchHash.slice(0, 16)} · 验证 {verificationLabel(item.verification.state)}</small>{item.applied && <small>应用于 {item.applied.appliedAt}</small>}{item.rollback && <small>回滚于 {item.rollback.rolledBackAt}</small>}</div><button type="button" className="quiet-button" onClick={() => void restoreHistoryItem(item.candidateId)} disabled={busy || item.lifecycle === 'discarded' || item.lifecycle === 'stale'}>{item.lifecycle === 'discarded' || item.lifecycle === 'stale' ? '仅审计留存' : '恢复记录'}</button></article>)}</div></section>}
     <footer className="workbench-footer"><span>RIPPLE / PROJECT-FIRST CORE</span><span>candidate workspace is isolated · original checkout stays untouched</span></footer>
   </main>
 }
