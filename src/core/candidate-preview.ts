@@ -163,7 +163,7 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
       '--mount', mount(rippleDependencies, '/ripple/node_modules'),
       '--workdir', '/work',
       image,
-      'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /deps/vite/bin/vite.js --config /ripple/core/candidate-preview-vite.config.mjs --host 0.0.0.0 --port 5173 --strictPort',
+      'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && node --version && exec node --trace-exit --trace-uncaught /deps/vite/bin/vite.js --debug --config /ripple/core/candidate-preview-vite.config.mjs --host 0.0.0.0 --port 5173 --strictPort',
     ], 120_000)
     await waitUntilReady(preview)
     assertCandidateCurrent(candidate)
