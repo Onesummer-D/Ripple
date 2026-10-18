@@ -131,7 +131,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
       image.src = url
       document.body.append(image)
     }, blockedUrl)
-    expect((await blockedRequest).failure()?.errorText).toContain('BLOCKED_BY_CSP')
+    expect((await blockedRequest).failure()?.errorText).toBe('csp')
     await page.getByTestId('run-verification').click()
     const verificationState = page.getByTestId('verification-state')
     await expect(verificationState).toContainText(/INCOMPLETE|RISKS/, { timeout: 120_000 })
@@ -301,4 +301,3 @@ test('opens the supplied Bolt project in the workbench and builds a shared-scope
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
   candidateId = ''
 })
-

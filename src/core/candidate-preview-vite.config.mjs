@@ -75,7 +75,12 @@ function selectionBridge() {
 </script>`
   return {
     name: 'ripple-candidate-selection-bridge',
-    transformIndexHtml: { order: 'post', handler: (html) => html.replace('</body>', `${script}</body>`) },
+    transformIndexHtml: {
+      order: 'post',
+      handler: (html) => html
+        .replace(/<script\b(?=[^>]*\bsrc=["']\/@vite\/client["'])[^>]*>\s*<\/script>/g, '')
+        .replace('</body>', `${script}</body>`),
+    },
   }
 }
 
@@ -132,4 +137,3 @@ export default {
     },
   },
 }
-
