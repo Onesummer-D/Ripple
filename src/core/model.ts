@@ -93,6 +93,17 @@ export interface VerificationAssertion {
   result: EvidenceResult
   detail: string
 }
+export interface BaselineComparison {
+  route: string
+  viewport: { width: number; height: number }
+  baselineDigest?: string
+  candidateDigest?: string
+  maskedOperationIds: string[]
+  matched: boolean
+  artifactPath?: string
+  artifactHash?: string
+  reason?: string
+}
 export interface VerificationEvidence {
   id: Id
   checkId: Id
@@ -120,6 +131,7 @@ export interface VerificationRun {
   checks: VerificationCheck[]
   assertions: VerificationAssertion[]
   evidence: VerificationEvidence[]
+  baselineComparisons?: BaselineComparison[]
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }
@@ -167,3 +179,4 @@ export interface EditSession {
   rollback?: RollbackRevision
   verificationFailure?: VerificationFailure
 }
+

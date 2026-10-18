@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { analyzeProject } from './project'
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type EditSession, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
-import { resolveCandidatePreviewAddress, type CandidatePreview } from './candidate-preview'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type EditSession, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
+import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
 
 export class VerificationRunnerError extends Error {
@@ -53,12 +53,28 @@ async function removeExecutor(name: string): Promise<void> {
   await docker(['rm', '--force', name], 10_000).catch(() => undefined)
 }
 
-export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGraph, candidateGraph: SourceGraph, session: EditSession): Array<{ operationId: string; expectedText: string; sourceRefs: string[] }> {
+function renderedSourceRefs(graph: SourceGraph, target: SourceGraph['nodes'][number]): string[] {
+  const nodes = new Map(graph.nodes.map(node => [node.id, node]))
+  let refs = graph.edges.filter(edge => edge.kind === 'reads' && edge.to === target.id)
+    .map(edge => nodes.get(edge.from))
+    .filter((node): node is NonNullable<typeof node> => node?.kind === 'jsx-element')
+  if (!refs.length && target.location?.start !== undefined && target.location.end !== undefined) {
+    const containing = graph.nodes.filter(node => node.kind === 'jsx-element' && node.location?.path === target.location!.path &&
+      node.location.start !== undefined && node.location.end !== undefined && node.location.start <= target.location!.start! && node.location.end >= target.location!.end!)
+    containing.sort((left, right) => (left.location!.end! - left.location!.start!) - (right.location!.end! - right.location!.start!))
+    if (containing.length) refs = [containing[0]]
+  }
+  const sourceRefs = [...new Set(refs.map(node => `jsx:${node.location!.path}#${node.location!.start}`))]
+  return sourceRefs.length === 1 ? sourceRefs : []
+}
+
+export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGraph, candidateGraph: SourceGraph, session: EditSession): Array<{ operationId: string; beforeText: string; expectedText: string; baselineSourceRefs: string[]; sourceRefs: string[] }> {
   const baseNodes = new Map(baseGraph.nodes.map(node => [node.id, node]))
   const candidateNodes = new Map(candidateGraph.nodes.map(node => [node.id, node]))
   return session.operations.map(operation => {
     const original = baseNodes.get(operation.targetRef)
-    if (operation.kind !== 'TEXT' || !operation.after.trim() || !original?.location?.path) return { operationId: operation.id, expectedText: operation.after, sourceRefs: [] }
+    const empty = { operationId: operation.id, beforeText: operation.before, expectedText: operation.after, baselineSourceRefs: [], sourceRefs: [] }
+    if (operation.kind !== 'TEXT' || !operation.before.trim() || !operation.after.trim() || original?.kind !== 'data' || !original.location?.path) return empty
     const candidateRef = candidate.operationTargetRefs[operation.id]
     const data = candidateRef ? candidateNodes.get(candidateRef) : undefined
     const unchangedAnchor = data?.kind === 'data' && data.location?.path === original.location.path && (
@@ -66,18 +82,8 @@ export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGrap
         ? data.id.startsWith('override:') && data.value?.trim() === original.value?.trim() && data.pageOverrides?.[session.scope.localPageRef!] === operation.after
         : data.value?.trim() === operation.after.trim()
     )
-    if (!unchangedAnchor) return { operationId: operation.id, expectedText: operation.after, sourceRefs: [] }
-    let refs = candidateGraph.edges.filter(edge => edge.kind === 'reads' && edge.to === data.id)
-      .map(edge => candidateNodes.get(edge.from))
-      .filter((node): node is NonNullable<typeof node> => node?.kind === 'jsx-element')
-    if (!refs.length && data.location?.start !== undefined && data.location.end !== undefined) {
-      const containing = candidateGraph.nodes.filter(node => node.kind === 'jsx-element' && node.location?.path === data.location!.path &&
-        node.location.start !== undefined && node.location.end !== undefined && node.location.start <= data.location!.start! && node.location.end >= data.location!.end!)
-      containing.sort((left, right) => (left.location!.end! - left.location!.start!) - (right.location!.end! - right.location!.start!))
-      if (containing.length) refs = [containing[0]]
-    }
-    const sourceRefs = [...new Set(refs.map(node => `jsx:${node.location!.path}#${node.location!.start}`))]
-    return { operationId: operation.id, expectedText: operation.after, sourceRefs: sourceRefs.length === 1 ? sourceRefs : [] }
+    if (!unchangedAnchor || !data) return empty
+    return { ...empty, baselineSourceRefs: renderedSourceRefs(baseGraph, original), sourceRefs: renderedSourceRefs(candidateGraph, data) }
   })
 }
 
@@ -94,6 +100,7 @@ interface ExecutionManifest {
   candidateTreeDigest: string
   runtimeFingerprint: string
   checks: Array<{ id: string; route: string; viewport: { width: number; height: number }; state: string; passed: boolean }>
+  baselineComparisons: BaselineComparison[]
   assertions: VerificationAssertion[]
   evidence: Array<Omit<VerificationEvidence, 'artifactPath'> & { artifactPath?: string }>
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
@@ -134,14 +141,16 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   const containerName = `ripple-verify-${randomUUID().slice(0, 12)}`
   const scriptRoot = fs.realpathSync(path.join(rippleRoot, 'src', 'core'))
   const dependencies = fs.realpathSync(path.join(rippleRoot, 'node_modules'))
-  fs.writeFileSync(inputPath, JSON.stringify({
-    runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
-    baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
-    runtimeFingerprint: session.projectRevision.runtimeFingerprint, previewHost: await resolveCandidatePreviewAddress(preview),
-    targetBindings: sourceBindings(candidate, baseGraph, candidateGraph, session),
-  }), { flag: 'wx' })
-
+  let baseline: Awaited<ReturnType<typeof startCandidateBaseline>> | undefined
   try {
+    baseline = await startCandidateBaseline(candidate, preview)
+    fs.writeFileSync(inputPath, JSON.stringify({
+      runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
+      baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
+      runtimeFingerprint: session.projectRevision.runtimeFingerprint,
+      previewHost: await resolveCandidatePreviewAddress(preview), baselineHost: baseline.address,
+      targetBindings: sourceBindings(candidate, baseGraph, candidateGraph, session),
+    }), { flag: 'wx' })
     await docker([
       'run', '--rm', '--init', '--name', containerName,
       '--label', 'com.ripple.verification=true', '--label', `com.ripple.candidate=${candidate.id}`,
@@ -158,6 +167,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     throw error instanceof VerificationRunnerError ? error : new VerificationRunnerError(error instanceof Error ? error.message : 'Playwright 执行失败')
   } finally {
     await removeExecutor(containerName)
+    if (baseline) await stopCandidateBaseline(baseline)
     if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
   }
 
@@ -180,13 +190,18 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     ...item,
     ...(item.artifactPath ? { artifactPath: evidenceFile(artifactRoot, item.artifactPath) } : {}),
   }))
+  const baselineComparisons: BaselineComparison[] = manifest.baselineComparisons.map(item => ({
+    ...item,
+    ...(item.artifactPath ? { artifactPath: evidenceFile(artifactRoot, item.artifactPath) } : {}),
+  }))
   const run: VerificationRun = {
     id: runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint: session.projectRevision.runtimeFingerprint,
     startedAt: evidence.length ? evidence[0].capturedAt : new Date().toISOString(),
     completedAt: evidence.length ? evidence[evidence.length - 1].capturedAt : new Date().toISOString(),
-    checks, assertions: manifest.assertions, evidence, status: 'incomplete',
+    checks, assertions: manifest.assertions, evidence, baselineComparisons, status: 'incomplete',
   }
   return attestBrowserExecution(run, recordPath)
 }
+

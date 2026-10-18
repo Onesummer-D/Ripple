@@ -17,6 +17,14 @@ export interface CandidatePreview {
   url: string
   containerName: string
   networkName: string
+  authorizedResourceUrls: string[]
+}
+
+export interface CandidateBaselinePreview {
+  candidateId: string
+  containerName: string
+  networkName: string
+  address: string
 }
 
 export function addressOnPreviewNetwork(networksJson: string, networkName: string): string {
@@ -198,6 +206,56 @@ async function removeContainer(name: string): Promise<void> {
   }
 }
 
+async function launchProjectContainer(candidateId: string, projectRoot: string, sourceRoot: string, networkName: string, containerName: string, authorizedResourceUrls: string[], role: 'candidate' | 'baseline'): Promise<string> {
+  if (process.platform !== 'linux') throw new CandidatePreviewError('隔离预演使用 Linux 容器并挂载原生依赖；请在 Linux 或 WSL2 中运行 Ripple 与目标项目，并将两者放在 Linux 文件系统中')
+  const dependencyPath = path.join(projectRoot, 'node_modules')
+  if (!fs.existsSync(dependencyPath)) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
+  const dependencies = fs.realpathSync(dependencyPath)
+  if (!fs.statSync(dependencies).isDirectory()) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
+  const coreRoot = fs.realpathSync(path.join(rippleRoot, 'src', 'core'))
+  const rippleDependencies = fs.realpathSync(path.join(rippleRoot, 'node_modules'))
+  const probe: CandidatePreview = { candidateId, url: '', containerName, networkName, authorizedResourceUrls }
+  await docker([
+    'run', '--detach', '--rm', '--name', containerName,
+    '--label', 'com.ripple.preview=true', '--label', `com.ripple.candidate=${candidateId}`, '--label', `com.ripple.preview.role=${role}`,
+    '--network', networkName,
+    '--env', `RIPPLE_PREVIEW_RESOURCE_URLS=${JSON.stringify(authorizedResourceUrls)}`,
+    '--read-only', '--user', '1000:1000',
+    '--memory', '1g', '--cpus', '2', '--pids-limit', '128',
+    '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
+    '--tmpfs', '/work:rw,nosuid,nodev,noexec,size=1073741824,uid=1000,gid=1000',
+    '--tmpfs', '/tmp:rw,nosuid,nodev,noexec,size=536870912,uid=1000,gid=1000',
+    '--mount', mount(sourceRoot, '/source'),
+    '--mount', mount(dependencies, '/deps'),
+    '--mount', mount(coreRoot, '/ripple/core'),
+    '--mount', mount(rippleDependencies, '/ripple/node_modules'),
+    '--workdir', '/work', image,
+    'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /ripple/core/candidate-preview-runner.mjs',
+  ], 120_000)
+  const address = await resolveCandidatePreviewAddress(probe)
+  await waitForEndpoint(`http://${address}:5173/`, probe, address)
+  return address
+}
+
+export async function startCandidateBaseline(candidate: CandidateRecord, preview: CandidatePreview): Promise<CandidateBaselinePreview> {
+  assertCandidateCurrent(candidate)
+  if (preview.candidateId !== candidate.id || previews.get(candidate.id) !== preview) throw new CandidatePreviewError('候选基线预演必须使用当前候选的活动网络')
+  const projectRoot = fs.realpathSync(candidate.projectRoot)
+  const containerName = `ripple-baseline-${candidate.id.replace(/[^a-zA-Z0-9_.-]/g, '-').slice(-40)}-${randomUUID().slice(0, 8)}`
+  try {
+    const address = await launchProjectContainer(candidate.id, projectRoot, projectRoot, preview.networkName, containerName, preview.authorizedResourceUrls, 'baseline')
+    assertCandidateCurrent(candidate)
+    return { candidateId: candidate.id, containerName, networkName: preview.networkName, address }
+  } catch (error) {
+    await removeContainer(containerName).catch(() => undefined)
+    throw error
+  }
+}
+
+export async function stopCandidateBaseline(baseline: CandidateBaselinePreview): Promise<void> {
+  await removeContainer(baseline.containerName)
+}
+
 export async function startCandidatePreview(candidate: CandidateRecord, authorizedResourceUrls: string[] = []): Promise<CandidatePreview> {
   const pending = starting.get(candidate.id)
   if (pending) return pending
@@ -216,14 +274,18 @@ async function launchCandidatePreview(candidate: CandidateRecord, authorizedReso
       throw error
     })
     if (running === 'true') {
-      const containerIp = await resolveCandidatePreviewAddress(existing)
-      const relay = relays.get(candidate.id)
-      if (!relay?.listening) throw new CandidatePreviewError('候选预演转发器已停止，请重新启动预演')
-      await waitForEndpoint(existing.url, existing, containerIp)
-      assertCandidateCurrent(candidate)
-      return existing
+      if (JSON.stringify(existing.authorizedResourceUrls) !== JSON.stringify(authorizedResourceUrls)) {
+        await stopCandidatePreview(candidate.id)
+      } else {
+        const containerIp = await resolveCandidatePreviewAddress(existing)
+        const relay = relays.get(candidate.id)
+        if (!relay?.listening) throw new CandidatePreviewError('候选预演转发器已停止，请重新启动预演')
+        await waitForEndpoint(existing.url, existing, containerIp)
+        assertCandidateCurrent(candidate)
+        return existing
+      }
     }
-    await stopCandidatePreview(candidate.id)
+    if (previews.has(candidate.id)) await stopCandidatePreview(candidate.id)
   }
 
   const projectRoot = fs.realpathSync(candidate.projectRoot)
@@ -231,7 +293,6 @@ async function launchCandidatePreview(candidate: CandidateRecord, authorizedReso
   if (!fs.existsSync(dependencyPath)) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
   const dependencies = fs.realpathSync(dependencyPath)
   if (!fs.statSync(dependencies).isDirectory()) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
-  if (process.platform !== 'linux') throw new CandidatePreviewError('隔离预演使用 Linux 容器并挂载原生依赖；请在 Linux 或 WSL2 中运行 Ripple 与目标项目，并将两者放在 Linux 文件系统中')
   const candidateRoot = fs.realpathSync(candidate.candidateRoot!)
   for (const file of ['package.json', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb']) {
     const baseFile = path.join(projectRoot, file)
@@ -240,39 +301,16 @@ async function launchCandidatePreview(candidate: CandidateRecord, authorizedReso
       throw new CandidatePreviewError(`候选修改了依赖清单 ${file}；请先在隔离依赖准备流程中安装候选依赖`)
     }
   }
-  const coreRoot = fs.realpathSync(path.join(rippleRoot, 'src', 'core'))
-  const rippleDependencies = fs.realpathSync(path.join(rippleRoot, 'node_modules'))
-
   const networkName = `ripple-preview-net-${randomUUID()}`
   const containerName = `ripple-preview-${candidate.id.replace(/[^a-zA-Z0-9_.-]/g, '-').slice(-48)}-${randomUUID().slice(0, 8)}`
-  const preview: CandidatePreview = { candidateId: candidate.id, url: '', containerName, networkName }
+  const preview: CandidatePreview = { candidateId: candidate.id, url: '', containerName, networkName, authorizedResourceUrls: [...authorizedResourceUrls] }
   let networkCreated = false
   try {
     await docker(['version', '--format', '{{.Server.Version}}'])
     await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', `com.ripple.candidate=${candidate.id}`, networkName])
     networkCreated = true
     previews.set(candidate.id, preview)
-    await docker([
-      'run', '--detach', '--name', containerName,
-      '--label', 'com.ripple.preview=true',
-      '--label', `com.ripple.candidate=${candidate.id}`,
-      '--network', networkName,
-      '--env', `RIPPLE_PREVIEW_RESOURCE_URLS=${JSON.stringify(authorizedResourceUrls)}`,
-      '--read-only', '--user', '1000:1000',
-      '--memory', '1g', '--cpus', '2', '--pids-limit', '128',
-      '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
-      '--tmpfs', '/work:rw,nosuid,nodev,noexec,size=1073741824,uid=1000,gid=1000',
-      '--tmpfs', '/tmp:rw,nosuid,nodev,noexec,size=536870912,uid=1000,gid=1000',
-      '--mount', mount(candidateRoot, '/source'),
-      '--mount', mount(dependencies, '/deps'),
-      '--mount', mount(coreRoot, '/ripple/core'),
-      '--mount', mount(rippleDependencies, '/ripple/node_modules'),
-      '--workdir', '/work',
-      image,
-      'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /ripple/core/candidate-preview-runner.mjs',
-    ], 120_000)
-    const containerIp = await resolveCandidatePreviewAddress(preview)
-    await waitForEndpoint(`http://${containerIp}:5173/`, preview, containerIp)
+    const containerIp = await launchProjectContainer(candidate.id, projectRoot, candidateRoot, networkName, containerName, authorizedResourceUrls, 'candidate')
     const relay = await startHostRelay(containerIp)
     preview.url = relay.url
     relays.set(candidate.id, relay.server)
@@ -313,3 +351,4 @@ export async function stopCandidatePreview(candidateId: string): Promise<void> {
   }
   previews.delete(candidateId)
 }
+

@@ -35,18 +35,25 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   const artifactPath = path.join(artifactRoot, 'home.png')
   const screenshot = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pZsAAAAASUVORK5CYII=', 'base64')
   fs.writeFileSync(artifactPath, screenshot)
+  const baselineSnapshot = `<main>${targetRef}</main>`
+  const comparisonPath = path.join(artifactRoot, 'comparison.json')
+  const comparisonBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, route: '/', viewport, baselineSnapshot, candidateSnapshot: baselineSnapshot, maskedOperationIds: ['test-operation'] }))
+  fs.writeFileSync(comparisonPath, comparisonBytes)
+  const comparisonDigest = createHash('sha256').update(baselineSnapshot).digest('hex')
+  const baselineComparisons = [{ route: '/', viewport, baselineDigest: comparisonDigest, candidateDigest: comparisonDigest, maskedOperationIds: ['test-operation'], matched: true, artifactPath: comparisonPath, artifactHash: createHash('sha256').update(comparisonBytes).digest('hex') }]
   const run: VerificationRun = {
     id, candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     candidateTreeDigest: candidate.candidateTreeDigest, runtimeFingerprint, startedAt, completedAt, checks: [check], assertions,
-    evidence: [{ id: 'evidence-home', checkId: check.id, result: 'pass', capturedAt: '2026-10-18T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: check.state, elementRefs: [targetRef], artifactPath, artifactHash: createHash('sha256').update(screenshot).digest('hex') }], status: 'incomplete',
+    evidence: [{ id: 'evidence-home', checkId: check.id, result: 'pass', capturedAt: '2026-10-18T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: check.state, elementRefs: [targetRef], artifactPath, artifactHash: createHash('sha256').update(screenshot).digest('hex') }], baselineComparisons, status: 'incomplete',
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
     schemaVersion: 1, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
-    runtimeFingerprint, checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }], assertions,
+    runtimeFingerprint, checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
+    baselineComparisons: [{ ...baselineComparisons[0], artifactPath: path.basename(comparisonPath) }], assertions,
     evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
     artifacts: [{ checkId: check.id, path: 'home.png', sha256: createHash('sha256').update(screenshot).digest('hex') }],
   }))
@@ -279,6 +286,8 @@ describe('real project graph and candidate executor', () => {
       const candidateGraph = analyzeProject(candidate.candidateRoot!, false)
       const binding = sourceBindings(candidate, graph, candidateGraph, session)[0]
       expect(binding.expectedText).toBe(operation.after)
+      expect(binding.beforeText).toBe(operation.before)
+      expect(binding.baselineSourceRefs).toHaveLength(1)
       expect(binding.sourceRefs).toHaveLength(1)
       expect(binding.sourceRefs[0]).toMatch(/^jsx:src\/components\/Navigation\.tsx#/)
       const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'override-evidence'))
@@ -355,3 +364,4 @@ describe('real project graph and candidate executor', () => {
     expect(fs.readFileSync(path.join(root, 'untracked.txt'), 'utf8')).toBe('preserve')
   }, 15_000)
 })
+

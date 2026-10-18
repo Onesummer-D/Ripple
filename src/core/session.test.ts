@@ -20,11 +20,18 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass',
   const artifactPath = path.join(artifactRoot, 'candidate.png')
   fs.writeFileSync(artifactPath, screenshot)
   const assertions = assertionIds.map(assertionId => ({ id: assertionId, result: assertionId === 'interaction' ? assertionResult : 'pass' as const, detail: `${assertionId} asserted by browser runner` }))
+  const viewport = { width: 1440, height: 900 }
+  const baselineSnapshot = '<main>unchanged outside edit-1</main>'
+  const comparisonPath = path.join(artifactRoot, 'comparison.json')
+  const comparisonBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, route: '/', viewport, baselineSnapshot, candidateSnapshot: baselineSnapshot, maskedOperationIds: ['edit-1'] }))
+  fs.writeFileSync(comparisonPath, comparisonBytes)
+  const comparisonDigest = createHash('sha256').update(baselineSnapshot).digest('hex')
+  const baselineComparisons = [{ route: '/', viewport, baselineDigest: comparisonDigest, candidateDigest: comparisonDigest, maskedOperationIds: ['edit-1'], matched: true, artifactPath: comparisonPath, artifactHash: createHash('sha256').update(comparisonBytes).digest('hex') }]
   const run: VerificationRun = {
     id, candidateId: p.id, scopeDecisionId: p.scopeDecisionId, scopeVersion: p.scopeVersion,
     baseSourceDigest: p.baseSourceDigest, patchHash: p.patchHash, candidateTreeDigest: p.candidateTreeDigest,
     runtimeFingerprint: revision.runtimeFingerprint, startedAt: '2026-10-18T00:00:00Z', completedAt: '2026-10-18T00:01:00Z',
-    checks: [{ id: 'desktop', route: '/', viewport: { width: 1440, height: 900 }, state: 'loaded', mandatory: true, description: 'title visible' }],
+    checks: [{ id: 'desktop', route: '/', viewport, state: 'loaded', mandatory: true, description: 'title visible' }], baselineComparisons,
     assertions,
     evidence: [{ id: `e-${p.id}`, checkId: 'desktop', result, pageUrl: 'http://127.0.0.1:5173/', capturedAt: '2026-10-18T00:00:30Z', viewport: { width: 1440, height: 900 }, runtimeState: 'loaded', elementRefs: ['home.title'], artifactPath: result === 'pass' ? artifactPath : undefined, artifactHash: result === 'pass' ? createHash('sha256').update(screenshot).digest('hex') : undefined }],
     status: 'incomplete',
@@ -36,6 +43,7 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass',
     baseSourceDigest: run.baseSourceDigest, patchHash: run.patchHash, candidateTreeDigest: run.candidateTreeDigest,
     runtimeFingerprint: run.runtimeFingerprint,
     checks: run.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: result === 'pass' })),
+    baselineComparisons: [{ ...baselineComparisons[0], artifactPath: path.basename(comparisonPath) }],
     assertions, evidence: run.evidence.map(item => ({ ...item, ...(item.artifactPath ? { artifactPath: path.basename(item.artifactPath) } : {}) })),
     artifacts: result === 'pass' ? [{ checkId: 'desktop', path: path.basename(artifactPath), sha256: createHash('sha256').update(screenshot).digest('hex') }] : [],
   }))
@@ -83,6 +91,14 @@ describe('Project-first session invariants', () => {
   it('does not allow passing checks without an evidence artifact', () => {
     const s = staged(), run = runFor(s.candidate!)
     expect(() => registerVerification(s, { ...run, evidence: run.evidence.map(e => ({ ...e, artifactPath: undefined, artifactHash: undefined })) })).toThrow(/trusted Playwright executor/)
+  })
+  it('does not attest non-target PASS without candidate-bound baseline comparisons', () => {
+    const run = runFor(candidate(scope()))
+    const recordPath = run.execution!.recordPath
+    const manifest = JSON.parse(fs.readFileSync(recordPath, 'utf8')) as Record<string, unknown>
+    delete manifest.baselineComparisons
+    fs.writeFileSync(recordPath, JSON.stringify(manifest))
+    expect(() => attestBrowserExecution({ ...run, baselineComparisons: undefined, execution: undefined }, recordPath)).toThrow(/baseline comparison/i)
   })
   it('rejects evidence with the wrong page, missing artifact hash, or capture outside its run', () => {
     const s = staged(), run = runFor(s.candidate!)
@@ -161,3 +177,4 @@ describe('Project-first session invariants', () => {
     expect(() => registerVerification(s, run)).toThrow(/artifact hash mismatch/)
   })
 })
+

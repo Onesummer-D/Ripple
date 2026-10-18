@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type VerificationAssertion, type VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type VerificationAssertion, type VerificationRun } from './model'
 
 export class VerificationEvidenceError extends Error {
   constructor(message: string) { super(message); this.name = 'VerificationEvidenceError' }
@@ -20,6 +20,7 @@ interface BrowserExecutionManifest {
   candidateTreeDigest: string
   runtimeFingerprint: string
   checks: Array<{ id: string; route: string; viewport: { width: number; height: number }; state: string; passed: boolean }>
+  baselineComparisons?: BaselineComparison[]
   assertions: VerificationAssertion[]
   evidence: Array<Omit<VerificationRun['evidence'][number], 'artifactPath'> & { artifactPath?: string }>
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
@@ -53,6 +54,7 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   let manifest: BrowserExecutionManifest
   try { manifest = JSON.parse(recordBytes.toString('utf8')) as BrowserExecutionManifest }
   catch { throw new VerificationEvidenceError('Playwright execution record is not valid JSON') }
+  const root = path.dirname(absoluteRecord)
   if (manifest.schemaVersion !== 1 || manifest.executor !== 'playwright' || manifest.completed !== true ||
     manifest.runId !== run.id || manifest.candidateId !== run.candidateId || manifest.scopeDecisionId !== run.scopeDecisionId || manifest.scopeVersion !== run.scopeVersion || manifest.baseSourceDigest !== run.baseSourceDigest ||
     manifest.patchHash !== run.patchHash || manifest.candidateTreeDigest !== run.candidateTreeDigest || manifest.runtimeFingerprint !== run.runtimeFingerprint) {
@@ -64,6 +66,57 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
     const evidence = run.evidence.find(item => item.checkId === check.id)
     return !executed || !evidence || executed.passed !== (evidence.result === 'pass') || executed.route !== check.route || !sameViewport(executed.viewport, check.viewport) || executed.state !== check.state
   })) throw new VerificationEvidenceError('Playwright execution checks do not match the registered run')
+  if (manifest.baselineComparisons !== undefined && !Array.isArray(manifest.baselineComparisons)) throw new VerificationEvidenceError('Playwright execution record has invalid original-project baseline comparisons')
+  const baselineComparisons = manifest.baselineComparisons ?? []
+  const registeredComparisons = run.baselineComparisons ?? []
+  if (!Array.isArray(registeredComparisons)) throw new VerificationEvidenceError('Registered baseline comparisons are invalid')
+  if (registeredComparisons.length !== baselineComparisons.length) throw new VerificationEvidenceError('Baseline comparisons do not match the registered run')
+  const comparisonKeys = new Set<string>()
+  for (const comparison of baselineComparisons) {
+    if (!comparison || typeof comparison.route !== 'string' || typeof comparison.matched !== 'boolean' || !comparison.viewport || !Number.isInteger(comparison.viewport.width) || !Number.isInteger(comparison.viewport.height)) {
+      throw new VerificationEvidenceError('Baseline comparison is missing a valid route or viewport')
+    }
+    const key = `${comparison.route}:${comparison.viewport.width}x${comparison.viewport.height}`
+    const registered = registeredComparisons.find(item => item?.viewport && `${item.route}:${item.viewport.width}x${item.viewport.height}` === key)
+    if (!registered || (registered.artifactPath !== undefined && typeof registered.artifactPath !== 'string') ||
+      (comparison.reason !== undefined && typeof comparison.reason !== 'string')) throw new VerificationEvidenceError('Registered baseline comparison fields are invalid')
+    if (comparisonKeys.has(key) || !run.checks.some(check => check.route === comparison.route && sameViewport(check.viewport, comparison.viewport)) ||
+      !Array.isArray(comparison.maskedOperationIds) || comparison.maskedOperationIds.some(id => typeof id !== 'string') || new Set(comparison.maskedOperationIds).size !== comparison.maskedOperationIds.length ||
+      registered.baselineDigest !== comparison.baselineDigest || registered.candidateDigest !== comparison.candidateDigest || registered.matched !== comparison.matched ||
+      registered.reason !== comparison.reason || registered.artifactHash !== comparison.artifactHash ||
+      (registered.artifactPath ? path.resolve(registered.artifactPath) : undefined) !== (comparison.artifactPath ? path.resolve(path.dirname(absoluteRecord), comparison.artifactPath) : undefined) ||
+      JSON.stringify(registered.maskedOperationIds) !== JSON.stringify(comparison.maskedOperationIds)) {
+      throw new VerificationEvidenceError('Baseline comparison does not belong to a unique checked route and viewport')
+    }
+    comparisonKeys.add(key)
+    const hasBaselineDigest = typeof comparison.baselineDigest === 'string'
+    const hasCandidateDigest = typeof comparison.candidateDigest === 'string'
+    if (hasBaselineDigest !== hasCandidateDigest || (!hasBaselineDigest && (comparison.baselineDigest !== undefined || comparison.candidateDigest !== undefined))) {
+      throw new VerificationEvidenceError('Baseline comparison must record both snapshot digests or neither')
+    }
+    const hasDigests = hasBaselineDigest && hasCandidateDigest
+    const hasArtifact = typeof comparison.artifactPath === 'string' && typeof comparison.artifactHash === 'string'
+    if (hasDigests && (!/^[a-f0-9]{64}$/.test(comparison.baselineDigest!) || !/^[a-f0-9]{64}$/.test(comparison.candidateDigest!) || comparison.matched !== (comparison.baselineDigest === comparison.candidateDigest) || !hasArtifact)) {
+      throw new VerificationEvidenceError('Baseline comparison digests do not match their recorded outcome')
+    }
+    if (!hasDigests && (comparison.matched || hasArtifact || comparison.artifactPath || comparison.artifactHash)) throw new VerificationEvidenceError('A missing baseline comparison cannot be marked as matched or retain an artifact')
+    if (hasArtifact) {
+      const artifact = artifactPathWithin(root, comparison.artifactPath!)
+      const stat = fs.statSync(artifact)
+      if (stat.size > 4 * 1024 * 1024) throw new VerificationEvidenceError('Baseline comparison artifact exceeds the 4 MiB limit')
+      const bytes = regularFile(artifact)
+      if (sha256(bytes) !== comparison.artifactHash) throw new VerificationEvidenceError('Baseline comparison artifact hash mismatch')
+      let record: { schemaVersion?: number; route?: string; viewport?: { width: number; height: number }; baselineSnapshot?: string; candidateSnapshot?: string; maskedOperationIds?: string[] }
+      try { record = JSON.parse(bytes.toString('utf8')) as typeof record }
+      catch { throw new VerificationEvidenceError('Baseline comparison artifact is not valid JSON') }
+      if (record.schemaVersion !== 1 || record.route !== comparison.route || !record.viewport || !sameViewport(record.viewport, comparison.viewport) ||
+        typeof record.baselineSnapshot !== 'string' || typeof record.candidateSnapshot !== 'string' ||
+        sha256(Buffer.from(record.baselineSnapshot)) !== comparison.baselineDigest || sha256(Buffer.from(record.candidateSnapshot)) !== comparison.candidateDigest ||
+        JSON.stringify(record.maskedOperationIds) !== JSON.stringify(comparison.maskedOperationIds)) {
+        throw new VerificationEvidenceError('Baseline comparison artifact does not match its registered digests and scope')
+      }
+    }
+  }
   const assertions = new Map(manifest.assertions.map(assertion => [assertion.id, assertion]))
   if (assertions.size !== run.assertions.length || run.assertions.some(assertion => {
     const executed = assertions.get(assertion.id)
@@ -71,8 +124,12 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   })) throw new VerificationEvidenceError('Playwright assertion record does not match the registered run')
   const assertionIds = new Set(run.assertions.map(assertion => assertion.id))
   if (REQUIRED_VERIFICATION_ASSERTION_IDS.some(id => !assertionIds.has(id))) throw new VerificationEvidenceError('Required browser assertions are missing')
+  const nonTargetAssertion = assertions.get('non-target-preserved')
+  if (nonTargetAssertion?.result === 'pass' && (baselineComparisons.length !== run.checks.length || baselineComparisons.some(comparison =>
+    !comparison.matched || !comparison.baselineDigest || !comparison.candidateDigest || !comparison.artifactPath || !comparison.artifactHash || comparison.maskedOperationIds.length === 0))) {
+    throw new VerificationEvidenceError('Non-target PASS requires a successful bound baseline comparison for every checked viewport')
+  }
 
-  const root = path.dirname(absoluteRecord)
   const executionEvidence = new Map(manifest.evidence.map(item => [item.id, item]))
   if (executionEvidence.size !== run.evidence.length || run.evidence.some(evidence => {
     const executed = executionEvidence.get(evidence.id)
@@ -143,3 +200,4 @@ export function assertTrustedBrowserExecution(run: VerificationRun): void {
   }
   if (validateRunRecord(run, run.execution.recordPath) !== run.execution.recordHash) throw new VerificationEvidenceError('Playwright execution record changed after capture')
 }
+

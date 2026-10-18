@@ -171,6 +171,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
     expect(recordResponse.ok()).toBe(true)
     const executionRecord = await recordResponse.json()
     await expect(assertionCards.filter({ hasText: 'target-change' })).toContainText('PASS')
+    await expect(assertionCards.filter({ hasText: 'non-target-preserved' })).toContainText('PASS')
     await expect(assertionCards.filter({ hasText: 'source-mapping' })).toContainText('PASS')
     await expect(assertionCards.filter({ hasText: 'interaction' })).toContainText('UNKNOWN')
     const verificationImages = page.getByTestId('verification-evidence').locator('img')
@@ -182,6 +183,9 @@ test('opens a real local project, keeps multiple operations and explicit local S
     expect(executionRecord).toMatchObject({ candidateId, patchHash: expect.any(String), candidateTreeDigest: expect.any(String), scopeVersion: 1 })
     expect(executionRecord.evidence.map((item: { viewport: { width: number } }) => item.viewport.width)).toEqual([1440, 768, 390])
     expect(executionRecord.evidence.every((item: { result: string }) => item.result === 'pass')).toBe(true)
+    expect(executionRecord.baselineComparisons).toHaveLength(3)
+    expect(executionRecord.baselineComparisons.every((comparison: { matched: boolean; baselineDigest: string; candidateDigest: string; maskedOperationIds: string[] }) =>
+      comparison.matched && comparison.baselineDigest === comparison.candidateDigest && comparison.maskedOperationIds.length === 2)).toBe(true)
     fs.writeFileSync(path.join(evidenceRoot, 'workbench-verification-execution.json'), JSON.stringify(executionRecord, null, 2))
     const screenshotUrls = await verificationImages.evaluateAll(images => images.map(image => (image as HTMLImageElement).src))
     const screenshotResponses = await Promise.all(screenshotUrls.map(url => page.request.get(url)))
@@ -328,3 +332,4 @@ test('opens the supplied Bolt project in the workbench and builds a shared-scope
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
   candidateId = ''
 })
+
