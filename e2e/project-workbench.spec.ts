@@ -47,6 +47,7 @@ async function expectCandidateRetired(id: string) {
 
 function createApprovalProject(titles = { home: 'Home page', autumn: 'Autumn page' }, withMedia = false): string {
   const root = fs.mkdtempSync(path.join(sandbox, 'approval-flow-project-'))
+  fs.chmodSync(root, 0o755)
   fs.mkdirSync(path.join(root, 'src', 'components'), { recursive: true })
   fs.mkdirSync(path.join(root, 'src', 'pages'), { recursive: true })
   fs.writeFileSync(path.join(root, '.gitignore'), 'node_modules/\ndist/\n')
@@ -467,9 +468,11 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
   expect(patchHash).toMatch(/^[a-f0-9]{64}$/)
   await page.getByTestId('verify-candidate').click()
   const verificationState = page.getByTestId('verification-state')
-  await expect.poll(async () => /PASSED|INCOMPLETE|RISKS|FAILED TO RUN/.test(await verificationState.innerText()), { timeout: 180_000 }).toBe(true)
+  await expect.poll(async () => /PASSED|INCOMPLETE|RISKS|FAILED TO RUN|STALE/.test(await verificationState.locator('span').innerText()), { timeout: 180_000 }).toBe(true)
+  const verificationSummary = await verificationState.innerText()
+  expect(verificationSummary, `Verification result: ${verificationSummary}`).toContain('PASSED')
   const assertions = page.getByTestId('verification-assertions')
-  expect(await verificationState.innerText(), `Verification assertions: ${await assertions.innerText()}`).toContain('PASSED')
+  await expect(assertions).toBeVisible()
   for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
     await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
   }
