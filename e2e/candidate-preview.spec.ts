@@ -62,11 +62,28 @@ test('runs the exact candidate source in a Docker-isolated browser preview', asy
   const previewResponse = await previewResponsePromise
   const previewPayload = await previewResponse.json() as { error?: string; url?: string }
   expect(previewResponse.ok(), `Candidate preview API failed: ${JSON.stringify(previewPayload)}`).toBeTruthy()
+  const browserDiagnostics: string[] = []
+  page.on('console', message => { if (message.type() === 'error') browserDiagnostics.push(`console: ${message.text()}`) })
+  page.on('pageerror', error => browserDiagnostics.push(`pageerror: ${error.message}`))
+  page.on('requestfailed', request => browserDiagnostics.push(`requestfailed: ${request.url()} · ${request.failure()?.errorText ?? 'unknown'}`))
   const iframe = page.getByTestId('candidate-preview')
   await expect(iframe).toBeVisible({ timeout: 150_000 })
   await expect(iframe).toHaveAttribute('sandbox', 'allow-scripts')
   const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
-  await expect(preview.getByRole('heading', { name: 'Candidate preview title' })).toBeVisible()
+  try {
+    await expect(preview.getByRole('heading', { name: 'Candidate preview title' })).toBeVisible({ timeout: 10_000 })
+  } catch (error) {
+    const frame = page.frames().find(item => item.url() === previewPayload.url)
+    const frameState = await frame?.evaluate(() => ({
+      origin: window.origin,
+      readyState: document.readyState,
+      title: document.title,
+      body: document.body?.innerText,
+      scripts: Array.from(document.scripts).map(script => ({ src: script.src, type: script.type, nonce: !!script.nonce })),
+    })).catch(cause => ({ error: cause instanceof Error ? cause.message : String(cause) }))
+    await test.info().attach('candidate-frame-diagnostics', { body: JSON.stringify({ url: previewPayload.url, frameState, browserDiagnostics }, null, 2), contentType: 'application/json' })
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\nCandidate iframe diagnostics: ${JSON.stringify({ frameState, browserDiagnostics })}`)
+  }
   await expect(preview.getByText('Unaffected page copy stays intact.')).toBeVisible()
   const firstInstance = await preview.getByRole('heading', { name: 'Candidate preview title' }).getAttribute('data-ripple-instance')
   expect(firstInstance).toBeTruthy()
