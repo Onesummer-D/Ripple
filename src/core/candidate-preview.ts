@@ -18,6 +18,18 @@ export interface CandidatePreview {
   networkName: string
 }
 
+export function addressOnPreviewNetwork(networksJson: string, networkName: string): string {
+  const networks = JSON.parse(networksJson) as Record<string, { IPAddress?: string }>
+  const address = networks[networkName]?.IPAddress
+  if (!address || net.isIP(address) !== 4) throw new CandidatePreviewError(`候选容器未加入预期的 IPv4 预演网络：${networkName}`)
+  return address
+}
+
+export async function resolveCandidatePreviewAddress(preview: CandidatePreview): Promise<string> {
+  const networks = await docker(['inspect', '--format', '{{json .NetworkSettings.Networks}}', preview.containerName])
+  return addressOnPreviewNetwork(networks, preview.networkName)
+}
+
 const previews = new Map<string, CandidatePreview>()
 const starting = new Map<string, Promise<CandidatePreview>>()
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')

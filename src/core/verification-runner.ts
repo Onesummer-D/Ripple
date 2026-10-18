@@ -7,7 +7,7 @@ import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { analyzeProject } from './project'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS, type EditSession, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
-import type { CandidatePreview } from './candidate-preview'
+import { resolveCandidatePreviewAddress, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
 
 export class VerificationRunnerError extends Error {
@@ -137,7 +137,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   fs.writeFileSync(inputPath, JSON.stringify({
     runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
-    runtimeFingerprint: session.projectRevision.runtimeFingerprint, previewHost: preview.containerName,
+    runtimeFingerprint: session.projectRevision.runtimeFingerprint, previewHost: await resolveCandidatePreviewAddress(preview),
     targetBindings: sourceBindings(candidate, baseGraph, candidateGraph, session),
   }), { flag: 'wx' })
 
