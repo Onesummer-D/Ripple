@@ -78,11 +78,23 @@ export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGrap
     const empty = { operationId: operation.id, beforeText: operation.before, expectedText: operation.after, baselineSourceRefs: [], sourceRefs: [], pageExpectations: {} }
     if (operation.kind !== 'TEXT' || !operation.before.trim() || !operation.after.trim() || original?.kind !== 'data' || !original.location?.path) return empty
     const candidateRef = candidate.operationTargetRefs[operation.id]
-    const data = candidateRef ? candidateNodes.get(candidateRef) : undefined
+    const mapped = candidateRef ? candidateNodes.get(candidateRef) : undefined
+    const restoredLiteral = operation.overrideAction === 'remove' && !mapped
+      ? candidateGraph.nodes.filter(node => node.kind === 'data' && node.id.startsWith('literal:') &&
+        node.location?.path === original.location!.path && node.value?.trim() === original.value?.trim() &&
+        JSON.stringify(sourceProvenPageImpact(candidateGraph, node.id).pageRefs) === JSON.stringify(sourceProvenPageImpact(baseGraph, original.id).pageRefs))
+      : []
+    const data = mapped ?? (restoredLiteral.length === 1 ? restoredLiteral[0] : undefined)
+    const removalAnchor = operation.overrideAction === 'remove' && session.scope?.strategy === 'page-override' && (
+      (data?.id === operation.targetRef && data.pageOverrides?.[session.scope.localPageRef!] === undefined) ||
+      data?.id.startsWith('literal:')
+    ) && data?.value?.trim() === original.value?.trim()
     const unchangedAnchor = data?.kind === 'data' && data.location?.path === original.location.path && (
-      session.scope?.strategy === 'page-override'
-        ? data.id.startsWith('override:') && data.value?.trim() === original.value?.trim() && data.pageOverrides?.[session.scope.localPageRef!] === operation.after
-        : data.value?.trim() === operation.after.trim()
+      operation.overrideAction === 'remove'
+        ? removalAnchor
+        : session.scope?.strategy === 'page-override'
+          ? data.id.startsWith('override:') && data.value?.trim() === original.value?.trim() && data.pageOverrides?.[session.scope.localPageRef!] === operation.after
+          : data.value?.trim() === operation.after.trim()
     )
     if (!unchangedAnchor || !data) return empty
     const pageRefs = sourceProvenPageImpact(baseGraph, original.id).pageRefs

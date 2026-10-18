@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BrowserVerificationContract, EditKind, EditOperation, EvidenceResult, ScopeDecision } from '../core/model'
+import { VerificationContractEditor } from './VerificationContractEditor'
+import { createVerificationContractDraft, incompleteVerificationDeclarations, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
 import './project-workbench.css'
 
 interface RouteSummary { id: string; label: string; page?: string }
@@ -82,13 +84,6 @@ type PageScope = 'include' | 'exclude' | 'protect' | ''
 const operationKind = (kind: TargetSummary['kind']): EditKind => kind === 'data' ? 'TEXT' : kind === 'media' ? 'MEDIA' : 'TOKEN'
 const candidateStorageKey = 'ripple.workbench.activeCandidate'
 const previewSizes = [{ label: '桌面', width: 1440, height: 900 }, { label: '平板', width: 768, height: 1024 }, { label: '手机', width: 390, height: 844 }]
-const verificationContractPlaceholder = JSON.stringify({
-  pages: [
-    { pageRef: 'page:home', path: '/', markerText: '首页标题' },
-    { pageRef: 'page:story', path: '/', markerText: '故事页标题', navigateBy: { role: 'button', name: '品牌故事' } },
-  ],
-  interactions: [{ pageRef: 'page:home', role: 'button', name: '加入购物车', expectedText: '已加入' }],
-}, null, 2)
 const verificationLabel = (state: VerificationView['state']) => state === 'not-run' ? 'NOT RUN' : state === 'failed-to-run' ? 'FAILED TO RUN' : state.toUpperCase()
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -149,7 +144,7 @@ export default function ProjectWorkbench() {
   const [pageScope, setPageScope] = useState<Record<string, PageScope>>({})
   const [scopeStrategy, setScopeStrategy] = useState<'shared' | 'page-override'>('shared')
   const [localPageRef, setLocalPageRef] = useState('')
-  const [verificationContractDraft, setVerificationContractDraft] = useState('')
+  const [verificationContractDraft, setVerificationContractDraft] = useState<VerificationContractDraft>({ pages: [], interactions: [] })
   const [candidate, setCandidate] = useState<CandidateView>()
   const [verification, setVerification] = useState<VerificationView>({ state: 'not-run', reason: '浏览器验证尚未运行。' })
   const [workflow, setWorkflow] = useState<WorkflowView>()
@@ -187,7 +182,7 @@ export default function ProjectWorkbench() {
         setAnalysis(restored.analysis)
         setResourceDraft(restored.analysis.previewResources.authorizedUrls.join('\n'))
         setIntent(restored.rawIntent)
-        setVerificationContractDraft(restored.verificationContract ? JSON.stringify(restored.verificationContract, null, 2) : '')
+        setVerificationContractDraft(createVerificationContractDraft(restored.analysis.routes, restored.verificationContract))
         setCandidate(restored.candidate)
         setVerification(restored.verification)
         setWorkflow(restored.workflow)
@@ -288,7 +283,7 @@ export default function ProjectWorkbench() {
       setPageScope(Object.fromEntries(next.routes.map(route => [route.id, ''])))
       setLocalPageRef(next.routes[0]?.id ?? '')
       setScopeStrategy('shared')
-      setVerificationContractDraft('')
+      setVerificationContractDraft(createVerificationContractDraft(next.routes))
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法分析项目') }
     finally { setBusy(false) }
   }
@@ -361,7 +356,7 @@ export default function ProjectWorkbench() {
       decidedBy: 'local-user', decidedAt: new Date().toISOString(),
     }
     try {
-      const verificationContract = verificationContractDraft.trim() ? JSON.parse(verificationContractDraft) as BrowserVerificationContract : undefined
+      const verificationContract = toBrowserVerificationContract(verificationContractDraft)
       const result = await post<{ candidate: CandidateView; verification: VerificationView; workflow: WorkflowView }>('candidate', { projectId: analysis.revision.projectId, rawIntent: intent, operations, scope, verificationContract, previousCandidateId: candidate?.id })
       setCandidate(result.candidate)
       setVerification(result.verification)
@@ -420,7 +415,7 @@ export default function ProjectWorkbench() {
       setAnalysis(restored.analysis)
       setResourceDraft(restored.analysis.previewResources.authorizedUrls.join('\n'))
       setIntent(restored.rawIntent)
-      setVerificationContractDraft(restored.verificationContract ? JSON.stringify(restored.verificationContract, null, 2) : '')
+      setVerificationContractDraft(createVerificationContractDraft(restored.analysis.routes, restored.verificationContract))
       setCandidate(restored.candidate)
       setVerification(restored.verification)
       setWorkflow(restored.workflow)
@@ -534,7 +529,8 @@ export default function ProjectWorkbench() {
           {scopeStrategy === 'page-override' && <label className="local-page-choice">覆盖页面<select aria-label="选择局部覆盖页面" value={localPageRef} onChange={event => void invalidateCandidate().then(ok => { if (ok) { const pageRef = event.target.value; setLocalPageRef(pageRef); setAfter(target?.pageOverrides?.[pageRef] ?? target?.value ?? '') } })}>{analysis.routes.map(route => <option key={route.id} value={route.id}>{route.label}</option>)}</select><small>当前执行器支持 JSX 文本；MEDIA、TOKEN 和运行时单实例覆盖仍未接入。</small></label>}
         </fieldset>
         {analysis.routes.length === 0 ? <p className="empty-note">尚未解析出路由，当前不能生成页面范围候选。</p> : <div className="scope-grid">{analysis.routes.map(route => <label className={`scope-route ${pageScope[route.id] ? `scope-${pageScope[route.id]}` : ''}`} key={route.id}><span className="scope-route-head"><strong>{route.label}</strong><code>{route.id}</code></span><select data-testid={`scope-${route.id}`} aria-label={`${route.label} 页面范围`} value={pageScope[route.id] ?? ''} disabled={busy || previewBusy || verificationBusy} onChange={event => { const value = event.target.value as PageScope; void invalidateCandidate().then(ok => { if (ok) setPageScope(current => ({ ...current, [route.id]: value })) }) }}><option value="">请选择范围</option><option value="include">包含在候选中</option><option value="exclude">明确排除</option><option value="protect">保护，不得修改</option></select>{impactedPages.includes(route.id) && <small>目标源码的已证明消费者</small>}</label>)}</div>}
-        <label className="verification-contract-field"><span className="field-label">真实页面与交互验证契约（可选；未填写时对应断言保持 UNKNOWN）</span><textarea data-testid="verification-contract" value={verificationContractDraft} disabled={busy || previewBusy || verificationBusy || !!candidate} onChange={event => setVerificationContractDraft(event.target.value)} placeholder={verificationContractPlaceholder} spellCheck={false} /><small>仅声明同源路径、可见页面标记和可访问名称明确的按钮/链接；不执行用户提供的脚本。Scope PASS 需要覆盖所有已解析页面，且目标必须是每页都实际消费的共享 TEXT。</small></label>
+        <VerificationContractEditor routes={analysis.routes} value={verificationContractDraft} disabled={busy || previewBusy || verificationBusy || !!candidate} onChange={setVerificationContractDraft} />
+        {incompleteVerificationDeclarations(verificationContractDraft) > 0 && <p className="verification-contract-note" role="status">有 {incompleteVerificationDeclarations(verificationContractDraft)} 项验收信息尚未填写完整；不完整项不会送入执行器，相关断言将保持 UNKNOWN。</p>}
         <div className="scope-footer"><span>{operations.length} 项操作 · {impactedPages.length} 个已证明页面消费者{scopeStrategy === 'page-override' ? ' · 一项页面覆盖' : ''}</span><button type="button" data-testid="create-real-candidate" onClick={() => void createCandidate()} disabled={busy || previewBusy || verificationBusy || !analysis || !intent.trim() || !operations.length || !scopesComplete || !scopesValid}>{busy ? '正在创建隔离候选…' : '创建真实隔离候选'}<span>↗</span></button></div>
       </section>
 

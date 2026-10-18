@@ -10,5 +10,6 @@ describe('Project-first workbench surface', () => {
     expect((screen.getByRole('button', { name: /分析工程/ }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.queryByText(/Qingye|Qiguang|第三方案例|CaseFixture/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /应用|批准|浏览器预演/ })).toBeNull()
+    expect(screen.queryByTestId('verification-contract')).toBeNull()
   })
 })

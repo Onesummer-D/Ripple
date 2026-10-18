@@ -99,10 +99,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await page.getByTestId('scope-page:autumn').selectOption('exclude')
   await page.getByRole('radio', { name: /仅在一个页面创建可维护覆盖/ }).check()
   await page.getByLabel('选择局部覆盖页面').selectOption('page:home')
-  await page.getByTestId('verification-contract').fill(JSON.stringify({
-    pages: [{ pageRef: 'page:home', path: '/', markerText: 'Home route' }],
-    interactions: [],
-  }))
+  await page.getByLabel('home 页面标记文字').fill('Home route')
   await page.getByTestId('create-real-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toBeVisible({ timeout: 30_000 })
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
@@ -338,13 +335,12 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
   await page.getByLabel('选择局部覆盖页面').selectOption('page:home')
   await page.getByTestId('scope-page:home').selectOption('include')
   await page.getByTestId('scope-page:autumn').selectOption('exclude')
-  await page.getByTestId('verification-contract').fill(JSON.stringify({
-    pages: [
-      { pageRef: 'page:home', path: '/', markerText: 'Home page' },
-      { pageRef: 'page:autumn', path: '/', markerText: 'Autumn page', navigateBy: { role: 'button', name: 'Autumn route' } },
-    ],
-    interactions: [{ pageRef: 'page:home', role: 'button', name: 'Clicks 0', expectedText: 'Clicks 1' }],
-  }, null, 2))
+  await page.getByLabel('home 页面标记文字').fill('Home page')
+  await page.getByLabel('autumn 页面标记文字').fill('Autumn page')
+  await page.getByLabel('autumn 页面导航控件名称').fill('Autumn route')
+  await page.getByTestId('add-verification-interaction').click()
+  await page.getByLabel('交互检查 1 控件名称').fill('Clicks 0')
+  await page.getByLabel('交互检查 1 预期结果').fill('Clicks 1')
   await page.getByTestId('create-real-candidate').click()
   await expect(page.getByTestId('candidate-id')).toBeVisible({ timeout: 30_000 })
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()

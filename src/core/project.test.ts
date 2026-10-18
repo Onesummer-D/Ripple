@@ -325,6 +325,50 @@ describe('real project graph and candidate executor', () => {
     } finally { removeCandidate(candidate) }
   }, 60_000)
 
+  it('binds removal of the final page override to its restored shared JSX text', () => {
+    const { container, root } = sampleProject()
+    const firstGraph = analyzeProject(root)
+    const sharedTarget = firstGraph.nodes.find(node => node.kind === 'data' && node.location?.path === 'src/components/Navigation.tsx' && node.value?.trim() === 'Home')!
+    const firstScope: ScopeDecision = {
+      id: 'scope-create-removal-binding', version: 1, strategy: 'page-override', localPageRef: 'page:home',
+      includedRefs: [sharedTarget.id, 'page:home'], excludedRefs: ['page:autumn'], protectedRefs: [],
+      decidedBy: 'test-user', decidedAt: new Date().toISOString(),
+    }
+    const firstOperation: EditOperation = { id: 'create-removal-binding', kind: 'TEXT', targetRef: sharedTarget.id, before: sharedTarget.value!, after: 'Home maintained' }
+    const firstCandidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-create-removal-binding'), artifactRoot: path.join(container, 'create-removal-artifacts'), graph: firstGraph, scope: firstScope, operations: [firstOperation] })
+    let removalCandidate: ReturnType<typeof createCandidate> | undefined
+    try {
+      let firstSession = recordSourceGraph(openSession('create-removal-session', firstGraph.revision, 'Create a home-only text override', [], contractFor(firstScope)), firstGraph.id, firstGraph.revision.sourceDigest)
+      firstSession = stageCandidate(stageOperations(chooseScope(firstSession, firstScope), firstCandidate.operations), firstCandidate)
+      firstSession = approve(registerVerification(firstSession, trustedRun(firstCandidate, firstGraph.revision.runtimeFingerprint, sharedTarget.id, path.join(container, 'create-removal-evidence'), firstScope)), {
+        candidateId: firstCandidate.id, verificationRunId: 'apply-run', by: 'test-user', at: '2026-10-18T00:02:00Z',
+      })
+      applyApprovedCandidate(firstSession, firstCandidate)
+      git(root, 'add', '-A')
+      git(root, 'commit', '-qm', 'apply home-only override')
+
+      const graph = analyzeProject(root)
+      const existingOverride = graph.nodes.find(node => node.kind === 'data' && node.pageOverrides?.['page:home'] === 'Home maintained')!
+      const scope: ScopeDecision = {
+        id: 'scope-remove-binding', version: 1, strategy: 'page-override', localPageRef: 'page:home',
+        includedRefs: [existingOverride.id, 'page:home'], excludedRefs: ['page:autumn'], protectedRefs: [],
+        decidedBy: 'test-user', decidedAt: new Date().toISOString(),
+      }
+      const operation: EditOperation = { id: 'remove-binding', kind: 'TEXT', targetRef: existingOverride.id, before: existingOverride.value!, after: existingOverride.value!, overrideAction: 'remove' }
+      removalCandidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate-remove-binding'), artifactRoot: path.join(container, 'remove-artifacts'), graph, scope, operations: [operation] })
+      let session = recordSourceGraph(openSession('remove-binding-session', graph.revision, 'Remove this page override', [], contractFor(scope)), graph.id, graph.revision.sourceDigest)
+      session = stageCandidate(stageOperations(chooseScope(session, scope), removalCandidate.operations), removalCandidate)
+      const binding = sourceBindings(removalCandidate, graph, analyzeProject(removalCandidate.candidateRoot!, false), session)[0]
+      expect(binding.baselineSourceRefs).toHaveLength(1)
+      expect(binding.sourceRefs).toHaveLength(1)
+      expect(binding.pageExpectations['page:home']).toMatchObject({ baselineText: 'Home maintained', candidateText: 'Home', shouldChange: true })
+      expect(binding.pageExpectations['page:autumn']).toMatchObject({ baselineText: 'Home', candidateText: 'Home', shouldChange: false })
+    } finally {
+      if (removalCandidate) removeCandidate(removalCandidate)
+      removeCandidate(firstCandidate)
+    }
+  }, 30_000)
+
   it('applies the exact approved patch to the project and rolls back only that unchanged result', () => {
     const { container, root } = sampleProject()
     const graph = analyzeProject(root)
