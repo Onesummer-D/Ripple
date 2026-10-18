@@ -181,6 +181,8 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
         return [...whenTrue, ...whenFalse]
       }
       if (ts.isArrayLiteralExpression(initializer)) return objectLiteralPropertyValues(initializer, property, resolveAsset)
+      // `const featured = products.filter(...).slice(0, 3)` — drill through call chains too.
+      if (ts.isCallExpression(initializer)) return arrayDrill(initializer, property, checker, visited, resolveAsset)
       return []
     }
     if (declaration && ts.isParameter(declaration)) {
@@ -592,34 +594,97 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   // Post-pass: prop-drilling provenance needs usage sites from every file collected first.
   {
     const resolveAsset = (name: string, sourceFile: ts.SourceFile) => assetImportBindings.get(relativeTo(snapshot.root, sourceFile.fileName))?.get(name)
+    const mediaNodeFor = (item: DrilledProperty): SourceNode | undefined => {
+      if (item.kind === 'asset') return nodeById.get(assetMediaId(item.assetFile))
+      const matches = mediaByValue.get(item.text) ?? []
+      return matches.length === 1 ? matches[0] : undefined
+    }
+    const candidateNodesFor = (item: DrilledProperty): SourceNode[] => {
+      if (item.kind === 'asset') {
+        const node = nodeById.get(assetMediaId(item.assetFile))
+        return node ? [node] : []
+      }
+      return mediaByValue.get(item.text) ?? []
+    }
     for (const drill of pendingDrills) {
       const drilled = new Map<string, DrilledProperty>()
+      // Unproven usage sites must NOT vanish from the graph: an invisibly-rendered media
+      // would let a page impact closure be overestimated. Where the array is syntactically
+      // reachable (spread of a map param, element access) we name candidate media and both
+      // emit semantic-candidate edges and poison each candidate's file via `unresolved`, so
+      // sourceProvenPageImpact fails closed whenever that file is in the proven subgraph.
+      const candidatesFromUnproven = new Map<string, DrilledProperty>()
+      const unprovenUsageFiles = new Set<string>()
+      let sawUsage = false
       for (const usage of componentUsages) {
         if (usage.targetId !== drill.ownerId) continue
         const attribute = usage.element.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === drill.paramName)
         const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
         const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
-        if (!expression) continue
-        const items = arrayDrill(expression, drill.property, checker, new Set(), resolveAsset)
-        for (const item of items) drilled.set(JSON.stringify(item), item)
-      }
-      for (const item of drilled.values()) {
-        if (item.kind === 'asset') {
-          if (nodeById.has(assetMediaId(item.assetFile))) {
-            addEdge(drill.ownerId, assetMediaId(item.assetFile), 'asset-consumer', `asset:${drill.ownerId}:${assetMediaId(item.assetFile)}:${drill.position}`)
+        if (expression && ts.isElementAccessExpression(expression)) {
+          // `items[index]`: the member IS passed, but which one is unknowable at
+          // analysis time. Name candidates from the array base, stay unproven.
+          sawUsage = true
+          unprovenUsageFiles.add(usage.file)
+          for (const item of arrayDrill(expression.expression, drill.property, checker, new Set(), resolveAsset)) {
+            candidatesFromUnproven.set(JSON.stringify(item), item)
           }
           continue
         }
-        const matches = mediaByValue.get(item.text) ?? []
-        if (matches.length === 1) {
-          addEdge(drill.ownerId, matches[0].id, 'asset-consumer', `asset:${drill.ownerId}:${matches[0].id}:${drill.position}`)
-        } else {
-          for (const match of matches) addEdge(drill.ownerId, match.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${match.id}:${drill.position}`, 'semantic-candidate')
+        if (expression) {
+          sawUsage = true
+          const items = arrayDrill(expression, drill.property, checker, new Set(), resolveAsset)
+          if (items.length) {
+            for (const item of items) drilled.set(JSON.stringify(item), item)
+            continue
+          }
+          unprovenUsageFiles.add(usage.file)
+          continue
+        }
+        // No named attribute: only a JSX spread can still carry the prop at runtime.
+        // A usage without either passes nothing — the component is not a consumer for
+        // this drill and must not be recorded as an unknown one.
+        if (!usage.element.attributes.properties.some(ts.isJsxSpreadAttribute)) continue
+        sawUsage = true
+        unprovenUsageFiles.add(usage.file)
+        let candidateSource: ts.Expression | undefined
+        // Walk up from the JSX element to an enclosing .map/.filter callback parameter.
+        {
+          let node: ts.Node | undefined = usage.element
+          while (node && !ts.isCallExpression(node)) node = node.parent
+          const call = node && ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+            ['map', 'filter', 'slice'].includes(node.expression.name.text) ? node : undefined
+          const callback = call?.arguments[0]
+          const param = callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && callback.parameters[0] && ts.isIdentifier(callback.parameters[0].name)
+            ? callback.parameters[0].name : undefined
+          candidateSource = param
+        }
+        if (candidateSource) {
+          for (const item of arrayDrill(candidateSource, drill.property, checker, new Set(), resolveAsset)) candidatesFromUnproven.set(JSON.stringify(item), item)
         }
       }
-      // A component whose prop drilling finds nothing anywhere stays honestly unproven:
-      // no edge is emitted here, and the visit-time code already suppressed the coarse
-      // name-based fallback for prop-sourced accesses.
+      for (const item of drilled.values()) {
+        const node = mediaNodeFor(item)
+        if (node) {
+          addEdge(drill.ownerId, node.id, 'asset-consumer', `asset:${drill.ownerId}:${node.id}:${drill.position}`)
+        } else {
+          for (const candidate of candidateNodesFor(item)) {
+            addEdge(drill.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${candidate.id}:${drill.position}`, 'semantic-candidate')
+          }
+        }
+      }
+      for (const item of candidatesFromUnproven.values()) {
+        for (const candidate of candidateNodesFor(item)) {
+          addEdge(drill.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${candidate.id}:${drill.position}`, 'semantic-candidate')
+          // Poison the candidate's closure: scope.ts flags unresolved entries whose
+          // importer file is in the proven consumer subgraph. The media's declaration
+          // file is always reachable from the media itself, so this entry guarantees
+          // fail-closed impact for every named candidate.
+          if (candidate.location?.path) unresolved.push(`${candidate.location.path} → unproven-usage:${unprovenUsageFiles.values().next().value ?? drill.file}`)
+        }
+      }
+      for (const usageFile of unprovenUsageFiles) unresolved.push(`${usageFile} → unproven-prop:${drill.paramName}`)
+      if (!drilled.size && sawUsage) unresolved.push(`${drill.file} → unproven-prop:${drill.paramName}.${drill.property}`)
     }
   }
   void pendingDrills

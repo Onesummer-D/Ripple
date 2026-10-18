@@ -113,10 +113,11 @@ describe('media provenance upgrade', () => {
     expect(impact.certainty).not.toBe('source-proven')
   })
 
-  it('leaves spread-propped components unproven instead of guessing', () => {
+  it('names candidates through a spread but keeps the usage unproven and poisons the closure', () => {
     const root = temp()
     scaffold(root)
-    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: 'https://images.pexels.com/photos/222/pexels-photo-222.jpeg?auto=compress' }];`)
+    const url = 'https://images.pexels.com/photos/222/pexels-photo-222.jpeg?auto=compress'
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: '${url}' }];`)
     write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
     write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} {...product} />)}</main> }`)
     write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
@@ -125,9 +126,57 @@ describe('media provenance upgrade', () => {
     const graph = analyzeProject(root)
     const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
     const edges = assetEdges(graph, cardId)
-    // No drilling possible through a spread, and the coarse name-based fallback is
-    // suppressed for prop-sourced accesses: honestly unproven means no fabricated edges.
-    expect(edges.length).toBe(0)
+    // Candidates are named (syntactic array reachable) but stay semantic-candidate.
+    expect(edges.length).toBe(1)
+    expect(edges[0].certainty).toBe('semantic-candidate')
+    // The media's declaration file is poisoned: impact must fail closed even though the
+    // consumption could not be proven — an invisible consumer must not disappear.
+    const media = graph.nodes.find(node => node.kind === 'media')!
+    const impact = sourceProvenPageImpact(graph, media.id)
+    expect(impact.certainty).not.toBe('source-proven')
+    expect(impact.unresolved.length).toBeGreaterThan(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-usage') || entry.includes('unproven-prop'))).toBe(true)
+  })
+
+  it('mixed proven and unproven consumers: impact closure is never overestimated', () => {
+    const root = temp()
+    scaffold(root)
+    const url = 'https://images.pexels.com/photos/333/pexels-photo-333.jpeg?auto=compress'
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: '${url}' }];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    // Home: proven path. List: spread path (unproven) over the same array.
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.map((product) => <ProductCard key={product.id} {...product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const media = graph.nodes.find(node => node.kind === 'media')!
+    const impact = sourceProvenPageImpact(graph, media.id)
+    // page:home is provably affected, but the spread usage on page:list is unproven:
+    // the closure must report incomplete, never silently claim full coverage.
+    expect(impact.pageRefs).toContain('page:home')
+    expect(impact.certainty).not.toBe('source-proven')
+    expect(impact.unresolved.length).toBeGreaterThan(0)
+  })
+
+  it('dynamic array member (element access) names candidates but stays unproven', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [\n  { id: 'p1', image: 'https://images.pexels.com/photos/6/pexels-photo-6.jpeg?auto=compress' },\n  { id: 'p2', image: 'https://images.pexels.com/photos/7/pexels-photo-7.jpeg?auto=compress' },\n];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\ndeclare const index: number;\nexport function HomePage() { return <main><ProductCard product={products[index]} /></main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
+    const edges = assetEdges(graph, cardId)
+    expect(edges.length).toBe(2)
+    expect(edges.every(edge => edge.certainty === 'semantic-candidate')).toBe(true)
+    for (const edge of edges) {
+      const impact = sourceProvenPageImpact(graph, edge.to)
+      expect(impact.certainty).not.toBe('source-proven')
+    }
   })
 })
 
