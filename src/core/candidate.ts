@@ -432,16 +432,25 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
   }
 }
 
-export function assertCandidateCurrent(candidate: CandidateRecord): void {
-  const marker = JSON.parse(fs.readFileSync(candidate.markerPath, 'utf8')) as { id: string; projectId: string; baseSourceDigest: string }
-  const currentRevision = readProjectSnapshot(candidate.projectRoot).revision
-  if (currentRevision.sourceDigest !== candidate.baseSourceDigest || marker.id !== candidate.id || marker.projectId !== currentRevision.projectId || marker.baseSourceDigest !== candidate.baseSourceDigest) {
-    throw new CandidateError('候选 worktree 标记与候选身份不匹配')
+export function assertCandidateIntegrity(candidate: CandidateRecord, requireWorktree = true): void {
+  const projectId = readProjectSnapshot(candidate.projectRoot, false).revision.projectId
+  if (candidate.candidateRoot && fs.existsSync(candidate.candidateRoot)) {
+    const markerStat = fs.lstatSync(candidate.markerPath)
+    if (markerStat.isSymbolicLink() || !markerStat.isFile()) throw new CandidateError('候选 worktree 标记无效')
+    const marker = JSON.parse(fs.readFileSync(candidate.markerPath, 'utf8')) as { id: string; projectId: string; baseSourceDigest: string }
+    if (marker.id !== candidate.id || marker.projectId !== projectId || marker.baseSourceDigest !== candidate.baseSourceDigest) {
+      throw new CandidateError('候选 worktree 标记与候选身份不匹配')
+    }
+  } else if (requireWorktree) {
+    throw new CandidateError('候选 worktree 已不存在')
   }
-  const patch = execFileSync('git', ['-C', candidate.candidateRoot!, 'diff', '--no-ext-diff', '--binary', 'HEAD'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
   const artifactHash = candidate.artifactPath && fs.existsSync(candidate.artifactPath) ? sha256(fs.readFileSync(candidate.artifactPath)) : ''
+  if (artifactHash !== candidate.patchHash) throw new CandidateError('候选补丁哈希已变化，请重新验证')
+  if (!requireWorktree) return
+  if (!candidate.candidateRoot || !fs.existsSync(candidate.candidateRoot)) throw new CandidateError('候选 worktree 已不存在')
+  const patch = execFileSync('git', ['-C', candidate.candidateRoot, 'diff', '--no-ext-diff', '--binary', 'HEAD'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
   const candidateFiles = [...new Set([...candidate.modifiedPaths, ...runGit(candidate.projectRoot, ['ls-files']).split(/\r?\n/).filter(Boolean)])].filter(file => fs.existsSync(path.join(candidate.candidateRoot!, file)))
-  if (sha256(patch) !== candidate.patchHash || artifactHash !== candidate.patchHash || digestTrackedTree(candidate.candidateRoot!, candidateFiles) !== candidate.candidateTreeDigest) {
+  if (sha256(patch) !== candidate.patchHash || digestTrackedTree(candidate.candidateRoot, candidateFiles) !== candidate.candidateTreeDigest) {
     throw new CandidateError('候选代码或补丁哈希已变化，请重新验证')
   }
   const status = runGit(candidate.candidateRoot!, ['status', '--porcelain', '--untracked-files=all'])
@@ -450,7 +459,13 @@ export function assertCandidateCurrent(candidate: CandidateRecord): void {
   if (unexpected.length) throw new CandidateError('候选包含未经记录的文件变更，不能作为已验证补丁')
 }
 
-export function removeCandidate(candidate: CandidateRecord): void {
+export function assertCandidateCurrent(candidate: CandidateRecord): void {
+  const currentRevision = readProjectSnapshot(candidate.projectRoot).revision
+  if (currentRevision.sourceDigest !== candidate.baseSourceDigest) throw new CandidateError('候选基线已变化，请重新验证')
+  assertCandidateIntegrity(candidate)
+}
+
+export function removeCandidate(candidate: CandidateRecord, options: { preserveAudit?: boolean } = {}): void {
   const marker = JSON.parse(fs.readFileSync(candidate.markerPath, 'utf8')) as { id: string; projectId: string }
   if (marker.id !== candidate.id || marker.projectId !== readProjectSnapshot(candidate.projectRoot, false).revision.projectId) throw new CandidateError('拒绝清理身份不匹配的 worktree')
   if (candidate.artifactPath && fs.existsSync(candidate.artifactPath)) {
@@ -479,6 +494,10 @@ export function removeCandidate(candidate: CandidateRecord): void {
     }
   }
   removeWorktree(candidate.projectRoot, candidate.candidateRoot!)
+  if (options.preserveAudit) {
+    emptyCandidateParent(candidate.candidateRoot!)
+    return
+  }
   if (candidateEvidence && fs.existsSync(candidateEvidence)) fs.rmSync(candidateEvidence, { recursive: true, force: false })
   if (verificationRoot && fs.existsSync(verificationRoot) && !fs.readdirSync(verificationRoot).length) fs.rmdirSync(verificationRoot)
   if (candidate.artifactPath && fs.existsSync(candidate.artifactPath)) fs.unlinkSync(candidate.artifactPath)
@@ -487,5 +506,11 @@ export function removeCandidate(candidate: CandidateRecord): void {
     fs.rmdirSync(directory)
   }
   if (candidate.artifactPath) emptyDirectory(path.dirname(candidate.artifactPath))
-  emptyDirectory(path.dirname(candidate.candidateRoot!))
+  emptyCandidateParent(candidate.candidateRoot!)
+}
+
+function emptyCandidateParent(candidateRoot: string): void {
+  const parent = path.dirname(candidateRoot)
+  if (!fs.existsSync(parent) || !fs.statSync(parent).isDirectory() || fs.readdirSync(parent).length) return
+  fs.rmdirSync(parent)
 }

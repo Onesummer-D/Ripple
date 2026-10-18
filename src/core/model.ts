@@ -60,6 +60,46 @@ export interface ScopeDecision {
   decidedBy: Id
   decidedAt: string
 }
+export type BrowserControlRole = 'button' | 'link'
+export interface BrowserVerificationContract {
+  pages: Array<{
+    pageRef: Id
+    path: string
+    markerText: string
+    navigateBy?: { role: BrowserControlRole; name: string }
+  }>
+  interactions: Array<{
+    pageRef: Id
+    role: BrowserControlRole
+    name: string
+    expectedText: string
+  }>
+}
+export interface ScopePropagationObservation {
+  pageRef: Id
+  route: string
+  viewport: { width: number; height: number }
+  markerText: string
+  baselineMarkerVisible: boolean
+  candidateMarkerVisible: boolean
+  operations: Array<{
+    operationId: Id
+    expectedBaselineText: string
+    baselineValues: string[]
+    candidateValues: string[]
+  }>
+}
+export interface InteractionObservation {
+  interactionIndex: number
+  pageRef: Id
+  route: string
+  viewport: { width: number; height: number }
+  role: BrowserControlRole
+  name: string
+  expectedText: string
+  baselinePassed: boolean
+  candidatePassed: boolean
+}
 export interface EditOperation {
   id: Id
   kind: EditKind
@@ -93,6 +133,17 @@ export interface VerificationAssertion {
   result: EvidenceResult
   detail: string
 }
+export interface BaselineComparison {
+  route: string
+  viewport: { width: number; height: number }
+  baselineDigest?: string
+  candidateDigest?: string
+  maskedOperationIds: string[]
+  matched: boolean
+  artifactPath?: string
+  artifactHash?: string
+  reason?: string
+}
 export interface VerificationEvidence {
   id: Id
   checkId: Id
@@ -115,11 +166,15 @@ export interface VerificationRun {
   patchHash: string
   candidateTreeDigest: string
   runtimeFingerprint: string
+  verificationContractHash?: string
   startedAt: string
   completedAt: string
   checks: VerificationCheck[]
   assertions: VerificationAssertion[]
   evidence: VerificationEvidence[]
+  baselineComparisons?: BaselineComparison[]
+  scopeObservations?: ScopePropagationObservation[]
+  interactionObservations?: InteractionObservation[]
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }
@@ -138,7 +193,19 @@ export interface AppliedRevision {
   appliedAt: string
   commit?: string
 }
-export type SessionStatus = 'draft' | 'analyzed' | 'scoped' | 'candidate' | 'verified' | 'approved' | 'applied'
+export interface RollbackRevision {
+  candidateId: Id
+  appliedPatchHash: string
+  restoredSourceDigest: string
+  rolledBackAt: string
+}
+export interface VerificationFailure {
+  candidateId: Id
+  patchHash: string
+  attemptedAt: string
+  reason: string
+}
+export type SessionStatus = 'draft' | 'analyzed' | 'scoped' | 'candidate' | 'verified' | 'approved' | 'applied' | 'rolled-back'
 export interface EditSession {
   id: Id
   projectRevision: ProjectRevision
@@ -147,9 +214,12 @@ export interface EditSession {
   operations: EditOperation[]
   status: SessionStatus
   sourceGraphId?: Id
+  verificationContract?: BrowserVerificationContract
   scope?: ScopeDecision
   candidate?: CandidatePatch
   runs: VerificationRun[]
   approval?: Approval
   applied?: AppliedRevision
+  rollback?: RollbackRevision
+  verificationFailure?: VerificationFailure
 }

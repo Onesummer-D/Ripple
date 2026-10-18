@@ -9,9 +9,11 @@ import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceG
 import { applyApprovedCandidate } from '../src/core/apply'
 import { createCandidate, removeCandidate, type CandidateRecord } from '../src/core/candidate'
 import { analyzeProject } from '../src/core/project'
-import type { EditOperation, ScopeDecision, SourceGraph, SourceNode, VerificationRun } from '../src/core/model'
-import { startCandidatePreview, stopCandidatePreview } from '../src/core/candidate-preview'
+import type { BrowserVerificationContract, EditOperation, EditSession, InteractionObservation, ScopeDecision, ScopePropagationObservation, SourceGraph, SourceNode, VerificationRun } from '../src/core/model'
+import { startCandidateBaseline, startCandidatePreview, startHostRelay, stopCandidateBaseline, stopCandidatePreview } from '../src/core/candidate-preview'
 import { attestBrowserExecution } from '../src/core/verification-receipt'
+import { sourceBindings } from '../src/core/verification-runner'
+import { verificationContractHash } from '../src/core/verification-contract'
 
 const dockerAvailable = spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
 const fixtureRoot = path.join(process.cwd(), 'node_modules', '.tmp')
@@ -73,44 +75,154 @@ async function createOverrideCandidate(graph: SourceGraph, node: SourceNode, aft
   const operation: EditOperation = { id: `operation-${id}`, kind: 'TEXT', targetRef: node.id, before: node.value!, after, ...(action ? { overrideAction: action } : {}) }
   const candidate = createCandidate({ projectRoot, candidateRoot: path.join(sandbox, `candidate-${id}`), artifactRoot: path.join(sandbox, 'patches'), graph, scope, operations: [operation], candidateId: `candidate-${id}` })
   candidates.push(candidate)
-  let session = recordSourceGraph(openSession(`session-${id}`, graph.revision, `Maintain a home-only page override for ${node.label}`), graph.id, graph.revision.sourceDigest)
+  const verificationContract: BrowserVerificationContract = {
+    pages: [
+      { pageRef: 'page:home', path: '/', markerText: 'Home page' },
+      { pageRef: 'page:autumn', path: '/', markerText: 'Autumn page', navigateBy: { role: 'button', name: 'Autumn route' } },
+    ],
+    interactions: [{ pageRef: 'page:home', role: 'button', name: 'Clicks 0', expectedText: 'Clicks 1' }],
+  }
+  let session = recordSourceGraph(openSession(`session-${id}`, graph.revision, `Maintain a home-only page override for ${node.label}`, [], verificationContract), graph.id, graph.revision.sourceDigest)
   session = chooseScope(session, scope)
   session = stageOperations(session, [operation])
   session = stageCandidate(session, candidate)
   return { candidate, operation, scope, session }
 }
 
-async function verifyPreview(page: import('@playwright/test').Page, candidate: CandidateRecord, expectedHome: string[], expectedAutumn: string[], evidenceId: string): Promise<VerificationRun> {
+async function snapshotOutsideTargets(page: import('@playwright/test').Page, bindings: ReturnType<typeof sourceBindings>, baseline: boolean, baselinePageRef?: string) {
+  const specs = bindings.map(binding => ({
+    operationId: binding.operationId,
+    sourceRefs: baseline ? binding.baselineSourceRefs : binding.sourceRefs,
+    text: baseline
+      ? binding.baselineTextByPage[baselinePageRef ?? ''] ?? (new Set(Object.values(binding.baselineTextByPage)).size === 1 ? Object.values(binding.baselineTextByPage)[0] : '')
+      : binding.expectedText,
+  }))
+  return page.evaluate(specs => {
+    const root = document.querySelector('#root')
+    if (!root) return { ok: false as const, reason: 'The rendered application root is missing.' }
+    const clone = root.cloneNode(true) as Element
+    const elements = [clone, ...Array.from(clone.querySelectorAll('*'))].filter(node => node instanceof Element)
+    const maskedOperationIds: string[] = []
+    for (const spec of specs) {
+      if (spec.sourceRefs.length !== 1 || !spec.text.trim()) return { ok: false as const, reason: `Source binding for ${spec.operationId} is not unique.` }
+      const targets = elements.filter(element => element.getAttribute('data-ripple-source') === spec.sourceRefs[0])
+      if (!targets.length) return { ok: false as const, reason: `Source target for ${spec.operationId} is not rendered.` }
+      let matchedInstances = 0
+      for (const target of targets) {
+        const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT)
+        const matches: Node[] = []
+        while (walker.nextNode()) if ((walker.currentNode.textContent ?? '').trim() === spec.text.trim()) matches.push(walker.currentNode)
+        if (matches.length) matchedInstances += 1
+        for (const node of matches) node.textContent = `__RIPPLE_TARGET_${spec.operationId}__`
+      }
+      if (matchedInstances !== targets.length) return { ok: false as const, reason: `Not every rendered instance of ${spec.operationId} contains the expected target text.` }
+      maskedOperationIds.push(spec.operationId)
+    }
+    for (const element of elements) for (const attribute of Array.from(element.attributes)) {
+      if (attribute.name.startsWith('data-ripple-')) element.removeAttribute(attribute.name)
+    }
+    for (const input of Array.from(clone.querySelectorAll('input,textarea,select'))) {
+      if (input instanceof HTMLInputElement) input.setAttribute('value', input.value)
+      else if (input instanceof HTMLTextAreaElement) input.textContent = input.value
+      else if (input instanceof HTMLSelectElement) input.setAttribute('data-ripple-selected-index', String(input.selectedIndex))
+    }
+    return { ok: true as const, snapshot: clone.outerHTML, maskedOperationIds }
+  }, specs)
+}
+
+async function verifyPreview(page: import('@playwright/test').Page, candidate: CandidateRecord, session: EditSession, expectedHome: string[], expectedAutumn: string[], evidenceId: string): Promise<VerificationRun> {
   const startedAt = new Date().toISOString()
   const preview = await startCandidatePreview(candidate)
   previews.add(candidate.id)
+  const baseGraph = analyzeProject(projectRoot, false)
+  const candidateGraph = analyzeProject(candidate.candidateRoot!, false)
+  const bindings = sourceBindings(candidate, baseGraph, candidateGraph, session)
   const checks: VerificationRun['checks'] = []
   const evidence: VerificationRun['evidence'] = []
+  const baselineComparisons: NonNullable<VerificationRun['baselineComparisons']> = []
+  const scopeObservations: ScopePropagationObservation[] = []
+  const interactionObservations: InteractionObservation[] = []
   const browserErrors: string[] = []
   const onPageError = (error: Error) => browserErrors.push(error.message)
   const onConsole = (message: import('@playwright/test').ConsoleMessage) => { if (message.type() === 'error') browserErrors.push(message.text()) }
   page.on('pageerror', onPageError)
   page.on('console', onConsole)
+  let baseline: Awaited<ReturnType<typeof startCandidateBaseline>> | undefined
+  let baselineRelay: Awaited<ReturnType<typeof startHostRelay>> | undefined
+  let baselinePage: import('@playwright/test').Page | undefined
   try {
+    baseline = await startCandidateBaseline(candidate, preview)
+    baselineRelay = await startHostRelay(baseline.address)
+    baselinePage = await page.context().newPage()
+    baselinePage.on('pageerror', onPageError)
+    baselinePage.on('console', onConsole)
     for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport)
+      await baselinePage.setViewportSize(viewport)
+      await baselinePage.goto(baselineRelay.url)
       await page.goto(preview.url)
+      await expect(baselinePage.getByRole('heading', { name: 'Home page' })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Home page' })).toBeVisible()
       for (const value of expectedHome) await expect(page.getByText(value, { exact: true })).toBeVisible()
       const mapped = page.locator('[data-ripple-source^="jsx:src/components/Navigation.jsx#"]').first()
       expect(await mapped.getAttribute('data-ripple-source')).toMatch(/^jsx:src\/components\/Navigation\.jsx#\d+$/)
       expect(await mapped.getAttribute('data-ripple-instance')).toBeTruthy()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
-      if (viewport.width === 1440) {
-        await page.getByRole('button', { name: 'Autumn route' }).click()
-        await expect(page.getByRole('heading', { name: 'Autumn page' })).toBeVisible()
-        for (const value of expectedAutumn) await expect(page.getByText(value, { exact: true })).toBeVisible()
-        for (const value of expectedHome) if (!['Home', 'Products'].includes(value)) await expect(page.getByText(value, { exact: true })).toHaveCount(0)
-        await page.getByRole('button', { name: 'Home route' }).click()
-        await expect(page.getByRole('heading', { name: 'Home page' })).toBeVisible()
-        await page.getByRole('button', { name: 'Clicks 0' }).click()
-        await expect(page.getByRole('button', { name: 'Clicks 1' })).toBeVisible()
+      const [baselineSnapshot, candidateSnapshot] = await Promise.all([
+        snapshotOutsideTargets(baselinePage, bindings, true, session.verificationContract?.pages.find(spec => spec.path === '/' && !spec.navigateBy)?.pageRef),
+        snapshotOutsideTargets(page, bindings, false),
+      ])
+      if (!baselineSnapshot.ok) throw new Error(baselineSnapshot.reason)
+      if (!candidateSnapshot.ok) throw new Error(candidateSnapshot.reason)
+      const baselineDigest = sha256(Buffer.from(baselineSnapshot.snapshot))
+      const candidateDigest = sha256(Buffer.from(candidateSnapshot.snapshot))
+      const comparisonPath = path.join(evidenceRoot, `${evidenceId}-home-${viewport.width}-baseline.json`)
+      const comparisonBytes = Buffer.from(JSON.stringify({
+        schemaVersion: 1, route: '/', viewport, baselineSnapshot: baselineSnapshot.snapshot, candidateSnapshot: candidateSnapshot.snapshot,
+        maskedOperationIds: baselineSnapshot.maskedOperationIds,
+      }, null, 2))
+      fs.mkdirSync(path.dirname(comparisonPath), { recursive: true })
+      fs.writeFileSync(comparisonPath, comparisonBytes)
+      baselineComparisons.push({
+        route: '/', viewport, baselineDigest, candidateDigest, maskedOperationIds: baselineSnapshot.maskedOperationIds,
+        matched: baselineDigest === candidateDigest, artifactPath: comparisonPath, artifactHash: sha256(comparisonBytes),
+      })
+      expect(baselineDigest, 'the candidate changed DOM outside the uniquely mapped text target').toBe(candidateDigest)
+      for (const spec of session.verificationContract!.pages) {
+        await baselinePage.goto(baselineRelay.url)
+        await page.goto(preview.url)
+        if (spec.navigateBy) {
+          await baselinePage.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
+          await page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
+        }
+        const baselineMarkerVisible = await baselinePage.getByText(spec.markerText, { exact: true }).first().isVisible()
+        const candidateMarkerVisible = await page.getByText(spec.markerText, { exact: true }).first().isVisible()
+        expect(baselineMarkerVisible && candidateMarkerVisible).toBe(true)
+        const operations = await Promise.all(bindings.map(async binding => {
+          const read = async (targetPage: import('@playwright/test').Page, sourceRefs: string[]) => sourceRefs.length === 1
+            ? targetPage.locator('[data-ripple-source]').evaluateAll((elements, sourceRef) => elements.filter(element => element.getAttribute('data-ripple-source') === sourceRef).map(element => (element.textContent ?? '').trim()), sourceRefs[0])
+            : []
+          const [baselineValues, candidateValues] = await Promise.all([read(baselinePage!, binding.baselineSourceRefs), read(page, binding.sourceRefs)])
+          return { operationId: binding.operationId, expectedBaselineText: binding.baselineTextByPage[spec.pageRef] ?? '', baselineValues, candidateValues }
+        }))
+        scopeObservations.push({ pageRef: spec.pageRef, route: spec.path, viewport, markerText: spec.markerText, baselineMarkerVisible, candidateMarkerVisible, operations })
+        if (spec.pageRef === 'page:home') {
+          for (const value of expectedHome) await expect(page.getByText(value, { exact: true })).toBeVisible()
+        } else {
+          for (const value of expectedAutumn) await expect(page.getByText(value, { exact: true })).toBeVisible()
+          for (const value of expectedHome) if (!['Home', 'Products'].includes(value)) await expect(page.getByText(value, { exact: true })).toHaveCount(0)
+        }
       }
+      await baselinePage.goto(baselineRelay.url)
+      await page.goto(preview.url)
+      await baselinePage.getByRole('button', { name: 'Clicks 0', exact: true }).click()
+      await page.getByRole('button', { name: 'Clicks 0', exact: true }).click()
+      const [baselineInteraction, candidateInteraction] = await Promise.all([
+        baselinePage.getByText('Clicks 1', { exact: true }).isVisible(), page.getByText('Clicks 1', { exact: true }).isVisible(),
+      ])
+      interactionObservations.push({ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button', name: 'Clicks 0', expectedText: 'Clicks 1', baselinePassed: baselineInteraction, candidatePassed: candidateInteraction })
+      expect(baselineInteraction && candidateInteraction).toBe(true)
+      await page.goto(preview.url)
       const checkId = `${evidenceId}-home-${viewport.width}`
       checks.push({ id: checkId, route: '/', viewport, state: `home-ready-${viewport.width}`, description: 'Target navigation values, non-target preservation, source mapping and responsive layout', mandatory: true })
       const screenshotPath = path.join(evidenceRoot, `${checkId}.png`)
@@ -122,6 +234,12 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
   } finally {
     page.off('pageerror', onPageError)
     page.off('console', onConsole)
+    await baselinePage?.close()
+    if (baselineRelay) {
+      baselineRelay.server.closeAllConnections()
+      await new Promise<void>(resolve => baselineRelay!.server.close(() => resolve()))
+    }
+    if (baseline) await stopCandidateBaseline(baseline)
     await stopCandidatePreview(candidate.id)
     previews.delete(candidate.id)
   }
@@ -144,21 +262,25 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint: analyzeProject(projectRoot).revision.runtimeFingerprint,
+    verificationContractHash: verificationContractHash(session.verificationContract),
     checks: checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })), assertions,
+    baselineComparisons: baselineComparisons.map(comparison => ({ ...comparison, artifactPath: path.basename(comparison.artifactPath!) })),
+    scopeObservations, interactionObservations,
     evidence: evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })), artifacts,
   }
   fs.writeFileSync(recordPath, JSON.stringify(record, null, 2))
   const run: VerificationRun = {
     id: runId, candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
-    candidateTreeDigest: candidate.candidateTreeDigest, runtimeFingerprint: record.runtimeFingerprint, startedAt, completedAt,
-    checks, assertions, evidence, status: 'incomplete',
+    candidateTreeDigest: candidate.candidateTreeDigest, runtimeFingerprint: record.runtimeFingerprint,
+    verificationContractHash: verificationContractHash(session.verificationContract), startedAt, completedAt,
+    checks, assertions, evidence, baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
   }
   return attestBrowserExecution(run, recordPath)
 }
 
 async function applyAndCommit(candidate: CandidateRecord, operation: EditOperation, sessionInput: Awaited<ReturnType<typeof createOverrideCandidate>>['session'], page: import('@playwright/test').Page, expectedHome: string[], expectedAutumn: string[], cycle: string): Promise<string> {
-  const run = await verifyPreview(page, candidate, expectedHome, expectedAutumn, cycle)
+  const run = await verifyPreview(page, candidate, sessionInput, expectedHome, expectedAutumn, cycle)
   let session = registerVerification(sessionInput, run)
   session = approve(session, { candidateId: candidate.id, verificationRunId: run.id, by: 'playwright-lifecycle-test', at: new Date().toISOString() })
   session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))

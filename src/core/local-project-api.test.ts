@@ -1,12 +1,16 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest'
+import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { createServer, type ViteDevServer } from 'vite'
-import { localProjectApiPlugin } from './local-project-api'
+import { localProjectApiPlugin, withCandidateLock } from './local-project-api'
 import { analyzeProject } from './project'
+import { attestBrowserExecution } from './verification-receipt'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type VerificationRun } from './model'
+import type { StoredCandidate } from './workbench-store'
 
 const roots: string[] = []
 const tempParent = path.join(process.cwd(), 'node_modules', '.tmp')
@@ -22,7 +26,7 @@ function makeGitProject(): string {
   fs.mkdirSync(path.join(root, 'src', 'pages'), { recursive: true })
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'api-fixture', private: true }))
   fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
-  fs.writeFileSync(path.join(root, 'src', 'App.tsx'), `import { useState } from 'react'; import { HomePage } from './pages/HomePage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <HomePage />}</>}`)
+  fs.writeFileSync(path.join(root, 'src', 'App.tsx'), `/* project supplied https://untrusted.invalid/pixel.png */ import { useState } from 'react'; import { HomePage } from './pages/HomePage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <HomePage />}</>}`)
   fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `export function HomePage(){return <main><h1>Baseline title</h1><button>Browse items</button></main>}`)
   const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe' })
   git('init', '-q'); git('config', 'user.email', 'ripple-test@example.invalid'); git('config', 'user.name', 'Ripple API test'); git('add', '.'); git('commit', '-qm', 'baseline')
@@ -49,7 +53,13 @@ describe('loopback Project API', () => {
     await startApi()
     const response = await fetch(`${baseUrl}/__ripple/api/analyze`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ projectRoot }) })
     expect(response.status).toBe(200)
-    const analysis = await response.json() as { revision: { projectId: string; sourceDigest: string }; graphId: string; routes: Array<{ id: string }>; targets: Array<{ id: string; label: string; value: string; impact: { pageRefs: string[]; unresolved: string[] } }> }
+    const analysis = await response.json() as { revision: { projectId: string; sourceDigest: string }; graphId: string; routes: Array<{ id: string }>; previewResources: { referencedUrls: string[]; authorizedUrls: string[] }; targets: Array<{ id: string; label: string; value: string; impact: { pageRefs: string[]; unresolved: string[] } }> }
+    expect(analysis.previewResources).toEqual({ referencedUrls: ['https://untrusted.invalid/pixel.png'], authorizedUrls: [] })
+    const authorizeResource = await fetch(`${baseUrl}/__ripple/api/preview/resources`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ projectId: analysis.revision.projectId, urls: ['https://assets.example.test/static/approved.webp'] }) })
+    expect(authorizeResource.status).toBe(200)
+    expect((await authorizeResource.json()).previewResources.authorizedUrls).toEqual(['https://assets.example.test/static/approved.webp'])
+    const rejectUntrustedResource = await fetch(`${baseUrl}/__ripple/api/preview/resources`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ projectId: analysis.revision.projectId, urls: ['https://127.0.0.1/private.png'] }) })
+    expect(rejectUntrustedResource.status).toBe(400)
     expect(analysis.routes.map(route => route.id)).toEqual(['page:home'])
     const title = analysis.targets.find(target => target.label === 'Baseline title')!
     const cta = analysis.targets.find(target => target.label === 'Browse items')!
@@ -61,6 +71,7 @@ describe('loopback Project API', () => {
         { id: 'title-op', kind: 'TEXT', targetRef: title.id, before: title.value, after: 'Candidate title' },
         { id: 'cta-op', kind: 'TEXT', targetRef: cta.id, before: cta.value, after: 'Explore items' },
       ],
+      verificationContract: { pages: [{ pageRef: 'page:home', path: '/', markerText: 'Baseline title' }], interactions: [] },
     }) })
     expect(candidateResponse.status).toBe(200)
     const candidate = await candidateResponse.json() as { sessionId: string; candidate: { id: string; patchHash: string; candidateTreeDigest: string; operations: unknown[]; diff: string }; verification: { state: string } }
@@ -79,18 +90,46 @@ describe('loopback Project API', () => {
     const previewWithoutProjectDependencies = await fetch(`${baseUrl}/__ripple/api/candidate/preview`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id, dependencyRoot: process.cwd() }) })
     expect(previewWithoutProjectDependencies.status).toBe(503)
     expect((await previewWithoutProjectDependencies.json()).error).toMatch(/项目 node_modules/)
+    const failedRun = await fetch(`${baseUrl}/__ripple/api/candidate/verify`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
+    expect(failedRun.status).toBe(503)
+    expect((await failedRun.json()).error).toMatch(/项目 node_modules/)
     const restoredResponse = await fetch(`${baseUrl}/__ripple/api/candidate/restore`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(restoredResponse.status).toBe(200)
-    const restored = await restoredResponse.json() as { rawIntent: string; candidate: { id: string; patchHash: string; diff: string; operations: unknown[] } }
+    const restored = await restoredResponse.json() as { rawIntent: string; verificationContract: { pages: Array<{ pageRef: string; markerText: string }> }; candidate: { id: string; patchHash: string; diff: string; operations: unknown[] }; verification: { state: string; reason?: string } }
     expect(restored.rawIntent).toBe('Update the home hero while preserving other pages')
+    expect(restored.verificationContract.pages).toEqual([{ pageRef: 'page:home', path: '/', markerText: 'Baseline title' }])
     expect(restored.candidate).toMatchObject({ id: candidate.candidate.id, patchHash: candidate.candidate.patchHash, diff: candidate.candidate.diff })
     expect(restored.candidate.operations).toHaveLength(2)
+    expect(restored.verification).toMatchObject({ state: 'failed-to-run' })
+    expect(restored.verification.reason).toMatch(/项目 node_modules/)
+    const invalidContract = await fetch(`${baseUrl}/__ripple/api/candidate`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({
+      projectId: analysis.revision.projectId, rawIntent: 'Reject a remote browser path', scope,
+      operations: [{ id: 'invalid-path-op', kind: 'TEXT', targetRef: title.id, before: title.value, after: 'Another title' }],
+      verificationContract: { pages: [{ pageRef: 'page:home', path: 'https://attacker.invalid/', markerText: 'Home' }], interactions: [] },
+    }) })
+    expect(invalidContract.status).toBe(400)
     const discard = await fetch(`${baseUrl}/__ripple/api/discard`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(discard.status).toBe(200)
     expect((await discard.json()).removed).toBe(true)
     const missingRestore = await fetch(`${baseUrl}/__ripple/api/candidate/restore`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(missingRestore.status).toBe(404)
   }, 30_000)
+
+  it('holds a candidate operation lock until async verification or cleanup has finished', async () => {
+    let releaseFirst!: () => void
+    let enteredFirst!: () => void
+    const entered = new Promise<void>(resolve => { enteredFirst = resolve })
+    const first = withCandidateLock('candidate-concurrent-test', async () => {
+      enteredFirst()
+      await new Promise<void>(resolve => { releaseFirst = resolve })
+      return 'finished'
+    })
+    await entered
+    await expect(withCandidateLock('candidate-concurrent-test', async () => 'invalid concurrent result')).rejects.toThrow(/正在执行/)
+    releaseFirst()
+    await expect(first).resolves.toBe('finished')
+    await expect(withCandidateLock('candidate-concurrent-test', async () => 'subsequent operation')).resolves.toBe('subsequent operation')
+  })
 
   it('retires superseded and reanalyzed candidates without leaving Git worktrees behind', async () => {
     const projectRoot = makeGitProject()
@@ -135,6 +174,69 @@ describe('loopback Project API', () => {
     expect((await request('candidate/restore', { candidateId: staleCandidate.candidate.id })).status).toBe(409)
     expect(worktreeCount()).toBe(1)
     expect((await request('discard', { candidateId: staleCandidate.candidate.id })).status).toBe(404)
+  }, 30_000)
+
+  it('restores the same candidate after an API process restart and keeps discarded audit artifacts', async () => {
+    const projectRoot = makeGitProject()
+    await startApi()
+    const request = (route: string, body: unknown) => fetch(`${baseUrl}/__ripple/api/${route}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify(body) })
+    const analysis = await (await request('analyze', { projectRoot })).json() as { revision: { projectId: string }; targets: Array<{ id: string; value: string }> }
+    const target = analysis.targets.find(item => item.value === 'Baseline title')!
+    const createdResponse = await request('candidate', {
+      projectId: analysis.revision.projectId, rawIntent: 'Change title and retain the same patch through restart',
+      scope: { id: 'scope-restart', version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() },
+      operations: [{ id: 'op-restart', kind: 'TEXT', targetRef: target.id, before: target.value, after: 'Persisted candidate title' }],
+    })
+    expect(createdResponse.status).toBe(200)
+    const created = await createdResponse.json() as { sessionId: string; candidate: { id: string; patchHash: string; candidateTreeDigest: string; diff: string } }
+
+    const storedPath = path.join(apiStateRoot, created.sessionId, 'session.json')
+    const stored = JSON.parse(fs.readFileSync(storedPath, 'utf8')) as StoredCandidate
+    const verificationRoot = path.join(apiStateRoot, created.sessionId, 'artifacts', 'verification', created.candidate.id, 'restart-run')
+    fs.mkdirSync(verificationRoot, { recursive: true })
+    const screenshot = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pZsAAAAASUVORK5CYII=', 'base64')
+    const screenshotPath = path.join(verificationRoot, 'home.png')
+    fs.writeFileSync(screenshotPath, screenshot)
+    const artifactHash = createHash('sha256').update(screenshot).digest('hex')
+    const assertions = REQUIRED_VERIFICATION_ASSERTION_IDS.map(id => ({ id, result: 'unknown' as const, detail: `${id} is not yet an automated product assertion` }))
+    const viewport = { width: 1280, height: 800 }
+    const run: VerificationRun = {
+      id: 'verification-restart', candidateId: created.candidate.id, scopeDecisionId: stored.record.scopeDecisionId, scopeVersion: stored.record.scopeVersion,
+      baseSourceDigest: stored.record.baseSourceDigest, patchHash: stored.record.patchHash, candidateTreeDigest: stored.record.candidateTreeDigest,
+      runtimeFingerprint: stored.session.projectRevision.runtimeFingerprint, startedAt: '2026-10-18T00:00:00Z', completedAt: '2026-10-18T00:01:00Z',
+      checks: [{ id: 'home-desktop', route: '/', viewport, state: 'loaded', description: 'home loaded', mandatory: true }], assertions,
+      evidence: [{ id: 'evidence-restart', checkId: 'home-desktop', result: 'pass', capturedAt: '2026-10-18T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: 'loaded', elementRefs: [], artifactPath: screenshotPath, artifactHash }], status: 'incomplete',
+    }
+    const recordPath = path.join(verificationRoot, 'execution.json')
+    fs.writeFileSync(recordPath, JSON.stringify({
+      schemaVersion: 1, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
+      scopeDecisionId: run.scopeDecisionId, scopeVersion: run.scopeVersion, baseSourceDigest: run.baseSourceDigest,
+      patchHash: run.patchHash, candidateTreeDigest: run.candidateTreeDigest, runtimeFingerprint: run.runtimeFingerprint,
+      checks: run.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })),
+      assertions, evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
+      artifacts: [{ checkId: 'home-desktop', path: path.basename(screenshotPath), sha256: artifactHash }],
+    }))
+    stored.session.runs.push(attestBrowserExecution(run, recordPath))
+    fs.writeFileSync(storedPath, JSON.stringify(stored))
+
+    await server?.close()
+    server = undefined
+    await startApi()
+    const restoredResponse = await request('candidate/restore', { candidateId: created.candidate.id })
+    expect(restoredResponse.status).toBe(200)
+    const restored = await restoredResponse.json() as { candidate: { id: string; patchHash: string; candidateTreeDigest: string; diff: string }; verification: { state: string; runId?: string }; workflow: { lifecycle: string } }
+    expect(restored.candidate).toMatchObject({ ...created.candidate, operations: expect.any(Array), modifiedPaths: expect.any(Array) })
+    expect(restored.workflow.lifecycle).toBe('active')
+    expect(restored.verification).toMatchObject({ state: 'incomplete', runId: 'verification-restart' })
+    expect((await request('candidate/approve', { candidateId: created.candidate.id, runId: 'unverified-run' })).status).toBe(409)
+    expect((await request('candidate/apply', { candidateId: created.candidate.id })).status).toBe(409)
+
+    expect((await request('discard', { candidateId: created.candidate.id })).status).toBe(200)
+    const historyResponse = await fetch(`${baseUrl}/__ripple/api/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`, { headers: { origin: baseUrl } })
+    expect(historyResponse.status).toBe(200)
+    const history = await historyResponse.json() as { history: Array<{ candidateId: string; lifecycle: string; patchHash: string }> }
+    expect(history.history).toContainEqual(expect.objectContaining({ candidateId: created.candidate.id, lifecycle: 'discarded', patchHash: created.candidate.patchHash }))
+    expect(fs.readFileSync(path.join(apiStateRoot, created.sessionId, 'artifacts', `${created.candidate.id}.patch`), 'utf8')).toContain('Persisted candidate title')
   }, 30_000)
 
   it('rejects foreign origins, non-POST methods and dirty project roots', async () => {
