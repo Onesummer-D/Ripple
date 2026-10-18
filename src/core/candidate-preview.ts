@@ -75,19 +75,19 @@ async function waitUntilReady(preview: CandidatePreview): Promise<void> {
     }
     if (Date.now() >= inspectAt) {
       inspectAt = Date.now() + 2_000
-      const status = await docker(['inspect', '--format', '{{.State.Status}}', preview.containerName]).catch(() => 'missing')
-      if (status !== 'running') {
+      const state = await docker(['inspect', '--format', '{{.State.Status}}|{{.State.ExitCode}}|{{.State.Error}}|{{.State.OOMKilled}}', preview.containerName]).catch(() => 'missing')
+      if (!state.startsWith('running|')) {
         const logs = await docker(['logs', '--tail', '80', preview.containerName], 10_000).catch(error => error instanceof Error ? error.message : 'no container logs')
-        throw new CandidatePreviewError(`隔离预演容器提前停止（${status}）：${logs.slice(-4000)}`)
+        throw new CandidatePreviewError(`隔离预演容器提前停止（${state}）：${logs.slice(-4000)}`)
       }
     }
     await new Promise(resolve => setTimeout(resolve, 250))
   }
-  const [status, logs] = await Promise.all([
-    docker(['inspect', '--format', '{{.State.Status}}', preview.containerName]).catch(() => 'missing'),
+  const [state, logs] = await Promise.all([
+    docker(['inspect', '--format', '{{.State.Status}}|{{.State.ExitCode}}|{{.State.Error}}|{{.State.OOMKilled}}', preview.containerName]).catch(() => 'missing'),
     docker(['logs', '--tail', '80', preview.containerName], 10_000).catch(error => error instanceof Error ? error.message : 'no container logs'),
   ])
-  throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动（${status}，${lastResponse}）：${logs.slice(-4000)}`)
+  throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动（${state}，${lastResponse}）：${logs.slice(-4000)}`)
 }
 
 async function removeContainer(name: string): Promise<void> {
@@ -163,7 +163,7 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
       '--mount', mount(rippleDependencies, '/ripple/node_modules'),
       '--workdir', '/work',
       image,
-      'sh', '-lc', 'cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && exec node /deps/vite/bin/vite.js --config /ripple/core/candidate-preview-vite.config.mjs --host 0.0.0.0 --port 5173 --strictPort',
+      'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /deps/vite/bin/vite.js --config /ripple/core/candidate-preview-vite.config.mjs --host 0.0.0.0 --port 5173 --strictPort',
     ], 120_000)
     await waitUntilReady(preview)
     assertCandidateCurrent(candidate)
