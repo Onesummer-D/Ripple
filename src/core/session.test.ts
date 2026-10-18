@@ -7,6 +7,7 @@ import type { Approval, BrowserVerificationContract, CandidatePatch, EditSession
 import { approve, beginVerification, chooseScope, openSession, recordAppliedRevision, recordRollback, recordSourceGraph, recordVerificationFailure, registerVerification, stageCandidate, stageOperations } from './session'
 import { attestBrowserExecution } from './verification-receipt'
 import { verificationContractHash } from './verification-contract'
+import { projectPreviewViewports } from './project-viewports'
 
 const revision: ProjectRevision = { projectId: 'bolt-shop', sourceDigest: 'tree-old', runtimeFingerprint: 'lock+vite+mock-data' }
 const scope = (version = 1, id = 'scope-1'): ScopeDecision => ({ id, version, includedRefs: ['home.title', 'autumn.title', 'page:home', 'page:autumn'], excludedRefs: ['product.price'], protectedRefs: ['story.2018'], decidedBy: 'user', decidedAt: '2026-10-18T00:00:00Z' })
@@ -43,11 +44,12 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass',
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
-    schemaVersion: 2, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
+    schemaVersion: 3, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
     scopeDecisionId: run.scopeDecisionId, scopeVersion: run.scopeVersion,
     baseSourceDigest: run.baseSourceDigest, patchHash: run.patchHash, candidateTreeDigest: run.candidateTreeDigest,
     runtimeFingerprint: run.runtimeFingerprint,
     verificationContractHash: run.verificationContractHash,
+    viewports: [{ name: 'desktop', width: viewport.width, height: viewport.height }],
     checks: run.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: result === 'pass' })),
     baselineComparisons: [{ ...baselineComparisons[0], artifactPath: path.basename(comparisonPath) }],
     assertions, scopeObservations, interactionObservations, evidence: run.evidence.map(item => ({ ...item, ...(item.artifactPath ? { artifactPath: path.basename(item.artifactPath) } : {}) })),
@@ -87,6 +89,15 @@ describe('Project-first session invariants', () => {
     const s = staged()
     expect(() => registerVerification(s, { ...runFor(s.candidate!), patchHash: 'old-patch' })).toThrow(/does not match/)
     expect(() => registerVerification(s, { ...runFor(s.candidate!), runtimeFingerprint: 'different-env' })).toThrow(/does not match/)
+  })
+  it('rejects a declared viewport plan when a viewport has no browser check or screenshot evidence', () => {
+    const run = runFor(candidate(scope()))
+    const recordPath = run.execution!.recordPath
+    const manifest = JSON.parse(fs.readFileSync(recordPath, 'utf8')) as { viewports: unknown[] }
+    manifest.viewports = projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height }))
+    fs.writeFileSync(recordPath, JSON.stringify(manifest))
+
+    expect(() => attestBrowserExecution(run, recordPath)).toThrow(/checks and screenshot evidence must cover exactly the declared viewport plan/)
   })
   it('rejects trusted browser records that carry another Scope decision/version', () => {
     const s = staged()

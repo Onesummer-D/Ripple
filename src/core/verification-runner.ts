@@ -105,7 +105,7 @@ export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGrap
 }
 
 interface ExecutionManifest {
-  schemaVersion: 2
+  schemaVersion: 3
   executor: 'playwright'
   completed: true
   runId: string
@@ -207,7 +207,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   if (recordStat.isSymbolicLink() || !recordStat.isFile()) throw new VerificationRunnerError('Playwright 执行记录不是普通文件')
   const manifest = JSON.parse(fs.readFileSync(recordPath, 'utf8')) as ExecutionManifest
   const plannedViewports = projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height }))
-  if (manifest.schemaVersion !== 2 || manifest.executor !== 'playwright' || manifest.completed !== true || manifest.runId !== runId || manifest.candidateId !== candidate.id ||
+  if (manifest.schemaVersion !== 3 || manifest.executor !== 'playwright' || manifest.completed !== true || manifest.runId !== runId || manifest.candidateId !== candidate.id ||
     manifest.scopeDecisionId !== candidate.scopeDecisionId || manifest.scopeVersion !== candidate.scopeVersion || manifest.baseSourceDigest !== candidate.baseSourceDigest ||
     manifest.patchHash !== candidate.patchHash || manifest.candidateTreeDigest !== candidate.candidateTreeDigest || manifest.runtimeFingerprint !== session.projectRevision.runtimeFingerprint ||
     manifest.verificationContractHash !== verificationContractHash(session.verificationContract) || JSON.stringify(manifest.viewports) !== JSON.stringify(plannedViewports)) {

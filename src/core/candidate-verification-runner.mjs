@@ -325,7 +325,7 @@ if (assertions.length !== requiredAssertions.length || assertions.some(assertion
 }
 
 const manifest = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   executor: 'playwright',
   completed: true,
   runId: input.runId,

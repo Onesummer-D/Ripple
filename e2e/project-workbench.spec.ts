@@ -367,9 +367,43 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
   expect(executionResponse.ok()).toBe(true)
   const execution = await executionResponse.json()
   expect(execution).toMatchObject({ candidateId, patchHash, verificationContractHash: expect.stringMatching(/^[a-f0-9]{64}$/) })
-  expect(execution.scopeObservations).toHaveLength(6)
-  expect(execution.interactionObservations).toHaveLength(projectPreviewViewports.length)
-  expect(execution.scopeObservations.every((item: { baselineMarkerVisible: boolean; candidateMarkerVisible: boolean }) => item.baselineMarkerVisible && item.candidateMarkerVisible)).toBe(true)
+  const expectedScopePages = [
+    { pageRef: 'page:home', markerText: 'Home page', candidateText: 'Home-only brand' },
+    { pageRef: 'page:autumn', markerText: 'Autumn page', candidateText: 'Shared navigation brand' },
+  ]
+  const scopeObservations = execution.scopeObservations as Array<{
+    pageRef: string; route: string; markerText: string; viewport: { width: number; height: number }
+    baselineMarkerVisible: boolean; candidateMarkerVisible: boolean
+    operations: Array<{ operationId: string; expectedBaselineText: string; expectedCandidateText: string; baselineValues: string[]; candidateValues: string[] }>
+  }>
+  const expectedObservationKeys = expectedScopePages.flatMap(scopePage => projectPreviewViewports.map(viewport =>
+    `${scopePage.pageRef}:${viewport.width}x${viewport.height}`,
+  ))
+  const observedKeys = scopeObservations.map(item => `${item.pageRef}:${item.viewport.width}x${item.viewport.height}`)
+  expect(scopeObservations).toHaveLength(expectedScopePages.length * projectPreviewViewports.length)
+  expect(new Set(observedKeys).size).toBe(expectedObservationKeys.length)
+  expect([...observedKeys].sort()).toEqual([...expectedObservationKeys].sort())
+  for (const scopePage of expectedScopePages) {
+    for (const viewport of projectPreviewViewports) {
+      const observation = scopeObservations.find(item => item.pageRef === scopePage.pageRef && item.viewport.width === viewport.width && item.viewport.height === viewport.height)
+      expect(observation).toMatchObject({
+        route: '/', markerText: scopePage.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true,
+        operations: [{
+          expectedBaselineText: 'Shared navigation brand', expectedCandidateText: scopePage.candidateText,
+          baselineValues: ['Shared navigation brand'], candidateValues: [scopePage.candidateText],
+        }],
+      })
+      expect(observation?.operations).toHaveLength(1)
+    }
+  }
+  const interactionObservations = execution.interactionObservations as Array<{
+    pageRef: string; viewport: { width: number; height: number }; baselinePassed: boolean; candidatePassed: boolean
+  }>
+  expect(interactionObservations).toHaveLength(projectPreviewViewports.length)
+  expect(interactionObservations.map(item => `${item.pageRef}:${item.viewport.width}x${item.viewport.height}`).sort()).toEqual(
+    projectPreviewViewports.map(viewport => `page:home:${viewport.width}x${viewport.height}`).sort(),
+  )
+  expect(interactionObservations.every(item => item.baselinePassed && item.candidatePassed)).toBe(true)
 
   await page.getByTestId('approve-candidate').click()
   await expect(page.getByTestId('candidate-workflow')).toContainText('已批准')

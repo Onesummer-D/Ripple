@@ -262,11 +262,12 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
   const recordPath = path.join(evidenceRoot, `${evidenceId}.json`)
   const artifacts = evidence.map(item => ({ checkId: item.checkId, path: path.basename(item.artifactPath!), sha256: item.artifactHash! }))
   const record = {
-    schemaVersion: 2, executor: 'playwright' as const, completed: true, runId, candidateId: candidate.id,
+    schemaVersion: 3, executor: 'playwright' as const, completed: true, runId, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint: analyzeProject(projectRoot).revision.runtimeFingerprint,
     verificationContractHash: verificationContractHash(session.verificationContract),
+    viewports: projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height })),
     checks: checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })), assertions,
     baselineComparisons: baselineComparisons.map(comparison => ({ ...comparison, artifactPath: path.basename(comparison.artifactPath!) })),
     scopeObservations, interactionObservations,
