@@ -131,7 +131,7 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
     await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', `com.ripple.candidate=${candidate.id}`, networkName])
     networkCreated = true
     await docker([
-      'run', '--detach', '--rm', '--name', containerName,
+      'run', '--detach', '--name', containerName,
       '--label', 'com.ripple.preview=true',
       '--label', `com.ripple.candidate=${candidate.id}`,
       '--network', networkName,
@@ -145,6 +145,7 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
       '--mount', mount(dependencies, '/deps'),
       '--mount', mount(coreRoot, '/ripple/core'),
       '--mount', mount(rippleDependencies, '/ripple/node_modules'),
+      '--workdir', '/work',
       image,
       'sh', '-lc', 'cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && exec node /deps/vite/bin/vite.js --config /ripple/core/candidate-preview-vite.config.mjs --host 0.0.0.0 --port 5173 --strictPort',
     ], 120_000)

@@ -39,6 +39,7 @@ async function expectCandidateRetired(id: string) {
 }
 
 test('opens a real local project, keeps multiple operations and explicit local Scope in one isolated candidate', async ({ page }) => {
+  test.setTimeout(180_000)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: /从真实源码开始/ })).toBeVisible()
