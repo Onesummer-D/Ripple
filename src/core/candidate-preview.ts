@@ -63,15 +63,31 @@ function availablePort(): Promise<number> {
 
 async function waitUntilReady(preview: CandidatePreview): Promise<void> {
   const deadline = Date.now() + 60_000
+  let inspectAt = 0
+  let lastResponse = 'no response'
   while (Date.now() < deadline) {
     try {
       const response = await fetch(preview.url, { signal: AbortSignal.timeout(1_500) })
       if (response.ok) return
-    } catch { /* Vite may still be resolving the candidate's installed dependencies. */ }
+      lastResponse = `HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`
+    } catch (error) {
+      lastResponse = error instanceof Error ? error.message : String(error)
+    }
+    if (Date.now() >= inspectAt) {
+      inspectAt = Date.now() + 2_000
+      const status = await docker(['inspect', '--format', '{{.State.Status}}', preview.containerName]).catch(() => 'missing')
+      if (status !== 'running') {
+        const logs = await docker(['logs', '--tail', '80', preview.containerName], 10_000).catch(error => error instanceof Error ? error.message : 'no container logs')
+        throw new CandidatePreviewError(`隔离预演容器提前停止（${status}）：${logs.slice(-4000)}`)
+      }
+    }
     await new Promise(resolve => setTimeout(resolve, 250))
   }
-  const logs = await docker(['logs', '--tail', '80', preview.containerName], 10_000).catch(error => error instanceof Error ? error.message : 'no container logs')
-  throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动：${logs.slice(-4000)}`)
+  const [status, logs] = await Promise.all([
+    docker(['inspect', '--format', '{{.State.Status}}', preview.containerName]).catch(() => 'missing'),
+    docker(['logs', '--tail', '80', preview.containerName], 10_000).catch(error => error instanceof Error ? error.message : 'no container logs'),
+  ])
+  throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动（${status}，${lastResponse}）：${logs.slice(-4000)}`)
 }
 
 async function removeContainer(name: string): Promise<void> {
