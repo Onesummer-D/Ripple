@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { createServer, request as httpRequest, type Server } from 'node:http'
 import * as fs from 'node:fs'
 import * as net from 'node:net'
 import * as path from 'node:path'
@@ -58,6 +59,7 @@ export function trustedPreviewResourceOrigins(projectRoot: string): string[] {
 }
 
 const previews = new Map<string, CandidatePreview>()
+const relays = new Map<string, Server>()
 const starting = new Map<string, Promise<CandidatePreview>>()
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const image = 'node:22-bookworm-slim'
@@ -88,34 +90,18 @@ function mount(source: string, target: string, readonly = true): string {
   return `type=bind,source=${source},target=${target}${readonly ? ',readonly' : ''}`
 }
 
-function availablePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer()
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address()
-      if (!address || typeof address === 'string') return reject(new CandidatePreviewError('无法分配本机预演端口'))
-      server.close(error => error ? reject(error) : resolve(address.port))
-    })
-  })
-}
-
-async function waitUntilReady(preview: CandidatePreview, containerIp: string): Promise<void> {
+async function waitForEndpoint(endpoint: string, preview: CandidatePreview, containerIp: string): Promise<void> {
   const deadline = Date.now() + 60_000
-  const endpoints = [preview.url, ...(containerIp ? [`http://${containerIp}:5173/`] : [])]
   let inspectAt = 0
   let lastResponse = 'no response'
   while (Date.now() < deadline) {
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(endpoint, { signal: AbortSignal.timeout(1_500) })
-        if (response.ok && endpoint === preview.url) return
-        if (response.ok) continue
-        lastResponse = `${endpoint}: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`
-      } catch (error) {
-        const cause = error instanceof Error && 'cause' in error ? String(error.cause) : ''
-        lastResponse = `${endpoint}: ${error instanceof Error ? error.message : String(error)}${cause ? ` (${cause})` : ''}`
-      }
+    try {
+      const response = await fetch(endpoint, { signal: AbortSignal.timeout(1_500) })
+      if (response.ok) return
+      lastResponse = `${endpoint}: HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`
+    } catch (error) {
+      const cause = error instanceof Error && 'cause' in error ? String(error.cause) : ''
+      lastResponse = `${endpoint}: ${error instanceof Error ? error.message : String(error)}${cause ? ` (${cause})` : ''}`
     }
     if (Date.now() >= inspectAt) {
       inspectAt = Date.now() + 2_000
@@ -131,7 +117,52 @@ async function waitUntilReady(preview: CandidatePreview, containerIp: string): P
     docker(['inspect', '--format', '{{.State.Status}}|{{.State.ExitCode}}|{{.State.Error}}|{{.State.OOMKilled}}', preview.containerName]).catch(() => 'missing'),
     docker(['logs', '--tail', '80', preview.containerName], 10_000, true).catch(error => error instanceof Error ? error.message : 'no container logs'),
   ])
-  throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动（${state}，${lastResponse}）：${logs.slice(-4000)}`)
+  throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动（${state}，${lastResponse}，容器 ${containerIp}）：${logs.slice(-4000)}`)
+}
+
+function startHostRelay(containerIp: string): Promise<{ server: Server; url: string }> {
+  const server = createServer((request, response) => {
+    if (!request.url?.startsWith('/') || request.url.startsWith('//')) {
+      response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
+      response.end('Invalid preview path')
+      return
+    }
+    const upstream = httpRequest({
+      host: containerIp,
+      port: 5173,
+      method: request.method,
+      path: request.url,
+      headers: { ...request.headers, host: `${containerIp}:5173`, connection: 'close' },
+    }, upstreamResponse => {
+      response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers)
+      upstreamResponse.pipe(response)
+    })
+    upstream.once('error', () => {
+      if (!response.headersSent) response.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' })
+      response.end('Candidate preview is unavailable')
+    })
+    request.pipe(upstream)
+  })
+  server.requestTimeout = 30_000
+  server.headersTimeout = 35_000
+  return new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        server.close()
+        return reject(new CandidatePreviewError('无法启动本机预演转发器'))
+      }
+      resolve({ server, url: `http://127.0.0.1:${address.port}/` })
+    })
+  })
+}
+
+async function closeHostRelay(server: Server | undefined): Promise<void> {
+  if (!server?.listening) return
+  const closed = new Promise<void>(resolve => server.close(() => resolve()))
+  server.closeAllConnections()
+  await closed
 }
 
 async function removeContainer(name: string): Promise<void> {
@@ -156,8 +187,10 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
   if (existing) {
     const running = await docker(['inspect', '--format', '{{.State.Running}}', existing.containerName])
     if (running === 'true') {
-      const containerIp = await docker(['inspect', '--format', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', existing.containerName])
-      await waitUntilReady(existing, containerIp)
+      const containerIp = await resolveCandidatePreviewAddress(existing)
+      const relay = relays.get(candidate.id)
+      if (!relay?.listening) throw new CandidatePreviewError('候选预演转发器已停止，请重新启动预演')
+      await waitForEndpoint(existing.url, existing, containerIp)
       assertCandidateCurrent(candidate)
       return existing
     }
@@ -186,9 +219,6 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
   const preview: CandidatePreview = { candidateId: candidate.id, url: '', containerName, networkName }
   let networkCreated = false
   try {
-    const port = await availablePort()
-    preview.url = `http://127.0.0.1:${port}/`
-    previews.set(candidate.id, preview)
     await docker(['version', '--format', '{{.Server.Version}}'])
     await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', `com.ripple.candidate=${candidate.id}`, networkName])
     networkCreated = true
@@ -197,7 +227,6 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
       '--label', 'com.ripple.preview=true',
       '--label', `com.ripple.candidate=${candidate.id}`,
       '--network', networkName,
-      '--publish', `127.0.0.1:${port}:5173`,
       '--env', `RIPPLE_PREVIEW_RESOURCE_ORIGINS=${JSON.stringify(trustedPreviewResourceOrigins(projectRoot))}`,
       '--read-only', '--user', '1000:1000',
       '--memory', '1g', '--cpus', '2', '--pids-limit', '128',
@@ -212,11 +241,18 @@ async function launchCandidatePreview(candidate: CandidateRecord): Promise<Candi
       image,
       'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && cp -R /source/. /work/ && rm -f /work/.git /work/.ripple-candidate.json && rm -rf /work/node_modules && ln -s /deps /work/node_modules && printf "ripple-preview launching vite\\n" && exec node /ripple/core/candidate-preview-runner.mjs',
     ], 120_000)
-    const containerIp = await docker(['inspect', '--format', '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}', containerName])
-    await waitUntilReady(preview, containerIp)
+    const containerIp = await resolveCandidatePreviewAddress(preview)
+    await waitForEndpoint(`http://${containerIp}:5173/`, preview, containerIp)
+    const relay = await startHostRelay(containerIp)
+    preview.url = relay.url
+    relays.set(candidate.id, relay.server)
+    previews.set(candidate.id, preview)
+    await waitForEndpoint(preview.url, preview, containerIp)
     assertCandidateCurrent(candidate)
     return preview
   } catch (error) {
+    await closeHostRelay(relays.get(candidate.id))
+    relays.delete(candidate.id)
     await removeContainer(containerName).catch(() => undefined)
     if (networkCreated) await docker(['network', 'rm', networkName]).catch(() => undefined)
     previews.delete(candidate.id)
@@ -230,6 +266,8 @@ export async function stopCandidatePreview(candidateId: string): Promise<void> {
   if (pending) await pending.catch(() => undefined)
   const preview = previews.get(candidateId)
   if (!preview) return
+  await closeHostRelay(relays.get(candidateId))
+  relays.delete(candidateId)
   await removeContainer(preview.containerName)
   try { await docker(['network', 'rm', preview.networkName]) }
   catch (error) {
@@ -237,4 +275,3 @@ export async function stopCandidatePreview(candidateId: string): Promise<void> {
   }
   previews.delete(candidateId)
 }
-

@@ -62,6 +62,9 @@ test('runs the exact candidate source in a Docker-isolated browser preview', asy
   const previewResponse = await previewResponsePromise
   const previewPayload = await previewResponse.json() as { error?: string; url?: string }
   expect(previewResponse.ok(), `Candidate preview API failed: ${JSON.stringify(previewPayload)}`).toBeTruthy()
+  expect(previewPayload.url).toBeTruthy()
+  expect(new URL(previewPayload.url!).hostname).toBe('127.0.0.1')
+  expect((await page.request.get(previewPayload.url!)).status()).toBe(200)
   const browserDiagnostics: string[] = []
   page.on('console', message => { if (message.type() === 'error') browserDiagnostics.push(`console: ${message.text()}`) })
   page.on('pageerror', error => browserDiagnostics.push(`pageerror: ${error.message}`))
