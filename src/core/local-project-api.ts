@@ -4,7 +4,7 @@ import * as path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { assertCandidateCurrent, assertCandidateIntegrity, CandidateError, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
-import { applyApprovedCandidate, PatchApplyError, rollbackAppliedCandidate } from './apply'
+import { applyApprovedCandidate, isAppliedCandidateRollbackable, PatchApplyError, rollbackAppliedCandidate } from './apply'
 import { startCandidatePreview, stopCandidatePreview } from './candidate-preview'
 import { referencedPreviewResourceUrls, saveTrustedPreviewResourceUrls, trustedPreviewResourceUrls } from './preview-resource-policy'
 import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
@@ -161,14 +161,7 @@ function savedVerificationView(stored: ReturnType<typeof listStoredCandidates>[n
 }
 
 function workflowView(live: LiveCandidate) {
-  let rollbackAvailable = false
-  if (live.lifecycle === 'applied' && live.session.applied) {
-    try {
-      const revision = readProjectSnapshot(live.record.projectRoot, false).revision
-      rollbackAvailable = revision.gitCommit === live.session.applied.commit && revision.sourceDigest === live.session.applied.targetSourceDigest
-      if (rollbackAvailable) assertCandidateIntegrity(live.record, false)
-    } catch { rollbackAvailable = false }
-  }
+  const rollbackAvailable = live.lifecycle === 'applied' && isAppliedCandidateRollbackable(live.session, live.record)
   return {
     lifecycle: live.lifecycle,
     approval: live.session.approval,

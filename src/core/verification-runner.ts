@@ -9,7 +9,7 @@ import { analyzeProject } from './project'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
-import { sourceProvenPageImpact } from './scope'
+import { expectedTextForPage, sourceProvenPageImpact } from './scope'
 import { verificationContractHash } from './verification-contract'
 
 export class VerificationRunnerError extends Error {
@@ -70,12 +70,12 @@ function renderedSourceRefs(graph: SourceGraph, target: SourceGraph['nodes'][num
   return sourceRefs.length === 1 ? sourceRefs : []
 }
 
-export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGraph, candidateGraph: SourceGraph, session: EditSession): Array<{ operationId: string; beforeText: string; expectedText: string; baselineSourceRefs: string[]; sourceRefs: string[]; baselineTextByPage: Record<string, string> }> {
+export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGraph, candidateGraph: SourceGraph, session: EditSession): Array<{ operationId: string; beforeText: string; expectedText: string; baselineSourceRefs: string[]; sourceRefs: string[]; pageExpectations: Record<string, ReturnType<typeof expectedTextForPage>> }> {
   const baseNodes = new Map(baseGraph.nodes.map(node => [node.id, node]))
   const candidateNodes = new Map(candidateGraph.nodes.map(node => [node.id, node]))
   return session.operations.map(operation => {
     const original = baseNodes.get(operation.targetRef)
-    const empty = { operationId: operation.id, beforeText: operation.before, expectedText: operation.after, baselineSourceRefs: [], sourceRefs: [], baselineTextByPage: {} }
+    const empty = { operationId: operation.id, beforeText: operation.before, expectedText: operation.after, baselineSourceRefs: [], sourceRefs: [], pageExpectations: {} }
     if (operation.kind !== 'TEXT' || !operation.before.trim() || !operation.after.trim() || original?.kind !== 'data' || !original.location?.path) return empty
     const candidateRef = candidate.operationTargetRefs[operation.id]
     const data = candidateRef ? candidateNodes.get(candidateRef) : undefined
@@ -86,13 +86,13 @@ export function sourceBindings(candidate: CandidateRecord, baseGraph: SourceGrap
     )
     if (!unchangedAnchor || !data) return empty
     const pageRefs = sourceProvenPageImpact(baseGraph, original.id).pageRefs
-    const baselineTextByPage = Object.fromEntries(pageRefs.map(pageRef => [pageRef, original.pageOverrides?.[pageRef] ?? original.value ?? operation.before]))
-    return { ...empty, baselineSourceRefs: renderedSourceRefs(baseGraph, original), sourceRefs: renderedSourceRefs(candidateGraph, data), baselineTextByPage }
+    const pageExpectations = Object.fromEntries(pageRefs.map(pageRef => [pageRef, expectedTextForPage(original, operation, session.scope!, pageRef)]))
+    return { ...empty, baselineSourceRefs: renderedSourceRefs(baseGraph, original), sourceRefs: renderedSourceRefs(candidateGraph, data), pageExpectations }
   })
 }
 
 interface ExecutionManifest {
-  schemaVersion: 1
+  schemaVersion: 2
   executor: 'playwright'
   completed: true
   runId: string
@@ -191,7 +191,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   const recordStat = fs.lstatSync(recordPath)
   if (recordStat.isSymbolicLink() || !recordStat.isFile()) throw new VerificationRunnerError('Playwright 执行记录不是普通文件')
   const manifest = JSON.parse(fs.readFileSync(recordPath, 'utf8')) as ExecutionManifest
-  if (manifest.schemaVersion !== 1 || manifest.executor !== 'playwright' || manifest.completed !== true || manifest.runId !== runId || manifest.candidateId !== candidate.id ||
+  if (manifest.schemaVersion !== 2 || manifest.executor !== 'playwright' || manifest.completed !== true || manifest.runId !== runId || manifest.candidateId !== candidate.id ||
     manifest.scopeDecisionId !== candidate.scopeDecisionId || manifest.scopeVersion !== candidate.scopeVersion || manifest.baseSourceDigest !== candidate.baseSourceDigest ||
     manifest.patchHash !== candidate.patchHash || manifest.candidateTreeDigest !== candidate.candidateTreeDigest || manifest.runtimeFingerprint !== session.projectRevision.runtimeFingerprint ||
     manifest.verificationContractHash !== verificationContractHash(session.verificationContract)) {

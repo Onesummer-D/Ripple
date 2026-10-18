@@ -85,6 +85,7 @@ export interface ScopePropagationObservation {
   operations: Array<{
     operationId: Id
     expectedBaselineText: string
+    expectedCandidateText: string
     baselineValues: string[]
     candidateValues: string[]
   }>

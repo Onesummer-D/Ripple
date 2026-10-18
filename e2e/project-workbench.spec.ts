@@ -367,6 +367,7 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
   await expect(page.getByTestId('candidate-workflow')).toContainText('已批准')
   await page.getByTestId('apply-candidate').click()
   await expect(page.getByTestId('candidate-workflow')).toContainText('applied')
+  await expect(page.getByTestId('rollback-candidate'), 'the exact applied candidate tree must remain rollbackable').toBeEnabled()
   const git = (...args: string[]) => execFileSync('git', ['-C', approvalProject, ...args], { encoding: 'utf8' }).trim()
   expect(fs.readFileSync(path.join(approvalProject, 'src', 'components', 'Navigation.tsx'), 'utf8')).toContain('<RippleText')
   expect(fs.readFileSync(path.join(approvalProject, 'src', 'App.tsx'), 'utf8')).toContain('RipplePageForState')
@@ -393,6 +394,7 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
     await expect(runtimePage.getByText('Shared navigation brand', { exact: true })).toBeVisible()
     await expect(runtimePage.getByText('Home-only brand', { exact: true })).toHaveCount(0)
 
+    await expect(page.getByTestId('rollback-candidate'), 'running the applied project must not invalidate its patch record').toBeEnabled()
     await page.getByTestId('rollback-candidate').click()
     await expect(page.getByTestId('candidate-workflow')).toContainText('rolled-back')
     expect(git('status', '--porcelain')).toBe('')

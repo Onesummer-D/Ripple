@@ -4,12 +4,32 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { AppliedRevision, EditSession, RollbackRevision } from './model'
 import type { CandidateRecord } from './candidate'
-import { assertCandidateCurrent } from './candidate'
+import { assertCandidateCurrent, assertCandidateIntegrity } from './candidate'
 import { digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from './project'
 import { assertTrustedBrowserExecution } from './verification'
 import { assertVerificationContractResults } from './session'
 
 const appliedTreeDigest = (root: string, candidate: CandidateRecord) => digestTrackedTree(root, [...new Set([...trackedProjectFiles(root), ...candidate.modifiedPaths])].filter(file => fs.existsSync(path.join(root, file))))
+
+function assertAppliedTreeUnchanged(candidate: CandidateRecord, applied: AppliedRevision): void {
+  const current = readProjectSnapshot(candidate.projectRoot, false)
+  const untracked = git(candidate.projectRoot, ['ls-files', '--others', '--exclude-standard', '-z']).toString('utf8').split('\0').filter(Boolean)
+  const unexpected = untracked.filter(file => !candidate.modifiedPaths.includes(file))
+  if (current.revision.gitCommit !== applied.commit || appliedTreeDigest(candidate.projectRoot, candidate) !== applied.targetSourceDigest || unexpected.length) {
+    throw new PatchApplyError('原工程在应用后又发生变化；拒绝回滚以免覆盖新修改')
+  }
+}
+
+export function isAppliedCandidateRollbackable(session: EditSession, candidate: CandidateRecord): boolean {
+  const applied = session.applied
+  if (session.status !== 'applied' || !applied || applied.candidateId !== candidate.id || applied.appliedPatchHash !== candidate.patchHash ||
+      applied.baseSourceDigest !== candidate.baseSourceDigest || applied.targetSourceDigest !== candidate.candidateTreeDigest || applied.commit !== session.projectRevision.gitCommit) return false
+  try {
+    assertAppliedTreeUnchanged(candidate, applied)
+    assertCandidateIntegrity(candidate, false)
+    return true
+  } catch { return false }
+}
 
 export class PatchApplyError extends Error {
   constructor(message: string) { super(message); this.name = 'PatchApplyError' }
@@ -87,10 +107,7 @@ export function rollbackAppliedCandidate(session: EditSession, candidate: Candid
   if (!run || run.status !== 'passed') throw new PatchApplyError('回滚记录没有当前通过的验证运行')
   assertTrustedBrowserExecution(run)
   assertVerificationContractResults(session, run)
-  const current = readProjectSnapshot(candidate.projectRoot, false)
-  if (current.revision.gitCommit !== applied.commit || appliedTreeDigest(candidate.projectRoot, candidate) !== applied.targetSourceDigest) {
-    throw new PatchApplyError('原工程在应用后又发生变化；拒绝回滚以免覆盖新修改')
-  }
+  assertAppliedTreeUnchanged(candidate, applied)
   const patchPath = readPatch(candidate)
   git(candidate.projectRoot, ['apply', '--reverse', '--check', '--binary', '--', patchPath])
   git(candidate.projectRoot, ['apply', '--reverse', '--binary', '--', patchPath])

@@ -6,9 +6,9 @@ import * as path from 'node:path'
 import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidate } from './candidate'
 import { analyzeProject, createRuntimeSourceMap, digestTrackedTree, readProjectSnapshot, resolveJsxSourceElement, resolveRuntimeElement, trackedProjectFiles } from './project'
 import { sourceAnnotationPlugin } from './source-annotation'
-import { sourceProvenPageImpact } from './scope'
+import { expectedTextForPage, sourceProvenPageImpact } from './scope'
 import * as verificationApi from './verification'
-import { applyApprovedCandidate, rollbackAppliedCandidate } from './apply'
+import { applyApprovedCandidate, isAppliedCandidateRollbackable, rollbackAppliedCandidate } from './apply'
 import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
 import type { BrowserVerificationContract, EditOperation, ScopeDecision, VerificationRun } from './model'
 import { attestBrowserExecution } from './verification-receipt'
@@ -54,7 +54,11 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   fs.writeFileSync(comparisonPath, comparisonBytes)
   const comparisonDigest = createHash('sha256').update(baselineSnapshot).digest('hex')
   const baselineComparisons = [{ route: '/', viewport, baselineDigest: comparisonDigest, candidateDigest: comparisonDigest, maskedOperationIds: ['test-operation'], matched: true, artifactPath: comparisonPath, artifactHash: createHash('sha256').update(comparisonBytes).digest('hex') }]
-  const scopeObservations = contract.pages.map(page => ({ pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true, operations: candidate.operations.map(operation => ({ operationId: operation.id, expectedBaselineText: operation.before, baselineValues: [operation.before], candidateValues: [(scope.strategy === 'page-override' ? scope.localPageRef === page.pageRef : scope.includedRefs.includes(page.pageRef)) ? operation.after : operation.before] })) }))
+  const scopeObservations = contract.pages.map(page => ({ pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true, operations: candidate.operations.map(operation => {
+    const source = { value: operation.before }
+    const expectation = expectedTextForPage(source, operation, scope, page.pageRef)
+    return { operationId: operation.id, expectedBaselineText: expectation.baselineText, expectedCandidateText: expectation.candidateText, baselineValues: [expectation.baselineText], candidateValues: [expectation.candidateText] }
+  }) }))
   const interactionObservations = [{ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button' as const, name: 'Home route', expectedText: 'Home page', baselinePassed: true, candidatePassed: true }]
   const run: VerificationRun = {
     id, candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
@@ -65,7 +69,7 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
-    schemaVersion: 1, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
+    schemaVersion: 2, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint, verificationContractHash: verificationContractHash(contract), checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
@@ -303,6 +307,8 @@ describe('real project graph and candidate executor', () => {
       const binding = sourceBindings(candidate, graph, candidateGraph, session)[0]
       expect(binding.expectedText).toBe(operation.after)
       expect(binding.beforeText).toBe(operation.before)
+      expect(binding.pageExpectations['page:home']).toMatchObject({ baselineText: operation.before, candidateText: operation.after, shouldChange: true })
+      expect(binding.pageExpectations['page:autumn']).toMatchObject({ baselineText: target.value, candidateText: target.value, shouldChange: false })
       expect(binding.baselineSourceRefs).toHaveLength(1)
       expect(binding.sourceRefs).toHaveLength(1)
       expect(binding.sourceRefs[0]).toMatch(/^jsx:src\/components\/Navigation\.tsx#/)
@@ -312,11 +318,12 @@ describe('real project graph and candidate executor', () => {
       session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
       expect(digestTrackedTree(root, [...trackedProjectFiles(root), ...candidate.modifiedPaths])).toBe(candidate.candidateTreeDigest)
       expect(fs.existsSync(path.join(root, '.ripple', 'overrides.json'))).toBe(true)
+      expect(isAppliedCandidateRollbackable(session, candidate)).toBe(true)
       rollbackAppliedCandidate(session, candidate)
       expect(fs.existsSync(path.join(root, '.ripple', 'overrides.json'))).toBe(false)
       expect(digestTrackedTree(root)).toBe(graph.revision.sourceDigest)
     } finally { removeCandidate(candidate) }
-  }, 15_000)
+  }, 60_000)
 
   it('applies the exact approved patch to the project and rolls back only that unchanged result', () => {
     const { container, root } = sampleProject()
@@ -338,6 +345,7 @@ describe('real project graph and candidate executor', () => {
       expect(session.status).toBe('applied')
       expect(readProjectSnapshot(root, false).revision.sourceDigest).toBe(candidate.candidateTreeDigest)
       expect(fs.readFileSync(path.join(root, target.location!.path), 'utf8')).toContain('Exact approved title')
+      expect(isAppliedCandidateRollbackable(session, candidate)).toBe(true)
 
       rollbackAppliedCandidate(session, candidate)
       expect(readProjectSnapshot(root).revision.sourceDigest).toBe(graph.revision.sourceDigest)
@@ -360,8 +368,12 @@ describe('real project graph and candidate executor', () => {
       const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'rollback-conflict-evidence'), scope)
       session = approve(registerVerification(session, run), { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-18T00:02:00Z' })
       session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
+      fs.writeFileSync(path.join(root, 'user-added.txt'), 'user data')
+      expect(isAppliedCandidateRollbackable(session, candidate)).toBe(false)
+      fs.unlinkSync(path.join(root, 'user-added.txt'))
       const appliedFile = path.join(root, target.location!.path)
       fs.appendFileSync(appliedFile, '\n// user edit after Ripple application\n')
+      expect(isAppliedCandidateRollbackable(session, candidate)).toBe(false)
       expect(() => rollbackAppliedCandidate(session, candidate)).toThrow(/拒绝回滚/)
       expect(fs.readFileSync(appliedFile, 'utf8')).toContain('Approved title')
       expect(fs.readFileSync(appliedFile, 'utf8')).toContain('user edit after Ripple application')

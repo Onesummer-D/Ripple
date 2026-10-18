@@ -1,4 +1,4 @@
-import type { Relation, SourceGraph } from './model'
+import type { EditOperation, Relation, ScopeDecision, SourceGraph, SourceNode } from './model'
 
 const consumerRelations = new Set<Relation['kind']>([
   'reads',
@@ -13,6 +13,25 @@ export interface PageImpact {
   pageRefs: string[]
   unresolved: string[]
   certainty: 'source-proven' | 'partial' | 'unknown'
+}
+
+export interface PageTextExpectation {
+  baselineText: string
+  candidateText: string
+  shouldChange: boolean
+}
+
+export function expectedTextForScope(scope: ScopeDecision, pageRef: string, baselineText: string, requestedText: string): PageTextExpectation {
+  const shouldChange = scope.strategy === 'page-override'
+    ? scope.localPageRef === pageRef
+    : scope.includedRefs.includes(pageRef)
+  return { baselineText, candidateText: shouldChange ? requestedText : baselineText, shouldChange }
+}
+
+export function expectedTextForPage(source: Pick<SourceNode, 'value' | 'pageOverrides'>, operation: EditOperation, scope: ScopeDecision, pageRef: string): PageTextExpectation {
+  const baselineText = source.pageOverrides?.[pageRef] ?? source.value ?? operation.before
+  const requestedText = operation.overrideAction === 'remove' ? source.value ?? operation.before : operation.after
+  return expectedTextForScope(scope, pageRef, baselineText, requestedText)
 }
 
 /** Follows only source-proven consumer edges; candidate writes fail closed on incomplete proof. */

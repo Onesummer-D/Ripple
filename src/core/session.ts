@@ -2,6 +2,7 @@ import { REQUIRED_VERIFICATION_ASSERTION_IDS, type AppliedRevision, type Approva
 import { assertTrustedBrowserExecution } from './verification'
 import { carryTrustedBrowserExecution } from './verification-receipt'
 import { verificationContractHash } from './verification-contract'
+import { expectedTextForScope } from './scope'
 
 export class SessionInvariantError extends Error {
   constructor(message: string) { super(message); this.name = 'SessionInvariantError' }
@@ -141,11 +142,11 @@ export function assertVerificationContractResults(session: EditSession, run: Ver
       requireCondition(observation.markerText === page.markerText && observation.baselineMarkerVisible && observation.candidateMarkerVisible, 'Scope PASS requires the declared page marker in both original and candidate projects')
       requireCondition(observation.operations.length === session.operations.length && session.operations.every(operation => {
         const values = observation.operations.find(item => item.operationId === operation.id)
-        const shouldChange = scope.strategy === 'page-override' ? scope.localPageRef === observation.pageRef : scope.includedRefs.includes(observation.pageRef)
         const expectedBaseline = values?.expectedBaselineText
-        const expectedCandidate = shouldChange ? operation.after : expectedBaseline ?? ''
+        const expectation = expectedBaseline ? expectedTextForScope(scope, observation.pageRef, expectedBaseline, operation.after) : undefined
         return !!values && !!expectedBaseline && values.baselineValues.length > 0 && values.candidateValues.length > 0 &&
-          values.baselineValues.every(value => value.includes(expectedBaseline)) && values.candidateValues.every(value => value.includes(expectedCandidate))
+          !!expectation && values.expectedCandidateText === expectation.candidateText &&
+          values.baselineValues.every(value => value.includes(expectation.baselineText)) && values.candidateValues.every(value => value.includes(expectation.candidateText))
       }), 'Scope PASS target values must match the original baseline and selected page decision')
     }
   }

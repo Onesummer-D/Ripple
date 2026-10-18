@@ -28,13 +28,11 @@ const browserErrors = []
 let overflowObserved = false
 let loadedViewports = 0
 
-async function snapshotOutsideTargets(page, bindings, baseline, baselinePageRef) {
+async function snapshotOutsideTargets(page, bindings, baseline, pageRef) {
   const specs = bindings.map(binding => ({
     operationId: binding.operationId,
     sourceRefs: baseline ? binding.baselineSourceRefs : binding.sourceRefs,
-    text: baseline
-      ? binding.baselineTextByPage[baselinePageRef] ?? (new Set(Object.values(binding.baselineTextByPage)).size === 1 ? Object.values(binding.baselineTextByPage)[0] : '')
-      : binding.expectedText,
+    text: binding.pageExpectations[pageRef]?.[baseline ? 'baselineText' : 'candidateText'] ?? '',
   }))
   return page.evaluate(specs => {
     const root = document.querySelector('#root')
@@ -153,7 +151,7 @@ try {
       if (loaded && baselineLoaded) {
         const [baselineSnapshot, candidateSnapshot] = await Promise.all([
           snapshotOutsideTargets(baselinePage, input.targetBindings, true, input.baselineComparisonPageRef),
-          snapshotOutsideTargets(page, input.targetBindings, false),
+          snapshotOutsideTargets(page, input.targetBindings, false, input.baselineComparisonPageRef),
         ])
         if (baselineSnapshot.ok && candidateSnapshot.ok) {
           const baselineBytes = Buffer.byteLength(baselineSnapshot.snapshot)
@@ -211,7 +209,8 @@ try {
             binding.baselineSourceRefs.length === 1 ? mappedValues(baselineProbe.page, binding.baselineSourceRefs[0]) : [],
             binding.sourceRefs.length === 1 ? mappedValues(candidateProbe.page, binding.sourceRefs[0]) : [],
           ])
-          operations.push({ operationId: binding.operationId, expectedBaselineText: binding.baselineTextByPage[spec.pageRef] ?? '', baselineValues, candidateValues })
+          const expectation = binding.pageExpectations[spec.pageRef]
+          operations.push({ operationId: binding.operationId, expectedBaselineText: expectation?.baselineText ?? '', expectedCandidateText: expectation?.candidateText ?? '', baselineValues, candidateValues })
         }
         scopeObservations.push({
           pageRef: spec.pageRef, route: spec.path, viewport: { width: viewport.width, height: viewport.height },
@@ -278,30 +277,23 @@ const pageRefs = contractPages.map(page => page.pageRef).sort()
 const supportedScopeContract = contractPages.length > 0 && JSON.stringify(pageRefs) === JSON.stringify([...input.routeRefs].sort()) &&
   input.operations.length > 0 && input.operations.every(operation => operation.kind === 'TEXT' && !operation.overrideAction &&
     (input.scopeTargetPageRefs[operation.id] ?? []).length === contractPages.length && contractPages.every(page => input.scopeTargetPageRefs[operation.id].includes(page.pageRef))) &&
-  input.targetBindings.length === input.operations.length && input.targetBindings.every(binding => binding.sourceRefs.length === 1 && binding.baselineSourceRefs.length === 1 && contractPages.every(page => !!binding.baselineTextByPage[page.pageRef]))
+  input.targetBindings.length === input.operations.length && input.targetBindings.every(binding => binding.sourceRefs.length === 1 && binding.baselineSourceRefs.length === 1 && contractPages.every(page => !!binding.pageExpectations[page.pageRef]?.baselineText && !!binding.pageExpectations[page.pageRef]?.candidateText))
 const scopePassed = supportedScopeContract && scopeObservations.length === contractPages.length * viewportPlan.length && scopeObservations.every(observation => {
   if (!observation.baselineMarkerVisible || !observation.candidateMarkerVisible) return false
-  const pageShouldChange = input.scope.strategy === 'page-override'
-    ? input.scope.localPageRef === observation.pageRef
-    : input.scope.includedRefs.includes(observation.pageRef)
   return observation.operations.length === input.operations.length && input.operations.every(operation => {
     const values = observation.operations.find(item => item.operationId === operation.id)
-    const expectedBaseline = input.targetBindings.find(binding => binding.operationId === operation.id)?.baselineTextByPage[observation.pageRef]
-    const expectedCandidate = pageShouldChange ? operation.after : expectedBaseline
+    const expectation = input.targetBindings.find(binding => binding.operationId === operation.id)?.pageExpectations[observation.pageRef]
     return !!values && values.baselineValues.length > 0 && values.candidateValues.length > 0 &&
-      !!expectedBaseline && values.expectedBaselineText === expectedBaseline &&
-      values.baselineValues.every(value => value.includes(expectedBaseline)) && values.candidateValues.every(value => value.includes(expectedCandidate))
+      !!expectation && values.expectedBaselineText === expectation.baselineText && values.expectedCandidateText === expectation.candidateText &&
+      values.baselineValues.every(value => value.includes(expectation.baselineText)) && values.candidateValues.every(value => value.includes(expectation.candidateText))
   })
 })
 const scopeFailed = supportedScopeContract && scopeObservations.some(observation =>
   observation.baselineMarkerVisible && observation.candidateMarkerVisible && observation.operations.some(item =>
     item.baselineValues.length > 0 && item.candidateValues.length > 0 && input.operations.some(operation => {
       if (operation.id !== item.operationId) return false
-      const pageShouldChange = input.scope.strategy === 'page-override'
-        ? input.scope.localPageRef === observation.pageRef
-        : input.scope.includedRefs.includes(observation.pageRef)
-      const expectedBaseline = input.targetBindings.find(binding => binding.operationId === operation.id)?.baselineTextByPage[observation.pageRef]
-      return !expectedBaseline || item.expectedBaselineText !== expectedBaseline || !item.baselineValues.every(value => value.includes(expectedBaseline)) || !item.candidateValues.every(value => value.includes(pageShouldChange ? operation.after : expectedBaseline))
+        const expectation = input.targetBindings.find(binding => binding.operationId === operation.id)?.pageExpectations[observation.pageRef]
+        return !expectation || item.expectedBaselineText !== expectation.baselineText || item.expectedCandidateText !== expectation.candidateText || !item.baselineValues.every(value => value.includes(expectation.baselineText)) || !item.candidateValues.every(value => value.includes(expectation.candidateText))
     })))
 const interactionsSupported = contractInteractions.length > 0 && interactionObservations.length === contractInteractions.length * viewportPlan.length
 const interactionsPassed = interactionsSupported && interactionObservations.every(item => item.baselinePassed && item.candidatePassed)
@@ -337,7 +329,7 @@ if (assertions.length !== requiredAssertions.length || assertions.some(assertion
 }
 
 const manifest = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   executor: 'playwright',
   completed: true,
   runId: input.runId,

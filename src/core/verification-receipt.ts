@@ -8,7 +8,7 @@ export class VerificationEvidenceError extends Error {
 }
 
 interface BrowserExecutionManifest {
-  schemaVersion: 1
+  schemaVersion: 2
   executor: 'playwright'
   completed: boolean
   runId: string
@@ -58,7 +58,7 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   try { manifest = JSON.parse(recordBytes.toString('utf8')) as BrowserExecutionManifest }
   catch { throw new VerificationEvidenceError('Playwright execution record is not valid JSON') }
   const root = path.dirname(absoluteRecord)
-  if (manifest.schemaVersion !== 1 || manifest.executor !== 'playwright' || manifest.completed !== true ||
+  if (manifest.schemaVersion !== 2 || manifest.executor !== 'playwright' || manifest.completed !== true ||
     manifest.runId !== run.id || manifest.candidateId !== run.candidateId || manifest.scopeDecisionId !== run.scopeDecisionId || manifest.scopeVersion !== run.scopeVersion || manifest.baseSourceDigest !== run.baseSourceDigest ||
     manifest.patchHash !== run.patchHash || manifest.candidateTreeDigest !== run.candidateTreeDigest || manifest.runtimeFingerprint !== run.runtimeFingerprint ||
     manifest.verificationContractHash !== run.verificationContractHash) {

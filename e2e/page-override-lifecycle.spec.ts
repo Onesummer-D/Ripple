@@ -94,8 +94,8 @@ async function snapshotOutsideTargets(page: import('@playwright/test').Page, bin
     operationId: binding.operationId,
     sourceRefs: baseline ? binding.baselineSourceRefs : binding.sourceRefs,
     text: baseline
-      ? binding.baselineTextByPage[baselinePageRef ?? ''] ?? (new Set(Object.values(binding.baselineTextByPage)).size === 1 ? Object.values(binding.baselineTextByPage)[0] : '')
-      : binding.expectedText,
+      ? binding.pageExpectations[baselinePageRef ?? '']?.baselineText ?? ''
+      : binding.pageExpectations[baselinePageRef ?? '']?.candidateText ?? '',
   }))
   return page.evaluate(specs => {
     const root = document.querySelector('#root')
@@ -203,7 +203,8 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
             ? targetPage.locator('[data-ripple-source]').evaluateAll((elements, sourceRef) => elements.filter(element => element.getAttribute('data-ripple-source') === sourceRef).map(element => (element.textContent ?? '').trim()), sourceRefs[0])
             : []
           const [baselineValues, candidateValues] = await Promise.all([read(baselinePage!, binding.baselineSourceRefs), read(page, binding.sourceRefs)])
-          return { operationId: binding.operationId, expectedBaselineText: binding.baselineTextByPage[spec.pageRef] ?? '', baselineValues, candidateValues }
+          const expectation = binding.pageExpectations[spec.pageRef]
+          return { operationId: binding.operationId, expectedBaselineText: expectation?.baselineText ?? '', expectedCandidateText: expectation?.candidateText ?? '', baselineValues, candidateValues }
         }))
         scopeObservations.push({ pageRef: spec.pageRef, route: spec.path, viewport, markerText: spec.markerText, baselineMarkerVisible, candidateMarkerVisible, operations })
         if (spec.pageRef === 'page:home') {
@@ -258,7 +259,7 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
   const recordPath = path.join(evidenceRoot, `${evidenceId}.json`)
   const artifacts = evidence.map(item => ({ checkId: item.checkId, path: path.basename(item.artifactPath!), sha256: item.artifactHash! }))
   const record = {
-    schemaVersion: 1, executor: 'playwright' as const, completed: true, runId, candidateId: candidate.id,
+    schemaVersion: 2, executor: 'playwright' as const, completed: true, runId, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint: analyzeProject(projectRoot).revision.runtimeFingerprint,
@@ -325,6 +326,9 @@ test('page override identities and source transforms remain maintainable across 
   expect(persistedFirst.pageOverrides?.['page:home']).toBe('Home only')
   first = await createOverrideCandidate(graph, persistedFirst, 'Home maintained', 'override-update')
   cycleEvidence.candidateIds.push(first.candidate.id)
+  const maintainedBinding = sourceBindings(first.candidate, graph, analyzeProject(first.candidate.candidateRoot!, false), first.session)[0]
+  expect(maintainedBinding.pageExpectations['page:home']).toMatchObject({ baselineText: 'Home only', candidateText: 'Home maintained', shouldChange: true })
+  expect(maintainedBinding.pageExpectations['page:autumn']).toMatchObject({ baselineText: 'Shared navigation brand', candidateText: 'Shared navigation brand', shouldChange: false })
   let navigation = fs.readFileSync(path.join(first.candidate.candidateRoot!, 'src', 'components', 'Navigation.jsx'), 'utf8')
   let app = fs.readFileSync(path.join(first.candidate.candidateRoot!, 'src', 'App.jsx'), 'utf8')
   expect(navigation.match(/targetRef="override:/g)).toHaveLength(1)
