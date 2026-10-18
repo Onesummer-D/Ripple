@@ -106,6 +106,50 @@ const stringValue = (node: ts.Node | undefined): ts.StringLiteral | ts.NoSubstit
   return undefined
 }
 const imageLike = (value: string) => /(?:\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$|^https?:\/\/[^\s]+(?:images|photos|pexels)[^\s]*|^data:image\/)/i.test(value)
+const assetFileLike = (file: string) => /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(file)
+
+/** Values of `property` across object literals in an array literal (bounded, syntactic only). */
+function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string): string[] {
+  const values: string[] = []
+  for (const element of array.elements) {
+    if (!ts.isObjectLiteralExpression(element)) continue
+    for (const entry of element.properties) {
+      if (!ts.isPropertyAssignment(entry) || propertyName(entry) !== property) continue
+      const literal = stringValue(entry.initializer)
+      if (literal) values.push(literal.text)
+    }
+  }
+  return values
+}
+
+/**
+ * Bounded backward drill from a JSX attribute / callback expression to the string
+ * literal values of `property`, through identifiers bound to array literals and
+ * `.map` / `.filter` / `.slice` chains. Anything outside this shape yields [] —
+ * the caller keeps the honest lower-certainty result instead of guessing.
+ */
+function arrayValuesForProperty(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>): string[] {
+  if (visited.has(expression)) return []
+  visited.add(expression)
+  if (ts.isIdentifier(expression) || ts.isPropertyAccessExpression(expression)) {
+    const symbol = checker.getSymbolAtLocation(ts.isIdentifier(expression) ? expression : expression.name)
+    const declaration = symbol?.valueDeclaration
+    if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
+      let initializer: ts.Expression = declaration.initializer
+      if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
+      if (ts.isArrayLiteralExpression(initializer)) return objectLiteralPropertyValues(initializer, property)
+    }
+    return []
+  }
+  if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
+    const method = expression.expression.name.text
+    if (method === 'map' || method === 'filter' || method === 'slice') {
+      return arrayValuesForProperty(expression.expression.expression, property, checker, visited)
+    }
+    return []
+  }
+  return []
+}
 
 function componentInfos(root: string, sources: Map<string, ts.SourceFile>): ComponentInfo[] {
   const result: ComponentInfo[] = []
@@ -209,6 +253,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const tokenNodes = new Map<string, SourceNode[]>()
   const mediaNodes = new Map<string, SourceNode[]>()
   const mediaBySource = new Map<string, SourceNode>()
+  const mediaByValue = new Map<string, SourceNode[]>()
+  const assetMediaId = (assetFile: string) => `media:${assetFile}#asset`
   const addIndexedValue = (node: SourceNode, index: Map<string, SourceNode[]>, key: string) => {
     addNode(node)
     if (!index.has(key)) index.set(key, [])
@@ -224,6 +270,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const media: SourceNode = { id: nodeId(file, 'media', start), kind: 'media', label: property, value: literal.text, location: { path: file, start, end } }
       addIndexedValue(media, mediaNodes, property)
       mediaBySource.set(`${file}#${start}`, media)
+      if (!mediaByValue.has(literal.text)) mediaByValue.set(literal.text, [])
+      mediaByValue.get(literal.text)!.push(media)
     }
     const scanValues = (node: ts.Node) => {
       if (ts.isPropertyAssignment(node)) {
@@ -293,6 +341,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     findState(appComponent.node)
   }
 
+  // Imported image assets (e.g. `import hero from './assets/hero.jpg'`): one media node per
+  // asset file, plus per-file binding names for identifier provenance. Asset-backed media has
+  // no source offsets — editing it is an asset-swap candidate, not a literal replacement.
+  const assetImportBindings = new Map<string, Map<string, string>>()
+  const componentUsages: Array<{ targetId: string; element: ts.JsxOpeningLikeElement; source: ts.SourceFile; file: string }> = []
   for (const [absolute, source] of sourceFiles) {
     const relative = relativeTo(snapshot.root, absolute)
     const imports = new Map<string, ImportTarget>()
@@ -302,7 +355,12 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const specifier = statement.moduleSpecifier.text
       const scriptResolved = ts.resolveModuleName(specifier, absolute, compilerOptions, ts.sys).resolvedModule?.resolvedFileName
       const cssResolved = /\.css$/i.test(specifier) ? path.resolve(path.dirname(absolute), specifier) : undefined
+      // Vite convention fallback: `@/…` aliases to `<root>/src` when the project tsconfig does
+      // not declare paths (evidence: Lovable TanStack Start ships the alias only in vite.config).
+      const aliasResolved = specifier.startsWith('@/')
+        ? path.resolve(snapshot.root, 'src', specifier.slice(2)) : undefined
       const resolved = scriptResolved ?? (cssResolved && tracked.has(normalize(cssResolved)) ? cssResolved : undefined)
+        ?? (aliasResolved && tracked.has(normalize(aliasResolved)) ? aliasResolved : undefined)
       if (!resolved || !tracked.has(normalize(resolved))) {
         if ((specifier.startsWith('.') || specifier.startsWith('@/')) && !/\.css$/i.test(specifier)) unresolved.push(`${relative} → ${specifier}`)
         continue
@@ -315,6 +373,18 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         for (const item of clause.namedBindings.elements) imports.set(item.name.text, { file: targetFile, exportName: item.propertyName?.text ?? item.name.text })
       }
       addEdge(`file:${relative}`, `file:${targetFile}`, 'imports', `import:${relative}:${statement.getStart()}`)
+      if (assetFileLike(targetFile)) {
+        const id = assetMediaId(targetFile)
+        if (!nodeById.has(id)) {
+          addNode({ id, kind: 'media', label: path.basename(targetFile), value: targetFile, location: { path: targetFile } })
+          mediaByValue.set(targetFile, [nodeById.get(id)!])
+        }
+        if (!assetImportBindings.has(relative)) assetImportBindings.set(relative, new Map())
+        if (clause?.name) assetImportBindings.get(relative)!.set(clause.name.text, targetFile)
+        if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+          for (const item of clause.namedBindings.elements) assetImportBindings.get(relative)!.set(item.name.text, targetFile)
+        }
+      }
     }
     const owner = components.filter(component => component.file === relative)
     const visit = (node: ts.Node) => {
@@ -347,6 +417,48 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
             linked = true
           }
         }
+        // Provenance 1: property bound to an imported image asset (e.g. `image: item1`
+        // where `import item1 from '@/assets/item-1.jpg'`). Statically verifiable.
+        if (!linked && declaration && ts.isPropertyAssignment(declaration) && declaration.initializer && ts.isIdentifier(declaration.initializer)) {
+          const declarationFile = relativeTo(snapshot.root, declaration.getSourceFile().fileName)
+          const assetFile = assetImportBindings.get(declarationFile)?.get(declaration.initializer.text)
+          if (assetFile && nodeById.has(assetMediaId(assetFile))) {
+            addEdge(ownerComponent.id, assetMediaId(assetFile), 'asset-consumer', `asset:${ownerComponent.id}:${assetMediaId(assetFile)}:${node.getStart(source)}`)
+            linked = true
+          }
+        }
+        // Provenance 2: prop drilling — `product.image` inside a card component whose
+        // `product` prop is fed at usage sites by expressions traceable to array literals
+        // (identifier → array literal; `.map`/`.filter`/`.slice` chains). Only exact
+        // single matches upgrade to source-proven; ambiguity stays semantic-candidate.
+        if (!linked) {
+          const objectSymbol = checker.getSymbolAtLocation(node.expression)
+          const objectDeclaration = objectSymbol?.valueDeclaration
+          const paramName = objectDeclaration && (ts.isParameter(objectDeclaration) || ts.isBindingElement(objectDeclaration)) && ts.isIdentifier(objectDeclaration.name)
+            ? objectDeclaration.name.text : undefined
+          if (paramName) {
+            const values = new Set<string>()
+            for (const usage of componentUsages) {
+              if (usage.targetId !== ownerComponent.id) continue
+              const attribute = usage.element.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === paramName)
+              const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
+              const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
+              if (!expression) continue
+              for (const value of arrayValuesForProperty(expression, node.name.text, checker, new Set())) values.add(value)
+            }
+            for (const value of values) {
+              const matches = mediaByValue.get(value) ?? []
+              if (matches.length === 1) {
+                addEdge(ownerComponent.id, matches[0].id, 'asset-consumer', `asset:${ownerComponent.id}:${matches[0].id}:${node.getStart(source)}`)
+              } else {
+                for (const match of matches) addEdge(ownerComponent.id, match.id, 'asset-consumer', `asset-candidate:${ownerComponent.id}:${match.id}:${node.getStart(source)}`, 'semantic-candidate')
+              }
+            }
+            // Drilling produced a definitive answer (even an ambiguous one); do not also
+            // emit the coarser name-based candidates for the same access.
+            if (values.size) linked = true
+          }
+        }
         if (!linked) {
           for (const media of mediaNodes.get(node.name.text) ?? []) {
             addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset-candidate:${ownerComponent.id}:${media.id}:${node.getStart(source)}`, 'semantic-candidate')
@@ -358,6 +470,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         if (literal && imageLike(literal.text)) {
           const media = mediaNodes.get('src')?.find(candidate => candidate.location?.path === relative && candidate.location.start === literal.getStart(source) + 1)
           if (media) addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset:${ownerComponent.id}:${media.id}:${node.getStart(source)}`)
+        } else if (node.initializer && ts.isJsxExpression(node.initializer) && node.initializer.expression && ts.isIdentifier(node.initializer.expression)) {
+          const assetFile = assetImportBindings.get(relative)?.get(node.initializer.expression.text)
+          if (assetFile && nodeById.has(assetMediaId(assetFile))) {
+            addEdge(ownerComponent.id, assetMediaId(assetFile), 'asset-consumer', `asset:${ownerComponent.id}:${assetMediaId(assetFile)}:${node.getStart(source)}`)
+          }
         }
       }
       if (ownerComponent && ts.isJsxAttribute(node) && node.name.getText(source) === 'className') {
@@ -393,6 +510,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           if (!componentRenders.has(ownerComponent.id)) componentRenders.set(ownerComponent.id, new Set())
           componentRenders.get(ownerComponent.id)!.add(target.id)
           addEdge(ownerComponent.id, target.id, 'renders', `render:${ownerComponent.id}:${node.getStart(source)}`)
+          componentUsages.push({ targetId: target.id, element: node, source, file: relative })
           if (appComponent?.id === ownerComponent.id) appDirect.add(target.id)
         }
       }
