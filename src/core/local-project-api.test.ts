@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { createServer, type ViteDevServer } from 'vite'
 import { localProjectApiPlugin } from './local-project-api'
+import { analyzeProject } from './project'
 
 const roots: string[] = []
 const tempParent = path.join(process.cwd(), 'node_modules', '.tmp')
@@ -62,12 +63,19 @@ describe('loopback Project API', () => {
       ],
     }) })
     expect(candidateResponse.status).toBe(200)
-    const candidate = await candidateResponse.json() as { candidate: { id: string; patchHash: string; candidateTreeDigest: string; operations: unknown[]; diff: string }; verification: { state: string } }
+    const candidate = await candidateResponse.json() as { sessionId: string; candidate: { id: string; patchHash: string; candidateTreeDigest: string; operations: unknown[]; diff: string }; verification: { state: string } }
     expect(candidate.candidate.operations).toHaveLength(2)
     expect(candidate.candidate.diff).toContain('Candidate title')
     expect(candidate.candidate.diff).toContain('Explore items')
     expect(candidate.verification.state).toBe('not-run')
     expect(fs.readFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), 'utf8')).toContain('Baseline title')
+    const candidateGraph = analyzeProject(path.join(apiStateRoot, candidate.sessionId, 'candidate'), false)
+    const candidateHeading = candidateGraph.nodes.find(node => node.kind === 'jsx-element' && node.label === '<h1>')!
+    const mappedResponse = await fetch(`${baseUrl}/__ripple/api/candidate/source-selection`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id, sourceRef: candidateHeading.id }) })
+    expect(mappedResponse.status).toBe(200)
+    const mapped = await mappedResponse.json() as { candidateId: string; patchHash: string; sourceDigest: string; element: { id: string; location: { path: string } }; editableText: Array<{ value: string }> }
+    expect(mapped).toMatchObject({ candidateId: candidate.candidate.id, patchHash: candidate.candidate.patchHash, sourceDigest: candidate.candidate.candidateTreeDigest, element: { id: candidateHeading.id, location: { path: 'src/pages/HomePage.tsx' } } })
+    expect(mapped.editableText.map(item => item.value)).toContain('Candidate title')
     const previewWithoutProjectDependencies = await fetch(`${baseUrl}/__ripple/api/candidate/preview`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id, dependencyRoot: process.cwd() }) })
     expect(previewWithoutProjectDependencies.status).toBe(503)
     expect((await previewWithoutProjectDependencies.json()).error).toMatch(/项目 node_modules/)

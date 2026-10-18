@@ -24,7 +24,7 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => { await server?.close() })
 
-test('keeps keyed component instance identity through rerender, reorder and conditional remount', async ({ page }) => {
+test('keeps keyed identities stable and marks unkeyed component and raw list positions as dependent', async ({ page }) => {
   await page.goto(baseUrl)
   const instanceFor = async (id: string) => page.getByTestId(`card-${id}`).getAttribute('data-ripple-instance')
   const alphaBefore = await instanceFor('a')
@@ -37,7 +37,34 @@ test('keeps keyed component instance identity through rerender, reorder and cond
   expect(alphaSource).toBe(betaSource)
   expect(await page.getByTestId('card-a').getAttribute('data-ripple-identity-certainty')).toBe('stable-keyed-instance')
 
-  await page.getByRole('button', { name: 'Reorder' }).click()
+  const rawAlpha = page.getByTestId('raw-Raw Alpha')
+  const rawBeta = page.getByTestId('raw-Raw Beta')
+  const rawAlphaAtPosition = await rawAlpha.getAttribute('data-ripple-instance')
+  const rawBetaAtPosition = await rawBeta.getAttribute('data-ripple-instance')
+  expect(rawAlphaAtPosition).toBeTruthy()
+  expect(rawBetaAtPosition).toBeTruthy()
+  expect(rawAlphaAtPosition).not.toBe(rawBetaAtPosition)
+  expect(await rawAlpha.getAttribute('data-ripple-identity-certainty')).toBe('position-dependent')
+  expect(await rawBeta.getAttribute('data-ripple-identity-certainty')).toBe('position-dependent')
+  expect(await rawAlpha.getAttribute('data-ripple-source')).toBe(await rawBeta.getAttribute('data-ripple-source'))
+  await page.getByRole('button', { name: 'Reorder raw list' }).click()
+  expect(await page.getByTestId('raw-Raw Beta').getAttribute('data-ripple-instance')).toBe(rawAlphaAtPosition)
+  expect(await page.getByTestId('raw-Raw Alpha').getAttribute('data-ripple-instance')).toBe(rawBetaAtPosition)
+
+  const componentAlpha = page.getByTestId('unkeyed-Component Alpha')
+  const componentBeta = page.getByTestId('unkeyed-Component Beta')
+  const componentAlphaAtPosition = await componentAlpha.getAttribute('data-ripple-instance')
+  const componentBetaAtPosition = await componentBeta.getAttribute('data-ripple-instance')
+  expect(componentAlphaAtPosition).toBeTruthy()
+  expect(componentBetaAtPosition).toBeTruthy()
+  expect(componentAlphaAtPosition).not.toBe(componentBetaAtPosition)
+  expect(await componentAlpha.getAttribute('data-ripple-identity-certainty')).toBe('position-dependent')
+  expect(await componentBeta.getAttribute('data-ripple-identity-certainty')).toBe('position-dependent')
+  await page.getByRole('button', { name: 'Reorder unkeyed components' }).click()
+  expect(await page.getByTestId('unkeyed-Component Beta').getAttribute('data-ripple-instance')).toBe(componentAlphaAtPosition)
+  expect(await page.getByTestId('unkeyed-Component Alpha').getAttribute('data-ripple-instance')).toBe(componentBetaAtPosition)
+
+  await page.getByRole('button', { name: 'Reorder', exact: true }).click()
   await expect(page.locator('article').first()).toHaveAttribute('data-testid', 'card-b')
   expect(await instanceFor('a')).toBe(alphaBefore)
   expect(await instanceFor('b')).toBe(betaBefore)

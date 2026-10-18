@@ -13,6 +13,8 @@ interface BrowserExecutionManifest {
   completed: boolean
   runId: string
   candidateId: string
+  scopeDecisionId: string
+  scopeVersion: number
   baseSourceDigest: string
   patchHash: string
   candidateTreeDigest: string
@@ -40,7 +42,7 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   try { manifest = JSON.parse(recordBytes.toString('utf8')) as BrowserExecutionManifest }
   catch { throw new VerificationEvidenceError('Playwright execution record is not valid JSON') }
   if (manifest.schemaVersion !== 1 || manifest.executor !== 'playwright' || manifest.completed !== true ||
-    manifest.runId !== run.id || manifest.candidateId !== run.candidateId || manifest.baseSourceDigest !== run.baseSourceDigest ||
+    manifest.runId !== run.id || manifest.candidateId !== run.candidateId || manifest.scopeDecisionId !== run.scopeDecisionId || manifest.scopeVersion !== run.scopeVersion || manifest.baseSourceDigest !== run.baseSourceDigest ||
     manifest.patchHash !== run.patchHash || manifest.candidateTreeDigest !== run.candidateTreeDigest || manifest.runtimeFingerprint !== run.runtimeFingerprint) {
     throw new VerificationEvidenceError('Playwright execution record does not match this candidate run')
   }

@@ -7,6 +7,56 @@ const ts = require('/ripple/node_modules/typescript')
 const reactModule = require('@vitejs/plugin-react')
 const react = reactModule.default ?? reactModule
 
+function selectionBridge() {
+  const script = `<script>
+(() => {
+  let active = false;
+  let token = '';
+  let candidateId = '';
+  let hovered = null;
+  const style = document.createElement('style');
+  style.textContent = '[data-ripple-select-hover="true"]{outline:2px solid #a8c477!important;outline-offset:2px!important;cursor:crosshair!important}';
+  document.head.append(style);
+  const clearHover = () => { if (hovered) hovered.removeAttribute('data-ripple-select-hover'); hovered = null; };
+  window.addEventListener('message', event => {
+    const data = event.data;
+    if (event.source !== window.parent || !data || data.type !== 'ripple:selection-mode') return;
+    token = typeof data.token === 'string' ? data.token : '';
+    candidateId = typeof data.candidateId === 'string' ? data.candidateId : '';
+    active = data.enabled === true && !!token && !!candidateId;
+    if (!active) clearHover();
+    document.documentElement.style.cursor = active ? 'crosshair' : '';
+  });
+  document.addEventListener('pointerover', event => {
+    if (!active || !(event.target instanceof Element)) return;
+    const target = event.target.closest('[data-ripple-source]');
+    if (target === hovered) return;
+    clearHover();
+    hovered = target;
+    if (hovered) hovered.setAttribute('data-ripple-select-hover', 'true');
+  }, true);
+  document.addEventListener('click', event => {
+    if (!active || !(event.target instanceof Element)) return;
+    const target = event.target.closest('[data-ripple-source]');
+    if (!target) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.parent.postMessage({
+      type: 'ripple:element-selected', token, candidateId,
+      sourceRef: target.getAttribute('data-ripple-source'),
+      runtimeInstanceId: target.getAttribute('data-ripple-instance'),
+      identityCertainty: target.getAttribute('data-ripple-identity-certainty') || 'unknown',
+      tagName: target.tagName.toLowerCase(), text: (target.textContent || '').trim().slice(0, 300)
+    }, '*');
+  }, true);
+})();
+</script>`
+  return {
+    name: 'ripple-candidate-selection-bridge',
+    transformIndexHtml: { order: 'post', handler: (html) => html.replace('</body>', `${script}</body>`) },
+  }
+}
+
 function typescriptAliases() {
   const configPath = ['tsconfig.json', 'tsconfig.app.json', 'jsconfig.json']
     .map(name => path.join('/work', name))
@@ -42,7 +92,7 @@ function typescriptAliases() {
 export default {
   configFile: false,
   root: '/work',
-  plugins: [sourceAnnotationPlugin('/work'), react()],
+  plugins: [sourceAnnotationPlugin('/work'), react(), selectionBridge()],
   resolve: { alias: typescriptAliases() },
   cacheDir: '/tmp/ripple-vite-cache',
   optimizeDeps: { noDiscovery: true, include: [] },

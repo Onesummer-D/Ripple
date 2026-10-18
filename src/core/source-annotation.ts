@@ -84,6 +84,68 @@ export function RippleIdentity({ instanceKey, sourceRef, certainty, children }) 
         .filter(owner => owner.node.pos <= node.pos && owner.node.end >= node.end)
         .sort((left, right) => (left.node.end - left.node.pos) - (right.node.end - right.node.pos))[0]
 
+      const mapIndexes = new Map<ts.Node, string | undefined>()
+      const mapIndexFor = (callback: ts.ArrowFunction | ts.FunctionExpression): string | undefined => {
+        if (mapIndexes.has(callback)) return mapIndexes.get(callback)
+        const existing = callback.parameters[1]
+        if (existing) {
+          const value = ts.isIdentifier(existing.name) ? existing.name.text : undefined
+          mapIndexes.set(callback, value)
+          return value
+        }
+        const indexName = generatedName(`__rippleIndex${callback.getStart(source)}`)
+        const params = callback.parameters
+        if (!params.length) {
+          const arrow = callback.getChildren(source).find(child => child.kind === ts.SyntaxKind.EqualsGreaterThanToken)
+          const openParen = code.indexOf('(', callback.getStart(source))
+          if (openParen < 0 || (arrow && openParen > arrow.getStart(source))) {
+            mapIndexes.set(callback, undefined)
+            return undefined
+          }
+          insertions.push({ position: openParen + 1, text: indexName })
+        } else {
+          const parameter = params[0]
+          const start = parameter.getStart(source)
+          const end = parameter.getEnd()
+          if (code[start - 1] === '(' && code[end] === ')') insertions.push({ position: end, text: `, ${indexName}` })
+          else insertions.push({ position: start, text: '(' }, { position: end, text: `, ${indexName})` })
+        }
+        mapIndexes.set(callback, indexName)
+        return indexName
+      }
+
+      const enclosingMapCallbacks = (candidate: ts.Node, stopAt: ts.Node): Array<ts.ArrowFunction | ts.FunctionExpression> => {
+        const callbacks: Array<ts.ArrowFunction | ts.FunctionExpression> = []
+        let current: ts.Node | undefined = candidate
+        while (current && current !== stopAt) {
+          if ((ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && ts.isCallExpression(current.parent) &&
+            ts.isPropertyAccessExpression(current.parent.expression) && current.parent.expression.name.text === 'map') callbacks.unshift(current)
+          current = current.parent
+        }
+        return callbacks
+      }
+
+      const jsxRoots = (node: ts.Node): ts.Node[] => {
+        if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)) return [node]
+        if (ts.isParenthesizedExpression(node)) return jsxRoots(node.expression)
+        if (ts.isConditionalExpression(node)) return [...jsxRoots(node.whenTrue), ...jsxRoots(node.whenFalse)]
+        if (ts.isBinaryExpression(node) && (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken || node.operatorToken.kind === ts.SyntaxKind.BarBarToken)) return jsxRoots(node.right)
+        return []
+      }
+
+      const mapCallbackHasStableKey = (callback: ts.ArrowFunction | ts.FunctionExpression): boolean => {
+        const expressions: ts.Node[] = []
+        if (ts.isBlock(callback.body)) {
+          const collectReturns = (node: ts.Node) => {
+            if (ts.isReturnStatement(node) && node.expression) expressions.push(node.expression)
+            else if (!ts.isFunctionLike(node) || node === callback.body) node.forEachChild(collectReturns)
+          }
+          collectReturns(callback.body)
+        } else expressions.push(callback.body)
+        const roots = expressions.flatMap(jsxRoots)
+        return roots.length > 0 && roots.every(node => !!jsxKeyForNode(node, source))
+      }
+
       let usesHook = false
       let usesWrapper = false
       const visit = (node: ts.Node) => {
@@ -103,22 +165,19 @@ export function RippleIdentity({ instanceKey, sourceRef, certainty, children }) 
             }
             cursor = cursor.parent
           }
-          const isMapOutput = (candidate: ts.Node, stopAt: ts.Node) => {
-            let current: ts.Node | undefined = candidate
-            while (current && current !== stopAt) {
-              if ((ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && ts.isCallExpression(current.parent) && ts.isPropertyAccessExpression(current.parent.expression) && current.parent.expression.name.text === 'map') return true
-              current = current.parent
-            }
-            return false
-          }
           const directKey = jsxKey(node, source)
-          const hasStableKey = keyPath.length > 0 || !!directKey
-          const positional = !!owner && isMapOutput(node, owner.node) && !hasStableKey
+          const mapCallbacks = owner ? enclosingMapCallbacks(node, owner.node) : []
+          const positionalCallbacks = mapCallbacks.filter(callback => !mapCallbackHasStableKey(callback))
+          const positional = positionalCallbacks.length > 0
+          const expressions = positionalCallbacks.map(mapIndexFor)
+          const mapIndexesForElement = { expressions: expressions.filter((value): value is string => !!value), hasUnsupported: expressions.some(value => !value) }
+          const instanceKeys = [...keyPath, ...(directKey ? [directKey] : []), ...mapIndexesForElement.expressions]
+          const instanceKey = instanceKeys.length ? `[${instanceKeys.map(key => `String(${key})`).join(',')}].join('/')` : JSON.stringify(sourceRef)
+          const identityCertainty = positional ? mapIndexesForElement.hasUnsupported ? 'unknown' : 'position-dependent' : directKey || keyPath.length ? 'stable-keyed-instance' : 'stable-react-instance'
           if (/^[A-Z]/.test(tag) && fullElement && owner) {
             const sourceRef = `jsx:${relative.replaceAll('\\', '/')}#${fullElement.getStart(source)}`
-            const instanceKey = directKey ? `String(${directKey})` : JSON.stringify(sourceRef)
-            const certainty = positional ? 'position-dependent' : 'stable-keyed-instance'
-            insertions.push({ position: fullElement.getStart(source), text: `<RippleIdentity${directKey ? ` key={${directKey}}` : ''} instanceKey={${instanceKey}} sourceRef={${JSON.stringify(sourceRef)}} certainty=${JSON.stringify(certainty)}>` })
+            const mapKey = positional && !mapIndexesForElement.hasUnsupported ? ` key={${instanceKey}}` : directKey ? ` key={${directKey}}` : ''
+            insertions.push({ position: fullElement.getStart(source), text: `<RippleIdentity${mapKey} instanceKey={${instanceKey}} sourceRef={${JSON.stringify(sourceRef)}} certainty=${JSON.stringify(identityCertainty)}>` })
             insertions.push({ position: fullElement.getEnd(), text: '</RippleIdentity>' })
             usesWrapper = true
           }
@@ -127,13 +186,14 @@ export function RippleIdentity({ instanceKey, sourceRef, certainty, children }) 
             const identityOwner = owner
               ? `(${owner.identityId}?.path ? (${owner.identityId}.certainty === "position-dependent" ? ${owner.identityId}.path + ":" + ${owner.ownerId} : ${owner.identityId}.path) : ${owner.ownerId})`
               : undefined
+            const instanceAvailable = !mapIndexesForElement.hasUnsupported
             const identity = owner
-              ? `window.location.pathname + ":" + ${identityOwner} + ":" + ${JSON.stringify(sourceRef)}${keyPath.length ? ` + ":" + [${keyPath.map(key => `String(${key})`).join(',')}].join("/")` : ''}`
+              ? instanceAvailable ? `window.location.pathname + ":" + ${identityOwner} + ":" + ${JSON.stringify(sourceRef)}${instanceKeys.length ? ` + ":" + [${instanceKeys.map(key => `String(${key})`).join(',')}].join("/")` : ''}` : undefined
               : JSON.stringify(`unmapped:${sourceRef}`)
             const additions = [
               ...(!has('data-ripple-source') ? [`data-ripple-source=${JSON.stringify(sourceRef)}`] : []),
-              ...(!has('data-ripple-instance') ? [`data-ripple-instance={${identity}}`] : []),
-              ...(!has('data-ripple-identity-certainty') ? [`data-ripple-identity-certainty={${owner ? `${owner.identityId}?.certainty ?? ${JSON.stringify(positional ? 'position-dependent' : 'stable-react-instance')}` : JSON.stringify('unmapped')}}`] : []),
+              ...(!has('data-ripple-instance') && identity ? [`data-ripple-instance={${identity}}`] : []),
+              ...(!has('data-ripple-identity-certainty') ? [`data-ripple-identity-certainty={${owner ? positional ? JSON.stringify(identityCertainty) : `${owner.identityId}?.certainty ?? ${JSON.stringify('stable-react-instance')}` : JSON.stringify('unmapped')}}`] : []),
               ...(jsxKey(node, source) && !has('data-ripple-list-key') ? [`data-ripple-list-key={String(${jsxKey(node, source)})}`] : []),
             ]
             insertions.push({ position, text: ` ${additions.join(' ')}` })

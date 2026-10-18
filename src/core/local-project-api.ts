@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
 import { startCandidatePreview, stopCandidatePreview } from './candidate-preview'
-import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot } from './project'
+import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
 import { sourceProvenPageImpact } from './scope'
 import { chooseScope, openSession, recordSourceGraph, stageCandidate, stageOperations } from './session'
 import type { EditOperation, EditSession, ScopeDecision, SourceGraph } from './model'
@@ -61,7 +61,7 @@ function routeGraph(graph: SourceGraph) {
     unresolved: graph.unresolved,
     routes: graph.nodes.filter(node => node.kind === 'route').map(node => ({ id: node.id, label: node.label, page: node.page })),
     components: graph.nodes.filter(node => node.kind === 'component').map(node => ({ id: node.id, label: node.label, pages: node.pages ?? [], location: node.location })),
-    targets: graph.nodes.filter(node => ['data', 'media', 'token'].includes(node.kind) && node.location?.start !== undefined && node.location.end !== undefined).map(node => ({ id: node.id, kind: node.kind, label: node.label, value: node.value, location: node.location, impact: sourceProvenPageImpact(graph, node.id) })),
+    targets: graph.nodes.filter(node => ['data', 'media', 'token'].includes(node.kind) && node.location?.start !== undefined && node.location.end !== undefined).map(node => ({ id: node.id, kind: node.kind, label: node.label, value: node.value, pageOverrides: node.pageOverrides, location: node.location, impact: sourceProvenPageImpact(graph, node.id) })),
     relationCounts: Object.fromEntries([...new Set(graph.edges.map(edge => edge.kind))].map(kind => [kind, graph.edges.filter(edge => edge.kind === kind && edge.certainty === 'source-proven').length])),
   }
 }
@@ -69,6 +69,8 @@ function routeGraph(graph: SourceGraph) {
 function candidateView(record: CandidateRecord) {
   return {
     id: record.id,
+    scopeDecisionId: record.scopeDecisionId,
+    scopeVersion: record.scopeVersion,
     baseSourceDigest: record.baseSourceDigest,
     patchHash: record.patchHash,
     candidateTreeDigest: record.candidateTreeDigest,
@@ -162,6 +164,24 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       if (error instanceof CandidateError) await retireCandidate(body.candidateId)
       throw error
     }
+  }
+
+  if (url.pathname === '/__ripple/api/candidate/source-selection') {
+    const body = await readJson(request)
+    if (typeof body.candidateId !== 'string' || typeof body.sourceRef !== 'string') return reject(response, 400, '源码定位需要 candidateId 和 sourceRef')
+    const live = candidates.get(body.candidateId)
+    if (!live) return reject(response, 404, '候选不存在或已清理')
+    assertCandidateCurrent(live.record)
+    const graph = analyzeProject(live.record.candidateRoot!, false)
+    if (graph.revision.sourceDigest !== live.record.candidateTreeDigest) throw new CandidateError('候选源码图与当前补丁树摘要不一致')
+    const { element, editableText } = resolveJsxSourceElement(graph, body.sourceRef)
+    return json(response, 200, {
+      candidateId: live.record.id,
+      patchHash: live.record.patchHash,
+      sourceDigest: graph.revision.sourceDigest,
+      element,
+      editableText: editableText.map(node => ({ ...node, impact: sourceProvenPageImpact(graph, node.id) })),
+    })
   }
 
   if (url.pathname === '/__ripple/api/candidate/restore') {

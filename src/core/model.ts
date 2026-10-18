@@ -20,6 +20,7 @@ export interface SourceNode {
   pages?: string[]
   selector?: string
   value?: string
+  pageOverrides?: Record<Id, string>
 }
 export interface Relation {
   id: Id
@@ -39,7 +40,7 @@ export interface SourceGraph {
 export interface RuntimeElementObservation {
   sourceRef: Id
   runtimeInstanceId: Id
-  certainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unmapped'
+  certainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
 }
 export interface RuntimeSourceMap {
   graphId: Id
@@ -64,6 +65,7 @@ export interface EditOperation {
   targetRef: Id
   before: string
   after: string
+  overrideAction?: 'remove'
 }
 export interface CandidatePatch {
   id: Id
@@ -106,6 +108,8 @@ export interface VerificationEvidence {
 export interface VerificationRun {
   id: Id
   candidateId: Id
+  scopeDecisionId: Id
+  scopeVersion: number
   baseSourceDigest: string
   patchHash: string
   candidateTreeDigest: string

@@ -27,6 +27,8 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
       - name: Require Docker for isolated candidate preview
         run: docker info --format '{{.ServerVersion}}'
+      - name: Warm the supported preview runtime image
+        run: docker pull node:22-bookworm-slim
       - name: Verify the real Bolt project through the Ripple workbench
         run: npm run test:browser
         env:

@@ -8,6 +8,7 @@ const root = path.resolve(process.argv[2] ?? '')
 const outDir = path.resolve(process.argv[3] ?? '')
 if (!process.argv[2] || !process.argv[3]) throw new Error('Usage: node scripts/build-candidate-check.mjs <candidate-root> <output-directory>')
 await build({ configFile: false, root, base: './', plugins: [react()], build: { outDir, emptyOutDir: true } })
+if (process.env.RIPPLE_BUILD_ONLY === '1') process.exit(0)
 const browser = await chromium.launch({ headless: true, args: ['--allow-file-access-from-files'] })
 try {
   const page = await browser.newPage()

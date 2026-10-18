@@ -45,7 +45,10 @@ export function stageOperations(session: EditSession, operations: EditOperation[
   requireCondition(unique(operations.map(operation => operation.id)) && unique(operations.map(operation => operation.targetRef)), 'Operation identities and targets must be unique')
   const included = new Set(session.scope.includedRefs)
   const excluded = new Set([...session.scope.excludedRefs, ...session.scope.protectedRefs])
-  requireCondition(operations.every(operation => !!operation.id && operation.before !== operation.after && included.has(operation.targetRef) && !excluded.has(operation.targetRef)), 'Operation changes an unchanged, forbidden or unscoped target')
+  requireCondition(operations.every(operation => !!operation.id &&
+    (operation.overrideAction === 'remove'
+      ? session.scope?.strategy === 'page-override' && operation.targetRef.startsWith('override:') && operation.before === operation.after
+      : operation.before !== operation.after) && included.has(operation.targetRef) && !excluded.has(operation.targetRef)), 'Operation changes an unchanged, forbidden or unscoped target')
   return { ...session, operations: operations.map(operation => ({ ...operation })), candidate: undefined, approval: undefined, runs: session.runs.map(run => ({ ...run, status: 'stale' })), status: 'scoped' }
 }
 
@@ -56,10 +59,13 @@ export function stageCandidate(session: EditSession, patch: CandidatePatch): Edi
   requireCondition(patch.baseSourceDigest === session.projectRevision.sourceDigest, 'Candidate baseline does not match project')
   requireCondition(patch.scopeDecisionId === scope.id && patch.scopeVersion === scope.version, 'Candidate scope is stale')
   requireCondition(!!patch.id && !!patch.patchHash && !!patch.candidateTreeDigest && !!patch.diffArtifact && patch.operations.length > 0, 'Real patch and output tree digest required')
-  const sameOperation = (left: EditOperation, right: EditOperation) => left.id === right.id && left.kind === right.kind && left.targetRef === right.targetRef && left.before === right.before && left.after === right.after
+  const sameOperation = (left: EditOperation, right: EditOperation) => left.id === right.id && left.kind === right.kind && left.targetRef === right.targetRef && left.before === right.before && left.after === right.after && left.overrideAction === right.overrideAction
   requireCondition(session.operations.length === patch.operations.length && session.operations.every((operation, index) => sameOperation(operation, patch.operations[index])), 'Candidate must contain the exact operations in this EditSession')
   const included = new Set(scope.includedRefs)
-  requireCondition(patch.operations.every(op => included.has(op.targetRef) && !!op.id && op.before !== op.after), 'Patch changes forbidden or unchanged targets')
+  requireCondition(patch.operations.every(op => included.has(op.targetRef) && !!op.id &&
+    (op.overrideAction === 'remove'
+      ? scope.strategy === 'page-override' && op.targetRef.startsWith('override:') && op.before === op.after
+      : op.before !== op.after)), 'Patch changes forbidden or unchanged targets')
   return { ...session, candidate: { ...patch, operations: [...patch.operations] }, approval: undefined, runs: session.runs.map(r => ({ ...r, status: 'stale' })), status: 'candidate' }
 }
 
@@ -67,7 +73,7 @@ export function registerVerification(session: EditSession, run: VerificationRun)
   const patch = session.candidate
   requireCondition(session.status === 'candidate' || session.status === 'verified', 'Candidate must exist before verification')
   requireCondition(!!patch && !!session.scope, 'Candidate and scope required')
-  requireCondition(run.candidateId === patch.id && run.baseSourceDigest === patch.baseSourceDigest && run.patchHash === patch.patchHash && run.candidateTreeDigest === patch.candidateTreeDigest && run.runtimeFingerprint === session.projectRevision.runtimeFingerprint, 'Verification does not match candidate code/environment')
+  requireCondition(run.candidateId === patch.id && run.scopeDecisionId === patch.scopeDecisionId && run.scopeVersion === patch.scopeVersion && run.baseSourceDigest === patch.baseSourceDigest && run.patchHash === patch.patchHash && run.candidateTreeDigest === patch.candidateTreeDigest && run.runtimeFingerprint === session.projectRevision.runtimeFingerprint, 'Verification does not match candidate scope/code/environment')
   assertTrustedBrowserExecution(run)
   requireCondition(!session.runs.some(r => r.id === run.id), 'Verification run identity already exists')
   const startedAt = Date.parse(run.startedAt), completedAt = Date.parse(run.completedAt)

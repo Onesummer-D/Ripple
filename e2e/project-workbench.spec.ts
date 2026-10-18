@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
@@ -9,6 +9,7 @@ const sandbox = fs.mkdtempSync(path.join(testTempRoot, 'ripple-workbench-browser
 const projectRoot = path.join(sandbox, 'site')
 const boltProjectRoot = process.env.RIPPLE_BOLT_PROJECT
 const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence')
+const dockerAvailable = spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
 let candidateId = ''
 fs.mkdirSync(evidenceRoot, { recursive: true })
 
@@ -82,6 +83,29 @@ test('opens a real local project, keeps multiple operations and explicit local S
     await page.setViewportSize(viewport)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: path.join(evidenceRoot, `workbench-candidate-${viewport.width}.png`), fullPage: true })
+  }
+  if (dockerAvailable) {
+    await page.getByTestId('toggle-candidate-preview').click()
+    const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
+    await expect(preview.getByRole('heading', { name: 'Candidate title' })).toBeVisible({ timeout: 90_000 })
+    await page.getByTestId('toggle-element-selection').click()
+    await preview.getByRole('heading', { name: 'Candidate title' }).click()
+    await expect(page.getByTestId('selected-source')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('selected-jsx-source')).toContainText('src/pages/HomePage.tsx#')
+    await expect(page.getByTestId('selected-source')).toContainText('Patch')
+    await expect(page.getByTestId('selected-source')).toContainText('stable-react-instance')
+    const previewUrl = await page.getByTestId('candidate-preview').getAttribute('src')
+    for (const width of [1440, 768, 390]) {
+      await page.getByTestId(`preview-viewport-${width}`).click()
+      const previewFrame = page.frames().find(frame => frame.url() === previewUrl)
+      expect(previewFrame).toBeTruthy()
+      await expect.poll(() => previewFrame!.evaluate(() => window.innerWidth)).toBe(width)
+      expect(await previewFrame!.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy()
+    }
+    await page.getByTestId('toggle-element-selection').click()
+    await page.getByTestId('toggle-candidate-preview').click()
+  } else if (process.env.CI) {
+    throw new Error('Docker-backed workbench element selection is mandatory in CI')
   }
   await page.getByTestId('discard-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)

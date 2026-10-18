@@ -36,12 +36,14 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   fs.writeFileSync(artifactPath, screenshot)
   const run: VerificationRun = {
     id, candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
+    scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     candidateTreeDigest: candidate.candidateTreeDigest, runtimeFingerprint, startedAt, completedAt, checks: [check], assertions,
     evidence: [{ id: 'evidence-home', checkId: check.id, result: 'pass', capturedAt: '2026-10-18T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: check.state, elementRefs: [targetRef], artifactPath, artifactHash: createHash('sha256').update(screenshot).digest('hex') }], status: 'incomplete',
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
     schemaVersion: 1, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
+    scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint, checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }], assertions,
     artifacts: [{ checkId: check.id, path: 'home.png', sha256: createHash('sha256').update(screenshot).digest('hex') }],
@@ -138,7 +140,7 @@ describe('real project graph and candidate executor', () => {
     expect(() => resolveRuntimeElement(graph, { sourceRef: 'jsx:src/pages/HomePage.tsx#0', runtimeInstanceId: 'route:/home:card:42' }, runtimeMap)).toThrow(/双向映射不匹配/)
     expect(() => createRuntimeSourceMap(graph, [{ sourceRef: headingSource.id, runtimeInstanceId: 'position-1', certainty: 'position-dependent' }])).not.toThrow()
     const positionalMap = createRuntimeSourceMap(graph, [{ sourceRef: headingSource.id, runtimeInstanceId: 'position-1', certainty: 'position-dependent' }])
-    expect(() => resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: 'position-1' }, positionalMap)).toThrow(/缺少稳定 key/)
+    expect(() => resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: 'position-1' }, positionalMap)).toThrow(/身份不稳定/)
     expect(() => resolveRuntimeElement(graph, { sourceRef: headingSource.id, runtimeInstanceId: 'route:/home:card:42' }, { ...runtimeMap, sourceDigest: 'old-source' })).toThrow(/不再对应/)
     expect(fs.readFileSync(file, 'utf8')).toBe(source)
   })
@@ -169,6 +171,9 @@ describe('real project graph and candidate executor', () => {
     const transformed = await Reflect.apply(plugin.transform, undefined, [source, file]) as { code?: string } | string | null
     const result = typeof transformed === 'object' && transformed && 'code' in transformed ? transformed.code! : String(transformed)
     expect(result).toContain('position-dependent')
+    expect(result).toMatch(/products\.map\(\(product, __rippleIndex\d+\)\s*=>/)
+    expect(result).toContain('String(__rippleIndex')
+    expect(result).not.toMatch(/\bas\s+(?:typeof|const|globalThis)\b/)
     expect(result).not.toContain('__rippleInstanceCounters')
   })
 
@@ -244,17 +249,22 @@ describe('real project graph and candidate executor', () => {
     try {
       const patch = fs.readFileSync(candidate.artifactPath!, 'utf8')
       const navigation = fs.readFileSync(path.join(candidate.candidateRoot!, 'src', 'components', 'Navigation.tsx'), 'utf8')
-      const registry = JSON.parse(fs.readFileSync(path.join(candidate.candidateRoot!, '.ripple', 'overrides.json'), 'utf8')) as { pages: Record<string, Record<string, string>> }
+      const registry = JSON.parse(fs.readFileSync(path.join(candidate.candidateRoot!, '.ripple', 'overrides.json'), 'utf8')) as { schemaVersion: number; targets: Record<string, { original: string }>; pages: Record<string, Record<string, string>> }
+      const stableTargetId = Object.keys(registry.targets)[0]
       expect(navigation).toContain('<RippleText')
+      expect(stableTargetId).toMatch(/^override:[\da-f-]{36}$/i)
+      expect(navigation).toContain(`targetRef="${stableTargetId}"`)
       expect(navigation).not.toContain('Home only brand')
-      expect(registry.pages['page:home'][target.id]).toBe('Home only brand')
+      expect(registry.schemaVersion).toBe(2)
+      expect(registry.targets[stableTargetId].original).toBe(target.value)
+      expect(registry.pages['page:home'][stableTargetId]).toBe('Home only brand')
       expect(fs.readFileSync(path.join(candidate.candidateRoot!, 'src', 'App.tsx'), 'utf8')).toContain('<RipplePageForState state={currentPage}')
       expect(patch).toContain('overrides-runtime.js')
       expect(candidate.modifiedPaths).toContain('.ripple/overrides.json')
       expect(candidate.candidateTreeDigest).not.toBe(candidate.baseSourceDigest)
       expect(readProjectSnapshot(root).revision.sourceDigest).toBe(graph.revision.sourceDigest)
       const dist = path.join(container, 'page-override-build')
-      execFileSync(process.execPath, ['scripts/build-candidate-check.mjs', candidate.candidateRoot!, dist], { cwd: process.cwd(), stdio: 'pipe' })
+      execFileSync(process.execPath, ['scripts/build-candidate-check.mjs', candidate.candidateRoot!, dist], { cwd: process.cwd(), stdio: 'pipe', env: { ...process.env, RIPPLE_BUILD_ONLY: '1' } })
       const builtJavaScript = fs.readdirSync(path.join(dist, 'assets')).filter(file => file.endsWith('.js')).map(file => fs.readFileSync(path.join(dist, 'assets', file), 'utf8')).join('\n')
       expect(builtJavaScript).toContain('Home only brand')
       let session = recordSourceGraph(openSession('page-override-session', graph.revision, 'Change the shared label only on home'), graph.id, graph.revision.sourceDigest)

@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeSourceMap, SourceGraph, SourceNode } from './model'
+import { findPageOverrideMarkers, readPageOverrideRegistry } from './page-overrides'
 
 export class ProjectReadError extends Error {
   constructor(message: string) { super(message); this.name = 'ProjectReadError' }
@@ -73,7 +74,7 @@ export function readProjectSnapshot(input: string, requireClean = true): Project
   if (requireClean && !isProjectWorkingTreeClean(root)) {
     throw new ProjectReadError('项目工作树不干净；先提交或收起现有改动，再创建候选')
   }
-  const files = trackedFiles(root)
+  const files = trackedFiles(root).filter(file => fs.existsSync(path.join(root, file)))
   const gitCommit = runGit(root, ['rev-parse', 'HEAD'])
   const revision: ProjectRevision = {
     projectId: `project:${sha256(normalize(root)).slice(0, 20)}`,
@@ -130,8 +131,9 @@ function declarationComponentName(tag: string | undefined, localImports: Map<str
   return target ? byExport.get(`${target.file}#${target.exportName}`) : undefined
 }
 
-export function analyzeProject(input: string): SourceGraph {
-  const snapshot = readProjectSnapshot(input)
+export function analyzeProject(input: string, requireClean = true): SourceGraph {
+  const snapshot = readProjectSnapshot(input, requireClean)
+  const overrideRegistry = readPageOverrideRegistry(snapshot.root)
   const sourceFiles = new Map<string, ts.SourceFile>()
   const tracked = new Set(snapshot.trackedFiles.map(file => normalize(path.join(snapshot.root, file))))
   const codeFiles = snapshot.trackedFiles.filter(file => /\.(tsx?|jsx?)$/i.test(file) && !/(^|\/)(node_modules|dist|build|\.ripple)(\/|$)/.test(file))
@@ -165,6 +167,32 @@ export function analyzeProject(input: string): SourceGraph {
   const addNode = (node: SourceNode) => { if (!nodeById.has(node.id)) { nodes.push(node); nodeById.set(node.id, node) } }
   const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven') => {
     edges.push({ id, from, to, kind, certainty, evidenceRefs: [] })
+  }
+
+  const overrideMarkers = new Map<string, Array<{ path: string; fallback: string; start: number; end: number }>>()
+  const overrideMarkersByLocation = new Map<string, { id: string; fallback: string }>()
+  for (const [absolute, source] of sourceFiles) {
+    const file = relativeTo(snapshot.root, absolute)
+    const found = findPageOverrideMarkers(source.text, file)
+    for (const invalid of found.invalid) unresolved.push(invalid)
+    for (const marker of found.markers) {
+      const matches = overrideMarkers.get(marker.id) ?? []
+      matches.push({ path: file, fallback: marker.fallback, start: marker.start, end: marker.end })
+      overrideMarkers.set(marker.id, matches)
+      overrideMarkersByLocation.set(`${file}#${marker.start}`, { id: marker.id, fallback: marker.fallback })
+    }
+  }
+  const validOverrideTargets = new Set<string>()
+  for (const [id, metadata] of Object.entries(overrideRegistry.targets)) {
+    const matches = overrideMarkers.get(id) ?? []
+    if (matches.length !== 1) {
+      unresolved.push(matches.length ? `页面覆盖目标 ${id} 在源码中出现多次，无法唯一映射` : `页面覆盖目标 ${id} 已失去源码标记，规则待确认`)
+    } else if (matches[0].fallback !== metadata.original) {
+      unresolved.push(`页面覆盖目标 ${id} 的共享来源已变化，规则待确认`)
+    } else validOverrideTargets.add(id)
+  }
+  for (const id of overrideMarkers.keys()) {
+    if (!(id in overrideRegistry.targets)) unresolved.push(`源码标记 ${id} 没有对应的页面覆盖注册记录`)
   }
 
   for (const relative of snapshot.trackedFiles) {
@@ -291,6 +319,21 @@ export function analyzeProject(input: string): SourceGraph {
     const owner = components.filter(component => component.file === relative)
     const visit = (node: ts.Node) => {
       const ownerComponent = owner.find(component => component.node.pos <= node.pos && component.node.end >= node.end)
+      if ((ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) && ts.isIdentifier(node.tagName) && node.tagName.text === 'RippleText') {
+        const marker = overrideMarkersByLocation.get(`${relative}#${node.getStart(source)}`)
+        if (marker && validOverrideTargets.has(marker.id)) {
+          const sourceNode: SourceNode = {
+            id: marker.id,
+            kind: 'data',
+            label: marker.fallback.trim(),
+            value: marker.fallback,
+            location: { path: relative, start: node.getStart(source), end: node.getEnd() },
+            pageOverrides: Object.fromEntries(Object.entries(overrideRegistry.pages).flatMap(([pageRef, values]) => marker.id in values ? [[pageRef, values[marker.id]]] : [])),
+          }
+          addNode(sourceNode)
+          if (ownerComponent) addEdge(ownerComponent.id, sourceNode.id, 'reads', `override-target:${sourceNode.id}:${ownerComponent.id}`)
+        }
+      }
       if (ownerComponent && ts.isPropertyAccessExpression(node)) {
         const symbol = checker.getSymbolAtLocation(node.name)
         const declaration = symbol?.valueDeclaration
@@ -396,7 +439,7 @@ export function analyzeProject(input: string): SourceGraph {
     }
   }
 
-  const endDigest = readProjectSnapshot(snapshot.root).revision.sourceDigest
+  const endDigest = readProjectSnapshot(snapshot.root, false).revision.sourceDigest
   if (endDigest !== snapshot.revision.sourceDigest) throw new ProjectReadError('分析期间项目源码发生变化，请重新读取')
   return { id: `graph:${snapshot.revision.sourceDigest.slice(0, 20)}`, revision: snapshot.revision, nodes, edges, unresolved: [...new Set(unresolved)] }
 }
@@ -416,7 +459,7 @@ export function createRuntimeSourceMap(graph: SourceGraph, observations: Runtime
   for (const observation of observations) {
     if (!nodes.has(observation.sourceRef)) throw new ProjectReadError(`运行时元素引用了未映射的 JSX 源码：${observation.sourceRef}`)
     if (!observation.runtimeInstanceId || ids.has(observation.runtimeInstanceId)) throw new ProjectReadError('运行时实例标识缺失或重复')
-    if (observation.certainty === 'unmapped') throw new ProjectReadError('未映射的运行时元素不能进入源码选择')
+    if (observation.certainty === 'unmapped' || observation.certainty === 'unknown') throw new ProjectReadError('未确认映射身份的运行时元素不能进入源码选择')
     ids.add(observation.runtimeInstanceId)
   }
   return { graphId: graph.id, sourceDigest: graph.revision.sourceDigest, runtimeFingerprint: graph.revision.runtimeFingerprint, observations: observations.map(item => ({ ...item })) }
@@ -427,7 +470,7 @@ export function resolveRuntimeElement(graph: SourceGraph, selection: { sourceRef
   if (runtimeMap.graphId !== graph.id || runtimeMap.sourceDigest !== graph.revision.sourceDigest || runtimeMap.runtimeFingerprint !== graph.revision.runtimeFingerprint) throw new ProjectReadError('运行时映射不再对应当前源码图或运行环境')
   const observation = runtimeMap.observations.find(item => item.runtimeInstanceId === selection.runtimeInstanceId)
   if (!observation || observation.sourceRef !== selection.sourceRef) throw new ProjectReadError('运行时实例与 JSX 源码锚点的双向映射不匹配')
-  if (observation.certainty === 'position-dependent') throw new ProjectReadError('列表实例缺少稳定 key，不能作为长期编辑目标')
+  if (observation.certainty === 'position-dependent' || observation.certainty === 'unknown') throw new ProjectReadError('列表实例身份不稳定，不能作为精准编辑目标')
   const resolved = resolveJsxSourceElement(graph, selection.sourceRef)
   return { ...resolved, runtimeInstanceId: selection.runtimeInstanceId }
 }

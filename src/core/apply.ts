@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as path from 'node:path'
 import type { AppliedRevision, EditSession } from './model'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from './project'
 import { assertTrustedBrowserExecution } from './verification'
 
-const appliedTreeDigest = (root: string, candidate: CandidateRecord) => digestTrackedTree(root, [...new Set([...trackedProjectFiles(root), ...candidate.modifiedPaths])])
+const appliedTreeDigest = (root: string, candidate: CandidateRecord) => digestTrackedTree(root, [...new Set([...trackedProjectFiles(root), ...candidate.modifiedPaths])].filter(file => fs.existsSync(path.join(root, file))))
 
 export class PatchApplyError extends Error {
   constructor(message: string) { super(message); this.name = 'PatchApplyError' }

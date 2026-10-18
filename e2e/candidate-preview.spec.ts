@@ -20,7 +20,7 @@ test.afterAll(async () => {
 })
 
 test('runs the exact candidate source in a Docker-isolated browser preview', async ({ page }) => {
-  test.setTimeout(180_000)
+  test.setTimeout(300_000)
   if (!dockerAvailable) {
     if (process.env.CI) throw new Error('Docker-backed candidate preview is mandatory in CI; docker info did not succeed')
     test.skip(true, 'Docker is unavailable in this local environment')
@@ -57,9 +57,13 @@ test('runs the exact candidate source in a Docker-isolated browser preview', asy
   await expect(page.getByTestId('candidate-id')).toBeVisible({ timeout: 30_000 })
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
   const patchHash = await page.locator('.hash-grid').locator('div').nth(1).locator('code').innerText()
+  const previewResponsePromise = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/preview') && !response.url().endsWith('/stop'))
   await page.getByTestId('toggle-candidate-preview').click()
+  const previewResponse = await previewResponsePromise
+  const previewPayload = await previewResponse.json() as { error?: string; url?: string }
+  expect(previewResponse.ok(), `Candidate preview API failed: ${JSON.stringify(previewPayload)}`).toBeTruthy()
   const iframe = page.getByTestId('candidate-preview')
-  await expect(iframe).toBeVisible({ timeout: 75_000 })
+  await expect(iframe).toBeVisible({ timeout: 150_000 })
   await expect(iframe).toHaveAttribute('sandbox', 'allow-scripts')
   const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
   await expect(preview.getByRole('heading', { name: 'Candidate preview title' })).toBeVisible()

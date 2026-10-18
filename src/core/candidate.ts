@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import ts from 'typescript'
 import type { CandidatePatch, EditOperation, ScopeDecision, SourceGraph, SourceNode } from './model'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot } from './project'
+import { ensureRuntimeImports, findPageOverrideMarkers, newPageOverrideTargetId, readPageOverrideRegistry, removeRuntimeImports, writePageOverrideRegistry, type PageOverrideMarker } from './page-overrides'
 import { sourceProvenPageImpact } from './scope'
 
 export class CandidateError extends Error {
@@ -59,7 +60,11 @@ function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditO
   if (scope.strategy !== 'page-override' && scope.localPageRef) throw new CandidateError('共享来源 Scope 不能携带局部页面引用')
   for (const operation of operations) {
     if (!included.has(operation.targetRef) || excluded.has(operation.targetRef)) throw new CandidateError(`Scope 不允许修改目标：${operation.targetRef}`)
-    if (operation.before === operation.after) throw new CandidateError(`操作没有修改内容：${operation.id}`)
+    if (operation.overrideAction === 'remove') {
+      if (scope.strategy !== 'page-override' || operation.kind !== 'TEXT' || !operation.targetRef.startsWith('override:') || operation.before !== operation.after) {
+        throw new CandidateError(`移除覆盖操作无效：${operation.id}`)
+      }
+    } else if (operation.before === operation.after) throw new CandidateError(`操作没有修改内容：${operation.id}`)
     const target = nodes.get(operation.targetRef)
     const expectedKind = operation.kind === 'TEXT' ? 'data' : operation.kind === 'MEDIA' ? 'media' : operation.kind === 'TOKEN' ? 'token' : undefined
     if (!target || !expectedKind || target.kind !== expectedKind || !target.location?.path || target.location.start === undefined || target.location.end === undefined) {
@@ -71,6 +76,7 @@ function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditO
       if (operation.kind !== 'TEXT' || target.kind !== 'data' || !impact.pageRefs.includes(localPageRef!)) {
         throw new CandidateError('当前页面覆盖只支持具有确定页面消费者的 JSX 文本；MEDIA/TOKEN 和非目标页面尚不支持覆盖')
       }
+      if (operation.overrideAction === 'remove' && !operation.targetRef.startsWith('override:')) throw new CandidateError('只能移除已保存的页面覆盖规则')
       for (const pageRef of impact.pageRefs) {
         if (pageRef !== localPageRef && !excluded.has(pageRef)) throw new CandidateError(`页面覆盖要求明确排除或保护其他共享消费者：${pageRef}`)
       }
@@ -115,7 +121,215 @@ function importPath(fromFile: string, targetFile: string): string {
   return relative.startsWith('.') ? relative : `./${relative}`
 }
 
+interface SourceEdit { start: number; end: number; replacement: string; operationId: string }
+
+function applySourceEdits(sourceText: string, file: string, edits: SourceEdit[]): string {
+  const ordered = [...edits].sort((left, right) => right.start - left.start)
+  let priorStart = sourceText.length + 1
+  let next = sourceText
+  for (const edit of ordered) {
+    if (edit.end > priorStart || edit.start < 0 || edit.end < edit.start || edit.end > sourceText.length) throw new CandidateError(`同一文件的操作区间重叠或无效：${file}`)
+    next = next.slice(0, edit.start) + edit.replacement + next.slice(edit.end)
+    priorStart = edit.start
+  }
+  return next
+}
+
+function checkSourceSyntax(sourceText: string, file: string): void {
+  if (!/\.(tsx?|jsx?)$/i.test(file)) return
+  const kind = /\.(tsx|jsx)$/i.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  const parsed = ts.createSourceFile(file, sourceText, ts.ScriptTarget.Latest, true, kind)
+  if ((parsed as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length) throw new CandidateError(`源码编辑产生语法错误：${file}`)
+}
+
+function markerForTarget(sourceText: string, file: string, targetRef: string): PageOverrideMarker {
+  const found = findPageOverrideMarkers(sourceText, file)
+  const matches = found.markers.filter(marker => marker.id === targetRef)
+  if (found.invalid.length || matches.length !== 1) throw new CandidateError(`覆盖目标 ${targetRef} 无法唯一映射到源码节点`)
+  return matches[0]
+}
+
+function routeStateMapping(graph: SourceGraph, routePath: string): Record<string, string> {
+  const routeNodes = graph.nodes.filter(node => node.kind === 'route' && node.location?.path === routePath)
+  const mapping = Object.fromEntries(routeNodes.map(node => [node.label, node.id]))
+  if (!routeNodes.length || Object.keys(mapping).length !== routeNodes.length) throw new CandidateError('页面状态重复或缺失，无法构造确定的局部覆盖映射')
+  return mapping
+}
+
+function appRouteExpression(source: ts.SourceFile, route: SourceNode): ts.BinaryExpression {
+  const matches: ts.BinaryExpression[] = []
+  const find = (node: ts.Node) => {
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && ts.isIdentifier(node.left) && ts.isStringLiteral(node.right) && node.right.text === route.label) matches.push(node)
+    node.forEachChild(find)
+  }
+  find(source)
+  if (matches.length !== 1) throw new CandidateError(`页面 ${route.label} 的源码状态映射不唯一，拒绝猜测覆盖位置`)
+  return matches[0]
+}
+
+function ensurePageProvider(sourceText: string, appFile: string, appImport: string, route: SourceNode, stateToPage: Record<string, string>): string {
+  const source = ts.createSourceFile(appFile, sourceText, ts.ScriptTarget.Latest, true, /\.jsx$/i.test(appFile) ? ts.ScriptKind.JSX : ts.ScriptKind.TSX)
+  const routeExpression = appRouteExpression(source, route)
+  const returns: ts.ReturnStatement[] = []
+  const providers: ts.JsxElement[] = []
+  const find = (node: ts.Node) => {
+    if (ts.isReturnStatement(node) && node.expression && node.expression.pos <= routeExpression.pos && node.expression.end >= routeExpression.end) returns.push(node)
+    if (ts.isJsxElement(node) && ts.isIdentifier(node.openingElement.tagName) && node.openingElement.tagName.text === 'RipplePageForState' &&
+      node.getStart(source) <= routeExpression.getStart(source) && node.getEnd() >= routeExpression.getEnd()) providers.push(node)
+    node.forEachChild(find)
+  }
+  find(source)
+  const routeReturn = returns.sort((left, right) => (left.end - left.pos) - (right.end - right.pos))[0]
+  if (!routeReturn?.expression) throw new CandidateError(`无法将页面 ${route.label} 映射到 React 页面返回树`)
+
+  let result = sourceText
+  if (providers.length > 1) throw new CandidateError('页面覆盖 Provider 出现嵌套或重复结构，拒绝继续叠加')
+  if (providers.length === 1) {
+    const attr = providers[0].openingElement.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(source) === 'pageRefs') as ts.JsxAttribute | undefined
+    if (!attr?.initializer || !ts.isJsxExpression(attr.initializer)) throw new CandidateError('现有页面覆盖 Provider 缺少可维护的 pageRefs 属性')
+    result = applySourceEdits(result, appFile, [{ start: attr.initializer.getStart(source), end: attr.initializer.getEnd(), replacement: `{${JSON.stringify(stateToPage)}}`, operationId: 'page-map' }])
+  } else {
+    const start = routeReturn.expression.getStart(source)
+    const end = routeReturn.expression.getEnd()
+    const original = sourceText.slice(start, end)
+    const wrapper = `<RipplePageForState state={${routeExpression.left.getText(source)}} pageRefs={${JSON.stringify(stateToPage)}}>{${original}}</RipplePageForState>`
+    result = applySourceEdits(result, appFile, [{ start, end, replacement: wrapper, operationId: 'page-provider' }])
+  }
+  result = ensureRuntimeImports(result, appFile, appImport, ['RipplePageForState'])
+  checkSourceSyntax(result, appFile)
+  return result
+}
+
+function removePageProvider(sourceText: string, appFile: string, appImport: string): string {
+  const source = ts.createSourceFile(appFile, sourceText, ts.ScriptTarget.Latest, true, /\.jsx$/i.test(appFile) ? ts.ScriptKind.JSX : ts.ScriptKind.TSX)
+  const providers: ts.JsxElement[] = []
+  const find = (node: ts.Node) => {
+    if (ts.isJsxElement(node) && ts.isIdentifier(node.openingElement.tagName) && node.openingElement.tagName.text === 'RipplePageForState') providers.push(node)
+    node.forEachChild(find)
+  }
+  find(source)
+  if (providers.length > 1) throw new CandidateError('页面覆盖 Provider 出现嵌套或重复结构，拒绝自动清理')
+  let result = sourceText
+  if (providers.length === 1) {
+    const provider = providers[0]
+    if (provider.children.length !== 1 || !ts.isJsxExpression(provider.children[0]) || !provider.children[0].expression) {
+      throw new CandidateError('无法安全还原页面覆盖 Provider 的原始返回树')
+    }
+    const child = provider.children[0].expression
+    result = applySourceEdits(result, appFile, [{ start: provider.getStart(source), end: provider.getEnd(), replacement: child.getText(source), operationId: 'remove-page-provider' }])
+  }
+  result = removeRuntimeImports(result, appFile, appImport, ['RipplePageForState'])
+  checkSourceSyntax(result, appFile)
+  return result
+}
+
+function applyPageOverrideOperations(root: string, graph: SourceGraph, scope: ScopeDecision, nodes: Map<string, SourceNode>, operations: EditOperation[]): string[] {
+  const registry = readPageOverrideRegistry(root)
+  const pageRef = scope.localPageRef!
+  const touched = new Map<string, SourceEdit[]>()
+  const modified = new Set<string>()
+  const sourceTextFor = (file: string) => fs.readFileSync(resolveTargetPath(root, file), 'utf8')
+  const addEdit = (file: string, edit: SourceEdit) => {
+    const edits = touched.get(file) ?? []
+    edits.push(edit)
+    touched.set(file, edits)
+    modified.add(file)
+  }
+
+  for (const operation of operations) {
+    const target = nodes.get(operation.targetRef)!
+    const file = target.location!.path
+    const sourceText = sourceTextFor(file)
+    if (operation.targetRef.startsWith('override:')) {
+      const marker = markerForTarget(sourceText, file, operation.targetRef)
+      const metadata = registry.targets[operation.targetRef]
+      if (!metadata || marker.fallback !== metadata.original || marker.fallback !== operation.before) throw new CandidateError(`覆盖目标 ${operation.targetRef} 的共享来源与分析版本不一致`)
+      if (operation.overrideAction === 'remove') {
+        const pageEntries = registry.pages[pageRef]
+        if (!pageEntries || !(operation.targetRef in pageEntries)) throw new CandidateError(`页面 ${pageRef} 没有目标 ${operation.targetRef} 的覆盖规则`)
+        delete pageEntries[operation.targetRef]
+        if (!Object.keys(pageEntries).length) delete registry.pages[pageRef]
+        const stillUsed = Object.values(registry.pages).some(entries => operation.targetRef in entries)
+        if (!stillUsed) {
+          delete registry.targets[operation.targetRef]
+          addEdit(file, { start: marker.start, end: marker.end, replacement: metadata.original, operationId: operation.id })
+        }
+      } else if (scope.strategy === 'shared') {
+        const updated = JSON.stringify(operation.after)
+        addEdit(file, { start: marker.fallbackInitializer.start, end: marker.fallbackInitializer.end, replacement: `{${updated}}`, operationId: operation.id })
+        registry.targets[operation.targetRef] = { original: operation.after }
+      } else {
+        registry.pages[pageRef] ??= {}
+        registry.pages[pageRef][operation.targetRef] = operation.after
+      }
+    } else {
+      if (scope.strategy !== 'page-override' || operation.overrideAction) throw new CandidateError('新页面覆盖目标的身份或操作类型无效')
+      const actual = sourceText.slice(target.location!.start!, target.location!.end!)
+      if (actual !== operation.before) throw new CandidateError(`源内容已变化，拒绝应用操作：${operation.id}`)
+      const id = newPageOverrideTargetId()
+      if (registry.targets[id]) throw new CandidateError('生成的覆盖目标身份重复，请重试')
+      registry.targets[id] = { original: operation.before }
+      registry.pages[pageRef] ??= {}
+      registry.pages[pageRef][id] = operation.after
+      addEdit(file, {
+        start: target.location!.start!, end: target.location!.end!,
+        replacement: `<RippleText targetRef=${JSON.stringify(id)} fallback={${JSON.stringify(operation.before)}} />`, operationId: operation.id,
+      })
+    }
+  }
+
+  for (const [file, edits] of touched) {
+    const original = sourceTextFor(file)
+    let next = applySourceEdits(original, file, edits)
+    const runtimeImport = importPath(path.join(root, file), path.join(root, '.ripple', 'overrides-runtime.js'))
+    const existing = findPageOverrideMarkers(next, file)
+    if (existing.invalid.length) throw new CandidateError(existing.invalid.join('；'))
+    next = existing.markers.length ? ensureRuntimeImports(next, file, runtimeImport, ['RippleText']) : removeRuntimeImports(next, file, runtimeImport, ['RippleText'])
+    checkSourceSyntax(next, file)
+    fs.writeFileSync(resolveTargetPath(root, file), next, 'utf8')
+  }
+
+  const route = graph.nodes.find(node => node.id === pageRef && node.kind === 'route')
+  if (!route?.location) throw new CandidateError(`本地页面覆盖找不到页面源码锚点：${pageRef}`)
+  const appFile = route.location.path
+  const appAbsolute = resolveTargetPath(root, appFile)
+  const appImport = importPath(appAbsolute, path.join(root, '.ripple', 'overrides-runtime.js'))
+  const appSource = fs.readFileSync(appAbsolute, 'utf8')
+  let nextApp: string
+  if (Object.keys(registry.targets).length) nextApp = ensurePageProvider(appSource, appFile, appImport, route, routeStateMapping(graph, appFile))
+  else nextApp = removePageProvider(appSource, appFile, appImport)
+  if (nextApp !== appSource) {
+    fs.writeFileSync(appAbsolute, nextApp, 'utf8')
+    modified.add(appFile)
+  }
+
+  const overrideRoot = path.join(root, '.ripple')
+  if (Object.keys(registry.targets).length) {
+    fs.mkdirSync(overrideRoot, { recursive: true })
+    const runtimePath = path.join(overrideRoot, 'overrides-runtime.js')
+    if (fs.existsSync(runtimePath) && (fs.lstatSync(runtimePath).isSymbolicLink() || fs.readFileSync(runtimePath, 'utf8') !== overrideRuntime)) throw new CandidateError('现有 .ripple 覆盖运行时与 Ripple 契约不同，拒绝覆盖')
+    if (!fs.existsSync(runtimePath)) fs.writeFileSync(runtimePath, overrideRuntime, { encoding: 'utf8', flag: 'wx' })
+    writePageOverrideRegistry(root, registry)
+    modified.add('.ripple/overrides-runtime.js')
+    modified.add('.ripple/overrides.json')
+  } else if (fs.existsSync(overrideRoot)) {
+    for (const name of ['overrides.json', 'overrides-runtime.js']) {
+      const targetPath = path.join(overrideRoot, name)
+      if (fs.existsSync(targetPath)) {
+        if (fs.lstatSync(targetPath).isSymbolicLink() || !fs.lstatSync(targetPath).isFile()) throw new CandidateError(`拒绝清理非普通覆盖文件：${targetPath}`)
+        fs.unlinkSync(targetPath)
+      }
+      modified.add(path.posix.join('.ripple', name))
+    }
+    if (!fs.readdirSync(overrideRoot).length) fs.rmdirSync(overrideRoot)
+  }
+  const intentToAdd = [...modified].filter(file => fs.existsSync(path.join(root, file)))
+  if (intentToAdd.length) execFileSync('git', ['-C', root, 'add', '--intent-to-add', '--force', '--', ...intentToAdd], { stdio: 'pipe' })
+  return [...modified]
+}
+
 function applyOperations(root: string, graph: SourceGraph, scope: ScopeDecision, nodes: Map<string, SourceNode>, operations: EditOperation[]): string[] {
+  if (scope.strategy === 'page-override') return applyPageOverrideOperations(root, graph, scope, nodes, operations)
   const byFile = new Map<string, Array<{ operation: EditOperation; node: SourceNode }>>()
   for (const operation of operations) {
     const node = nodes.get(operation.targetRef)!
@@ -126,12 +340,11 @@ function applyOperations(root: string, graph: SourceGraph, scope: ScopeDecision,
   for (const [file, edits] of byFile) {
     const absolute = resolveTargetPath(root, file)
     const original = fs.readFileSync(absolute, 'utf8')
-    const pageOverride = scope.strategy === 'page-override'
     const ordered = edits.map(({ operation, node }) => ({
       operation,
       start: node.location!.start!,
       end: node.location!.end!,
-      replacement: pageOverride ? `<RippleText targetRef={${JSON.stringify(operation.targetRef)}} fallback={${JSON.stringify(operation.before)}} />` : operation.after,
+      replacement: operation.after,
     }))
       .sort((a, b) => b.start - a.start)
     let priorStart = original.length + 1
@@ -144,64 +357,9 @@ function applyOperations(root: string, graph: SourceGraph, scope: ScopeDecision,
       priorStart = edit.start
     }
     fs.writeFileSync(absolute, next, 'utf8')
-    if (pageOverride) fs.writeFileSync(absolute, `import { RippleText } from ${JSON.stringify(importPath(absolute, path.join(root, '.ripple', 'overrides-runtime.js')))};\n${next}`, 'utf8')
-    if (/\.(tsx?|jsx?)$/i.test(file)) {
-      const kind = /\.(tsx|jsx)$/i.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS
-      const parsed = ts.createSourceFile(file, next, ts.ScriptTarget.Latest, true, kind)
-      if ((parsed as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length) throw new CandidateError(`源码编辑产生语法错误：${file}`)
-    }
+    checkSourceSyntax(next, file)
   }
-  const modifiedPaths = [...byFile.keys()]
-  if (scope.strategy !== 'page-override') return modifiedPaths
-
-  const pageRef = scope.localPageRef!
-  const route = graph.nodes.find(node => node.id === pageRef && node.kind === 'route')
-  if (!route?.location) throw new CandidateError(`本地页面覆盖找不到页面源码锚点：${pageRef}`)
-  const appAbsolute = resolveTargetPath(root, route.location.path)
-  const appSourceText = fs.readFileSync(appAbsolute, 'utf8')
-  const appSource = ts.createSourceFile(route.location.path, appSourceText, ts.ScriptTarget.Latest, true, /\.jsx$/i.test(route.location.path) ? ts.ScriptKind.JSX : ts.ScriptKind.TSX)
-  let routeExpression: ts.BinaryExpression | undefined
-  const findRoute = (node: ts.Node) => {
-    if (ts.isBinaryExpression(node) && ts.isIdentifier(node.left) && ts.isStringLiteral(node.right) && node.right.text === route.label) routeExpression = node
-    node.forEachChild(findRoute)
-  }
-  findRoute(appSource)
-  if (!routeExpression) throw new CandidateError(`无法将页面 ${route.label} 映射到 React 页面状态`)
-  const routeNodes = graph.nodes.filter(node => node.kind === 'route' && node.location?.path === route.location!.path)
-  const stateToPage = Object.fromEntries(routeNodes.map(node => [node.label, node.id]))
-  if (Object.keys(stateToPage).length !== routeNodes.length) throw new CandidateError('页面状态标签重复，无法构造确定的局部覆盖映射')
-  const returnNodes: ts.ReturnStatement[] = []
-  const collectReturns = (node: ts.Node) => {
-    if (ts.isReturnStatement(node) && node.expression && node.expression.pos <= routeExpression!.pos && node.expression.end >= routeExpression!.end) returnNodes.push(node)
-    node.forEachChild(collectReturns)
-  }
-  collectReturns(appSource)
-  const routeReturn = returnNodes.sort((left, right) => (left.end - left.pos) - (right.end - right.pos))[0]
-  if (!routeReturn?.expression) throw new CandidateError(`无法将页面 ${route.label} 映射到 React 组件的返回树`)
-  const appNext = appSourceText.slice(0, routeReturn.expression.getStart(appSource)) + `<RipplePageForState state={${routeExpression.left.getText(appSource)}} pageRefs={${JSON.stringify(stateToPage)}}>{${routeReturn.expression.getText(appSource)}}</RipplePageForState>` + appSourceText.slice(routeReturn.expression.getEnd())
-  const appImportPath = importPath(appAbsolute, path.join(root, '.ripple', 'overrides-runtime.js'))
-  fs.writeFileSync(appAbsolute, `import { RipplePageForState } from ${JSON.stringify(appImportPath)};\n${appNext}`, 'utf8')
-  const rewrittenApp = ts.createSourceFile(route.location.path, fs.readFileSync(appAbsolute, 'utf8'), ts.ScriptTarget.Latest, true, /\.jsx$/i.test(route.location.path) ? ts.ScriptKind.JSX : ts.ScriptKind.TSX)
-  if ((rewrittenApp as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length) throw new CandidateError(`页面覆盖产生语法错误：${route.location.path}`)
-  const overrideRoot = path.join(root, '.ripple')
-  if (fs.existsSync(overrideRoot) && fs.lstatSync(overrideRoot).isSymbolicLink()) throw new CandidateError('本地覆盖目录不能是符号链接')
-  fs.mkdirSync(overrideRoot, { recursive: true })
-  const runtimePath = path.join(overrideRoot, 'overrides-runtime.js')
-  if (fs.existsSync(runtimePath) && (fs.lstatSync(runtimePath).isSymbolicLink() || fs.readFileSync(runtimePath, 'utf8') !== overrideRuntime)) throw new CandidateError('现有 .ripple 覆盖运行时与 Ripple 契约不同，拒绝覆盖')
-  const registryPath = path.join(overrideRoot, 'overrides.json')
-  let registry: { schemaVersion: 1; pages: Record<string, Record<string, string>> } = { schemaVersion: 1, pages: {} }
-  if (fs.existsSync(registryPath)) {
-    if (fs.lstatSync(registryPath).isSymbolicLink() || !fs.lstatSync(registryPath).isFile()) throw new CandidateError('覆盖注册表必须是普通文件')
-    try { registry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) as typeof registry }
-    catch { throw new CandidateError('现有 .ripple/overrides.json 无法解析') }
-    if (registry.schemaVersion !== 1 || !registry.pages || typeof registry.pages !== 'object' || Array.isArray(registry.pages)) throw new CandidateError('现有 .ripple/overrides.json 不符合 Ripple 覆盖契约')
-  }
-  registry.pages[pageRef] ??= {}
-  for (const operation of operations) registry.pages[pageRef][operation.targetRef] = operation.after
-  if (!fs.existsSync(runtimePath)) fs.writeFileSync(runtimePath, overrideRuntime, { encoding: 'utf8', flag: 'wx' })
-  fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`, 'utf8')
-  execFileSync('git', ['-C', root, 'add', '--intent-to-add', '--force', '--', '.ripple/overrides-runtime.js', '.ripple/overrides.json'], { stdio: 'pipe' })
-  return [...new Set([...modifiedPaths, route.location.path, '.ripple/overrides-runtime.js', '.ripple/overrides.json'])]
+  return [...byFile.keys()]
 }
 
 function removeWorktree(projectRoot: string, candidateRoot: string): void {
@@ -242,7 +400,8 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
     const patchHash = sha256(patch)
     fs.writeFileSync(artifactPath, patch, { encoding: 'utf8', flag: 'wx' })
     artifactCreated = true
-    const candidateTreeDigest = digestTrackedTree(candidateRoot, [...new Set([...snapshot.trackedFiles, ...modifiedPaths])])
+    const candidateFiles = [...new Set([...snapshot.trackedFiles, ...modifiedPaths])].filter(file => fs.existsSync(path.join(candidateRoot, file)))
+    const candidateTreeDigest = digestTrackedTree(candidateRoot, candidateFiles)
     const originalDigest = readProjectSnapshot(snapshot.root).revision.sourceDigest
     if (originalDigest !== snapshot.revision.sourceDigest) throw new CandidateError('创建候选期间原工程源码发生变化')
     return {
@@ -275,7 +434,8 @@ export function assertCandidateCurrent(candidate: CandidateRecord): void {
   }
   const patch = execFileSync('git', ['-C', candidate.candidateRoot!, 'diff', '--no-ext-diff', '--binary', 'HEAD'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
   const artifactHash = candidate.artifactPath && fs.existsSync(candidate.artifactPath) ? sha256(fs.readFileSync(candidate.artifactPath)) : ''
-  if (sha256(patch) !== candidate.patchHash || artifactHash !== candidate.patchHash || digestTrackedTree(candidate.candidateRoot!, [...new Set([...candidate.modifiedPaths, ...runGit(candidate.projectRoot, ['ls-files']).split(/\r?\n/).filter(Boolean)])]) !== candidate.candidateTreeDigest) {
+  const candidateFiles = [...new Set([...candidate.modifiedPaths, ...runGit(candidate.projectRoot, ['ls-files']).split(/\r?\n/).filter(Boolean)])].filter(file => fs.existsSync(path.join(candidate.candidateRoot!, file)))
+  if (sha256(patch) !== candidate.patchHash || artifactHash !== candidate.patchHash || digestTrackedTree(candidate.candidateRoot!, candidateFiles) !== candidate.candidateTreeDigest) {
     throw new CandidateError('候选代码或补丁哈希已变化，请重新验证')
   }
   const status = runGit(candidate.candidateRoot!, ['status', '--porcelain', '--untracked-files=all'])

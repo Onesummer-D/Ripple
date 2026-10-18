@@ -21,7 +21,8 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass')
   fs.writeFileSync(artifactPath, screenshot)
   const assertions = assertionIds.map(assertionId => ({ id: assertionId, passed: true, detail: `${assertionId} asserted by browser runner` }))
   const run: VerificationRun = {
-    id, candidateId: p.id, baseSourceDigest: p.baseSourceDigest, patchHash: p.patchHash, candidateTreeDigest: p.candidateTreeDigest,
+    id, candidateId: p.id, scopeDecisionId: p.scopeDecisionId, scopeVersion: p.scopeVersion,
+    baseSourceDigest: p.baseSourceDigest, patchHash: p.patchHash, candidateTreeDigest: p.candidateTreeDigest,
     runtimeFingerprint: revision.runtimeFingerprint, startedAt: '2026-10-18T00:00:00Z', completedAt: '2026-10-18T00:01:00Z',
     checks: [{ id: 'desktop', route: '/', viewport: { width: 1440, height: 900 }, state: 'loaded', mandatory: true, description: 'title visible' }],
     assertions,
@@ -31,6 +32,7 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass')
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
     schemaVersion: 1, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
+    scopeDecisionId: run.scopeDecisionId, scopeVersion: run.scopeVersion,
     baseSourceDigest: run.baseSourceDigest, patchHash: run.patchHash, candidateTreeDigest: run.candidateTreeDigest,
     runtimeFingerprint: run.runtimeFingerprint,
     checks: run.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })),
@@ -70,6 +72,12 @@ describe('Project-first session invariants', () => {
     const s = staged()
     expect(() => registerVerification(s, { ...runFor(s.candidate!), patchHash: 'old-patch' })).toThrow(/does not match/)
     expect(() => registerVerification(s, { ...runFor(s.candidate!), runtimeFingerprint: 'different-env' })).toThrow(/does not match/)
+  })
+  it('rejects trusted browser records that carry another Scope decision/version', () => {
+    const s = staged()
+    const patch = s.candidate!
+    const run = runFor({ ...patch, scopeDecisionId: 'another-scope', scopeVersion: patch.scopeVersion + 1 })
+    expect(() => registerVerification(s, run)).toThrow(/candidate scope/)
   })
   it('does not allow passing checks without an evidence artifact', () => {
     const s = staged(), run = runFor(s.candidate!)
