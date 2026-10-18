@@ -97,7 +97,16 @@ const hasJsx = (node: ts.Node): boolean => {
 }
 const nodeId = (file: string, kind: string, offset: number) => `${kind}:${file}#${offset}`
 const relativeTo = (root: string, absolute: string) => path.relative(root, absolute).replaceAll('\\', '/')
-const jsxTagName = (node: ts.JsxOpeningLikeElement) => ts.isIdentifier(node.tagName) ? node.tagName.text : undefined
+const jsxTagName = (node: ts.JsxOpeningLikeElement): { name: string; namespace?: string } | undefined => {
+  if (ts.isIdentifier(node.tagName)) return { name: node.tagName.text }
+  // `<Cards.ProductCard />` — a namespace-qualified tag is only resolvable when the
+  // qualifier is a namespace import (`import * as Cards`). Returning the qualifier
+  // keeps the usage visible instead of silently dropping the consumer (P1-1).
+  if (ts.isPropertyAccessExpression(node.tagName) && ts.isIdentifier(node.tagName.expression)) {
+    return { name: node.tagName.name.text, namespace: node.tagName.expression.text }
+  }
+  return undefined
+}
 const propertyName = (property: ts.ObjectLiteralElementLike) => property.name && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name) || ts.isNumericLiteral(property.name)) ? property.name.text : undefined
 const stringValue = (node: ts.Node | undefined): ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | undefined => {
   if (!node) return undefined
@@ -225,9 +234,13 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
   return result
 }
 
-function declarationComponentName(tag: string | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>): ComponentInfo | undefined {
+function declarationComponentName(tag: { name: string; namespace?: string } | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>): ComponentInfo | undefined {
   if (!tag) return undefined
-  const target = localImports.get(tag)
+  if (tag.namespace) {
+    const target = localImports.get(tag.namespace)
+    return target?.exportName === '*' ? byExport.get(`${target.file}#${tag.name}`) : undefined
+  }
+  const target = localImports.get(tag.name)
   return target ? byExport.get(`${target.file}#${target.exportName}`) : undefined
 }
 
@@ -436,6 +449,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
         for (const item of clause.namedBindings.elements) imports.set(item.name.text, { file: targetFile, exportName: item.propertyName?.text ?? item.name.text })
       }
+      if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+        // `import * as Cards` — exportName '*' marks a namespace target so
+        // `<Cards.ProductCard />` tags resolve in declarationComponentName.
+        imports.set(clause.namedBindings.name.text, { file: targetFile, exportName: '*' })
+      }
       addEdge(`file:${relative}`, `file:${targetFile}`, 'imports', `import:${relative}:${statement.getStart()}`)
       if (assetFileLike(targetFile)) {
         const id = assetMediaId(targetFile)
@@ -552,10 +570,10 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const tag = jsxTagName(node)
-        if (tag && /^[a-z]/.test(tag)) {
+        if (tag && /^[a-z]/.test(tag.name)) {
           const start = node.getStart(source)
           const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
-          addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
+          addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag.name}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
         }
         const target = declarationComponentName(tag, imports, byExport)
         if (target && ownerComponent) {
@@ -678,9 +696,16 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           addEdge(drill.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${candidate.id}:${drill.position}`, 'semantic-candidate')
           // Poison the candidate's closure: scope.ts flags unresolved entries whose
           // importer file is in the proven consumer subgraph. The media's declaration
-          // file is always reachable from the media itself, so this entry guarantees
-          // fail-closed impact for every named candidate.
-          if (candidate.location?.path) unresolved.push(`${candidate.location.path} → unproven-usage:${unprovenUsageFiles.values().next().value ?? drill.file}`)
+          // file is always reachable from the media itself, so these entries guarantee
+          // fail-closed impact for every named candidate. One entry per unproven usage
+          // file — the first file alone would hide additional unknown consumers.
+          if (candidate.location?.path) {
+            if (unprovenUsageFiles.size) {
+              for (const usageFile of unprovenUsageFiles) unresolved.push(`${candidate.location.path} → unproven-usage:${usageFile}`)
+            } else {
+              unresolved.push(`${candidate.location.path} → unproven-usage:${drill.file}`)
+            }
+          }
         }
       }
       for (const usageFile of unprovenUsageFiles) unresolved.push(`${usageFile} → unproven-prop:${drill.paramName}`)

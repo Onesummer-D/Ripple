@@ -178,6 +178,51 @@ describe('media provenance upgrade', () => {
       expect(impact.certainty).not.toBe('source-proven')
     }
   })
+
+  it('namespace-tagged components stay visible: <Cards.ProductCard /> resolves via import * and fails closed', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [\n  { id: 'p1', image: 'https://images.pexels.com/photos/10/pexels-photo-10.jpeg?auto=compress' },\n  { id: 'p2', image: 'https://images.pexels.com/photos/11/pexels-photo-11.jpeg?auto=compress' },\n];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    // Home: element access through a namespace-qualified tag — the consumer must not
+    // silently vanish (P1-1). List: plain named path stays fully provable.
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport * as Cards from '../components/ProductCard';\ndeclare const index: number;\nexport function HomePage() { return <main><Cards.ProductCard product={products[index]} /></main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport * as Cards from '../components/ProductCard';\nexport function ListPage() { return <main>{products.map((product) => <Cards.ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
+    const edges = assetEdges(graph, cardId)
+    // Both usage sites resolve to the same component: 2 proven (list map) + 2 candidates (home element access).
+    expect(edges.filter(edge => edge.certainty === 'source-proven').length).toBe(2)
+    expect(edges.filter(edge => edge.certainty === 'semantic-candidate').length).toBe(2)
+    for (const edge of edges) {
+      const impact = sourceProvenPageImpact(graph, edge.to)
+      expect(impact.certainty).not.toBe('source-proven')
+    }
+    expect(graph.unresolved.some(entry => entry.includes('unproven-usage') || entry.includes('unproven-prop'))).toBe(true)
+  })
+
+  it('sibling media in the same declaration file are poisoned too (file-granularity fail-closed)', () => {
+    const root = temp()
+    scaffold(root)
+    // productsA is consumed through an unprovable spread; productsB through a provable
+    // map. Both live in the same declaration file, so the unproven-usage poison on that
+    // file must degrade productsB from source-proven to partial — this assertion is what
+    // makes the poison emission load-bearing against regressions.
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const productsA: Product[] = [{ id: 'a1', image: 'https://images.pexels.com/photos/20/pexels-photo-20.jpeg?auto=compress' }];\nexport const productsB: Product[] = [{ id: 'b1', image: 'https://images.pexels.com/photos/21/pexels-photo-21.jpeg?auto=compress' }];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    write(root, 'src/pages/HomePage.tsx', `import { productsA } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{productsA.map((product) => <ProductCard key={product.id} {...product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { productsB } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{productsB.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaB = graph.nodes.find(node => node.kind === 'media' && node.value?.includes('pexels-photo-21'))!
+    const impactB = sourceProvenPageImpact(graph, mediaB.id)
+    expect(impactB.pageRefs).toContain('page:list')
+    expect(impactB.certainty).toBe('partial')
+    expect(impactB.unresolved.some(entry => entry.includes('unproven-usage'))).toBe(true)
+  })
 })
 
 describe('media provenance soundness guardrails (independent review P1 regressions)', () => {
