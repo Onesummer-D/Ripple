@@ -3,6 +3,7 @@ export type Id = string
 export type EditKind = 'TEXT' | 'MEDIA' | 'TOKEN' | 'CODE'
 export type EvidenceResult = 'pass' | 'risk' | 'unknown' | 'not-run' | 'failed-to-run' | 'stale'
 export type RelationCertainty = 'source-proven' | 'runtime-observed' | 'semantic-candidate' | 'unknown'
+export const REQUIRED_VERIFICATION_ASSERTION_IDS = ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors'] as const
 
 export interface ProjectRevision {
   projectId: Id
@@ -89,7 +90,7 @@ export interface VerificationCheck {
 }
 export interface VerificationAssertion {
   id: string
-  passed: boolean
+  result: EvidenceResult
   detail: string
 }
 export interface VerificationEvidence {

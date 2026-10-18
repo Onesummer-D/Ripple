@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -8,8 +8,10 @@ import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidat
 import { startCandidatePreview, stopCandidatePreview } from './candidate-preview'
 import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
 import { sourceProvenPageImpact } from './scope'
-import { chooseScope, openSession, recordSourceGraph, stageCandidate, stageOperations } from './session'
-import type { EditOperation, EditSession, ScopeDecision, SourceGraph } from './model'
+import { chooseScope, openSession, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
+import { assertTrustedBrowserExecution } from './verification'
+import { runCandidateVerification } from './verification-runner'
+import type { EditOperation, EditSession, ScopeDecision, SourceGraph, VerificationRun } from './model'
 
 interface OpenProject { root: string; graph: SourceGraph }
 interface LiveCandidate { record: CandidateRecord; session: EditSession }
@@ -80,6 +82,29 @@ function candidateView(record: CandidateRecord) {
   }
 }
 
+function verificationView(run: VerificationRun | undefined, candidateId: string) {
+  if (!run) return { state: 'not-run' as const, reason: '浏览器验证尚未运行。' }
+  return {
+    state: run.status,
+    runId: run.id,
+    patchHash: run.patchHash,
+    candidateTreeDigest: run.candidateTreeDigest,
+    scopeDecisionId: run.scopeDecisionId,
+    scopeVersion: run.scopeVersion,
+    startedAt: run.startedAt,
+    completedAt: run.completedAt,
+    assertions: run.assertions,
+    evidence: run.evidence.map(evidence => ({
+      id: evidence.id, checkId: evidence.checkId, result: evidence.result, pageUrl: evidence.pageUrl,
+      viewport: evidence.viewport, runtimeState: evidence.runtimeState, elementRefs: evidence.elementRefs,
+      reason: evidence.reason,
+      ...(evidence.artifactPath ? { artifactUrl: `/__ripple/api/candidate/${encodeURIComponent(candidateId)}/evidence/${encodeURIComponent(evidence.id)}` } : {}),
+    })),
+    recordUrl: run.execution ? `/__ripple/api/candidate/${encodeURIComponent(candidateId)}/runs/${encodeURIComponent(run.id)}` : undefined,
+    recordHash: run.execution?.recordHash,
+  }
+}
+
 async function retireProjectCandidates(projectId: string): Promise<void> {
   const matching = [...candidates].filter(([, live]) => live.session.projectRevision.projectId === projectId)
   for (const [id] of matching) await retireCandidate(id)
@@ -97,6 +122,44 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? '127.0.0.1'}`)
   if (!url.pathname.startsWith('/__ripple/api/')) return
   assertLoopbackRequest(request)
+  const evidenceMatch = url.pathname.match(/^\/__ripple\/api\/candidate\/([^/]+)\/evidence\/([^/]+)$/)
+  if (evidenceMatch) {
+    if (request.method !== 'GET') return reject(response, 405, '截图证据仅支持读取')
+    const candidateId = decodeURIComponent(evidenceMatch[1])
+    const evidenceId = decodeURIComponent(evidenceMatch[2])
+    const live = candidates.get(candidateId)
+    if (!live) return reject(response, 404, '候选不存在或已清理')
+    const run = [...live.session.runs].reverse().find(item => item.evidence.some(evidence => evidence.id === evidenceId))
+    const evidence = run?.evidence.find(item => item.id === evidenceId)
+    if (!run || !evidence?.artifactPath || !evidence.artifactHash) return reject(response, 404, '候选没有该截图证据')
+    assertTrustedBrowserExecution(run)
+    const stat = fs.lstatSync(evidence.artifactPath)
+    if (stat.isSymbolicLink() || !stat.isFile()) return reject(response, 404, '截图证据已失效')
+    const bytes = fs.readFileSync(evidence.artifactPath)
+    if (createHash('sha256').update(bytes).digest('hex') !== evidence.artifactHash) return reject(response, 409, '截图证据哈希已变化')
+    response.writeHead(200, { 'content-type': 'image/png', 'content-length': bytes.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' })
+    response.end(bytes)
+    return
+  }
+  const runMatch = url.pathname.match(/^\/__ripple\/api\/candidate\/([^/]+)\/runs\/([^/]+)$/)
+  if (runMatch) {
+    if (request.method !== 'GET') return reject(response, 405, '浏览器执行记录仅支持读取')
+    const candidateId = decodeURIComponent(runMatch[1])
+    const runId = decodeURIComponent(runMatch[2])
+    const live = candidates.get(candidateId)
+    if (!live) return reject(response, 404, '候选不存在或已清理')
+    const run = live.session.runs.find(item => item.id === runId)
+    if (!run?.execution) return reject(response, 404, '候选没有该浏览器执行记录')
+    assertTrustedBrowserExecution(run)
+    const recordPath = run.execution.recordPath
+    const stat = fs.lstatSync(recordPath)
+    if (stat.isSymbolicLink() || !stat.isFile()) return reject(response, 404, '浏览器执行记录已失效')
+    const bytes = fs.readFileSync(recordPath)
+    if (createHash('sha256').update(bytes).digest('hex') !== run.execution.recordHash) return reject(response, 409, '浏览器执行记录哈希已变化')
+    response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': bytes.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' })
+    response.end(bytes)
+    return
+  }
   if (request.method !== 'POST') return reject(response, 405, '仅支持 POST')
 
   if (url.pathname === '/__ripple/api/analyze') {
@@ -139,7 +202,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
         sessionId,
         status: candidateSession.status,
         candidate: candidateView(record),
-        verification: { state: 'not-run', reason: '当前工作台阶段不会执行目标项目代码；浏览器预演、审核与应用入口保持关闭。' },
+        verification: verificationView(undefined, record.id),
       })
     } catch (error) {
       if (fs.existsSync(record.markerPath)) removeCandidate(record)
@@ -159,11 +222,25 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     try {
       assertCandidateCurrent(live.record)
       const preview = await startCandidatePreview(live.record)
-      return json(response, 200, { candidateId: preview.candidateId, url: preview.url, verification: { state: 'not-run' } })
+      return json(response, 200, { candidateId: preview.candidateId, url: preview.url, verification: verificationView(live.session.runs.at(-1), live.record.id) })
     } catch (error) {
       if (error instanceof CandidateError) await retireCandidate(body.candidateId)
       throw error
     }
+  }
+
+  if (url.pathname === '/__ripple/api/candidate/verify') {
+    const body = await readJson(request)
+    if (typeof body.candidateId !== 'string') return reject(response, 400, '需要 candidateId')
+    const live = candidates.get(body.candidateId)
+    if (!live) return reject(response, 404, '候选不存在或已清理')
+    const project = projects.get(live.session.projectRevision.projectId)
+    if (!project) return reject(response, 409, '项目分析状态已过期，请重新读取')
+    assertCandidateCurrent(live.record)
+    const preview = await startCandidatePreview(live.record)
+    const run = await runCandidateVerification(live.record, live.session, project.graph, preview)
+    live.session = registerVerification(live.session, run)
+    return json(response, 200, { candidateId: live.record.id, previewUrl: preview.url, verification: verificationView(live.session.runs.at(-1), live.record.id) })
   }
 
   if (url.pathname === '/__ripple/api/candidate/source-selection') {
@@ -204,6 +281,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       rawIntent: live.session.rawIntent,
       scope: live.session.scope,
       candidate: candidateView(live.record),
+      verification: verificationView(live.session.runs.at(-1), live.record.id),
     })
   }
 
@@ -237,7 +315,7 @@ export function localProjectApiPlugin(): Plugin {
         void handle(request, response).catch(error => {
           const failure = error instanceof Error ? error as Error & { statusCode?: number } : undefined
           const code = failure && 'code' in failure ? failure.code : undefined
-          const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' ? 503 : failure?.name === 'CandidateError' ? 409 : failure?.name === 'SessionInvariantError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
+          const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' || failure?.name === 'VerificationRunnerError' ? 503 : failure?.name === 'CandidateError' ? 409 : failure?.name === 'SessionInvariantError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
           reject(response, status, error instanceof Error ? error.message : 'Project API failed')
         })
       })

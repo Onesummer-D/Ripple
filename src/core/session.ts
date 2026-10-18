@@ -1,4 +1,4 @@
-import type { AppliedRevision, Approval, CandidatePatch, EditOperation, EditSession, ProjectRevision, ScopeDecision, VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type AppliedRevision, type Approval, type CandidatePatch, type EditOperation, type EditSession, type ProjectRevision, type ScopeDecision, type VerificationRun } from './model'
 import { assertTrustedBrowserExecution } from './verification'
 import { carryTrustedBrowserExecution } from './verification-receipt'
 
@@ -91,9 +91,11 @@ export function registerVerification(session: EditSession, run: VerificationRun)
       (e.result !== 'pass' || (!!e.artifactPath && !!e.artifactHash && /^[a-f0-9]{64}$/i.test(e.artifactHash)))
   }), 'Evidence must match candidate page, viewport, state and run time; passes need a hashed artifact')
   const verified = new Set(run.evidence.filter(e => e.result === 'pass').map(e => e.checkId))
-  const complete = run.checks.filter(c => c.mandatory).every(c => verified.has(c.id))
-  const hasRisks = run.evidence.some(e => e.result === 'risk' || e.result === 'failed-to-run')
-  const status: VerificationRun['status'] = hasRisks ? 'risks' : complete ? 'passed' : 'incomplete'
+  const mandatoryEvidencePassed = run.checks.filter(c => c.mandatory).every(c => verified.has(c.id))
+  const assertions = new Map(run.assertions.map(assertion => [assertion.id, assertion.result]))
+  const assertionsPassed = REQUIRED_VERIFICATION_ASSERTION_IDS.every(id => assertions.get(id) === 'pass')
+  const hasRisks = run.evidence.some(e => e.result === 'risk' || e.result === 'failed-to-run') || run.assertions.some(assertion => assertion.result === 'risk' || assertion.result === 'failed-to-run')
+  const status: VerificationRun['status'] = hasRisks ? 'risks' : mandatoryEvidencePassed && assertionsPassed ? 'passed' : 'incomplete'
   const registeredRun = carryTrustedBrowserExecution(run, { ...run, status })
   return { ...session, runs: [...session.runs, registeredRun], approval: undefined, status: status === 'passed' ? 'verified' : 'candidate' }
 }

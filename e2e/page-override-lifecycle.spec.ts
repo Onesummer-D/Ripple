@@ -127,13 +127,13 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
   }
 
   const assertions: VerificationRun['assertions'] = [
-    { id: 'target-change', passed: true, detail: 'Playwright asserted each intended navigation value in the candidate DOM.' },
-    { id: 'non-target-preserved', passed: true, detail: 'Playwright navigated to the non-target route and asserted baseline shared labels.' },
-    { id: 'scope-propagation', passed: true, detail: 'Home override changed only the included page; autumn retained the shared source text.' },
-    { id: 'interaction', passed: true, detail: 'Route switching and the home counter event handler worked.' },
-    { id: 'responsive-layout', passed: true, detail: 'No horizontal overflow at 1440, 768, and 390 pixel viewports.' },
-    { id: 'source-mapping', passed: true, detail: 'Runtime DOM source annotation resolves to Navigation.jsx and has an instance identity.' },
-    { id: 'browser-errors', passed: true, detail: 'Playwright observed no page errors or console errors.' },
+    { id: 'target-change', result: 'pass', detail: 'Playwright asserted each intended navigation value in the candidate DOM.' },
+    { id: 'non-target-preserved', result: 'pass', detail: 'Playwright navigated to the non-target route and asserted baseline shared labels.' },
+    { id: 'scope-propagation', result: 'pass', detail: 'Home override changed only the included page; autumn retained the shared source text.' },
+    { id: 'interaction', result: 'pass', detail: 'Route switching and the home counter event handler worked.' },
+    { id: 'responsive-layout', result: 'pass', detail: 'No horizontal overflow at 1440, 768, and 390 pixel viewports.' },
+    { id: 'source-mapping', result: 'pass', detail: 'Runtime DOM source annotation resolves to Navigation.jsx and has an instance identity.' },
+    { id: 'browser-errors', result: 'pass', detail: 'Playwright observed no page errors or console errors.' },
   ]
   const completedAt = new Date().toISOString()
   const runId = `playwright-${evidenceId}`
@@ -144,7 +144,8 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint: analyzeProject(projectRoot).revision.runtimeFingerprint,
-    checks: checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })), assertions, artifacts,
+    checks: checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })), assertions,
+    evidence: evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })), artifacts,
   }
   fs.writeFileSync(recordPath, JSON.stringify(record, null, 2))
   const run: VerificationRun = {

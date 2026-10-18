@@ -12,6 +12,7 @@ import { applyApprovedCandidate, rollbackAppliedCandidate } from './apply'
 import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
 import type { EditOperation, ScopeDecision, VerificationRun } from './model'
 import { attestBrowserExecution } from './verification-receipt'
+import { sourceBindings } from './verification-runner'
 
 const temporaryRoots: string[] = []
 const temp = () => {
@@ -30,7 +31,7 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   const completedAt = '2026-10-18T00:01:00Z'
   const viewport = { width: 1280, height: 800 }
   const check = { id: 'home', route: '/', viewport, state: 'home-ready', description: 'Heading is visible', mandatory: true }
-  const assertions = ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors'].map(assertionId => ({ id: assertionId, passed: true, detail: `verified ${assertionId}` }))
+  const assertions = ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors'].map(assertionId => ({ id: assertionId, result: 'pass' as const, detail: `verified ${assertionId}` }))
   const artifactPath = path.join(artifactRoot, 'home.png')
   const screenshot = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pZsAAAAASUVORK5CYII=', 'base64')
   fs.writeFileSync(artifactPath, screenshot)
@@ -46,6 +47,7 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint, checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }], assertions,
+    evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
     artifacts: [{ checkId: check.id, path: 'home.png', sha256: createHash('sha256').update(screenshot).digest('hex') }],
   }))
   return attestBrowserExecution(run, recordPath)
@@ -207,7 +209,10 @@ describe('real project graph and candidate executor', () => {
     const operations: EditOperation[] = targets.map((target, index) => ({ id: `text-${index}`, kind: 'TEXT', targetRef: target.id, before: target.value!, after: `Revised ${index}` }))
     const before = readProjectSnapshot(root).revision.sourceDigest
     const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'candidate'), artifactRoot: path.join(container, 'artifacts'), graph, scope, operations, candidateId: 'two-edits' })
+    const evidenceRoot = path.join(path.dirname(candidate.artifactPath!), 'verification', candidate.id)
     try {
+      fs.mkdirSync(path.join(evidenceRoot, 'run-1'), { recursive: true })
+      fs.writeFileSync(path.join(evidenceRoot, 'run-1', 'execution.json'), '{}')
       expect(candidate.operations).toHaveLength(4)
       expect(fs.readFileSync(candidate.artifactPath!, 'utf8')).toContain('Revised 0')
       expect(fs.readFileSync(candidate.artifactPath!, 'utf8')).toContain('Revised 1')
@@ -220,6 +225,7 @@ describe('real project graph and candidate executor', () => {
     } finally {
       removeCandidate(candidate)
     }
+    expect(fs.existsSync(evidenceRoot)).toBe(false)
   }, 15_000)
 
   it('rejects a locally scoped edit when its source is consumed by an excluded page', () => {
@@ -261,6 +267,7 @@ describe('real project graph and candidate executor', () => {
       expect(fs.readFileSync(path.join(candidate.candidateRoot!, 'src', 'App.tsx'), 'utf8')).toContain('<RipplePageForState state={currentPage}')
       expect(patch).toContain('overrides-runtime.js')
       expect(candidate.modifiedPaths).toContain('.ripple/overrides.json')
+      expect(candidate.operationTargetRefs[operation.id]).toBe(stableTargetId)
       expect(candidate.candidateTreeDigest).not.toBe(candidate.baseSourceDigest)
       expect(readProjectSnapshot(root).revision.sourceDigest).toBe(graph.revision.sourceDigest)
       const dist = path.join(container, 'page-override-build')
@@ -269,6 +276,11 @@ describe('real project graph and candidate executor', () => {
       expect(builtJavaScript).toContain('Home only brand')
       let session = recordSourceGraph(openSession('page-override-session', graph.revision, 'Change the shared label only on home'), graph.id, graph.revision.sourceDigest)
       session = stageCandidate(stageOperations(chooseScope(session, scope), candidate.operations), candidate)
+      const candidateGraph = analyzeProject(candidate.candidateRoot!, false)
+      const binding = sourceBindings(candidate, graph, candidateGraph, session)[0]
+      expect(binding.expectedText).toBe(operation.after)
+      expect(binding.sourceRefs).toHaveLength(1)
+      expect(binding.sourceRefs[0]).toMatch(/^jsx:src\/components\/Navigation\.tsx#/)
       const run = trustedRun(candidate, graph.revision.runtimeFingerprint, target.id, path.join(container, 'override-evidence'))
       session = registerVerification(session, run)
       session = approve(session, { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-18T00:02:00Z' })

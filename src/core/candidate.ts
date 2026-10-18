@@ -26,6 +26,7 @@ export interface CandidateRecord extends CandidatePatch {
   projectRoot: string
   markerPath: string
   modifiedPaths: string[]
+  operationTargetRefs: Record<string, string>
 }
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
@@ -223,7 +224,7 @@ function removePageProvider(sourceText: string, appFile: string, appImport: stri
   return result
 }
 
-function applyPageOverrideOperations(root: string, graph: SourceGraph, scope: ScopeDecision, nodes: Map<string, SourceNode>, operations: EditOperation[]): string[] {
+function applyPageOverrideOperations(root: string, graph: SourceGraph, scope: ScopeDecision, nodes: Map<string, SourceNode>, operations: EditOperation[], operationTargetRefs: Record<string, string>): string[] {
   const registry = readPageOverrideRegistry(root)
   const pageRef = scope.localPageRef!
   const touched = new Map<string, SourceEdit[]>()
@@ -241,6 +242,7 @@ function applyPageOverrideOperations(root: string, graph: SourceGraph, scope: Sc
     const file = target.location!.path
     const sourceText = sourceTextFor(file)
     if (operation.targetRef.startsWith('override:')) {
+      operationTargetRefs[operation.id] = operation.targetRef
       const marker = markerForTarget(sourceText, file, operation.targetRef)
       const metadata = registry.targets[operation.targetRef]
       if (!metadata || marker.fallback !== metadata.original || marker.fallback !== operation.before) throw new CandidateError(`覆盖目标 ${operation.targetRef} 的共享来源与分析版本不一致`)
@@ -268,6 +270,7 @@ function applyPageOverrideOperations(root: string, graph: SourceGraph, scope: Sc
       if (actual !== operation.before) throw new CandidateError(`源内容已变化，拒绝应用操作：${operation.id}`)
       const id = newPageOverrideTargetId()
       if (registry.targets[id]) throw new CandidateError('生成的覆盖目标身份重复，请重试')
+      operationTargetRefs[operation.id] = id
       registry.targets[id] = { original: operation.before }
       registry.pages[pageRef] ??= {}
       registry.pages[pageRef][id] = operation.after
@@ -328,10 +331,11 @@ function applyPageOverrideOperations(root: string, graph: SourceGraph, scope: Sc
   return [...modified]
 }
 
-function applyOperations(root: string, graph: SourceGraph, scope: ScopeDecision, nodes: Map<string, SourceNode>, operations: EditOperation[]): string[] {
-  if (scope.strategy === 'page-override') return applyPageOverrideOperations(root, graph, scope, nodes, operations)
+function applyOperations(root: string, graph: SourceGraph, scope: ScopeDecision, nodes: Map<string, SourceNode>, operations: EditOperation[], operationTargetRefs: Record<string, string>): string[] {
+  if (scope.strategy === 'page-override') return applyPageOverrideOperations(root, graph, scope, nodes, operations, operationTargetRefs)
   const byFile = new Map<string, Array<{ operation: EditOperation; node: SourceNode }>>()
   for (const operation of operations) {
+    operationTargetRefs[operation.id] = operation.targetRef
     const node = nodes.get(operation.targetRef)!
     const file = node.location!.path
     if (!byFile.has(file)) byFile.set(file, [])
@@ -394,7 +398,8 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
     const currentGraph = analyzeProject(snapshot.root)
     if (currentGraph.id !== request.graph.id) throw new CandidateError('源关系图身份不匹配，请重新分析项目')
     const nodes = assertScope(currentGraph, request.scope, request.operations)
-    const modifiedPaths = applyOperations(candidateRoot, currentGraph, request.scope, nodes, request.operations)
+    const operationTargetRefs: Record<string, string> = {}
+    const modifiedPaths = applyOperations(candidateRoot, currentGraph, request.scope, nodes, request.operations, operationTargetRefs)
     const patch = execFileSync('git', ['-C', candidateRoot, 'diff', '--no-ext-diff', '--binary', 'HEAD'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
     if (!patch) throw new CandidateError('操作没有产生真实源码差异')
     const patchHash = sha256(patch)
@@ -418,6 +423,7 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
       diffArtifact: artifactPath,
       operations: request.operations.map(operation => ({ ...operation })),
       modifiedPaths: [...new Set(modifiedPaths)].sort(),
+      operationTargetRefs,
     }
   } catch (error) {
     if (artifactCreated && fs.existsSync(artifactPath)) fs.unlinkSync(artifactPath)
@@ -451,7 +457,30 @@ export function removeCandidate(candidate: CandidateRecord): void {
     const patch = fs.readFileSync(candidate.artifactPath)
     if (sha256(patch) !== candidate.patchHash) throw new CandidateError('补丁工件已变化；保留现场以避免删除用户文件')
   }
+  let verificationRoot: string | undefined
+  let candidateEvidence: string | undefined
+  if (candidate.artifactPath) {
+    const artifactRoot = path.dirname(candidate.artifactPath)
+    if (fs.existsSync(artifactRoot)) {
+      const artifactStat = fs.lstatSync(artifactRoot)
+      if (artifactStat.isSymbolicLink() || !artifactStat.isDirectory()) throw new CandidateError('拒绝清理非普通候选工件目录')
+    }
+    verificationRoot = path.join(artifactRoot, 'verification')
+    candidateEvidence = path.join(verificationRoot, candidate.id)
+    if (fs.existsSync(verificationRoot)) {
+      const rootStat = fs.lstatSync(verificationRoot)
+      if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) throw new CandidateError('拒绝清理非普通验证证据目录')
+      if (fs.existsSync(candidateEvidence)) {
+        const evidenceStat = fs.lstatSync(candidateEvidence)
+        if (evidenceStat.isSymbolicLink() || !evidenceStat.isDirectory() || path.dirname(candidateEvidence) !== verificationRoot || path.basename(candidateEvidence) !== candidate.id) {
+          throw new CandidateError('拒绝清理身份不匹配的候选验证证据')
+        }
+      }
+    }
+  }
   removeWorktree(candidate.projectRoot, candidate.candidateRoot!)
+  if (candidateEvidence && fs.existsSync(candidateEvidence)) fs.rmSync(candidateEvidence, { recursive: true, force: false })
+  if (verificationRoot && fs.existsSync(verificationRoot) && !fs.readdirSync(verificationRoot).length) fs.rmdirSync(verificationRoot)
   if (candidate.artifactPath && fs.existsSync(candidate.artifactPath)) fs.unlinkSync(candidate.artifactPath)
   const emptyDirectory = (directory: string) => {
     if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory() || fs.readdirSync(directory).length) return

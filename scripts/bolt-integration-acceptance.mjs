@@ -137,7 +137,7 @@ try {
   const checks = []
   const evidence = []
   const assertions = new Map()
-  const recordAssertion = (id, detail) => assertions.set(id, { id, passed: true, detail })
+  const recordAssertion = (id, detail) => assertions.set(id, { id, result: 'pass', detail })
   const verificationStartedAt = new Date().toISOString()
   for (const viewport of viewports) {
     const context = await browser.newContext({ viewport, colorScheme: 'light' })
@@ -254,6 +254,7 @@ try {
     runtimeFingerprint: run.runtimeFingerprint,
     checks: run.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })),
     assertions: run.assertions,
+    evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath) })),
     artifacts: run.evidence.filter(item => item.artifactPath && item.artifactHash).map(item => ({ checkId: item.checkId, path: path.relative(artifactRoot, item.artifactPath), sha256: item.artifactHash })),
   }, null, 2))
   const attestedRun = attestBrowserExecution(run, executionRecordPath)
@@ -327,13 +328,13 @@ try {
   assert.deepEqual(sharedBrowserErrors, [], 'shared candidate must not emit page or console errors')
   await sharedContext.close()
   const sharedAssertions = [
-    { id: 'target-change', passed: true, detail: 'the footer source target changed to the requested shared value on all pages' },
-    { id: 'non-target-preserved', passed: true, detail: 'main content and all footer text other than the selected source match baseline' },
-    { id: 'scope-propagation', passed: true, detail: `all source-proven consumers changed: ${allPageRefs.join(', ')}` },
-    { id: 'interaction', passed: true, detail: 'navigation remained functional across home, autumn, products and story states' },
-    { id: 'responsive-layout', passed: true, detail: 'no horizontal overflow on all four shared-scope pages at 1440px' },
-    { id: 'source-mapping', passed: true, detail: 'runtime footer source marker matched the JSX definition and had a separate instance id' },
-    { id: 'browser-errors', passed: true, detail: 'shared candidate emitted no uncaught browser or console errors' },
+    { id: 'target-change', result: 'pass', detail: 'the footer source target changed to the requested shared value on all pages' },
+    { id: 'non-target-preserved', result: 'pass', detail: 'main content and all footer text other than the selected source match baseline' },
+    { id: 'scope-propagation', result: 'pass', detail: `all source-proven consumers changed: ${allPageRefs.join(', ')}` },
+    { id: 'interaction', result: 'pass', detail: 'navigation remained functional across home, autumn, products and story states' },
+    { id: 'responsive-layout', result: 'pass', detail: 'no horizontal overflow on all four shared-scope pages at 1440px' },
+    { id: 'source-mapping', result: 'pass', detail: 'runtime footer source marker matched the JSX definition and had a separate instance id' },
+    { id: 'browser-errors', result: 'pass', detail: 'shared candidate emitted no uncaught browser or console errors' },
   ]
   const sharedRun = {
     id: `${id}-shared-verification`, candidateId: sharedCandidate.id, baseSourceDigest: sharedCandidate.baseSourceDigest,
@@ -347,6 +348,7 @@ try {
     runtimeFingerprint: sharedRun.runtimeFingerprint,
     checks: sharedRun.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })),
     assertions: sharedRun.assertions,
+    evidence: sharedRun.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath) })),
     artifacts: sharedRun.evidence.map(item => ({ checkId: item.checkId, path: path.relative(artifactRoot, item.artifactPath), sha256: item.artifactHash })),
   }, null, 2))
   const attestedShared = attestBrowserExecution(sharedRun, sharedRecordPath)
