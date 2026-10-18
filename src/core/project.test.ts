@@ -174,7 +174,7 @@ describe('real project graph and candidate executor', () => {
     expect(sourceProvenPageImpact(graph, importedCssToken.id)).toMatchObject({
       pageRefs: [], certainty: 'unknown',
     })
-    expect(graph.edges.some(edge => edge.kind === 'uses-token' && edge.from === 'component:src/pages/HomePage.tsx')).toBe(false)
+    expect(graph.edges.some(edge => edge.kind === 'uses-token' && edge.to === importedCssToken.id && graph.nodes.find(node => node.id === edge.from)?.kind === 'file')).toBe(true)
     expect(sourceProvenPageImpact(graph, jsxToken.id)).toMatchObject({
       pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
     })
