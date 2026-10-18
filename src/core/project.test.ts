@@ -149,6 +149,30 @@ describe('real project graph and candidate executor', () => {
     expect(snapshot.revision.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
   })
 
+  it('proves imported CSS token impact only when the token is actually consumed', () => {
+    const { root } = sampleProject()
+    const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')
+    const aboutPath = path.join(root, 'src', 'pages', 'AutumnPage.tsx')
+    fs.mkdirSync(path.join(root, 'src', 'styles'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'styles', 'theme.css'), ':root { --unused-accent: #123; --brand-accent: #456; }')
+    fs.writeFileSync(path.join(root, 'src', 'styles', 'card.css'), '.home-card { color: var(--brand-accent); }')
+    fs.writeFileSync(homePath, `import '../styles/theme.css';\nimport '../styles/card.css';\n${fs.readFileSync(homePath, 'utf8')}`)
+    fs.writeFileSync(aboutPath, `import '../styles/theme.css';\n${fs.readFileSync(aboutPath, 'utf8')}`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add CSS token consumption fixture')
+
+    const graph = analyzeProject(root)
+    const unused = graph.nodes.find(node => node.kind === 'token' && node.label === '--unused-accent')!
+    const used = graph.nodes.find(node => node.kind === 'token' && node.label === '--brand-accent')!
+
+    expect(sourceProvenPageImpact(graph, unused.id)).toMatchObject({
+      pageRefs: [], certainty: 'unknown',
+    })
+    expect(sourceProvenPageImpact(graph, used.id)).toMatchObject({
+      pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
+    })
+  })
+
   it('adds runtime source references only to served JSX and keeps original project files untouched', async () => {
     const { root } = sampleProject()
     const file = path.join(root, 'src', 'pages', 'HomePage.tsx')
