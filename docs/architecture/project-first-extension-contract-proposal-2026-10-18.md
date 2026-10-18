@@ -56,6 +56,22 @@ Ripple 的 Project-first 核心对象定义在 `src/core/model.ts`，会话转�
 
 **冻结条件补充：** 上表标为“稳定”的语义可以由 B 映射使用；Adapter 名称、非 TEXT 的 operation value schema 及运行时实例授权仍待双方审查和同一组契约测试，不因本文进入 PR 就自动视为冻结。
 
+### A 侧 EditOperation 最小兼容建议（尚待 B 确认）
+
+B 在 PR #3 提出的 kind 判别联合方向可保留；兼容关键是区分“简单值替换”和“结构化资源操作”，而不是把所有 MEDIA / TOKEN 一律改成必须携带 payload。当前 `EditOperation` 的 `id`、`targetRef`、`before`、`after` 及可选 `overrideAction` 继续作为公共字段；简单字面量型 MEDIA / TOKEN 可维持现状，只有结构化操作携带按 `kind` 收窄的 payload：
+
+```ts
+type EditOperation = EditOperationBase & (
+  | { kind: 'TEXT' | 'CODE'; payload?: never }
+  | { kind: 'MEDIA'; payload?: MediaOperationPayload }
+  | { kind: 'TOKEN'; payload?: TokenOperationPayload }
+)
+```
+
+`payload` 缺省只表示既有的简单 `before/after` 操作；若操作意图需要资产字节、焦点裁切或 Token 定义等结构化字段，则由对应的 payload 子类型表达完整输入。执行器对缺字段、未知 payload 版本或当前不支持的结构化操作必须拒绝，不能忽略 payload 后退回字符串替换。`TEXT` / `CODE` 在类型层面禁止带 payload。
+
+最小接入点是：`session.ts` 保留既有 `before/after` 不变量并验证 kind/payload 组合；`candidate.ts` 只执行其明确支持的变体，将结构化资源实际字节纳入同一候选树、patchHash 和应用/回滚；`verification-runner.ts` 只对执行器实际产生的候选与运行结果生成 Evidence，不从 payload 描述推定验证通过。当前候选执行器仍只证明了 TEXT；本建议不是宣称 MEDIA/TOKEN 已可执行。B 对该兼容形状及各自 payload 必需条件的回复、共享序列化/拒绝测试通过之前，类型仍保持未冻结，`OverrideRegistry` v2 也不迁移。
+
 ## 建议的窄适配接口
 
 下面是供讨论的形状，不是要求一次性实现新的抽象层。现有 `analyzeProject`、`createCandidate` 和 `runCandidateVerification` 可逐步满足这些职责，无需为了接口形式增加空包装。
@@ -115,3 +131,4 @@ interface VerificationExecutor {
 5. 若 B 的媒体处理已具备 focal point / responsive variants 能力，请先提交现有领域对象、许可与依赖信息供契约评审；本提案不要求本轮复制实现。
 
 **冻结条件：** B 书面确认职责和字段，A/B 以同一组契约测试验证序列化、Scope 拒绝、patch/evidence 一致性和页面覆盖维护，再决定是否冻结版本。此提案不宣称已完成 Bolt 专项、Windows/WSL2 实测或任意 React/Vite 适配。
+

@@ -335,6 +335,49 @@ test('records trusted four-viewport evidence while unsupported assertions stay u
   candidateId = ''
 })
 
+test('offers source-proven shared and single-page Scope suggestions as a plan before browser verification', async ({ page }) => {
+  test.setTimeout(120_000)
+  const project = createApprovalProject()
+  await page.goto('/')
+  await page.getByTestId('project-path').fill(project)
+  await page.getByTestId('analyze-project').click()
+  const targetSelect = page.getByTestId('target-select')
+  const targetId = await targetSelect.locator('option').filter({ hasText: 'Shared navigation brand' }).getAttribute('value')
+  expect(targetId).toBeTruthy()
+  await targetSelect.selectOption(targetId!)
+  await page.getByTestId('intent-input').fill('Change only the Home navigation label and keep the shared value for Autumn.')
+  await page.getByTestId('after-input').fill('Home-only brand')
+  await page.getByTestId('add-operation').click()
+
+  const scopePlan = page.getByTestId('scope-effect-preview')
+  await page.getByTestId('scope-preset-shared').click()
+  await expect(page.getByTestId('scope-page:home')).toHaveValue('include')
+  await expect(page.getByTestId('scope-page:autumn')).toHaveValue('include')
+  await expect(page.getByRole('radio', { name: /修改共享来源/ })).toBeChecked()
+  await expect(scopePlan).toContainText('计划预览 · 不是浏览器 Evidence')
+  for (const row of await scopePlan.locator('.scope-effect-row').all()) await expect(row).toContainText('将修改')
+
+  await page.getByTestId('scope-preset-page').click()
+  await expect(page.getByTestId('scope-page:home')).toHaveValue('include')
+  await expect(page.getByTestId('scope-page:autumn')).toHaveValue('exclude')
+  await expect(page.getByLabel('选择局部覆盖页面')).toHaveValue('page:home')
+  const homePlan = scopePlan.locator('.scope-effect-row').filter({ hasText: 'page:home' })
+  const autumnPlan = scopePlan.locator('.scope-effect-row').filter({ hasText: 'page:autumn' })
+  await expect(homePlan).toContainText('将修改')
+  await expect(homePlan).toContainText('Home-only brand')
+  await expect(autumnPlan).toContainText('保持当前值')
+  await expect(autumnPlan).not.toContainText('Home-only brand')
+
+  await page.getByTestId('create-real-candidate').click()
+  await expect(page.getByTestId('candidate-id')).toBeVisible({ timeout: 30_000 })
+  candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
+  await expect(page.getByTestId('candidate-diff')).toContainText('Home-only brand')
+  await expect(page.getByTestId('verification-state')).toContainText('NOT RUN')
+  await page.getByTestId('discard-candidate').click()
+  await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
+  candidateId = ''
+})
+
 test('approves, applies, rolls back and restores a contract-verified shared TEXT page override through the workbench UI', async ({ page }) => {
   test.setTimeout(360_000)
   if (!dockerAvailable) {
