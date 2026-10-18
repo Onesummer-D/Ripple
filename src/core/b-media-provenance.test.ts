@@ -18,7 +18,7 @@ const git = (root: string, ...args: string[]) => execFileSync('git', ['-C', root
 
 afterEach(() => { for (const root of temporaryRoots.splice(0)) { try { fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }) } catch { /* Windows file-handle lag; directory is under node_modules/.tmp */ } } })
 
-const write = (root: string, relative: string, content: string) => {
+const write = (root: string, relative: string, content: string | Buffer) => {
   const absolute = path.join(root, relative)
   fs.mkdirSync(path.dirname(absolute), { recursive: true })
   fs.writeFileSync(absolute, content)
@@ -32,7 +32,7 @@ function scaffold(root: string) {
   write(root, 'src/App.tsx', `import { useState } from 'react';\nimport { HomePage } from './pages/HomePage';\nimport { ListPage } from './pages/ListPage';\nexport function App() { const [currentPage, setCurrentPage] = useState('home'); return <><button aria-label="Home route" onClick={() => setCurrentPage('home')} /><button aria-label="List route" onClick={() => setCurrentPage('list')} />{currentPage === 'home' && <HomePage />}{currentPage === 'list' && <ListPage />}</>; }`)
 }
 
-const commit = (root: string) => { git(root, 'add', '-A'); git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-m', 'fixture') }
+const commit = (root: string) => { git(root, 'init', '-q'); git(root, 'add', '-A'); git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'fixture') }
 
 const assetEdges = (graph: SourceGraph, fromPrefix: string) =>
   graph.edges.filter(edge => edge.kind === 'asset-consumer' && edge.from.startsWith(fromPrefix))
@@ -125,7 +125,8 @@ describe('media provenance upgrade', () => {
     const graph = analyzeProject(root)
     const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
     const edges = assetEdges(graph, cardId)
-    // No drilling possible through a spread → only the coarse name-based candidates remain.
-    expect(edges.every(edge => edge.certainty === 'semantic-candidate')).toBe(true)
+    // No drilling possible through a spread, and the coarse name-based fallback is
+    // suppressed for prop-sourced accesses: honestly unproven means no fabricated edges.
+    expect(edges.length).toBe(0)
   })
 })
