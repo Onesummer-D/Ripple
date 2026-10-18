@@ -95,10 +95,13 @@ export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): P
 
   const incoming = new Map<string, Relation[]>()
   for (const edge of graph.edges) {
-    // A file's declaration edge records where a value was defined, not which
-    // imported modules actually read it. Concrete TEXT reads and TOKEN uses
-    // are represented by component/stylesheet consumer edges below.
-    if (edge.kind === 'reads' && (target.kind === 'data' || target.kind === 'token') && nodes.get(edge.from)?.kind === 'file') continue
+    // File-level definitions and CSS var() declarations do not prove that a
+    // rendered page consumes the value. Component reads/uses and explicit
+    // css-cascade relations provide page-level evidence; imports only trace
+    // dependencies after that evidence exists.
+    if ((edge.kind === 'reads' || edge.kind === 'uses-token') &&
+      (target.kind === 'data' || target.kind === 'token') &&
+      nodes.get(edge.from)?.kind === 'file') continue
     if (!traversableRelations.has(edge.kind) && !(target.kind !== 'media' && fileDependencyRelations.has(edge.kind))) continue
     if (!incoming.has(edge.to)) incoming.set(edge.to, [])
     incoming.get(edge.to)!.push(edge)
