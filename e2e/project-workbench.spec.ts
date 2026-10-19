@@ -96,7 +96,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await expect(homeMarkerSuggestions.locator('option').filter({ hasText: 'Baseline title' })).toHaveCount(1)
   await expect(autumnMarkerSuggestions.locator('option').filter({ hasText: 'Autumn baseline' })).toHaveCount(1)
   await expect(homeMarkerSuggestions.locator('option').filter({ hasText: 'Shared navigation brand' })).toHaveCount(0)
-  await expect(page.getByText(/不是浏览器证据/)).toBeVisible()
+  await expect(page.locator('.verification-marker-suggestion small').first()).toContainText('不是浏览器证据')
   await expect(page.getByTestId('preview-resource-draft')).toHaveValue('')
   const resourcePolicy = page.getByTestId('preview-resource-policy')
   await expect(resourcePolicy.getByText('https://assets.example.test/preview-check.gif')).toBeVisible()
