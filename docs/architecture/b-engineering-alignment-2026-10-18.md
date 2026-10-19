@@ -308,7 +308,7 @@ interface AdapterCapabilities {
 
 | 等级 | 风险 | 证据 | 建议 |
 |---|---|---|---|
-| 高 | `candidate.ts` 的页面覆盖路径与共享路径耦合在同一函数族，扩展 MEDIA/TOKEN 时容易堆特判 | `candidate.ts:76-90` 的 kind/strategy 判断矩阵已呈扇形 | 契约冻结 PR 中将其拆为 per-kind 执行器注册表，core 只做 Scope 校验与调度 |
+| 高 | `candidate.ts` 的页面覆盖路径与共享路径耦合在同一函数族，扩展 MEDIA/TOKEN 时容易堆特判 | `candidate.ts:76-90` 的 kind/strategy 判断矩阵已呈扇形 | MEDIA/TOKEN 执行器仅在实际实现证明当前函数族难以维护时再按职责拆分；这不是 v1 的前置工作，也不预设新增注册表或 Scope 生命周期 |
 | 高 | 验证断言以 markerText 包含匹配为通过条件，MEDIA/TOKEN 需要结构化观测 | `session.ts:143-150` | 断言判据按 kind 分派（文本包含 / 几何阈值 / computed style），保留同一 VerificationRun 外壳 |
 | 中 | `routeStateMapping`/`appRouteExpression` 依赖 `state === 'label'` 唯一字面量，对 TanStack Start 等路由范式不成立 | `candidate.ts:153-169` | P2 前不宣称通用；能力矩阵如实标 unknown |
 | 中 | `verification-runner.ts` 的 Docker 执行在 Windows 本机不可用（B 实测环境无 Docker/WSL2 就绪） | 任务书 §八允许区分环境 | B 首轮回退到受限本机执行 + 证据标注环境；不谎称 Docker 验证 |
