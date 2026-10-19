@@ -136,7 +136,7 @@ function typescriptAliases() {
     const targetSuffix = target.slice(targetIndex + 1)
     aliases.push({
       find: new RegExp(`^${prefix}(.*)${suffix}$`),
-      replacement: `${path.resolve(parsed.options.baseUrl ?? '/work', targetPrefix)}$1${targetSuffix}`,
+      replacement: `${path.resolve(parsed.options.baseUrl ?? '/work', targetPrefix)}${path.sep}$1${targetSuffix}`,
     })
   }
   return aliases
