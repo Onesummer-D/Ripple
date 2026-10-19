@@ -13,6 +13,8 @@
 - 不在本次验收内：MEDIA 字节暂存、字节哈希与 CandidatePatch/Evidence 的端到端完整性、焦点裁切/variants 的运行效果及 MEDIA 专属 Evidence。它们须随对应执行器实装后单独验收。接口冻结不表示这些能力已可用。
 - A/B 已确认五项设计决策；A 依据下方现有自动化测试范围冻结最小契约。B 可基于该版本开始 MEDIA `asset-swap`，无需再次讨论整体架构。
 
+**冻结后回归确认（2026-10-19）**：PR #2 当前 head `c5276ee9cd5555af92c6d93ce5ec3675aa4dfae9` 的 Linux/Docker Actions [#176](https://github.com/Onesummer-D/Ripple/actions/runs/39207476000) 再次通过冻结接口相关的完整回归：类型检查、27/27 测试文件、131/131 单测、构建；Playwright 9 passed / 1 skipped / 0 failed，唯一跳过仍是私有真实 Bolt 专项。它确认当前 PR #2 对 v1 最小接口的兼容性，不移动冻结基线 `f2aeadf4b21d8936df593f14261728a8a05e65d8`，也不扩大验收范围；MEDIA/TOKEN 未实现边界仍按上文执行。
+
 **修订记录（2026-10-18 晚，按负责人评审意见）**：
 
 1. §1 撤回"PR #2 无 CI 运行记录"结论——Actions 对 `91b0b83` 有成功运行，`gh pr checks` 为空系命令报告限制。
