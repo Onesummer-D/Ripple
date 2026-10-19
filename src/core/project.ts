@@ -97,7 +97,16 @@ const hasJsx = (node: ts.Node): boolean => {
 }
 const nodeId = (file: string, kind: string, offset: number) => `${kind}:${file}#${offset}`
 const relativeTo = (root: string, absolute: string) => path.relative(root, absolute).replaceAll('\\', '/')
-const jsxTagName = (node: ts.JsxOpeningLikeElement) => ts.isIdentifier(node.tagName) ? node.tagName.text : undefined
+const jsxTagName = (node: ts.JsxOpeningLikeElement): { name: string; namespace?: string } | undefined => {
+  if (ts.isIdentifier(node.tagName)) return { name: node.tagName.text }
+  // `<Cards.ProductCard />` — a namespace-qualified tag is only resolvable when the
+  // qualifier is a namespace import (`import * as Cards`). Returning the qualifier
+  // keeps the usage visible instead of silently dropping the consumer (P1-1).
+  if (ts.isPropertyAccessExpression(node.tagName) && ts.isIdentifier(node.tagName.expression)) {
+    return { name: node.tagName.name.text, namespace: node.tagName.expression.text }
+  }
+  return undefined
+}
 const propertyName = (property: ts.ObjectLiteralElementLike) => property.name && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name) || ts.isNumericLiteral(property.name)) ? property.name.text : undefined
 const stringValue = (node: ts.Node | undefined): ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | undefined => {
   if (!node) return undefined
@@ -106,6 +115,133 @@ const stringValue = (node: ts.Node | undefined): ts.StringLiteral | ts.NoSubstit
   return undefined
 }
 const imageLike = (value: string) => /(?:\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$|^https?:\/\/[^\s]+(?:images|photos|pexels)[^\s]*|^data:image\/)/i.test(value)
+const assetFileLike = (file: string) => /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(file)
+
+type DrilledProperty = { kind: 'value'; text: string } | { kind: 'asset'; assetFile: string }
+
+const IMAGE_PROPERTY = /^(src|srcSet|image|cover|poster|thumbnail|heroImage|avatar)$/i
+
+/** Values of `property` across object literals in an array literal (bounded, syntactic only).
+ *  Identifier initializers are resolved through `resolveAsset` (imported-image bindings).
+ *  Conservative by design: literals containing a spread, or a duplicated property key, are
+ *  skipped — their runtime value cannot be proven from syntax alone. */
+/** Drilled value of ONE object literal element for `property`, with the same soundness
+ *  rules as the array-wide scan: spread / duplicated key / non-literal → undefined. */
+function objectLiteralPropertyValue(element: ts.ObjectLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty | undefined {
+  if (element.properties.some(ts.isSpreadAssignment)) return undefined
+  const byName = new Map<string, ts.PropertyAssignment[]>()
+  for (const entry of element.properties) {
+    if (!ts.isPropertyAssignment(entry)) continue
+    const name = propertyName(entry)
+    if (!name) continue
+    if (!byName.has(name)) byName.set(name, [])
+    byName.get(name)!.push(entry)
+  }
+  const entries = byName.get(property)
+  // Duplicated key: runtime keeps the last value but provenance of which is "live" is
+  // not ours to guess — skip rather than emit a possibly-dead edge.
+  if (!entries || entries.length !== 1) return undefined
+  const initializer = entries[0].initializer
+  const literal = stringValue(initializer)
+  if (literal) return { kind: 'value', text: literal.text }
+  if (initializer && ts.isIdentifier(initializer)) {
+    const assetFile = resolveAsset(initializer.text, element.getSourceFile())
+    if (assetFile) return { kind: 'asset', assetFile }
+  }
+  return undefined
+}
+
+function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
+  const values: DrilledProperty[] = []
+  for (const element of array.elements) {
+    if (!ts.isObjectLiteralExpression(element)) continue
+    const value = objectLiteralPropertyValue(element, property, resolveAsset)
+    if (value) values.push(value)
+  }
+  return values
+}
+
+/**
+ * Bounded backward drill from a JSX attribute / callback expression to the string
+ * literal values (or imported asset files) of `property`, through identifiers bound
+ * to array literals, callback parameters of `.map` / `.filter` / `.slice`, and chained
+ * calls of those methods. Anything outside this shape yields [] — the caller keeps the
+ * honest lower-certainty result instead of guessing.
+ * Soundness rules: only `const` declarations are drilled (a reassigned `let` makes the
+ * initializer value non-provable); a conditional must have BOTH arms drillable.
+ */
+function arrayDrill(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
+  if (visited.has(expression)) return []
+  visited.add(expression)
+  if (ts.isIdentifier(expression) || ts.isPropertyAccessExpression(expression)) {
+    const symbol = checker.getSymbolAtLocation(ts.isIdentifier(expression) ? expression : expression.name)
+    // Export aliases (`export const products`) carry no valueDeclaration on the alias symbol.
+    const declaration = symbol?.valueDeclaration
+      ?? ((symbol?.flags ?? 0) & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol!).valueDeclaration : undefined)
+      ?? symbol?.declarations?.find(ts.isVariableDeclaration)
+    if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
+      // A non-const declaration may be reassigned after initialization; the initializer's
+      // literals are then not the runtime values. Fail closed. (`const` lives on the
+      // VariableDeclarationList, so check both levels defensively.)
+      const constFlag = (declaration.flags | (ts.isVariableDeclarationList(declaration.parent) ? declaration.parent.flags : 0)) & ts.NodeFlags.Const
+      if (!constFlag) return []
+      let initializer: ts.Expression = declaration.initializer
+      if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
+      if (ts.isParenthesizedExpression(initializer)) return arrayDrill(initializer.expression, property, checker, visited, resolveAsset)
+      if (ts.isConditionalExpression(initializer)) {
+        // Only when BOTH arms drill do we know the property value regardless of runtime branch.
+        const whenTrue = arrayDrill(initializer.whenTrue, property, checker, visited, resolveAsset)
+        const whenFalse = arrayDrill(initializer.whenFalse, property, checker, visited, resolveAsset)
+        if (!whenTrue.length || !whenFalse.length) return []
+        return [...whenTrue, ...whenFalse]
+      }
+      if (ts.isArrayLiteralExpression(initializer)) return objectLiteralPropertyValues(initializer, property, resolveAsset)
+      // `const featured = products.filter(...).slice(0, 3)` — drill through call chains too.
+      if (ts.isCallExpression(initializer)) return arrayDrill(initializer, property, checker, visited, resolveAsset)
+      return []
+    }
+    if (declaration && ts.isParameter(declaration)) {
+      let fn: ts.Node | undefined = declaration.parent
+      while (fn && !(ts.isArrowFunction(fn) || ts.isFunctionExpression(fn))) fn = fn.parent
+      let call: ts.Node | undefined = fn?.parent
+      while (call && !ts.isCallExpression(call)) call = call.parent
+      if (call && ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression) &&
+        ['map', 'filter', 'slice'].includes(call.expression.name.text) && call.expression.expression) {
+        return arrayDrill(call.expression.expression, property, checker, visited, resolveAsset)
+      }
+    }
+    return []
+  }
+  if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
+    const method = expression.expression.name.text
+    if (method === 'map' || method === 'filter' || method === 'slice') {
+      return arrayDrill(expression.expression.expression, property, checker, visited, resolveAsset)
+    }
+    return []
+  }
+  return []
+}
+
+/** Exact `array[n]` resolution, sound only when the base identifier is a `const` array
+ *  literal (same const-only guard as arrayDrill; index alignment comes from reading
+ *  element n directly, so skipped elements cannot shift positions). Returns undefined
+ *  whenever the element cannot be proven — the caller then stays unproven. */
+function arrayLiteralPropertyValueAt(expression: ts.Identifier, index: number, property: string, checker: ts.TypeChecker, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty | undefined {
+  const symbol = checker.getSymbolAtLocation(expression)
+  const declaration = symbol?.valueDeclaration
+    ?? ((symbol?.flags ?? 0) & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol!).valueDeclaration : undefined)
+    ?? symbol?.declarations?.find(ts.isVariableDeclaration)
+  if (!declaration || !ts.isVariableDeclaration(declaration) || !declaration.initializer) return undefined
+  const constFlag = (declaration.flags | (ts.isVariableDeclarationList(declaration.parent) ? declaration.parent.flags : 0)) & ts.NodeFlags.Const
+  if (!constFlag) return undefined
+  let initializer: ts.Expression = declaration.initializer
+  if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
+  if (ts.isParenthesizedExpression(initializer)) initializer = initializer.expression
+  if (!ts.isArrayLiteralExpression(initializer)) return undefined
+  const element = initializer.elements[index]
+  if (!element || !ts.isObjectLiteralExpression(element)) return undefined
+  return objectLiteralPropertyValue(element, property, resolveAsset)
+}
 
 function componentInfos(root: string, sources: Map<string, ts.SourceFile>): ComponentInfo[] {
   const result: ComponentInfo[] = []
@@ -117,7 +253,10 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
     const visit = (node: ts.Node) => {
       if (ts.isFunctionDeclaration(node) && node.name) add(node.name.text, node)
       if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer &&
-        (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) add(node.name.text, node)
+          (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer) ||
+           // `const ScrollBar = React.forwardRef<Props, Ref>(...)` — shadcn/ui's dominant
+           // component shape; the JSX lives in the forwardRef callback.
+           (ts.isCallExpression(node.initializer) && ts.isPropertyAccessExpression(node.initializer.expression) && node.initializer.expression.name.text === 'forwardRef'))) add(node.name.text, node)
       node.forEachChild(visit)
     }
     visit(source)
@@ -125,10 +264,17 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
   return result
 }
 
-function declarationComponentName(tag: string | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>): ComponentInfo | undefined {
+function declarationComponentName(tag: { name: string; namespace?: string } | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>, currentFile: string): ComponentInfo | undefined {
   if (!tag) return undefined
-  const target = localImports.get(tag)
-  return target ? byExport.get(`${target.file}#${target.exportName}`) : undefined
+  if (tag.namespace) {
+    const target = localImports.get(tag.namespace)
+    return target?.exportName === '*' ? byExport.get(`${target.file}#${tag.name}`) : undefined
+  }
+  const target = localImports.get(tag.name)
+  if (target) return byExport.get(`${target.file}#${target.exportName}`)
+  // Same-file composition (`<ScrollBar />` used in the file that defines it) has no
+  // import to route through — fall back to a same-file component lookup.
+  return byExport.get(`${currentFile}#${tag.name}`)
 }
 
 export function analyzeProject(input: string, requireClean = true): SourceGraph {
@@ -209,6 +355,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const tokenNodes = new Map<string, SourceNode[]>()
   const mediaNodes = new Map<string, SourceNode[]>()
   const mediaBySource = new Map<string, SourceNode>()
+  const mediaByValue = new Map<string, SourceNode[]>()
+  const assetMediaId = (assetFile: string) => `media:${assetFile}#asset`
   const addIndexedValue = (node: SourceNode, index: Map<string, SourceNode[]>, key: string) => {
     addNode(node)
     if (!index.has(key)) index.set(key, [])
@@ -224,6 +372,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const media: SourceNode = { id: nodeId(file, 'media', start), kind: 'media', label: property, value: literal.text, location: { path: file, start, end } }
       addIndexedValue(media, mediaNodes, property)
       mediaBySource.set(`${file}#${start}`, media)
+      if (!mediaByValue.has(literal.text)) mediaByValue.set(literal.text, [])
+      mediaByValue.get(literal.text)!.push(media)
     }
     const scanValues = (node: ts.Node) => {
       if (ts.isPropertyAssignment(node)) {
@@ -293,16 +443,44 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     findState(appComponent.node)
   }
 
+  // Imported image assets (e.g. `import hero from './assets/hero.jpg'`): one media node per
+  // asset file, plus per-file binding names for identifier provenance. Asset-backed media has
+  // no source offsets — editing it is an asset-swap candidate, not a literal replacement.
+  const assetImportBindings = new Map<string, Map<string, string>>()
+  const componentUsages: Array<{ targetId: string; element: ts.JsxOpeningLikeElement; source: ts.SourceFile; file: string }> = []
+  const pendingDrills: Array<{ ownerId: string; paramName: string; property: string; position: number; file: string }> = []
   for (const [absolute, source] of sourceFiles) {
     const relative = relativeTo(snapshot.root, absolute)
     const imports = new Map<string, ImportTarget>()
     const importedModules = new Map<string, string>()
+    // Names bound by ANY import declaration in this file, including external/untracked
+    // modules. Used to distinguish "imported external component" from "locally aliased or
+    // undeclared tag" when deciding whether an unresolvable JSX tag must be recorded.
+    const importedNames = new Set<string>()
     for (const statement of source.statements) {
       if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+      const importClause = statement.importClause
+      if (importClause?.name) importedNames.add(importClause.name.text)
+      if (importClause?.namedBindings && ts.isNamedImports(importClause.namedBindings)) {
+        for (const item of importClause.namedBindings.elements) importedNames.add(item.name.text)
+      }
+      if (importClause?.namedBindings && ts.isNamespaceImport(importClause.namedBindings)) importedNames.add(importClause.namedBindings.name.text)
       const specifier = statement.moduleSpecifier.text
       const scriptResolved = ts.resolveModuleName(specifier, absolute, compilerOptions, ts.sys).resolvedModule?.resolvedFileName
       const cssResolved = /\.css$/i.test(specifier) ? path.resolve(path.dirname(absolute), specifier) : undefined
+      // Alias resolution for asset specifiers the type checker refuses to resolve (e.g.
+      // `.jpg` imports): honor a declared `@/*` paths mapping when present, else the Vite
+      // convention `@/ → <root>/src` (evidence: Lovable TanStack Start declares paths
+      // `@/* → ./src/*` yet ts.resolveModuleName still fails on image files).
+      const declaredPaths = compilerOptions.paths ? Object.entries(compilerOptions.paths) : []
+      const aliasMapping = declaredPaths.find(([pattern]) => pattern === '@/*')
+      const aliasResolved = specifier.startsWith('@/')
+        ? aliasMapping
+          ? path.resolve(snapshot.root, aliasMapping[1][0].replace(/\*$/, ''), specifier.slice(2))
+          : path.resolve(snapshot.root, 'src', specifier.slice(2))
+        : undefined
       const resolved = scriptResolved ?? (cssResolved && tracked.has(normalize(cssResolved)) ? cssResolved : undefined)
+        ?? (aliasResolved && tracked.has(normalize(aliasResolved)) ? aliasResolved : undefined)
       if (!resolved || !tracked.has(normalize(resolved))) {
         if ((specifier.startsWith('.') || specifier.startsWith('@/')) && !/\.css$/i.test(specifier)) unresolved.push(`${relative} → ${specifier}`)
         continue
@@ -314,7 +492,24 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
         for (const item of clause.namedBindings.elements) imports.set(item.name.text, { file: targetFile, exportName: item.propertyName?.text ?? item.name.text })
       }
+      if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+        // `import * as Cards` — exportName '*' marks a namespace target so
+        // `<Cards.ProductCard />` tags resolve in declarationComponentName.
+        imports.set(clause.namedBindings.name.text, { file: targetFile, exportName: '*' })
+      }
       addEdge(`file:${relative}`, `file:${targetFile}`, 'imports', `import:${relative}:${statement.getStart()}`)
+      if (assetFileLike(targetFile)) {
+        const id = assetMediaId(targetFile)
+        if (!nodeById.has(id)) {
+          addNode({ id, kind: 'media', label: path.basename(targetFile), value: targetFile, location: { path: targetFile } })
+          mediaByValue.set(targetFile, [nodeById.get(id)!])
+        }
+        if (!assetImportBindings.has(relative)) assetImportBindings.set(relative, new Map())
+        if (clause?.name) assetImportBindings.get(relative)!.set(clause.name.text, targetFile)
+        if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+          for (const item of clause.namedBindings.elements) assetImportBindings.get(relative)!.set(item.name.text, targetFile)
+        }
+      }
     }
     const owner = components.filter(component => component.file === relative)
     const visit = (node: ts.Node) => {
@@ -342,8 +537,38 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         if (literal && imageLike(literal.text)) {
           const sourcePath = relativeTo(snapshot.root, declaration!.getSourceFile().fileName)
           const media = mediaBySource.get(`${sourcePath}#${literal.getStart(declaration!.getSourceFile()) + 1}`)
-          if (media) {
+          // Same uniqueness rule as the drilling post-pass: upgrading requires that the value
+          // identifies exactly one media node; otherwise the edge stays a semantic candidate.
+          const unique = (mediaByValue.get(literal.text) ?? []).length === 1
+          if (media && unique) {
             addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset:${ownerComponent.id}:${media.id}:${node.getStart(source)}`)
+            linked = true
+          }
+        }
+        // Provenance 1: property bound to an imported image asset (e.g. `image: item1`
+        // where `import item1 from '@/assets/item-1.jpg'`). Statically verifiable.
+        if (!linked && declaration && ts.isPropertyAssignment(declaration) && declaration.initializer && ts.isIdentifier(declaration.initializer)) {
+          const declarationFile = relativeTo(snapshot.root, declaration.getSourceFile().fileName)
+          const assetFile = assetImportBindings.get(declarationFile)?.get(declaration.initializer.text)
+          if (assetFile && nodeById.has(assetMediaId(assetFile))) {
+            addEdge(ownerComponent.id, assetMediaId(assetFile), 'asset-consumer', `asset:${ownerComponent.id}:${assetMediaId(assetFile)}:${node.getStart(source)}`)
+            linked = true
+          }
+        }
+        // Provenance 2: prop drilling — `product.image` inside a card component whose
+        // `product` prop is fed at usage sites by expressions traceable to array literals
+        // (identifier → array literal; `.map`/`.filter`/`.slice` chains). Only exact
+        // single matches upgrade to source-proven; ambiguity stays semantic-candidate.
+        // Resolved in a post-pass: usage sites in other files may not be visited yet.
+        if (!linked) {
+          const objectSymbol = checker.getSymbolAtLocation(node.expression)
+          const objectDeclaration = objectSymbol?.valueDeclaration
+          const paramName = objectDeclaration && (ts.isParameter(objectDeclaration) || ts.isBindingElement(objectDeclaration)) && ts.isIdentifier(objectDeclaration.name)
+            ? objectDeclaration.name.text : undefined
+          // Only image-bearing props can carry media provenance; queueing every prop access
+          // would cost a usage scan per access and strip unrelated name-based candidates.
+          if (paramName && IMAGE_PROPERTY.test(node.name.text)) {
+            pendingDrills.push({ ownerId: ownerComponent.id, paramName, property: node.name.text, position: node.getStart(source), file: relative })
             linked = true
           }
         }
@@ -358,6 +583,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         if (literal && imageLike(literal.text)) {
           const media = mediaNodes.get('src')?.find(candidate => candidate.location?.path === relative && candidate.location.start === literal.getStart(source) + 1)
           if (media) addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset:${ownerComponent.id}:${media.id}:${node.getStart(source)}`)
+        } else if (node.initializer && ts.isJsxExpression(node.initializer) && node.initializer.expression && ts.isIdentifier(node.initializer.expression)) {
+          const assetFile = assetImportBindings.get(relative)?.get(node.initializer.expression.text)
+          if (assetFile && nodeById.has(assetMediaId(assetFile))) {
+            addEdge(ownerComponent.id, assetMediaId(assetFile), 'asset-consumer', `asset:${ownerComponent.id}:${assetMediaId(assetFile)}:${node.getStart(source)}`)
+          }
         }
       }
       if (ownerComponent && ts.isJsxAttribute(node) && node.name.getText(source) === 'className') {
@@ -383,17 +613,28 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const tag = jsxTagName(node)
-        if (tag && /^[a-z]/.test(tag)) {
+        if (tag && /^[a-z]/.test(tag.name)) {
           const start = node.getStart(source)
           const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
-          addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
+          addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag.name}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
         }
-        const target = declarationComponentName(tag, imports, byExport)
+        const target = declarationComponentName(tag, imports, byExport, relative)
         if (target && ownerComponent) {
           if (!componentRenders.has(ownerComponent.id)) componentRenders.set(ownerComponent.id, new Set())
           componentRenders.get(ownerComponent.id)!.add(target.id)
           addEdge(ownerComponent.id, target.id, 'renders', `render:${ownerComponent.id}:${node.getStart(source)}`)
+          componentUsages.push({ targetId: target.id, element: node, source, file: relative })
           if (appComponent?.id === ownerComponent.id) appDirect.add(target.id)
+        }
+        // A capitalized tag that resolves to no component and is not imported at all
+        // (local alias `const Card2 = ProductCard`, default-export object carriers, or an
+        // undeclared global) is an unknown consumer path: record it so it cannot vanish
+        // silently from impact analysis. Imported-but-external components are excluded
+        // (their import binding is present in importedNames) — they carry no local
+        // drilled props by construction.
+        if (tag && !target && /^[A-Z]/.test(tag.name)) {
+          const boundName = tag.namespace ?? tag.name
+          if (!importedNames.has(boundName)) unresolved.push(`${relative} → unresolvable-component:${tag.namespace ? `${tag.namespace}.` : ''}${tag.name}`)
         }
       }
       if (relative === appComponent?.file && ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken &&
@@ -402,7 +643,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         const targets = new Set<string>()
         const collectTags = (child: ts.Node) => {
           if (ts.isJsxOpeningElement(child) || ts.isJsxSelfClosingElement(child)) {
-            const target = declarationComponentName(jsxTagName(child), imports, byExport)
+            const target = declarationComponentName(jsxTagName(child), imports, byExport, relative)
             if (target) targets.add(target.id)
           }
           child.forEachChild(collectTags)
@@ -420,6 +661,118 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     visit(source)
     void importedModules
   }
+
+  // Post-pass: prop-drilling provenance needs usage sites from every file collected first.
+  {
+    const resolveAsset = (name: string, sourceFile: ts.SourceFile) => assetImportBindings.get(relativeTo(snapshot.root, sourceFile.fileName))?.get(name)
+    const mediaNodeFor = (item: DrilledProperty): SourceNode | undefined => {
+      if (item.kind === 'asset') return nodeById.get(assetMediaId(item.assetFile))
+      const matches = mediaByValue.get(item.text) ?? []
+      return matches.length === 1 ? matches[0] : undefined
+    }
+    const candidateNodesFor = (item: DrilledProperty): SourceNode[] => {
+      if (item.kind === 'asset') {
+        const node = nodeById.get(assetMediaId(item.assetFile))
+        return node ? [node] : []
+      }
+      return mediaByValue.get(item.text) ?? []
+    }
+    for (const drill of pendingDrills) {
+      const drilled = new Map<string, DrilledProperty>()
+      // Unproven usage sites must NOT vanish from the graph: an invisibly-rendered media
+      // would let a page impact closure be overestimated. Where the array is syntactically
+      // reachable (spread of a map param, element access) we name candidate media and both
+      // emit semantic-candidate edges and poison each candidate's file via `unresolved`, so
+      // sourceProvenPageImpact fails closed whenever that file is in the proven subgraph.
+      const candidatesFromUnproven = new Map<string, DrilledProperty>()
+      const unprovenUsageFiles = new Set<string>()
+      let sawUsage = false
+      for (const usage of componentUsages) {
+        if (usage.targetId !== drill.ownerId) continue
+        const attribute = usage.element.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === drill.paramName)
+        const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
+        const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
+        if (expression && ts.isElementAccessExpression(expression)) {
+          // `items[index]`: the member IS passed, but which one is usually unknowable at
+          // analysis time. A numeric literal index into a const array literal is the
+          // exception — element n is read directly and stays source-proven.
+          sawUsage = true
+          const numeric = expression.argumentExpression && ts.isNumericLiteral(expression.argumentExpression) ? Number(expression.argumentExpression.text) : undefined
+          if (numeric !== undefined && Number.isInteger(numeric) && numeric >= 0 && ts.isIdentifier(expression.expression)) {
+            const exact = arrayLiteralPropertyValueAt(expression.expression, numeric, drill.property, checker, resolveAsset)
+            if (exact) {
+              drilled.set(JSON.stringify(exact), exact)
+              continue
+            }
+          }
+          unprovenUsageFiles.add(usage.file)
+          for (const item of arrayDrill(expression.expression, drill.property, checker, new Set(), resolveAsset)) candidatesFromUnproven.set(JSON.stringify(item), item)
+          continue
+        }
+        if (expression) {
+          sawUsage = true
+          const items = arrayDrill(expression, drill.property, checker, new Set(), resolveAsset)
+          if (items.length) {
+            for (const item of items) drilled.set(JSON.stringify(item), item)
+            continue
+          }
+          unprovenUsageFiles.add(usage.file)
+          continue
+        }
+        // No named attribute: only a JSX spread can still carry the prop at runtime.
+        // A usage without either passes nothing — the component is not a consumer for
+        // this drill and must not be recorded as an unknown one.
+        if (!usage.element.attributes.properties.some(ts.isJsxSpreadAttribute)) continue
+        sawUsage = true
+        unprovenUsageFiles.add(usage.file)
+        let candidateSource: ts.Expression | undefined
+        // Walk up from the JSX element to an enclosing .map/.filter callback parameter.
+        {
+          let node: ts.Node | undefined = usage.element
+          while (node && !ts.isCallExpression(node)) node = node.parent
+          const call = node && ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+            ['map', 'filter', 'slice'].includes(node.expression.name.text) ? node : undefined
+          const callback = call?.arguments[0]
+          const param = callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && callback.parameters[0] && ts.isIdentifier(callback.parameters[0].name)
+            ? callback.parameters[0].name : undefined
+          candidateSource = param
+        }
+        if (candidateSource) {
+          for (const item of arrayDrill(candidateSource, drill.property, checker, new Set(), resolveAsset)) candidatesFromUnproven.set(JSON.stringify(item), item)
+        }
+      }
+      for (const item of drilled.values()) {
+        const node = mediaNodeFor(item)
+        if (node) {
+          addEdge(drill.ownerId, node.id, 'asset-consumer', `asset:${drill.ownerId}:${node.id}:${drill.position}`)
+        } else {
+          for (const candidate of candidateNodesFor(item)) {
+            addEdge(drill.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${candidate.id}:${drill.position}`, 'semantic-candidate')
+          }
+        }
+      }
+      for (const item of candidatesFromUnproven.values()) {
+        for (const candidate of candidateNodesFor(item)) {
+          addEdge(drill.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${candidate.id}:${drill.position}`, 'semantic-candidate')
+          // Poison the candidate's closure: scope.ts flags unresolved entries whose
+          // importer file is in the proven consumer subgraph. The media's declaration
+          // file is always reachable from the media itself, so these entries guarantee
+          // fail-closed impact for every named candidate. One entry per unproven usage
+          // file — the first file alone would hide additional unknown consumers.
+          if (candidate.location?.path) {
+            if (unprovenUsageFiles.size) {
+              for (const usageFile of unprovenUsageFiles) unresolved.push(`${candidate.location.path} → unproven-usage:${usageFile}`)
+            } else {
+              unresolved.push(`${candidate.location.path} → unproven-usage:${drill.file}`)
+            }
+          }
+        }
+      }
+      for (const usageFile of unprovenUsageFiles) unresolved.push(`${usageFile} → unproven-prop:${drill.paramName}`)
+      if (!drilled.size && sawUsage) unresolved.push(`${drill.file} → unproven-prop:${drill.paramName}.${drill.property}`)
+    }
+  }
+  void pendingDrills
 
   const routedComponentIds = new Set([...pageTargets.values()].flatMap(targets => [...targets]))
   const sharedAppComponents = [...appDirect].filter(id => !routedComponentIds.has(id))
