@@ -785,3 +785,42 @@ describe('filter strict-equality type semantics (independent review P1 regressio
     expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
   })
 })
+
+describe('shorthand property fail-closed boundary', () => {
+  const card = `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`
+
+  it('shorthand { id } is never treated as an absent key in filter predicates', () => {
+    const root = temp()
+    scaffold(root)
+    const urlA = 'https://images.pexels.com/photos/106/pexels-photo-106.jpeg?auto=compress'
+    const urlB = 'https://images.pexels.com/photos/107/pexels-photo-107.jpeg?auto=compress'
+    // `const id = 'p1'` + `{ id }` shorthand: at runtime the FIRST element is filtered
+    // OUT by `p.id !== 'p1'`. Treating shorthand as absent would wrongly keep it.
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nconst id = 'p1';\nexport const products: Product[] = [{ id, image: '${urlA}' }, { id: 'p2', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.id !== 'p1').map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    // The shorthand element's filter outcome is unprovable → the list usage fails closed.
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven' && edge.from.startsWith('component:src/pages/ListPage')).length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+
+  it('shorthand boolean flags fail closed in truthiness predicates', () => {
+    const root = temp()
+    scaffold(root)
+    const urlA = 'https://images.pexels.com/photos/108/pexels-photo-108.jpeg?auto=compress'
+    const urlB = 'https://images.pexels.com/photos/109/pexels-photo-109.jpeg?auto=compress'
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string; isNew?: boolean };\nconst isNew = true;\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}', isNew }, { id: 'p2', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.isNew).map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven' && edge.from.startsWith('component:src/pages/ListPage')).length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+})

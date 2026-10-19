@@ -305,9 +305,10 @@ function isIdentityMapCallback(callback: ts.Expression | undefined): boolean {
 
 /** How a predicate key access resolves on one object literal element. `absent` means
  *  no such key and NO spread — the runtime value is undefined. `unresolvable` means
- *  present-but-dynamic (`id: getId()`), duplicated, spread-hidden, or non-literal:
- *  the value cannot be proven, so the whole predicate must fail closed. A spread
- *  voids everything because any key may be hidden behind it. */
+ *  present-but-dynamic (`id: getId()`), shorthand (`{ id }` — the value lives in an
+ *  outer binding we do not chase), duplicated, spread-hidden, or non-literal: the
+ *  value cannot be proven, so the whole predicate must fail closed. A spread voids
+ *  everything because any key may be hidden behind it. */
 type PropertyResolution =
   | { status: 'literal'; kind: 'string' | 'number'; text: string }
   | { status: 'absent' }
@@ -316,6 +317,8 @@ type PropertyResolution =
 function resolveLiteralProperty(element: ts.Expression, key: string): PropertyResolution {
   if (!ts.isObjectLiteralExpression(element)) return { status: 'unresolvable' }
   if (element.properties.some(ts.isSpreadAssignment)) return { status: 'unresolvable' }
+  // A shorthand `{ id }` carries its value from an outer binding — never treat it as absent.
+  if (element.properties.some(p => ts.isShorthandPropertyAssignment(p) && propertyName(p) === key)) return { status: 'unresolvable' }
   const matches = element.properties.filter((entry): entry is ts.PropertyAssignment => ts.isPropertyAssignment(entry) && propertyName(entry) === key)
   if (matches.length === 0) return { status: 'absent' }
   if (matches.length !== 1) return { status: 'unresolvable' }
@@ -326,11 +329,12 @@ function resolveLiteralProperty(element: ts.Expression, key: string): PropertyRe
 }
 
 /** Truthiness of `p.key` on an object literal element for boolean flags: a single
- *  boolean literal, or ABSENT (optional flags read as undefined → falsy). Spread,
- *  duplicated, or non-boolean values are not provable → undefined (fail closed). */
+ *  boolean literal, or ABSENT (optional flags read as undefined → falsy). Shorthand,
+ *  spread, duplicated, or non-boolean values are not provable → undefined (fail closed). */
 function booleanFlagValue(element: ts.Expression, key: string): boolean | undefined {
   if (!ts.isObjectLiteralExpression(element)) return undefined
   if (element.properties.some(ts.isSpreadAssignment)) return undefined
+  if (element.properties.some(p => ts.isShorthandPropertyAssignment(p) && propertyName(p) === key)) return undefined
   const matches = element.properties.filter((entry): entry is ts.PropertyAssignment => ts.isPropertyAssignment(entry) && propertyName(entry) === key)
   if (matches.length === 0) return false
   if (matches.length !== 1) return undefined
