@@ -710,7 +710,7 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
     expect(history.history.find((item: { candidateId: string }) => item.candidateId === candidateId)).toMatchObject({ lifecycle: 'rolled-back', patchHash })
     candidateId = ''
   } catch (error) {
-    throw new Error(`${error instanceof Error ? error.message : String(error)} Vite preview transform responses: ${diagnostics.join(" | ")}`)
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\nApplied project Vite logs:\n${runtimeLogs}`)
   } finally {
     await runtimePage.close()
     runtimeServer.kill('SIGTERM')
@@ -798,7 +798,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   } catch (error) {
     const diagnostics = await Promise.all([...sourcePreviewTransformErrors].map(async ([url, body]) => `${url}: ${await body}`))
     if (!diagnostics.length) throw error
-    throw new Error(`${error instanceof Error ? error.message : String(error)}\\nVite preview transform responses:\\n${diagnostics.join('\\n\\n')}`)
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\nVite preview transform responses:\n${diagnostics.join('\n\n')}`)
   }
   const heroImage = projectFrame.locator('img[alt="山野器物"]')
   await expect.poll(() => heroImage.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
