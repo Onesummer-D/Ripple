@@ -8,7 +8,7 @@ export class VerificationEvidenceError extends Error {
 }
 
 interface BrowserExecutionManifest {
-  schemaVersion: 3
+  schemaVersion: 4
   executor: 'playwright'
   completed: boolean
   runId: string
@@ -59,7 +59,7 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   try { manifest = JSON.parse(recordBytes.toString('utf8')) as BrowserExecutionManifest }
   catch { throw new VerificationEvidenceError('Playwright execution record is not valid JSON') }
   const root = path.dirname(absoluteRecord)
-  if (manifest.schemaVersion !== 3 || manifest.executor !== 'playwright' || manifest.completed !== true ||
+  if (manifest.schemaVersion !== 4 || manifest.executor !== 'playwright' || manifest.completed !== true ||
     manifest.runId !== run.id || manifest.candidateId !== run.candidateId || manifest.scopeDecisionId !== run.scopeDecisionId || manifest.scopeVersion !== run.scopeVersion || manifest.baseSourceDigest !== run.baseSourceDigest ||
     manifest.patchHash !== run.patchHash || manifest.candidateTreeDigest !== run.candidateTreeDigest || manifest.runtimeFingerprint !== run.runtimeFingerprint ||
     manifest.verificationContractHash !== run.verificationContractHash) {
@@ -156,12 +156,23 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
     if (!Array.isArray(manifest.scopeObservations) || JSON.stringify(manifest.scopeObservations) !== JSON.stringify(run.scopeObservations) || !manifest.scopeObservations.length) {
       throw new VerificationEvidenceError('Scope PASS requires bound original/candidate page observations')
     }
+    if (manifest.scopeObservations.some(observation =>
+      !observation.baselineMarkerVisible || !observation.candidateMarkerVisible ||
+      observation.baselineMarkerMatchCount !== 1 || observation.candidateMarkerMatchCount !== 1 ||
+      observation.baselineRouteIdentity !== 'verified' || observation.candidateRouteIdentity !== 'verified')) {
+      throw new VerificationEvidenceError('Scope PASS requires a uniquely identified route marker in original and candidate browsers')
+    }
   } else if (JSON.stringify(manifest.scopeObservations ?? []) !== JSON.stringify(run.scopeObservations ?? [])) {
     throw new VerificationEvidenceError('Scope observations do not match the Playwright execution record')
   }
   if (assertions.get('interaction')?.result === 'pass') {
     if (!Array.isArray(manifest.interactionObservations) || JSON.stringify(manifest.interactionObservations) !== JSON.stringify(run.interactionObservations) || !manifest.interactionObservations.length) {
       throw new VerificationEvidenceError('Interaction PASS requires bound browser interaction observations')
+    }
+    if (manifest.interactionObservations.some(observation =>
+      observation.baselineRouteIdentity !== 'verified' || observation.candidateRouteIdentity !== 'verified' ||
+      !observation.baselinePassed || !observation.candidatePassed)) {
+      throw new VerificationEvidenceError('Interaction PASS requires route-verified successful original and candidate actions')
     }
   } else if (JSON.stringify(manifest.interactionObservations ?? []) !== JSON.stringify(run.interactionObservations ?? [])) {
     throw new VerificationEvidenceError('Interaction observations do not match the Playwright execution record')
