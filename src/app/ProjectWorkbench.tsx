@@ -4,7 +4,7 @@ import { VerificationContractEditor } from './VerificationContractEditor'
 import { ScopeEffectPreview } from './ScopeEffectPreview'
 import { buildScopeEffectPreview, type PageScopeChoice } from './scope-effect-preview'
 import { projectPreviewViewports } from '../core/project-viewports'
-import { createVerificationContractDraft, incompleteVerificationDeclarations, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
+import { createVerificationContractDraft, incompleteVerificationDeclarations, suggestVerificationPageMarkers, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
 import './project-workbench.css'
 
 interface RouteSummary { id: string; label: string; page?: string }
@@ -273,6 +273,9 @@ export default function ProjectWorkbench() {
     choices: pageScope,
     scope: scopePageDecision,
   }), [analysis, operations, pageScope, scopePageDecision])
+  const markerSuggestions = useMemo(() => analysis
+    ? suggestVerificationPageMarkers(analysis.routes, analysis.targets, operations.map(operation => operation.targetRef))
+    : {}, [analysis, operations])
   useEffect(() => {
     const active = candidate && previewUrl
       ? { kind: 'candidate' as const, previewId: candidate.id, frame: previewFrame.current }
@@ -678,7 +681,7 @@ export default function ProjectWorkbench() {
         </fieldset>
         {analysis.routes.length === 0 ? <p className="empty-note">尚未解析出路由，当前不能生成页面范围候选。</p> : <div className="scope-grid">{analysis.routes.map(route => <label className={`scope-route ${pageScope[route.id] ? `scope-${pageScope[route.id]}` : ''}`} key={route.id}><span className="scope-route-head"><strong>{route.label}</strong><code>{route.id}</code></span><select data-testid={`scope-${route.id}`} aria-label={`${route.label} 页面范围`} value={pageScope[route.id] ?? ''} disabled={busy || previewBusy || verificationBusy} onChange={event => { const value = event.target.value as PageScope; void invalidateCandidate().then(ok => { if (ok) setPageScope(current => ({ ...current, [route.id]: value })) }) }}><option value="">请选择范围</option><option value="include">包含在候选中</option><option value="exclude">明确排除</option><option value="protect">保护，不得修改</option></select>{impactedPages.includes(route.id) && <small>目标源码的已证明消费者</small>}</label>)}</div>}
         <ScopeEffectPreview rows={scopeEffectRows} />
-        <VerificationContractEditor routes={analysis.routes} value={verificationContractDraft} disabled={busy || previewBusy || verificationBusy || !!candidate} onChange={setVerificationContractDraft} />
+        <VerificationContractEditor routes={analysis.routes} markerSuggestions={markerSuggestions} value={verificationContractDraft} disabled={busy || previewBusy || verificationBusy || !!candidate} onChange={setVerificationContractDraft} />
         {incompleteVerificationDeclarations(verificationContractDraft) > 0 && <p className="verification-contract-note" role="status">有 {incompleteVerificationDeclarations(verificationContractDraft)} 项验收信息尚未填写完整；不完整项不会送入执行器，相关断言将保持 UNKNOWN。</p>}
         <div className="scope-footer"><span>{operations.length} 项操作 · {impactedPages.length} 个已证明页面消费者{scopeStrategy === 'page-override' ? ' · 一项页面覆盖' : ''}</span><button type="button" data-testid="create-real-candidate" onClick={() => void createCandidate()} disabled={busy || sourcePreviewBusy || previewBusy || verificationBusy || !analysis || !intent.trim() || !operations.length || !scopesComplete || !scopesValid}>{busy ? '正在创建隔离候选…' : '创建真实隔离候选'}<span>↗</span></button></div>
       </section>
