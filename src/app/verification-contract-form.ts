@@ -79,6 +79,24 @@ export function createVerificationContractDraft(
   }
 }
 
+export function rebaseVerificationContractDraft(
+  routes: Array<{ id: string }>,
+  draft: VerificationContractDraft,
+): VerificationContractDraft {
+  const previousPages = new Map(draft.pages.map(page => [page.pageRef, page]))
+  const routeRefs = new Set(routes.map(route => route.id))
+  return {
+    pages: routes.map(route => previousPages.get(route.id) ?? {
+      pageRef: route.id,
+      path: '',
+      markerText: '',
+      navigationRole: 'button',
+      navigationName: '',
+    }),
+    interactions: draft.interactions.filter(interaction => routeRefs.has(interaction.pageRef)),
+  }
+}
+
 export function toBrowserVerificationContract(draft: VerificationContractDraft): BrowserVerificationContract | undefined {
   const pages = draft.pages
     .filter(page => page.path.trim() && page.markerText.trim())
