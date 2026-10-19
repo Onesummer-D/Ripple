@@ -24,8 +24,8 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass',
   fs.writeFileSync(artifactPath, screenshot)
   const assertions = assertionIds.map(assertionId => ({ id: assertionId, result: assertionId === 'interaction' ? assertionResult : 'pass' as const, detail: `${assertionId} asserted by browser runner` }))
   const viewport = { width: 1440, height: 900 }
-  const scopeObservations = contract.pages.map(page => ({ pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true, operations: p.operations.map(operation => ({ operationId: operation.id, expectedBaselineText: operation.before, expectedCandidateText: operation.after, baselineValues: [operation.before], candidateValues: [operation.after] })) }))
-  const interactionObservations = [{ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button' as const, name: 'Home route', expectedText: 'Home page', baselinePassed: assertionResult === 'pass', candidatePassed: assertionResult === 'pass' }]
+  const scopeObservations = contract.pages.map(page => ({ pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true, baselineMarkerMatchCount: 1, candidateMarkerMatchCount: 1, baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const, operations: p.operations.map(operation => ({ operationId: operation.id, expectedBaselineText: operation.before, expectedCandidateText: operation.after, baselineValues: [operation.before], candidateValues: [operation.after] })) }))
+  const interactionObservations = [{ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button' as const, name: 'Home route', expectedText: 'Home page', baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const, baselinePassed: assertionResult === 'pass', candidatePassed: assertionResult === 'pass' }]
   const baselineSnapshot = '<main>unchanged outside edit-1</main>'
   const comparisonPath = path.join(artifactRoot, 'comparison.json')
   const comparisonBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, route: '/', viewport, baselineSnapshot, candidateSnapshot: baselineSnapshot, maskedOperationIds: ['edit-1'] }))
@@ -44,7 +44,7 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass',
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
-    schemaVersion: 3, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
+    schemaVersion: 4, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
     scopeDecisionId: run.scopeDecisionId, scopeVersion: run.scopeVersion,
     baseSourceDigest: run.baseSourceDigest, patchHash: run.patchHash, candidateTreeDigest: run.candidateTreeDigest,
     runtimeFingerprint: run.runtimeFingerprint,
