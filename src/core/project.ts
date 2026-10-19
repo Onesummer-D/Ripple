@@ -151,18 +151,6 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const compilerOptions: ts.CompilerOptions = { jsx: ts.JsxEmit.Preserve, moduleResolution: ts.ModuleResolutionKind.Bundler, allowJs: true }
   const configGraph: ProjectConfigGraph = resolveProjectConfigGraph(snapshot.root, ts)
   if (configGraph.application.status === 'supported') Object.assign(compilerOptions, configGraph.application.parsed.options)
-  const aliasResolution = configGraph.aliases
-  if (aliasResolution.status === 'supported') {
-    const aliasConfig = configGraph.configs.find(config => config.configPath === aliasResolution.configPath)
-    if (aliasConfig) Object.assign(compilerOptions, {
-      baseUrl: aliasConfig.parsed.options.baseUrl ?? aliasConfig.parsed.options.pathsBasePath,
-      paths: aliasConfig.parsed.options.paths,
-      pathsBasePath: aliasConfig.parsed.options.pathsBasePath,
-    })
-  } else {
-    delete compilerOptions.baseUrl
-    delete compilerOptions.paths
-  }
   const program = ts.createProgram([...sourceFiles.keys()], compilerOptions)
   const checker = program.getTypeChecker()
   for (const absolute of sourceFiles.keys()) {

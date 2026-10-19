@@ -231,6 +231,20 @@ describe('real project graph and candidate executor', () => {
     expect(ambiguous.devPreview.status).toBe('ambiguous')
   })
 
+  it('retains valid TypeScript source aliases when the bounded Vite adapter cannot reproduce their fallback', () => {
+    const { root } = sampleProject()
+    const appPath = path.join(root, 'src', 'App.tsx')
+    fs.writeFileSync(appPath, fs.readFileSync(appPath, 'utf8').replace("'./components/Navigation'", "'components/Navigation'"))
+    fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler', baseUrl: '.', paths: { '*': ['src/*'] } }, include: ['src'] }))
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'use application alias with TypeScript fallback')
+    const graph = analyzeProject(root)
+    expect(graph.edges.some(edge => edge.kind === 'imports' && edge.from === 'file:src/App.tsx' && edge.to === 'file:src/components/Navigation.tsx')).toBe(true)
+    const navigation = graph.nodes.find(node => node.kind === 'component' && node.label === 'Navigation')!
+    expect(navigation.pages?.sort()).toEqual(['autumn', 'home'])
+    expect(inspectProjectCapabilities(root, graph, 'linux').typescriptAliases.status).toBe('ambiguous')
+  })
+
   it('proves component token use but keeps imported CSS token usage unknown without cascade evidence', () => {
     const { root } = sampleProject()
     const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')

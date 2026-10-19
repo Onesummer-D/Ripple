@@ -12,6 +12,8 @@ TypeScript and JavaScript path aliases are read as data, not executed. One share
 
 External resources used by verification remain explicitly authorized and content-snapshotted; the candidate container does not receive general internet access.
 
+The selected application's parsed TypeScript options remain available to SourceGraph, including valid path mappings that the bounded Vite adapter cannot represent. Preview ambiguity does not erase static compiler resolution or promote it into browser evidence. Both consumers use the same selected config; their execution capabilities differ explicitly.
+
 ## Explicitly unsupported
 
 The runner sets `configFile: false`, so project `vite.config.*`, its custom plugins, server hooks, environment-dependent startup logic and build commands are not loaded. The adapter does not claim support for SSR or framework runtimes such as Next.js/Remix, non-React Vite plugins, custom backend services, arbitrary application startup scripts, or projects that need custom Vite transforms. Unsupported/ambiguous behavior must remain unavailable or UNKNOWN; it is not emulated by project-specific branches.
