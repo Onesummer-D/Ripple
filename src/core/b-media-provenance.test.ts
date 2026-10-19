@@ -662,3 +662,31 @@ describe('filter/slice precision (proven impact must match rendered elements)', 
     expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
   })
 })
+
+describe('filter predicate precision (boolean flags, real-project patterns)', () => {
+  const card = `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`
+
+  it('boolean-flag truthiness and || chains resolve exactly (qingye/mountain pattern)', () => {
+    const root = temp()
+    scaffold(root)
+    const urlA = 'https://images.pexels.com/photos/95/pexels-photo-95.jpeg?auto=compress'
+    const urlB = 'https://images.pexels.com/photos/96/pexels-photo-96.jpeg?auto=compress'
+    const urlC = 'https://images.pexels.com/photos/97/pexels-photo-97.jpeg?auto=compress'
+    // qingye: isNew?: boolean; mountain: autumn?: boolean — absent optional flags are
+    // falsy at runtime, so `p.isNew` and `p.isLimited || p.isNew` resolve exactly.
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string; isNew?: boolean; isLimited?: boolean };\nexport const products: Product[] = [\n  { id: 'p1', image: '${urlA}', isNew: true },\n  { id: 'p2', image: '${urlB}' },\n  { id: 'p3', image: '${urlC}', isLimited: true },\n];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nconst newProducts = products.filter((p) => p.isNew).slice(0, 3);\nexport function HomePage() { return <main>{newProducts.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.isLimited || p.isNew).map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!
+    const mediaB = graph.nodes.find(node => node.kind === 'media' && node.value === urlB)!
+    const mediaC = graph.nodes.find(node => node.kind === 'media' && node.value === urlC)!
+    // Home: only p1 (isNew). List: p1 and p3 (isLimited || isNew); p2 renders nowhere.
+    expect(sourceProvenPageImpact(graph, mediaA.id).pageRefs).toEqual(['page:home', 'page:list'])
+    expect(sourceProvenPageImpact(graph, mediaC.id).pageRefs).toEqual(['page:list'])
+    expect(sourceProvenPageImpact(graph, mediaB.id).pageRefs).toEqual([])
+  })
+})

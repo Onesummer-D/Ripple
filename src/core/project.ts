@@ -303,6 +303,20 @@ function literalPropertyText(element: ts.Expression, key: string): string | unde
   return ts.isStringLiteral(initializer) || ts.isNumericLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer) ? initializer.text : undefined
 }
 
+/** Truthiness of `p.key` on an object literal element for boolean flags: a single
+ *  boolean literal, or ABSENT (optional flags read as undefined → falsy). Duplicated
+ *  or non-boolean values are not provable → undefined. */
+function booleanFlagValue(element: ts.Expression, key: string): boolean | undefined {
+  if (!ts.isObjectLiteralExpression(element)) return undefined
+  const matches = element.properties.filter((entry): entry is ts.PropertyAssignment => ts.isPropertyAssignment(entry) && propertyName(entry) === key)
+  if (matches.length === 0) return false
+  if (matches.length !== 1) return undefined
+  const initializer = matches[0].initializer
+  if (initializer.kind === ts.SyntaxKind.TrueKeyword) return true
+  if (initializer.kind === ts.SyntaxKind.FalseKeyword) return false
+  return undefined
+}
+
 function predicateKeyOperand(node: ts.Expression, paramName: string): string | undefined {
   if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === paramName) return node.name.text
   if (ts.isElementAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === paramName && node.argumentExpression && ts.isStringLiteral(node.argumentExpression)) return node.argumentExpression.text
@@ -324,8 +338,9 @@ const EQUALITY_OPERATORS = [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind
 
 /** Evaluates a filter predicate against one literal element, or undefined when the
  *  predicate is outside the supported boundary (fail closed). Supported: single
- *  comparisons `p.key === 'lit'` / `!==` / `==` / `!=` (with `&&` chains and leading
- *  `!`), and constant `true`/`false` predicates. Anything else → undefined. */
+ *  comparisons `p.key === 'lit'` / `!==` / `==` / `!=`; boolean-flag truthiness
+ *  (`p.isNew`, absent optional flags read as falsy); `&&` / `||` chains; leading `!`;
+ *  and constant `true`/`false` predicates. Anything else → undefined. */
 function filterKeepsElement(predicate: ts.Expression | undefined, element: ts.Expression): boolean | undefined {
   if (!predicate || !(ts.isArrowFunction(predicate) || ts.isFunctionExpression(predicate))) return undefined
   const paramName = ts.isIdentifier(predicate.parameters[0]?.name) ? predicate.parameters[0].name.text : undefined
@@ -343,6 +358,17 @@ function filterKeepsElement(predicate: ts.Expression | undefined, element: ts.Ex
       const left = evaluate(node.left)
       const right = evaluate(node.right)
       return left === undefined || right === undefined ? undefined : left && right
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
+      const left = evaluate(node.left)
+      const right = evaluate(node.right)
+      return left === undefined || right === undefined ? undefined : left || right
+    }
+    // Boolean-flag truthiness: `p.isNew` keeps exactly the elements whose flag is
+    // literally true (an absent optional flag is falsy at runtime).
+    if (paramName && (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node))) {
+      const key = predicateKeyOperand(node, paramName)
+      if (key !== undefined) return booleanFlagValue(element, key)
     }
     if (ts.isBinaryExpression(node) && EQUALITY_OPERATORS.includes(node.operatorToken.kind) && paramName) {
       const key = predicateKeyOperand(node.left, paramName) ?? predicateKeyOperand(node.right, paramName)
