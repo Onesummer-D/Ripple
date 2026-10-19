@@ -125,32 +125,38 @@ const IMAGE_PROPERTY = /^(src|srcSet|image|cover|poster|thumbnail|heroImage|avat
  *  Identifier initializers are resolved through `resolveAsset` (imported-image bindings).
  *  Conservative by design: literals containing a spread, or a duplicated property key, are
  *  skipped — their runtime value cannot be proven from syntax alone. */
+/** Drilled value of ONE object literal element for `property`, with the same soundness
+ *  rules as the array-wide scan: spread / duplicated key / non-literal → undefined. */
+function objectLiteralPropertyValue(element: ts.ObjectLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty | undefined {
+  if (element.properties.some(ts.isSpreadAssignment)) return undefined
+  const byName = new Map<string, ts.PropertyAssignment[]>()
+  for (const entry of element.properties) {
+    if (!ts.isPropertyAssignment(entry)) continue
+    const name = propertyName(entry)
+    if (!name) continue
+    if (!byName.has(name)) byName.set(name, [])
+    byName.get(name)!.push(entry)
+  }
+  const entries = byName.get(property)
+  // Duplicated key: runtime keeps the last value but provenance of which is "live" is
+  // not ours to guess — skip rather than emit a possibly-dead edge.
+  if (!entries || entries.length !== 1) return undefined
+  const initializer = entries[0].initializer
+  const literal = stringValue(initializer)
+  if (literal) return { kind: 'value', text: literal.text }
+  if (initializer && ts.isIdentifier(initializer)) {
+    const assetFile = resolveAsset(initializer.text, element.getSourceFile())
+    if (assetFile) return { kind: 'asset', assetFile }
+  }
+  return undefined
+}
+
 function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
   const values: DrilledProperty[] = []
-  const arrayFile = array.getSourceFile()
   for (const element of array.elements) {
     if (!ts.isObjectLiteralExpression(element)) continue
-    if (element.properties.some(ts.isSpreadAssignment)) continue
-    const byName = new Map<string, ts.PropertyAssignment[]>()
-    for (const entry of element.properties) {
-      if (!ts.isPropertyAssignment(entry)) continue
-      const name = propertyName(entry)
-      if (!name) continue
-      if (!byName.has(name)) byName.set(name, [])
-      byName.get(name)!.push(entry)
-    }
-    const entries = byName.get(property)
-    // Duplicated key: runtime keeps the last value but provenance of which is "live" is
-    // not ours to guess — skip rather than emit a possibly-dead edge.
-    if (!entries || entries.length !== 1) continue
-    const initializer = entries[0].initializer
-    const literal = stringValue(initializer)
-    if (literal) {
-      values.push({ kind: 'value', text: literal.text })
-    } else if (initializer && ts.isIdentifier(initializer)) {
-      const assetFile = resolveAsset(initializer.text, arrayFile)
-      if (assetFile) values.push({ kind: 'asset', assetFile })
-    }
+    const value = objectLiteralPropertyValue(element, property, resolveAsset)
+    if (value) values.push(value)
   }
   return values
 }
@@ -216,6 +222,27 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
   return []
 }
 
+/** Exact `array[n]` resolution, sound only when the base identifier is a `const` array
+ *  literal (same const-only guard as arrayDrill; index alignment comes from reading
+ *  element n directly, so skipped elements cannot shift positions). Returns undefined
+ *  whenever the element cannot be proven — the caller then stays unproven. */
+function arrayLiteralPropertyValueAt(expression: ts.Identifier, index: number, property: string, checker: ts.TypeChecker, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty | undefined {
+  const symbol = checker.getSymbolAtLocation(expression)
+  const declaration = symbol?.valueDeclaration
+    ?? ((symbol?.flags ?? 0) & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol!).valueDeclaration : undefined)
+    ?? symbol?.declarations?.find(ts.isVariableDeclaration)
+  if (!declaration || !ts.isVariableDeclaration(declaration) || !declaration.initializer) return undefined
+  const constFlag = (declaration.flags | (ts.isVariableDeclarationList(declaration.parent) ? declaration.parent.flags : 0)) & ts.NodeFlags.Const
+  if (!constFlag) return undefined
+  let initializer: ts.Expression = declaration.initializer
+  if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
+  if (ts.isParenthesizedExpression(initializer)) initializer = initializer.expression
+  if (!ts.isArrayLiteralExpression(initializer)) return undefined
+  const element = initializer.elements[index]
+  if (!element || !ts.isObjectLiteralExpression(element)) return undefined
+  return objectLiteralPropertyValue(element, property, resolveAsset)
+}
+
 function componentInfos(root: string, sources: Map<string, ts.SourceFile>): ComponentInfo[] {
   const result: ComponentInfo[] = []
   for (const [absolute, source] of sources) {
@@ -226,7 +253,10 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
     const visit = (node: ts.Node) => {
       if (ts.isFunctionDeclaration(node) && node.name) add(node.name.text, node)
       if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer &&
-        (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) add(node.name.text, node)
+          (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer) ||
+           // `const ScrollBar = React.forwardRef<Props, Ref>(...)` — shadcn/ui's dominant
+           // component shape; the JSX lives in the forwardRef callback.
+           (ts.isCallExpression(node.initializer) && ts.isPropertyAccessExpression(node.initializer.expression) && node.initializer.expression.name.text === 'forwardRef'))) add(node.name.text, node)
       node.forEachChild(visit)
     }
     visit(source)
@@ -234,14 +264,17 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
   return result
 }
 
-function declarationComponentName(tag: { name: string; namespace?: string } | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>): ComponentInfo | undefined {
+function declarationComponentName(tag: { name: string; namespace?: string } | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>, currentFile: string): ComponentInfo | undefined {
   if (!tag) return undefined
   if (tag.namespace) {
     const target = localImports.get(tag.namespace)
     return target?.exportName === '*' ? byExport.get(`${target.file}#${tag.name}`) : undefined
   }
   const target = localImports.get(tag.name)
-  return target ? byExport.get(`${target.file}#${target.exportName}`) : undefined
+  if (target) return byExport.get(`${target.file}#${target.exportName}`)
+  // Same-file composition (`<ScrollBar />` used in the file that defines it) has no
+  // import to route through — fall back to a same-file component lookup.
+  return byExport.get(`${currentFile}#${tag.name}`)
 }
 
 export function analyzeProject(input: string, requireClean = true): SourceGraph {
@@ -420,8 +453,18 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     const relative = relativeTo(snapshot.root, absolute)
     const imports = new Map<string, ImportTarget>()
     const importedModules = new Map<string, string>()
+    // Names bound by ANY import declaration in this file, including external/untracked
+    // modules. Used to distinguish "imported external component" from "locally aliased or
+    // undeclared tag" when deciding whether an unresolvable JSX tag must be recorded.
+    const importedNames = new Set<string>()
     for (const statement of source.statements) {
       if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+      const importClause = statement.importClause
+      if (importClause?.name) importedNames.add(importClause.name.text)
+      if (importClause?.namedBindings && ts.isNamedImports(importClause.namedBindings)) {
+        for (const item of importClause.namedBindings.elements) importedNames.add(item.name.text)
+      }
+      if (importClause?.namedBindings && ts.isNamespaceImport(importClause.namedBindings)) importedNames.add(importClause.namedBindings.name.text)
       const specifier = statement.moduleSpecifier.text
       const scriptResolved = ts.resolveModuleName(specifier, absolute, compilerOptions, ts.sys).resolvedModule?.resolvedFileName
       const cssResolved = /\.css$/i.test(specifier) ? path.resolve(path.dirname(absolute), specifier) : undefined
@@ -575,13 +618,23 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
           addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag.name}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
         }
-        const target = declarationComponentName(tag, imports, byExport)
+        const target = declarationComponentName(tag, imports, byExport, relative)
         if (target && ownerComponent) {
           if (!componentRenders.has(ownerComponent.id)) componentRenders.set(ownerComponent.id, new Set())
           componentRenders.get(ownerComponent.id)!.add(target.id)
           addEdge(ownerComponent.id, target.id, 'renders', `render:${ownerComponent.id}:${node.getStart(source)}`)
           componentUsages.push({ targetId: target.id, element: node, source, file: relative })
           if (appComponent?.id === ownerComponent.id) appDirect.add(target.id)
+        }
+        // A capitalized tag that resolves to no component and is not imported at all
+        // (local alias `const Card2 = ProductCard`, default-export object carriers, or an
+        // undeclared global) is an unknown consumer path: record it so it cannot vanish
+        // silently from impact analysis. Imported-but-external components are excluded
+        // (their import binding is present in importedNames) — they carry no local
+        // drilled props by construction.
+        if (tag && !target && /^[A-Z]/.test(tag.name)) {
+          const boundName = tag.namespace ?? tag.name
+          if (!importedNames.has(boundName)) unresolved.push(`${relative} → unresolvable-component:${tag.namespace ? `${tag.namespace}.` : ''}${tag.name}`)
         }
       }
       if (relative === appComponent?.file && ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken &&
@@ -590,7 +643,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         const targets = new Set<string>()
         const collectTags = (child: ts.Node) => {
           if (ts.isJsxOpeningElement(child) || ts.isJsxSelfClosingElement(child)) {
-            const target = declarationComponentName(jsxTagName(child), imports, byExport)
+            const target = declarationComponentName(jsxTagName(child), imports, byExport, relative)
             if (target) targets.add(target.id)
           }
           child.forEachChild(collectTags)
@@ -640,13 +693,20 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
         const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
         if (expression && ts.isElementAccessExpression(expression)) {
-          // `items[index]`: the member IS passed, but which one is unknowable at
-          // analysis time. Name candidates from the array base, stay unproven.
+          // `items[index]`: the member IS passed, but which one is usually unknowable at
+          // analysis time. A numeric literal index into a const array literal is the
+          // exception — element n is read directly and stays source-proven.
           sawUsage = true
-          unprovenUsageFiles.add(usage.file)
-          for (const item of arrayDrill(expression.expression, drill.property, checker, new Set(), resolveAsset)) {
-            candidatesFromUnproven.set(JSON.stringify(item), item)
+          const numeric = expression.argumentExpression && ts.isNumericLiteral(expression.argumentExpression) ? Number(expression.argumentExpression.text) : undefined
+          if (numeric !== undefined && Number.isInteger(numeric) && numeric >= 0 && ts.isIdentifier(expression.expression)) {
+            const exact = arrayLiteralPropertyValueAt(expression.expression, numeric, drill.property, checker, resolveAsset)
+            if (exact) {
+              drilled.set(JSON.stringify(exact), exact)
+              continue
+            }
           }
+          unprovenUsageFiles.add(usage.file)
+          for (const item of arrayDrill(expression.expression, drill.property, checker, new Set(), resolveAsset)) candidatesFromUnproven.set(JSON.stringify(item), item)
           continue
         }
         if (expression) {

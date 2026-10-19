@@ -104,7 +104,8 @@ describe('media provenance upgrade', () => {
     const graph = analyzeProject(root)
     const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
     const edges = assetEdges(graph, cardId)
-    // One access, one value, two indistinguishable media nodes → one candidate pair, no proven edges.
+    // One access, one shared value, two indistinguishable media nodes → one
+    // semantic-candidate edge per media node (2 total), no proven edges.
     expect(edges.length).toBe(2)
     expect(edges.every(edge => edge.certainty === 'semantic-candidate')).toBe(true)
 
@@ -222,6 +223,57 @@ describe('media provenance upgrade', () => {
     expect(impactB.pageRefs).toContain('page:list')
     expect(impactB.certainty).toBe('partial')
     expect(impactB.unresolved.some(entry => entry.includes('unproven-usage'))).toBe(true)
+  })
+
+  it('numeric literal index (products[1]) resolves exactly and stays source-proven', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [\n  { id: 'p1', image: 'https://images.pexels.com/photos/30/pexels-photo-30.jpeg?auto=compress' },\n  { id: 'p2', image: 'https://images.pexels.com/photos/31/pexels-photo-31.jpeg?auto=compress' },\n];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main><ProductCard product={products[1]} /></main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
+    const edges = assetEdges(graph, cardId)
+    expect(edges.length).toBe(1)
+    expect(edges[0].certainty).toBe('source-proven')
+    const media = graph.nodes.find(node => node.id === edges[0].to)!
+    expect(media.value).toContain('pexels-photo-31')
+    const impact = sourceProvenPageImpact(graph, media.id)
+    expect(impact.certainty).toBe('source-proven')
+    expect(impact.pageRefs).toEqual(['page:home'])
+    // The sibling at index 0 has no consumer and must not gain one via this usage.
+    const sibling = graph.nodes.find(node => node.kind === 'media' && node.value?.includes('pexels-photo-30'))!
+    expect(graph.edges.filter(edge => edge.kind === 'asset-consumer' && edge.to === sibling.id).length).toBe(0)
+  })
+
+  it('locally aliased components are recorded as unresolvable instead of vanishing', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: 'https://images.pexels.com/photos/40/pexels-photo-40.jpeg?auto=compress' }];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    // Card2 aliases ProductCard locally (not imported): the tag cannot be resolved to a
+    // component today, so the usage must be recorded as an unknown consumer path instead
+    // of dropping out of the graph silently.
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nconst Card2 = ProductCard;\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}{typeof Card2 === 'function' ? <Card2 product={products[0]} /> : null}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.some(entry => entry.includes('unresolvable-component:Card2'))).toBe(true)
+  })
+
+  it('imported external components do not produce unresolvable-component noise', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/pages/HomePage.tsx', `import { Link } from 'react-router';\nexport function HomePage() { return <main><Link to="/x">Home</Link></main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('unresolvable-component'))).toEqual([])
   })
 })
 

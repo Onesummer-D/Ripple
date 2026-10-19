@@ -1,6 +1,10 @@
 {
-  "generatedAt": "2026-10-18T15:55:40.347Z",
-  "rippleHead": "0b43e96445a2105b244b7fcf68e1d896624f88f8",
+  "generatedAt": "2026-10-18T16:24:34.576Z",
+  "rippleHead": "653e08285423cd261f1338d41a3d642449c0e891",
+  "runtimeFingerprint": {
+    "node": "v24.21.0",
+    "typescript": "5.9.3"
+  },
   "projects": [
     {
       "name": "qingye-bolt",
@@ -158,11 +162,11 @@
       "name": "mountain-spirit",
       "rootEnv": "RIPPLE_PROBE_MOUNTAIN",
       "frozenSha": "f838ae3361e78219559426c9931bab6a3a7f5889",
-      "nodes": 715,
-      "edges": 562,
+      "nodes": 871,
+      "edges": 781,
       "kinds": {
         "file": 101,
-        "component": 50,
+        "component": 206,
         "token": 102,
         "jsx-element": 334,
         "data": 116,
@@ -187,6 +191,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-1.jpg#asset"
@@ -200,6 +206,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-2.jpg#asset"
@@ -213,6 +221,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-3.jpg#asset"
@@ -226,6 +236,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-4.jpg#asset"
@@ -239,6 +251,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-5.jpg#asset"
@@ -252,6 +266,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-6.jpg#asset"
@@ -265,6 +281,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-7.jpg#asset"
@@ -278,6 +296,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-8.jpg#asset"
@@ -291,6 +311,8 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-9.jpg#asset"
@@ -304,6 +326,7 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/autumn.jpg#asset"
             ]
@@ -316,6 +339,7 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/hero.jpg#asset"
             ]
@@ -328,15 +352,31 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
+              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
               "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/craft.jpg#asset"
             ]
           }
         ]
       },
-      "unresolvedCount": 3,
+      "unresolvedCount": 18,
       "unresolved": [
+        "src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
+        "src/components/ui/alert-dialog.tsx → unresolvable-component:AlertDialogPortal",
+        "src/components/ui/breadcrumb.tsx → unresolvable-component:Comp",
+        "src/components/ui/button.tsx → unresolvable-component:Comp",
+        "src/components/ui/carousel.tsx → unresolvable-component:CarouselContext.Provider",
+        "src/components/ui/chart.tsx → unresolvable-component:ChartContext.Provider",
+        "src/components/ui/dialog.tsx → unresolvable-component:DialogPortal",
+        "src/components/ui/drawer.tsx → unresolvable-component:DrawerPortal",
+        "src/components/ui/form.tsx → unresolvable-component:FormFieldContext.Provider",
+        "src/components/ui/form.tsx → unresolvable-component:FormItemContext.Provider",
+        "src/components/ui/sheet.tsx → unresolvable-component:SheetPortal",
+        "src/components/ui/sidebar.tsx → unresolvable-component:SidebarContext.Provider",
+        "src/components/ui/sidebar.tsx → unresolvable-component:Comp",
+        "src/components/ui/toggle-group.tsx → unresolvable-component:ToggleGroupContext.Provider",
         "src/routes/__root.tsx → ../styles.css?url",
+        "src/routes/index.tsx → unresolvable-component:Icon",
         "src/routes/index.tsx → unproven-prop:product",
         "src/test/product-badges.test.tsx → unproven-prop:product"
       ]
