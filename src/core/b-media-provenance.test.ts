@@ -450,3 +450,89 @@ describe('integrated cross-page media bindings (merged A/B scope semantics)', ()
     expect(impactA.certainty).toBe('source-proven')
   })
 })
+
+describe('fail-closed drilling guards (A-side recheck 2026-10-19)', () => {
+  const card = `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`
+  const urlA = 'https://images.pexels.com/photos/81/pexels-photo-81.jpeg?auto=compress'
+  const urlB = 'https://images.pexels.com/photos/82/pexels-photo-82.jpeg?auto=compress'
+  const data = (body: string) => `export type Product = { id: string; image: string };\n${body}`
+
+  it('refuses to drill a const array mutated after initialization (map and numeric index)', () => {
+    const root = temp()
+    scaffold(root)
+    // `const` does not freeze the array: the module-level push makes every literal
+    // element unreliable, so neither the map path nor the exact products[1] path may
+    // produce a proven edge.
+    write(root, 'src/data/products.ts', data(`export const products: Product[] = [{ id: 'p1', image: '${urlA}' }, { id: 'p2', image: '${urlB}' }];\nproducts.push({ id: 'p3', image: 'https://images.pexels.com/photos/83/pexels-photo-83.jpeg?auto=compress' });`))
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main><ProductCard product={products[1]} /></main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven').length).toBe(0)
+    // The unproven consumption is recorded, not silently dropped.
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!
+    const impact = sourceProvenPageImpact(graph, mediaA.id)
+    expect(impact.pageRefs).toEqual([])
+    expect(impact.certainty).not.toBe('source-proven')
+  })
+
+  it('detects cross-file mutations of the drilled binding', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', data(`export const products: Product[] = [{ id: 'p1', image: '${urlA}' }];`))
+    write(root, 'src/components/ProductCard.tsx', card)
+    // The mutation happens in a CONSUMER file, not next to the declaration.
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nproducts.reverse();\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven').length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+
+  it('a JSX spread after the named prop fails closed (later spread may override it)', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', data(`export const products: Product[] = [{ id: 'p1', image: '${urlA}' }];\nexport const overrides: Record<string, unknown> = { product: { id: 'x', image: '${urlB}' } };`))
+    write(root, 'src/components/ProductCard.tsx', card)
+    // Home: plain named prop (proven). List: a spread AFTER the named prop can override
+    // `product` at runtime — the drilled binding is not provably the live one.
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { overrides } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} {...overrides} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!
+    const impact = sourceProvenPageImpact(graph, mediaA.id)
+    // Only the home usage is proven; the spread-overridden list usage must not upgrade.
+    expect(impact.pageRefs).toEqual(['page:home'])
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+
+  it('a partially unresolvable array never upgrades its resolvable subset', () => {
+    const root = temp()
+    scaffold(root)
+    // The middle element comes from a function call: which images the array really
+    // holds at runtime is unknown, so NONE of the literal elements may be proven —
+    // a subset result would hide makeItem()'s consumer.
+    write(root, 'src/data/products.ts', data(`function makeItem(): Product { return { id: 'm', image: 'https://images.pexels.com/photos/84/pexels-photo-84.jpeg?auto=compress' } }\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}' }, makeItem(), { id: 'p3', image: '${urlB}' }];`))
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven').length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+    for (const url of [urlA, urlB]) {
+      const media = graph.nodes.find(node => node.kind === 'media' && node.value === url)!
+      const impact = sourceProvenPageImpact(graph, media.id)
+      expect(impact.pageRefs).toEqual([])
+      expect(impact.certainty).not.toBe('source-proven')
+    }
+  })
+})

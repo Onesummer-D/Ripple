@@ -151,14 +151,44 @@ function objectLiteralPropertyValue(element: ts.ObjectLiteralExpression, propert
   return undefined
 }
 
-function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
+/** Values of `property` across ALL object literal elements of an array literal.
+ *  Strict by design: if ANY element is not a statically resolvable object literal for
+ *  this property (non-literal element, inner spread, duplicated key, non-literal value),
+ *  returns undefined — the resolvable subset must never be upgraded, because the
+ *  unresolved elements may carry real consumers that a subset result would hide. */
+function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] | undefined {
   const values: DrilledProperty[] = []
   for (const element of array.elements) {
-    if (!ts.isObjectLiteralExpression(element)) continue
+    if (!ts.isObjectLiteralExpression(element)) return undefined
     const value = objectLiteralPropertyValue(element, property, resolveAsset)
-    if (value) values.push(value)
+    if (!value) return undefined
+    values.push(value)
   }
   return values
+}
+
+/** In-place mutating array methods. A reference to the drilled binding on the receiver
+ *  side of one of these calls makes every literal element value unreliable. */
+const MUTATING_ARRAY_METHODS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill', 'copyWithin'])
+
+/** True when `identifier` (a reference to the drilled array binding) sits at a mutation
+ *  site: `arr[i] = x`, any compound assignment, `++`/`--`, `delete arr[i]`, or a call to
+ *  an in-place array method (`arr.push(...)`, `arr.sort()`). Purely syntactic. */
+function isArrayMutationReference(identifier: ts.Identifier): boolean {
+  let current: ts.Node = identifier
+  for (;;) {
+    const parent = current.parent
+    if (ts.isPropertyAccessExpression(parent) && (parent.expression === current || parent.name === current)) { current = parent; continue }
+    if (ts.isElementAccessExpression(parent) && parent.expression === current) { current = parent; continue }
+    break
+  }
+  if (ts.isPropertyAccessExpression(current) && ts.isCallExpression(current.parent) && current.parent.expression === current &&
+      MUTATING_ARRAY_METHODS.has(current.name.text)) return true
+  if (ts.isBinaryExpression(current.parent) && current.parent.left === current &&
+      current.parent.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && current.parent.operatorToken.kind <= ts.SyntaxKind.LastAssignment) return true
+  if ((ts.isPrefixUnaryExpression(current.parent) || ts.isPostfixUnaryExpression(current.parent)) && current.parent.operand === current) return true
+  if (ts.isDeleteExpression(current.parent)) return true
+  return false
 }
 
 /**
@@ -168,9 +198,12 @@ function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property:
  * calls of those methods. Anything outside this shape yields [] — the caller keeps the
  * honest lower-certainty result instead of guessing.
  * Soundness rules: only `const` declarations are drilled (a reassigned `let` makes the
- * initializer value non-provable); a conditional must have BOTH arms drillable.
+ * initializer value non-provable); a conditional must have BOTH arms drillable; an array
+ * literal with ANY unresolvable element yields nothing (subset upgrades are unsound);
+ * a `const` array mutated anywhere in the project (`arr.push(...)`, `arr[i] = x`,
+ * cross-file included) yields nothing via `bindingMayBeMutated`.
  */
-function arrayDrill(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] {
+function arrayDrill(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined, bindingMayBeMutated: (symbol: ts.Symbol) => boolean): DrilledProperty[] {
   if (visited.has(expression)) return []
   visited.add(expression)
   if (ts.isIdentifier(expression) || ts.isPropertyAccessExpression(expression)) {
@@ -187,17 +220,23 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
       if (!constFlag) return []
       let initializer: ts.Expression = declaration.initializer
       if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
-      if (ts.isParenthesizedExpression(initializer)) return arrayDrill(initializer.expression, property, checker, visited, resolveAsset)
+      if (ts.isParenthesizedExpression(initializer)) return arrayDrill(initializer.expression, property, checker, visited, resolveAsset, bindingMayBeMutated)
       if (ts.isConditionalExpression(initializer)) {
         // Only when BOTH arms drill do we know the property value regardless of runtime branch.
-        const whenTrue = arrayDrill(initializer.whenTrue, property, checker, visited, resolveAsset)
-        const whenFalse = arrayDrill(initializer.whenFalse, property, checker, visited, resolveAsset)
+        const whenTrue = arrayDrill(initializer.whenTrue, property, checker, visited, resolveAsset, bindingMayBeMutated)
+        const whenFalse = arrayDrill(initializer.whenFalse, property, checker, visited, resolveAsset, bindingMayBeMutated)
         if (!whenTrue.length || !whenFalse.length) return []
         return [...whenTrue, ...whenFalse]
       }
-      if (ts.isArrayLiteralExpression(initializer)) return objectLiteralPropertyValues(initializer, property, resolveAsset)
+      if (ts.isArrayLiteralExpression(initializer)) {
+        // Mutated const array: literal elements are not the runtime values. Fail closed.
+        if (symbol && bindingMayBeMutated(symbol)) return []
+        // Partial resolution: the resolvable subset must not be upgraded — unresolved
+        // elements may carry real consumers.
+        return objectLiteralPropertyValues(initializer, property, resolveAsset) ?? []
+      }
       // `const featured = products.filter(...).slice(0, 3)` — drill through call chains too.
-      if (ts.isCallExpression(initializer)) return arrayDrill(initializer, property, checker, visited, resolveAsset)
+      if (ts.isCallExpression(initializer)) return arrayDrill(initializer, property, checker, visited, resolveAsset, bindingMayBeMutated)
       return []
     }
     if (declaration && ts.isParameter(declaration)) {
@@ -207,7 +246,7 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
       while (call && !ts.isCallExpression(call)) call = call.parent
       if (call && ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression) &&
         ['map', 'filter', 'slice'].includes(call.expression.name.text) && call.expression.expression) {
-        return arrayDrill(call.expression.expression, property, checker, visited, resolveAsset)
+        return arrayDrill(call.expression.expression, property, checker, visited, resolveAsset, bindingMayBeMutated)
       }
     }
     return []
@@ -215,7 +254,7 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
   if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
     const method = expression.expression.name.text
     if (method === 'map' || method === 'filter' || method === 'slice') {
-      return arrayDrill(expression.expression.expression, property, checker, visited, resolveAsset)
+      return arrayDrill(expression.expression.expression, property, checker, visited, resolveAsset, bindingMayBeMutated)
     }
     return []
   }
@@ -224,9 +263,11 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
 
 /** Exact `array[n]` resolution, sound only when the base identifier is a `const` array
  *  literal (same const-only guard as arrayDrill; index alignment comes from reading
- *  element n directly, so skipped elements cannot shift positions). Returns undefined
- *  whenever the element cannot be proven — the caller then stays unproven. */
-function arrayLiteralPropertyValueAt(expression: ts.Identifier, index: number, property: string, checker: ts.TypeChecker, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty | undefined {
+ *  element n directly, so unresolvable SIBLING elements cannot shift positions). The
+ *  same mutation guard applies: a `const` array mutated anywhere in the project is not
+ *  drillable. Returns undefined whenever the element cannot be proven — the caller then
+ *  stays unproven. */
+function arrayLiteralPropertyValueAt(expression: ts.Identifier, index: number, property: string, checker: ts.TypeChecker, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined, bindingMayBeMutated: (symbol: ts.Symbol) => boolean): DrilledProperty | undefined {
   const symbol = checker.getSymbolAtLocation(expression)
   const declaration = symbol?.valueDeclaration
     ?? ((symbol?.flags ?? 0) & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol!).valueDeclaration : undefined)
@@ -234,6 +275,7 @@ function arrayLiteralPropertyValueAt(expression: ts.Identifier, index: number, p
   if (!declaration || !ts.isVariableDeclaration(declaration) || !declaration.initializer) return undefined
   const constFlag = (declaration.flags | (ts.isVariableDeclarationList(declaration.parent) ? declaration.parent.flags : 0)) & ts.NodeFlags.Const
   if (!constFlag) return undefined
+  if (symbol && bindingMayBeMutated(symbol)) return undefined
   let initializer: ts.Expression = declaration.initializer
   if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
   if (ts.isParenthesizedExpression(initializer)) initializer = initializer.expression
@@ -304,6 +346,38 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   for (const absolute of sourceFiles.keys()) {
     const boundSource = program.getSourceFile(absolute)
     if (boundSource) sourceFiles.set(absolute, boundSource)
+  }
+
+  // Fail-closed guard shared by the numeric-index and array-wide drills: even a `const`
+  // array can be mutated after its literal initializer, in ANY file of the project
+  // (`items.push(...)`, `items[i] = x`, `delete items[i]`, cross-file mutations included).
+  // When any reference to the binding resolves to the same declaration and sits at a
+  // mutation site, the literal elements are not provably the runtime values and every
+  // drill on this binding must stay unproven. Cached per symbol.
+  const mutationCache = new Map<ts.Symbol, boolean>()
+  const bindingMayBeMutated = (symbol: ts.Symbol): boolean => {
+    const target = (symbol.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(symbol) : symbol
+    const cached = mutationCache.get(target)
+    if (cached !== undefined) return cached
+    const declarations = target.declarations ?? []
+    let mutated = false
+    for (const source of sourceFiles.values()) {
+      const visit = (node: ts.Node): void => {
+        if (mutated || !declarations.length) return
+        if (ts.isIdentifier(node)) {
+          const at = checker.getSymbolAtLocation(node)
+          if (!at) return
+          const resolved = (at.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(at) : at
+          if (!(resolved.declarations ?? []).some(d => declarations.includes(d))) return
+          if (isArrayMutationReference(node)) mutated = true
+        }
+        node.forEachChild(visit)
+      }
+      visit(source)
+      if (mutated) break
+    }
+    mutationCache.set(target, mutated)
+    return mutated
   }
 
   const nodes: SourceNode[] = []
@@ -720,7 +794,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         }
         const emitUnproven = (base: ts.Expression) => {
           unprovenUsageFiles.add(usage.file)
-          for (const item of arrayDrill(base, drill.property, checker, new Set(), resolveAsset)) {
+          for (const item of arrayDrill(base, drill.property, checker, new Set(), resolveAsset, bindingMayBeMutated)) {
             for (const candidate of candidateNodesFor(item)) {
               addEdge(usage.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${usage.ownerId}:${candidate.id}:${usagePos}`, 'semantic-candidate')
               // Poison the candidate's closure: scope.ts flags unresolved entries whose
@@ -731,17 +805,24 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
             }
           }
         }
-        const attribute = usage.element.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === drill.paramName)
+        const usageProps = usage.element.attributes.properties
+        const attribute = usageProps.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === drill.paramName)
+        // A JSX spread AFTER the named attribute can override it at runtime
+        // (`product={product} {...overrides}`). The drilled value is then not provably
+        // the live one — fail closed: no proven edge, candidates named, usage poisoned.
+        const overriddenBySpread = attribute ? usageProps.slice(usageProps.indexOf(attribute) + 1).some(ts.isJsxSpreadAttribute) : false
         const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
         const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
         if (expression && ts.isElementAccessExpression(expression)) {
           // `items[index]`: the member IS passed, but which one is usually unknowable at
           // analysis time. A numeric literal index into a const array literal is the
-          // exception — element n is read directly and stays source-proven.
+          // exception — element n is read directly and stays source-proven (unless a
+          // later spread overrides the prop or the binding is mutated).
           sawUsage = true
+          if (overriddenBySpread) { emitUnproven(expression.expression); continue }
           const numeric = expression.argumentExpression && ts.isNumericLiteral(expression.argumentExpression) ? Number(expression.argumentExpression.text) : undefined
           if (numeric !== undefined && Number.isInteger(numeric) && numeric >= 0 && ts.isIdentifier(expression.expression)) {
-            const exact = arrayLiteralPropertyValueAt(expression.expression, numeric, drill.property, checker, resolveAsset)
+            const exact = arrayLiteralPropertyValueAt(expression.expression, numeric, drill.property, checker, resolveAsset, bindingMayBeMutated)
             if (exact) {
               drilled.set(JSON.stringify(exact), exact)
               emitDrilled([exact])
@@ -753,7 +834,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         }
         if (expression) {
           sawUsage = true
-          const items = arrayDrill(expression, drill.property, checker, new Set(), resolveAsset)
+          if (overriddenBySpread) { emitUnproven(expression); continue }
+          const items = arrayDrill(expression, drill.property, checker, new Set(), resolveAsset, bindingMayBeMutated)
           if (items.length) {
             for (const item of items) drilled.set(JSON.stringify(item), item)
             emitDrilled(items)
