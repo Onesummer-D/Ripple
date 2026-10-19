@@ -6,8 +6,9 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { createServer, type ViteDevServer } from 'vite'
-import { localProjectApiPlugin, withCandidateLock } from './local-project-api'
+import { localProjectApiPlugin, withCandidateLock, type LocalProjectApiOptions } from './local-project-api'
 import { analyzeProject } from './project'
+import type { CandidateOperationExecutor, StructuredEditOperation } from './candidate-operation-executors'
 import { attestBrowserExecution } from './verification-receipt'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS, type VerificationRun } from './model'
 import type { StoredCandidate } from './workbench-store'
@@ -27,14 +28,14 @@ function makeGitProject(): string {
   fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'api-fixture', private: true }))
   fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
   fs.writeFileSync(path.join(root, 'src', 'App.tsx'), `/* project supplied https://untrusted.invalid/pixel.png */ import { useState } from 'react'; import { HomePage } from './pages/HomePage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <HomePage />}</>}`)
-  fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `export function HomePage(){return <main><h1>Baseline title</h1><button>Browse items</button></main>}`)
+  fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `export function HomePage(){return <main><h1>Baseline title</h1><button>Browse items</button><img src="/images/old.webp" /></main>}`)
   const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe' })
   git('init', '-q'); git('config', 'user.email', 'ripple-test@example.invalid'); git('config', 'user.name', 'Ripple API test'); git('add', '.'); git('commit', '-qm', 'baseline')
   return root
 }
 
-async function startApi(): Promise<void> {
-  server = await createServer({ configFile: false, logLevel: 'silent', plugins: [localProjectApiPlugin()], server: { host: '127.0.0.1', port: 0, strictPort: false } })
+async function startApi(options?: LocalProjectApiOptions): Promise<void> {
+  server = await createServer({ configFile: false, logLevel: 'silent', plugins: [localProjectApiPlugin(options)], server: { host: '127.0.0.1', port: 0, strictPort: false } })
   await server.listen()
   const address = server.httpServer!.address() as AddressInfo
   baseUrl = `http://127.0.0.1:${address.port}`
@@ -52,7 +53,8 @@ describe('loopback Project API', () => {
     const projectRoot = makeGitProject()
     await startApi()
     const request = (route: string, body: unknown) => fetch(`${baseUrl}/__ripple/api/${route}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify(body) })
-    const analysis = await (await request('analyze', { projectRoot })).json() as { revision: { projectId: string; sourceDigest: string } }
+    const analysis = await (await request('analyze', { projectRoot })).json() as { revision: { projectId: string; sourceDigest: string }; capabilities: { schemaVersion: string; projectViteConfig: { status: string }; productionBuild: { status: string }; serverRendering: { status: string } } }
+    expect(analysis.capabilities).toMatchObject({ schemaVersion: 'ripple-project-capabilities/v1', projectViteConfig: { status: 'unsupported' }, productionBuild: { status: 'unsupported' }, serverRendering: { status: 'unsupported' } })
     const unissuedSelection = await request('project/source-selection', {
       projectId: analysis.revision.projectId, previewId: 'project-preview-unissued', sourceDigest: analysis.revision.sourceDigest, sourceRef: 'jsx:src/pages/HomePage.tsx#0',
     })
@@ -140,6 +142,46 @@ describe('loopback Project API', () => {
     expect((await discard.json()).removed).toBe(true)
     const missingRestore = await fetch(`${baseUrl}/__ripple/api/candidate/restore`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id }) })
     expect(missingRestore.status).toBe(404)
+  }, 30_000)
+
+  it('injects one explicit structured executor through Session and Candidate in the local API', async () => {
+    const projectRoot = makeGitProject()
+    const assetBytes = Buffer.from([0, 254, 11, 0, 123])
+    const assetHash = createHash('sha256').update(assetBytes).digest('hex')
+    const assetRef = 'public/assets/api-image.webp'
+    type MediaOperation = Extract<StructuredEditOperation, { action: 'asset-swap' }>
+    const executor: CandidateOperationExecutor<MediaOperation> = {
+      kind: 'MEDIA', action: 'asset-swap',
+      validate(value): value is MediaOperation {
+        if (!value || typeof value !== 'object') return false
+        const operation = value as Record<string, unknown>
+        const payload = operation.payload as Record<string, unknown> | undefined
+        return operation.kind === 'MEDIA' && operation.action === 'asset-swap' && !!payload && payload.assetRef === assetRef && payload.assetHash === assetHash
+      },
+      plan({ operation, target, readStagedAsset }) {
+        return {
+          sourceEdits: [{ path: target.location!.path, start: target.location!.start!, end: target.location!.end!, before: operation.before, after: operation.after }],
+          fileWrites: [{ path: operation.payload.assetRef, bytes: readStagedAsset(operation.payload.assetHash) }],
+        }
+      },
+    }
+    await startApi({ candidateOperationExecutors: [executor], readStagedAsset: hash => hash === assetHash ? assetBytes : new Uint8Array() })
+    const request = (route: string, body: unknown) => fetch(`${baseUrl}/__ripple/api/${route}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify(body) })
+    const analysis = await (await request('analyze', { projectRoot })).json() as { revision: { projectId: string }; targets: Array<{ id: string; kind: string; value: string }>; routes: Array<{ id: string }> }
+    const media = analysis.targets.find(target => target.kind === 'media')!
+    const scope = { id: 'media-api-scope', version: 1, includedRefs: [analysis.routes[0].id, media.id], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() }
+    const response = await request('candidate', {
+      projectId: analysis.revision.projectId, rawIntent: 'Replace hero image', scope,
+      operations: [{ id: 'media-api-op', kind: 'MEDIA', action: 'asset-swap', targetRef: media.id, before: media.value, after: '/assets/api-image.webp', payload: { assetRef, assetHash } }],
+      verificationContract: { pages: [{ pageRef: analysis.routes[0].id, path: '/', markerText: 'Baseline title' }], interactions: [] },
+    })
+    expect(response.status).toBe(200)
+    const body = await response.json() as { candidate: { id: string; diff: string; modifiedPaths: string[] }; verification: { state: string } }
+    expect(body.candidate.diff).toContain('GIT binary patch')
+    expect(body.candidate.modifiedPaths).toContain(assetRef)
+    expect(body.verification.state).toBe('not-run')
+    const discard = await request('discard', { candidateId: body.candidate.id })
+    expect(discard.status).toBe(200)
   }, 30_000)
 
   it('holds a candidate operation lock until async verification or cleanup has finished', async () => {

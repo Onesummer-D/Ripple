@@ -7,6 +7,7 @@ import type { CandidatePatch, EditOperation, ScopeDecision, SourceGraph, SourceN
 import { analyzeProject, digestTrackedTree, readProjectSnapshot } from './project'
 import { ensureRuntimeImports, findPageOverrideMarkers, newPageOverrideTargetId, readPageOverrideRegistry, removeRuntimeImports, writePageOverrideRegistry, type PageOverrideMarker } from './page-overrides'
 import { evaluateOperationPageScope, sourceProvenPageImpact } from './scope'
+import { assertCandidateOperationRegistry, findCandidateOperationExecutor, hasStructuredOperationFields, type CandidateOperationRegistry, type CandidateSourceEdit } from './candidate-operation-executors'
 
 export class CandidateError extends Error {
   constructor(message: string) { super(message); this.name = 'CandidateError' }
@@ -19,6 +20,8 @@ export interface CandidateRequest {
   graph: SourceGraph
   scope: ScopeDecision
   operations: EditOperation[]
+  executors?: CandidateOperationRegistry
+  readStagedAsset?: (sha256: string) => Uint8Array
   candidateId?: string
 }
 
@@ -31,6 +34,22 @@ export interface CandidateRecord extends CandidatePatch {
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const runGit = (root: string, args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }).trimEnd()
+function copyByteArray(value: unknown): Uint8Array | undefined {
+  if (!ArrayBuffer.isView(value) || typeof (value as unknown as { BYTES_PER_ELEMENT?: unknown }).BYTES_PER_ELEMENT !== 'number' || (value as unknown as { BYTES_PER_ELEMENT: number }).BYTES_PER_ELEMENT !== 1) return undefined
+  const view = value as Uint8Array
+  return Uint8Array.from(new Uint8Array(view.buffer, view.byteOffset, view.byteLength))
+}
+
+function validateCandidateOperations(operations: EditOperation[], executors: CandidateOperationRegistry): void {
+  try { assertCandidateOperationRegistry(executors) }
+  catch (error) { throw new CandidateError(error instanceof Error ? error.message : 'Candidate operation registry is invalid') }
+  for (const operation of operations as unknown[]) {
+    if (!hasStructuredOperationFields(operation)) continue
+    const executor = findCandidateOperationExecutor(operation, executors)
+    if (!executor) throw new CandidateError('结构化操作缺少明确注册且匹配的执行器，拒绝按字面量替换降级执行')
+    if (!executor.validate(operation)) throw new CandidateError('注册的结构化操作执行器拒绝该操作')
+  }
+}
 
 function outsideProject(projectRoot: string, outputPath: string, label: string): string {
   const resolved = path.resolve(outputPath)
@@ -44,13 +63,13 @@ function outsideProject(projectRoot: string, outputPath: string, label: string):
   return physical
 }
 
-function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditOperation[]): Map<string, SourceNode> {
+function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditOperation[], executors: CandidateOperationRegistry): Map<string, SourceNode> {
   if (!scope.id || !Number.isInteger(scope.version) || scope.version < 1 || !scope.decidedBy || !scope.decidedAt) throw new CandidateError('Scope 必须有用户、时间和递增版本')
   const unique = (values: string[]) => new Set(values).size === values.length
   if (!unique(scope.includedRefs) || !unique(scope.excludedRefs) || !unique(scope.protectedRefs)) throw new CandidateError('Scope 引用了重复对象')
   const included = new Set(scope.includedRefs)
   if ([...scope.excludedRefs, ...scope.protectedRefs].some(id => included.has(id))) throw new CandidateError('Scope 的 included 与 excluded/protected 冲突')
-  if (!operations.length || !unique(operations.map(operation => operation.id))) throw new CandidateError('候选必须包含至少一项且操作 ID 不重复')
+  if (!operations.length || !unique(operations.map(operation => operation.id)) || !unique(operations.map(operation => operation.targetRef))) throw new CandidateError('候选必须包含至少一项且操作 ID 与目标不重复')
   const nodes = new Map(graph.nodes.map(node => [node.id, node]))
   for (const ref of [...scope.includedRefs, ...scope.excludedRefs, ...scope.protectedRefs]) {
     if (!nodes.has(ref)) throw new CandidateError(`Scope 引用了当前源码图中不存在的对象：${ref}`)
@@ -74,13 +93,16 @@ function assertScope(graph: SourceGraph, scope: ScopeDecision, operations: EditO
     const impact = sourceProvenPageImpact(graph, operation.targetRef)
     if (impact.unresolved.length) throw new CandidateError(`无法证明目标的完整页面影响，拒绝生成候选：${impact.unresolved.join('；')}`)
     if (scope.strategy === 'page-override') {
-      if (operation.kind !== 'TEXT' || target.kind !== 'data' || !impact.pageRefs.includes(localPageRef!)) {
+      if (hasStructuredOperationFields(operation) || operation.kind !== 'TEXT' || target.kind !== 'data' || !impact.pageRefs.includes(localPageRef!)) {
         throw new CandidateError('当前页面覆盖只支持具有确定页面消费者的 JSX 文本；MEDIA/TOKEN 和非目标页面尚不支持覆盖')
       }
       if (operation.overrideAction === 'remove' && !operation.targetRef.startsWith('override:')) throw new CandidateError('只能移除已保存的页面覆盖规则')
     }
     for (const pageEffect of evaluateOperationPageScope(scope, impact.pageRefs)) {
       if (pageEffect.effect === 'conflict') throw new CandidateError(pageEffect.reason)
+    }
+    if (hasStructuredOperationFields(operation) && !findCandidateOperationExecutor(operation, executors)) {
+      throw new CandidateError('结构化操作缺少明确注册的候选执行器')
     }
   }
   return nodes
@@ -321,44 +343,127 @@ function applyPageOverrideOperations(root: string, graph: SourceGraph, scope: Sc
     }
     if (!fs.readdirSync(overrideRoot).length) fs.rmdirSync(overrideRoot)
   }
-  const intentToAdd = [...modified].filter(file => fs.existsSync(path.join(root, file)))
-  if (intentToAdd.length) execFileSync('git', ['-C', root, 'add', '--intent-to-add', '--force', '--', ...intentToAdd], { stdio: 'pipe' })
   return [...modified]
 }
 
-function applyOperations(root: string, graph: SourceGraph, scope: ScopeDecision, nodes: Map<string, SourceNode>, operations: EditOperation[], operationTargetRefs: Record<string, string>): string[] {
+function resolveCandidateOutputPath(root: string, relative: string): string {
+  if (typeof relative !== 'string' || !relative || relative.includes('\\') || relative.includes('\0') || path.posix.isAbsolute(relative) || /^[A-Za-z]:/.test(relative)) {
+    throw new CandidateError(`候选文件路径必须是规范的项目相对路径：${relative}`)
+  }
+  const parts = relative.split('/')
+  if (parts.some(part => !part || part === '.' || part === '..')) throw new CandidateError(`候选文件路径包含越界或空路径段：${relative}`)
+  const absoluteRoot = fs.realpathSync(root)
+  const absolute = path.resolve(absoluteRoot, ...parts)
+  const resolvedRelative = path.relative(absoluteRoot, absolute)
+  if (!resolvedRelative || resolvedRelative === '..' || resolvedRelative.startsWith(`..${path.sep}`) || path.isAbsolute(resolvedRelative)) {
+    throw new CandidateError(`候选文件路径越界：${relative}`)
+  }
+  let current = absoluteRoot
+  for (let index = 0; index < parts.length; index += 1) {
+    current = path.join(current, parts[index])
+    if (!fs.existsSync(current)) continue
+    const stat = fs.lstatSync(current)
+    if (stat.isSymbolicLink()) throw new CandidateError(`候选文件路径不能经过符号链接：${relative}`)
+    if (index < parts.length - 1 && !stat.isDirectory()) throw new CandidateError(`候选文件路径的父级不是目录：${relative}`)
+  }
+  return absolute
+}
+
+function applyOperations(
+  root: string,
+  graph: SourceGraph,
+  scope: ScopeDecision,
+  nodes: Map<string, SourceNode>,
+  operations: EditOperation[],
+  operationTargetRefs: Record<string, string>,
+  executors: CandidateOperationRegistry,
+  readStagedAsset?: (sha256: string) => Uint8Array,
+): string[] {
   if (scope.strategy === 'page-override') return applyPageOverrideOperations(root, graph, scope, nodes, operations, operationTargetRefs)
-  const byFile = new Map<string, Array<{ operation: EditOperation; node: SourceNode }>>()
+  const editsByFile = new Map<string, Array<CandidateSourceEdit & { operationId: string }>>()
+  const writes = new Map<string, Uint8Array>()
+  const modified = new Set<string>()
+  const sourceTextFor = (file: string) => fs.readFileSync(resolveTargetPath(root, file), 'utf8')
+  const readAsset = (expectedHash: string): Uint8Array => {
+    if (!/^[a-f\d]{64}$/i.test(expectedHash)) throw new CandidateError('暂存资产必须使用 SHA-256 身份')
+    if (!readStagedAsset) throw new CandidateError('当前候选没有受控的暂存资产读取器')
+    const bytes = copyByteArray(readStagedAsset(expectedHash))
+    if (!bytes || sha256(bytes) !== expectedHash.toLowerCase()) throw new CandidateError(`暂存资产字节与 SHA-256 不匹配：${expectedHash}`)
+    return bytes
+  }
+
   for (const operation of operations) {
     operationTargetRefs[operation.id] = operation.targetRef
     const node = nodes.get(operation.targetRef)!
-    const file = node.location!.path
-    if (!byFile.has(file)) byFile.set(file, [])
-    byFile.get(file)!.push({ operation, node })
+    const sourceFile = node.location!.path
+    if (hasStructuredOperationFields(operation)) {
+      const executor = findCandidateOperationExecutor(operation, executors)
+      if (!executor || !executor.validate(operation)) throw new CandidateError(`结构化操作缺少有效的注册执行器：${operation.id}`)
+      const plan = executor.plan({ operation: operation as never, target: node, graph, scope, readStagedAsset: readAsset })
+      if (!plan || typeof plan !== 'object' || (plan.sourceEdits !== undefined && !Array.isArray(plan.sourceEdits)) || (plan.fileWrites !== undefined && !Array.isArray(plan.fileWrites))) {
+        throw new CandidateError(`结构化执行器返回了无效计划：${operation.id}`)
+      }
+      const sourceEdits = plan.sourceEdits ?? []
+      const fileWrites = plan.fileWrites ?? []
+      if (!sourceEdits.length && !fileWrites.length) throw new CandidateError(`结构化执行器没有提出任何修改：${operation.id}`)
+      for (const edit of sourceEdits) {
+        if (!edit || edit.path !== sourceFile || !Number.isSafeInteger(edit.start) || !Number.isSafeInteger(edit.end) ||
+            typeof edit.before !== 'string' || typeof edit.after !== 'string' || edit.before === edit.after ||
+            edit.start < node.location!.start! || edit.end > node.location!.end! || edit.end <= edit.start || writes.has(edit.path)) {
+          throw new CandidateError(`结构化源码编辑必须落在目标 AST 源区间内：${operation.id}`)
+        }
+        const original = sourceTextFor(edit.path)
+        if (original.slice(edit.start, edit.end) !== edit.before) throw new CandidateError(`源码已漂移，拒绝执行结构化操作：${operation.id}`)
+        const edits = editsByFile.get(edit.path) ?? []
+        edits.push({ ...edit, operationId: operation.id })
+        editsByFile.set(edit.path, edits)
+        modified.add(edit.path)
+      }
+      for (const write of fileWrites) {
+        const bytes = write && copyByteArray(write.bytes)
+        if (!write || !bytes) throw new CandidateError(`结构化文件写入无效：${operation.id}`)
+        const outputPath = resolveCandidateOutputPath(root, write.path)
+        if (writes.has(write.path) || editsByFile.has(write.path)) throw new CandidateError(`多个候选操作写入同一文件，拒绝产生顺序依赖：${write.path}`)
+        if (fs.existsSync(outputPath)) throw new CandidateError(`结构化执行器只允许新增文件，目标已经存在：${write.path}`)
+        writes.set(write.path, bytes)
+        modified.add(write.path)
+      }
+    } else {
+      const start = node.location!.start!
+      const end = node.location!.end!
+      if (writes.has(sourceFile)) throw new CandidateError(`候选文件写入与源码编辑冲突：${sourceFile}`)
+      const original = sourceTextFor(sourceFile)
+      if (original.slice(start, end) !== operation.before) throw new CandidateError(`源内容已变化，拒绝应用操作：${operation.id}`)
+      const edits = editsByFile.get(sourceFile) ?? []
+      edits.push({ path: sourceFile, start, end, before: operation.before, after: operation.after, operationId: operation.id })
+      editsByFile.set(sourceFile, edits)
+      modified.add(sourceFile)
+    }
   }
-  for (const [file, edits] of byFile) {
+
+  for (const [file, edits] of editsByFile) {
     const absolute = resolveTargetPath(root, file)
     const original = fs.readFileSync(absolute, 'utf8')
-    const ordered = edits.map(({ operation, node }) => ({
-      operation,
-      start: node.location!.start!,
-      end: node.location!.end!,
-      replacement: operation.after,
-    }))
-      .sort((a, b) => b.start - a.start)
+    const ordered = [...edits].sort((left, right) => right.start - left.start)
     let priorStart = original.length + 1
     let next = original
     for (const edit of ordered) {
-      if (edit.end > priorStart || edit.start < 0 || edit.end < edit.start) throw new CandidateError(`同一文件的操作区间重叠或无效：${file}`)
-      const actual = original.slice(edit.start, edit.end)
-      if (actual !== edit.operation.before) throw new CandidateError(`源内容已变化，拒绝应用操作：${edit.operation.id}`)
-      next = next.slice(0, edit.start) + edit.replacement + next.slice(edit.end)
+      if (edit.end > priorStart || edit.start < 0 || edit.end < edit.start || original.slice(edit.start, edit.end) !== edit.before) {
+        throw new CandidateError(`同一文件的结构化或字面量操作区间冲突或源码漂移：${file}`)
+      }
+      next = next.slice(0, edit.start) + edit.after + next.slice(edit.end)
       priorStart = edit.start
     }
     fs.writeFileSync(absolute, next, 'utf8')
     checkSourceSyntax(next, file)
   }
-  return [...byFile.keys()]
+
+  for (const [relative, bytes] of writes) {
+    const outputPath = resolveCandidateOutputPath(root, relative)
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+    fs.writeFileSync(outputPath, bytes, { flag: 'wx' })
+  }
+  return [...modified]
 }
 
 function removeWorktree(projectRoot: string, candidateRoot: string): void {
@@ -367,10 +472,8 @@ function removeWorktree(projectRoot: string, candidateRoot: string): void {
 
 export function createCandidate(request: CandidateRequest): CandidateRecord {
   if (!Array.isArray(request.operations)) throw new CandidateError('候选操作必须是数组')
-  for (const operation of request.operations as unknown[]) {
-    if (!operation || typeof operation !== 'object') throw new CandidateError('候选操作必须是对象')
-    if ('action' in operation || 'payload' in operation) throw new CandidateError('结构化操作尚无候选执行器，拒绝按字面量替换降级执行')
-  }
+  const executors = request.executors ?? []
+  validateCandidateOperations(request.operations, executors)
   const snapshot = readProjectSnapshot(request.projectRoot)
   if (snapshot.revision.sourceDigest !== request.graph.revision.sourceDigest) throw new CandidateError('候选图不再对应项目当前源码')
   if (snapshot.revision.gitCommit !== request.graph.revision.gitCommit) throw new CandidateError('候选图不再对应项目当前 Git 基线')
@@ -397,9 +500,11 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
     fs.writeFileSync(markerPath, JSON.stringify({ id, projectId: snapshot.revision.projectId, baseSourceDigest: snapshot.revision.sourceDigest }), { flag: 'wx' })
     const currentGraph = analyzeProject(snapshot.root)
     if (currentGraph.id !== request.graph.id) throw new CandidateError('源关系图身份不匹配，请重新分析项目')
-    const nodes = assertScope(currentGraph, request.scope, request.operations)
+    const nodes = assertScope(currentGraph, request.scope, request.operations, executors)
     const operationTargetRefs: Record<string, string> = {}
-    const modifiedPaths = applyOperations(candidateRoot, currentGraph, request.scope, nodes, request.operations, operationTargetRefs)
+    const modifiedPaths = applyOperations(candidateRoot, currentGraph, request.scope, nodes, request.operations, operationTargetRefs, executors, request.readStagedAsset)
+    const intentToAdd = modifiedPaths.filter(file => !snapshot.trackedFiles.includes(file) && fs.existsSync(path.join(candidateRoot, file)))
+    if (intentToAdd.length) execFileSync('git', ['-C', candidateRoot, 'add', '--intent-to-add', '--force', '--', ...intentToAdd], { stdio: 'pipe' })
     const patch = execFileSync('git', ['-C', candidateRoot, 'diff', '--no-ext-diff', '--binary', 'HEAD'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
     if (!patch) throw new CandidateError('操作没有产生真实源码差异')
     const patchHash = sha256(patch)
@@ -409,7 +514,7 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
     const candidateTreeDigest = digestTrackedTree(candidateRoot, candidateFiles)
     const originalDigest = readProjectSnapshot(snapshot.root).revision.sourceDigest
     if (originalDigest !== snapshot.revision.sourceDigest) throw new CandidateError('创建候选期间原工程源码发生变化')
-    return {
+    const candidate: CandidateRecord = {
       id,
       projectRoot: snapshot.root,
       markerPath,
@@ -425,6 +530,8 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
       modifiedPaths: [...new Set(modifiedPaths)].sort(),
       operationTargetRefs,
     }
+    assertCandidateIntegrity(candidate)
+    return candidate
   } catch (error) {
     if (artifactCreated && fs.existsSync(artifactPath)) fs.unlinkSync(artifactPath)
     if (worktreeCreated) removeWorktree(snapshot.root, candidateRoot)

@@ -15,6 +15,8 @@ import { runCandidateVerification } from './verification-runner'
 import type { EditOperation, EditSession, ScopeDecision, SourceGraph, VerificationRun } from './model'
 import { normalizeVerificationContract, VerificationContractError } from './verification-contract'
 import { listStoredCandidates, readStoredCandidate, workbenchStateRoot, writeStoredCandidate, type CandidateLifecycle } from './workbench-store'
+import type { CandidateOperationRegistry } from './candidate-operation-executors'
+import { inspectProjectCapabilities } from './project-capabilities'
 
 interface OpenProject { root: string; graph: SourceGraph }
 interface LiveCandidate { record: CandidateRecord; session: EditSession; lifecycle: CandidateLifecycle }
@@ -65,6 +67,7 @@ function routeGraph(graph: SourceGraph, projectRoot: string) {
   const projectId = graph.revision.projectId
   return {
     revision: graph.revision,
+    capabilities: inspectProjectCapabilities(projectRoot, graph),
     graphId: graph.id,
     unresolved: graph.unresolved,
     routes: graph.nodes.filter(node => node.kind === 'route').map(node => ({ id: node.id, label: node.label, page: node.page })),
@@ -208,7 +211,7 @@ function restoreStoredCandidate(candidateId: string): LiveCandidate | undefined 
   return live
 }
 
-async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
+async function handle(request: IncomingMessage, response: ServerResponse, options: LocalProjectApiOptions = {}): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? '127.0.0.1'}`)
   if (!url.pathname.startsWith('/__ripple/api/')) return
   assertLoopbackRequest(request)
@@ -362,9 +365,10 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       const candidateRoot = path.join(stateRoot, sessionId, 'candidate')
       const session = recordSourceGraph(openSession(sessionId, project.graph.revision, rawIntent, [], verificationContract), project.graph.id, project.graph.revision.sourceDigest)
       const scoped = chooseScope(session, scope)
-      const staged = stageOperations(scoped, operations)
+      const executors = options.candidateOperationExecutors ?? []
+      const staged = stageOperations(scoped, operations, executors)
       await stopProjectSourcePreview(project.graph.revision.projectId)
-      const record = createCandidate({ projectRoot: project.root, candidateRoot, artifactRoot, graph: project.graph, scope, operations, candidateId })
+      const record = createCandidate({ projectRoot: project.root, candidateRoot, artifactRoot, graph: project.graph, scope, operations, executors, readStagedAsset: options.readStagedAsset, candidateId })
       try {
         const candidateSession = stageCandidate(staged, record)
         assertCandidateCurrent(record)
@@ -570,7 +574,12 @@ async function cleanupCandidates(): Promise<void> {
   if (failures.length) throw new AggregateError(failures, 'Some candidate worktrees were preserved because safe cleanup failed')
 }
 
-export function localProjectApiPlugin(): Plugin {
+export interface LocalProjectApiOptions {
+  candidateOperationExecutors?: CandidateOperationRegistry
+  readStagedAsset?: (sha256: string) => Uint8Array
+}
+
+export function localProjectApiPlugin(options: LocalProjectApiOptions = {}): Plugin {
   let shutdown: Promise<void> | undefined
   const stopRuntime = () => shutdown ??= cleanupCandidates()
   return {
@@ -579,7 +588,7 @@ export function localProjectApiPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         if (!request.url?.startsWith('/__ripple/api/')) return next()
-        void handle(request, response).catch(error => {
+        void handle(request, response, options).catch(error => {
           const failure = error instanceof Error ? error as Error & { statusCode?: number } : undefined
           const code = failure && 'code' in failure ? failure.code : undefined
           const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' || failure?.name === 'VerificationRunnerError' ? 503 : failure instanceof PatchApplyError || failure?.name === 'CandidateError' || failure?.name === 'SessionInvariantError' || failure?.name === 'VerificationEvidenceError' ? 409 : failure instanceof VerificationContractError || failure?.name === 'PreviewResourcePolicyError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500

@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidate } from './candidate'
+import ts from 'typescript'
+import { assertCandidateCurrent, assertCandidateIntegrity, CandidateError, createCandidate, removeCandidate } from './candidate'
+import type { CandidateOperationExecutor } from './candidate-operation-executors'
 import { analyzeProject, createRuntimeSourceMap, digestTrackedTree, readProjectSnapshot, resolveJsxSourceElement, resolveRuntimeElement, trackedProjectFiles } from './project'
 import { sourceAnnotationPlugin } from './source-annotation'
 import { expectedTextForPage, sourceProvenPageImpact } from './scope'
@@ -14,6 +16,8 @@ import type { BrowserVerificationContract, EditOperation, ScopeDecision, Verific
 import { attestBrowserExecution } from './verification-receipt'
 import { sourceBindings } from './verification-runner'
 import { verificationContractHash } from './verification-contract'
+import { inspectProjectCapabilities } from './project-capabilities'
+import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 
 const temporaryRoots: string[] = []
 const temp = () => {
@@ -113,6 +117,43 @@ function sampleProject() {
   return { container, root }
 }
 
+type MediaSwapOperation = Extract<EditOperation, { action: 'asset-swap' }>
+
+function mediaSwapFixture(graph: ReturnType<typeof analyzeProject>) {
+  const target = graph.nodes.find(node => node.kind === 'media' && node.location?.path === 'src/pages/HomePage.tsx' && node.value === '/images/a.webp')!
+  const bytes = Buffer.from([0, 255, 17, 0, 128, 42, 9])
+  const assetHash = createHash('sha256').update(bytes).digest('hex')
+  const assetRef = 'public/media/product-new.webp'
+  const operation: MediaSwapOperation = {
+    id: 'media-swap', kind: 'MEDIA', action: 'asset-swap', targetRef: target.id,
+    before: target.value!, after: '/media/product-new.webp',
+    payload: { assetRef, assetHash },
+  }
+  const scope: ScopeDecision = {
+    id: 'media-scope', version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [],
+    decidedBy: 'test-user', decidedAt: new Date().toISOString(),
+  }
+  const executor: CandidateOperationExecutor<MediaSwapOperation> = {
+    kind: 'MEDIA', action: 'asset-swap',
+    validate(value): value is MediaSwapOperation {
+      if (!value || typeof value !== 'object') return false
+      const candidate = value as Record<string, unknown>
+      const payload = candidate.payload as Record<string, unknown> | undefined
+      return candidate.kind === 'MEDIA' && candidate.action === 'asset-swap' &&
+        typeof candidate.before === 'string' && typeof candidate.after === 'string' &&
+        !!payload && payload.assetRef === assetRef && payload.assetHash === assetHash
+    },
+    plan({ operation: current, target: sourceTarget, readStagedAsset }) {
+      return {
+        sourceEdits: [{ path: sourceTarget.location!.path, start: sourceTarget.location!.start!, end: sourceTarget.location!.end!, before: current.before, after: current.after }],
+        fileWrites: [{ path: current.payload.assetRef, bytes: readStagedAsset(current.payload.assetHash) }],
+      }
+    },
+  }
+  const readStagedAsset = (expectedHash: string) => expectedHash === assetHash ? bytes : new Uint8Array()
+  return { target, bytes, assetHash, assetRef, operation, scope, executor, executors: [executor], readStagedAsset }
+}
+
 afterEach(() => {
   for (const root of temporaryRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
@@ -147,6 +188,46 @@ describe('real project graph and candidate executor', () => {
     expect(resolveJsxSourceElement(graph, parentContainer!.id).editableText).toEqual([])
     expect(resolveJsxSourceElement(graph, nestedParagraph!.id).editableText.map(node => node.id)).toEqual([nestedText!.id])
     expect(snapshot.revision.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('reports bounded project capabilities from arbitrary referenced and extended app config names', () => {
+    const { root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'tooling'), { recursive: true })
+    fs.mkdirSync(path.join(root, 'configs'), { recursive: true })
+    fs.mkdirSync(path.join(root, 'node_modules'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'sample', dependencies: { react: '19.0.0', 'react-dom': '19.0.0' } }))
+    fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ files: [], references: [{ path: 'tooling/react-site.config.json' }] }))
+    fs.writeFileSync(path.join(root, 'configs', 'shared-aliases.json'), JSON.stringify({ compilerOptions: { baseUrl: '..', jsx: 'react-jsx', paths: { '@/*': ['src/*'] } } }))
+    fs.writeFileSync(path.join(root, 'tooling', 'react-site.config.json'), JSON.stringify({ extends: '../configs/shared-aliases.json', include: ['../src'] }))
+    fs.writeFileSync(path.join(root, 'vite.config.ts'), 'throw new Error("must not execute")')
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add arbitrary referenced app config')
+
+    const graph = analyzeProject(root)
+    const capabilities = inspectProjectCapabilities(root, graph, 'linux')
+    expect(capabilities).toMatchObject({
+      schemaVersion: 'ripple-project-capabilities/v1',
+      sourceDigest: graph.revision.sourceDigest,
+      framework: { status: 'supported', value: 'react-dom-spa' },
+      entry: { status: 'supported', value: { modules: ['src/main.tsx'], pageCount: 2 } },
+      typescriptAliases: { status: 'supported', value: { configPath: path.join(root, 'tooling', 'react-site.config.json') } },
+      devPreview: { status: 'supported', value: { adapter: 'ripple-bounded-react-vite' } },
+      projectViteConfig: { status: 'unsupported', value: { loaded: false } },
+      productionBuild: { status: 'unsupported', value: { executed: false } },
+      serverRendering: { status: 'unsupported', value: { executed: false } },
+    })
+    expect(capabilities.typescriptAliases.value?.rules).toEqual([{ pattern: '@/*', target: path.join(root, 'src', '*') }])
+    const aliasGraph = resolveProjectConfigGraph(root, ts)
+    const viteAlias = toViteAliasRules(aliasGraph)
+    expect(viteAlias).toHaveLength(1)
+    expect(viteAlias[0].find).toBeInstanceOf(RegExp)
+    expect((viteAlias[0].find as RegExp).test('@/components/Navigation')).toBe(true)
+
+    fs.writeFileSync(path.join(root, 'configs', 'shared-aliases.json'), JSON.stringify({ compilerOptions: { baseUrl: '..', jsx: 'react-jsx', paths: { '@/*': ['src/*', 'other/*'] } } }))
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'make aliases ambiguous')
+    const ambiguous = inspectProjectCapabilities(root, analyzeProject(root), 'linux')
+    expect(ambiguous.typescriptAliases.status).toBe('ambiguous')
   })
 
   it('proves component token use but keeps imported CSS token usage unknown without cascade evidence', () => {
@@ -193,6 +274,134 @@ describe('real project graph and candidate executor', () => {
     expect(() => createCandidate({ projectRoot: root, candidateRoot, artifactRoot: path.join(container, 'structured-artifacts'), graph, scope, operations: [operation] })).toThrow(CandidateError)
     expect(fs.existsSync(candidateRoot)).toBe(false)
     expect(fs.readFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), 'utf8')).toContain('Home title')
+  })
+
+  it('executes a registered structured operation as one binary patch and applies then rolls back those exact bytes', () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const fixture = mediaSwapFixture(graph)
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'media-candidate'), artifactRoot: path.join(container, 'media-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset })
+    try {
+      expect(candidate.modifiedPaths).toContain(fixture.assetRef)
+      const patch = fs.readFileSync(candidate.artifactPath!, 'utf8')
+      expect(patch).toContain('GIT binary patch')
+      expect(patch).toContain('src/pages/HomePage.tsx')
+      expect(fs.readFileSync(path.join(candidate.candidateRoot!, fixture.assetRef))).toEqual(fixture.bytes)
+      assertCandidateCurrent(candidate)
+
+      let session = recordSourceGraph(openSession('structured-apply-session', graph.revision, 'Replace the product image', [], contractFor(fixture.scope)), graph.id, graph.revision.sourceDigest)
+      session = stageOperations(chooseScope(session, fixture.scope), [fixture.operation], fixture.executors)
+      session = stageCandidate(session, candidate)
+      const run = trustedRun(candidate, graph.revision.runtimeFingerprint, fixture.target.id, path.join(container, 'media-evidence'), fixture.scope)
+      session = approve(registerVerification(session, run), { candidateId: candidate.id, verificationRunId: run.id, by: 'test-user', at: '2026-10-19T00:02:00Z' })
+      session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
+      expect(fs.readFileSync(path.join(root, fixture.assetRef))).toEqual(fixture.bytes)
+      expect(digestTrackedTree(root, [...trackedProjectFiles(root), fixture.assetRef])).toBe(candidate.candidateTreeDigest)
+      expect(fs.readFileSync(path.join(root, fixture.target.location!.path), 'utf8')).toContain(fixture.operation.after)
+
+      rollbackAppliedCandidate(session, candidate)
+      expect(fs.existsSync(path.join(root, fixture.assetRef))).toBe(false)
+      expect(readProjectSnapshot(root).revision.sourceDigest).toBe(graph.revision.sourceDigest)
+      expect(fs.readFileSync(path.join(root, fixture.target.location!.path), 'utf8')).toContain(fixture.operation.before)
+    } finally { removeCandidate(candidate) }
+  }, 30_000)
+
+  it('fails closed for unknown, malformed and protected structured actions before the executor can plan writes', () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const fixture = mediaSwapFixture(graph)
+    let planned = 0
+    const executor = { ...fixture.executor, plan: (input: Parameters<typeof fixture.executor.plan>[0]) => { planned += 1; return fixture.executor.plan(input) } }
+    const candidateRoot = path.join(container, 'rejected-structured-candidate')
+    const request = { projectRoot: root, candidateRoot, artifactRoot: path.join(container, 'rejected-structured-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: [executor], readStagedAsset: fixture.readStagedAsset }
+    const unknown = { ...fixture.operation, action: 'unregistered' } as unknown as EditOperation
+    expect(() => createCandidate({ ...request, operations: [unknown] })).toThrow(CandidateError)
+    const malformed = { ...fixture.operation, payload: { ...fixture.operation.payload, assetHash: 'bad' } } as unknown as EditOperation
+    expect(() => createCandidate({ ...request, operations: [malformed] })).toThrow(CandidateError)
+    const protectedScope = { ...fixture.scope, protectedRefs: [fixture.target.id] }
+    expect(() => createCandidate({ ...request, scope: protectedScope })).toThrow(CandidateError)
+    expect(planned).toBe(0)
+    expect(fs.existsSync(candidateRoot)).toBe(false)
+    expect(fs.readFileSync(path.join(root, fixture.target.location!.path), 'utf8')).toContain(fixture.operation.before)
+  })
+
+  it('detects binary worktree tampering, patch artifact tampering and unregistered candidate writes', () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const fixture = mediaSwapFixture(graph)
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'tamper-candidate'), artifactRoot: path.join(container, 'tamper-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset })
+    try {
+      const output = path.join(candidate.candidateRoot!, fixture.assetRef)
+      fs.writeFileSync(output, Buffer.from([1, 2, 3]))
+      expect(() => assertCandidateIntegrity(candidate)).toThrow(/候选代码或补丁哈希已变化/)
+      fs.writeFileSync(output, fixture.bytes)
+      assertCandidateIntegrity(candidate)
+
+      const originalPatch = fs.readFileSync(candidate.artifactPath!)
+      fs.writeFileSync(candidate.artifactPath!, Buffer.concat([originalPatch, Buffer.from('tamper')]))
+      expect(() => assertCandidateIntegrity(candidate)).toThrow(/候选补丁哈希已变化/)
+      fs.writeFileSync(candidate.artifactPath!, originalPatch)
+      assertCandidateIntegrity(candidate)
+
+      fs.writeFileSync(path.join(candidate.candidateRoot!, 'unregistered.txt'), 'not in CandidatePatch')
+      expect(() => assertCandidateIntegrity(candidate)).toThrow(/未经记录的文件变更/)
+    } finally { removeCandidate(candidate) }
+  }, 30_000)
+
+  it('rejects structured source drift and candidate-relative path escape before writing', () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const fixture = mediaSwapFixture(graph)
+    const driftExecutor: CandidateOperationExecutor<MediaSwapOperation> = {
+      ...fixture.executor,
+      plan(input) {
+        const plan = fixture.executor.plan(input)
+        return { ...plan, sourceEdits: plan.sourceEdits?.map(edit => ({ ...edit, before: 'stale source' })) }
+      },
+    }
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'drift-candidate'), artifactRoot: path.join(container, 'drift-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: [driftExecutor], readStagedAsset: fixture.readStagedAsset })).toThrow(/源码已漂移/)
+
+    const escapeExecutor: CandidateOperationExecutor<MediaSwapOperation> = {
+      ...fixture.executor,
+      plan(input) {
+        const plan = fixture.executor.plan(input)
+        return { ...plan, fileWrites: plan.fileWrites?.map(write => ({ ...write, path: '../escape.webp' })) }
+      },
+    }
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'escape-candidate'), artifactRoot: path.join(container, 'escape-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: [escapeExecutor], readStagedAsset: fixture.readStagedAsset })).toThrow(/相对路径|越界/)
+    expect(fs.existsSync(path.join(container, 'escape.webp'))).toBe(false)
+
+    const overwriteExecutor: CandidateOperationExecutor<MediaSwapOperation> = {
+      ...fixture.executor,
+      plan(input) {
+        const plan = fixture.executor.plan(input)
+        return { ...plan, fileWrites: plan.fileWrites?.map(write => ({ ...write, path: 'src/pages/AutumnPage.tsx' })) }
+      },
+    }
+    const protectedPage = fs.readFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), 'utf8')
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'overwrite-candidate'), artifactRoot: path.join(container, 'overwrite-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: [overwriteExecutor], readStagedAsset: fixture.readStagedAsset })).toThrow(/只允许新增文件/)
+    expect(fs.readFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), 'utf8')).toBe(protectedPage)
+  })
+
+  it.skipIf(process.platform === 'win32')('rejects structured output paths that traverse a project symlink', () => {
+    const { container, root } = sampleProject()
+    const outside = path.join(container, 'outside')
+    fs.mkdirSync(path.join(root, 'public'), { recursive: true })
+    fs.mkdirSync(outside)
+    fs.symlinkSync(outside, path.join(root, 'public', 'linked'), 'dir')
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add output symlink')
+    const graph = analyzeProject(root)
+    const fixture = mediaSwapFixture(graph)
+    const symlinkExecutor: CandidateOperationExecutor<MediaSwapOperation> = {
+      ...fixture.executor,
+      plan(input) {
+        const plan = fixture.executor.plan(input)
+        return { ...plan, fileWrites: plan.fileWrites?.map(write => ({ ...write, path: 'public/linked/escape.webp' })) }
+      },
+    }
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'symlink-candidate'), artifactRoot: path.join(container, 'symlink-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: [symlinkExecutor], readStagedAsset: fixture.readStagedAsset })).toThrow(/符号链接/)
+    expect(fs.readdirSync(outside)).toEqual([])
   })
 
   it('adds runtime source references only to served JSX and keeps original project files untouched', async () => {

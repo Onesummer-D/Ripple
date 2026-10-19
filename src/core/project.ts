@@ -5,6 +5,8 @@ import * as path from 'node:path'
 import ts from 'typescript'
 import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeSourceMap, SourceGraph, SourceNode } from './model'
 import { findPageOverrideMarkers, readPageOverrideRegistry } from './page-overrides'
+import type { ProjectConfigGraph } from './project-config-resolver.mjs'
+import { resolveProjectConfigGraph } from './project-config-resolver.mjs'
 
 export class ProjectReadError extends Error {
   constructor(message: string) { super(message); this.name = 'ProjectReadError' }
@@ -147,11 +149,19 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   }
 
   const compilerOptions: ts.CompilerOptions = { jsx: ts.JsxEmit.Preserve, moduleResolution: ts.ModuleResolutionKind.Bundler, allowJs: true }
-  for (const configName of ['tsconfig.json', 'tsconfig.app.json', 'jsconfig.json']) {
-    const configFile = path.join(snapshot.root, configName)
-    if (!fs.existsSync(configFile)) continue
-    const read = ts.readConfigFile(configFile, ts.sys.readFile)
-    if (!read.error) Object.assign(compilerOptions, ts.parseJsonConfigFileContent(read.config, ts.sys, snapshot.root, undefined, configFile).options)
+  const configGraph: ProjectConfigGraph = resolveProjectConfigGraph(snapshot.root, ts)
+  if (configGraph.application.status === 'supported') Object.assign(compilerOptions, configGraph.application.parsed.options)
+  const aliasResolution = configGraph.aliases
+  if (aliasResolution.status === 'supported') {
+    const aliasConfig = configGraph.configs.find(config => config.configPath === aliasResolution.configPath)
+    if (aliasConfig) Object.assign(compilerOptions, {
+      baseUrl: aliasConfig.parsed.options.baseUrl ?? aliasConfig.parsed.options.pathsBasePath,
+      paths: aliasConfig.parsed.options.paths,
+      pathsBasePath: aliasConfig.parsed.options.pathsBasePath,
+    })
+  } else {
+    delete compilerOptions.baseUrl
+    delete compilerOptions.paths
   }
   const program = ts.createProgram([...sourceFiles.keys()], compilerOptions)
   const checker = program.getTypeChecker()

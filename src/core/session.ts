@@ -4,6 +4,7 @@ import { assertTrustedBrowserExecution } from './verification'
 import { carryTrustedBrowserExecution } from './verification-receipt'
 import { verificationContractHash } from './verification-contract'
 import { expectedTextForScope } from './scope'
+import { assertCandidateOperationRegistry, findCandidateOperationExecutor, type CandidateOperationRegistry } from './candidate-operation-executors'
 
 export class SessionInvariantError extends Error {
   constructor(message: string, readonly code: 'invariant-violation' | 'invalid-operation' | 'unsupported-operation' = 'invariant-violation', readonly path?: string) {
@@ -96,7 +97,7 @@ function validateStructuredPayload(kind: unknown, action: unknown, payload: unkn
   invalidOperation(`operations[${index}].action`, 'The action does not match its edit kind')
 }
 
-function validateOperation(operation: unknown, index: number): asserts operation is EditOperation {
+function validateOperation(operation: unknown, index: number, executors: CandidateOperationRegistry): asserts operation is EditOperation {
   const path = `operations[${index}]`
   if (!record(operation)) invalidOperation(path, 'Edit operation must be an object')
   if (!nonEmptyString(operation.id)) invalidOperation(`${path}.id`, 'Operation id is required')
@@ -117,13 +118,16 @@ function validateOperation(operation: unknown, index: number): asserts operation
   if (!knownAction) invalidOperation(`${path}.action`, 'Unknown or mismatched structured edit action')
   if (!hasPayload) invalidOperation(`${path}.payload`, 'Structured edit action requires a payload')
   validateStructuredPayload(operation.kind, operation.action, operation.payload, index)
-  throw new SessionInvariantError('Structured edit action has no implemented candidate executor', 'unsupported-operation', `${path}.action`)
+  const executor = findCandidateOperationExecutor(operation, executors)
+  if (!executor) throw new SessionInvariantError('Structured edit action has no registered candidate executor', 'unsupported-operation', `${path}.action`)
+  if (!executor.validate(operation)) invalidOperation(`${path}.payload`, 'Registered candidate executor rejected the structured operation')
 }
 
-export function stageOperations(session: EditSession, operations: EditOperation[]): EditSession {
+export function stageOperations(session: EditSession, operations: EditOperation[], executors: CandidateOperationRegistry = []): EditSession {
   requireCondition(session.status !== 'applied', 'Applied session is immutable')
   requireCondition(!!session.scope, 'Explicit scope required before editing operations')
-  operations.forEach(validateOperation)
+  assertCandidateOperationRegistry(executors)
+  operations.forEach((operation, index) => validateOperation(operation, index, executors))
   requireCondition(unique(operations.map(operation => operation.id)) && unique(operations.map(operation => operation.targetRef)), 'Operation identities and targets must be unique')
   const included = new Set(session.scope.includedRefs)
   const excluded = new Set([...session.scope.excludedRefs, ...session.scope.protectedRefs])
