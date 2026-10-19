@@ -710,7 +710,7 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
     expect(history.history.find((item: { candidateId: string }) => item.candidateId === candidateId)).toMatchObject({ lifecycle: 'rolled-back', patchHash })
     candidateId = ''
   } catch (error) {
-    throw new Error(`${error instanceof Error ? error.message : String(error)}\nApplied project Vite logs:\n${runtimeLogs}`)
+    throw new Error(`${error instanceof Error ? error.message : String(error)} Vite preview transform responses: ${diagnostics.join(" | ")}`)
   } finally {
     await runtimePage.close()
     runtimeServer.kill('SIGTERM')
@@ -783,7 +783,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   const sourcePreviewTransformErrors = new Map<string, Promise<string>>()
   page.on('response', response => {
     const url = new URL(response.url())
-    if (url.port === '4173' || response.status() < 500 || !/^\\/src\\/(?:index\\.css|App\\.tsx)$/.test(url.pathname)) return
+    if (url.port === '4173' || response.status() < 500 || !/^\/src\/(?:index\.css|App\.tsx)$/.test(url.pathname)) return
     sourcePreviewTransformErrors.set(url.pathname, response.text().then(body => body.slice(0, 4000)).catch(error => `Unable to read error response: ${String(error)}`))
   })
   await page.getByTestId('toggle-project-preview').click()
@@ -796,7 +796,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   try {
     await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
   } catch (error) {
-    const diagnostics = await Promise.all([...sourcePreviewTransformErrors].map(async ([url, body]) => `${url}:\\n${await body}`))
+    const diagnostics = await Promise.all([...sourcePreviewTransformErrors].map(async ([url, body]) => `${url}: ${await body}`))
     if (!diagnostics.length) throw error
     throw new Error(`${error instanceof Error ? error.message : String(error)}\\nVite preview transform responses:\\n${diagnostics.join('\\n\\n')}`)
   }
