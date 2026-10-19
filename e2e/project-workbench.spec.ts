@@ -131,6 +131,10 @@ test('opens a real local project, keeps multiple operations and explicit local S
     await page.getByTestId(`use-source-text-${titleId}`).click()
     await expect(page.getByTestId('target-select')).toHaveValue(titleId!)
     await expect(page.getByTestId('after-input')).toHaveValue('Baseline title')
+    await expect(page.getByTestId('after-input')).toBeFocused()
+    expect(await page.getByTestId('after-input').evaluate(element => (element as HTMLInputElement).selectionEnd)).toBe('Baseline title'.length)
+    await expect(page.getByTestId('intent-input')).toHaveValue('')
+    await expect(page.getByTestId('edit-panel')).toBeInViewport()
     await page.getByTestId('toggle-project-preview').click()
     await expect(page.getByTestId('project-preview')).toHaveCount(0)
     const staleSelection = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/source-selection', { data: {
