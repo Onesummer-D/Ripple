@@ -34,7 +34,7 @@ describe('VerificationContractEditor', () => {
 
     fireEvent.change(screen.getByLabelText('首页 页面标记建议'), { target: { value: 'Home baseline' } })
     view.rerender(<VerificationContractEditor routes={routes} markerSuggestions={{ 'page:home': ['Home baseline'] }} value={selectedDraft} disabled={false} onChange={onChange} />)
-    expect(screen.getByLabelText('首页 页面标记文字')).toHaveValue('Home baseline')
+    expect((screen.getByLabelText('首页 页面标记文字') as HTMLInputElement).value).toBe('Home baseline')
 
     const withPath = {
       ...selectedDraft,
@@ -50,7 +50,7 @@ describe('VerificationContractEditor', () => {
     }
     const callsBeforeRefresh = onChange.mock.calls.length
     view.rerender(<VerificationContractEditor routes={routes} markerSuggestions={{ 'page:home': ['New source suggestion'] }} value={manualDraft} disabled={false} onChange={onChange} />)
-    expect(screen.getByLabelText('首页 页面标记文字')).toHaveValue('Manually entered home marker')
+    expect((screen.getByLabelText('首页 页面标记文字') as HTMLInputElement).value).toBe('Manually entered home marker')
     expect(onChange).toHaveBeenCalledTimes(callsBeforeRefresh)
 
     const afterReanalysis = rebaseVerificationContractDraft(routes, manualDraft)
