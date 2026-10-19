@@ -105,38 +105,94 @@ function selectionBridge() {
   }
 }
 
+function parseProjectConfig(configPath) {
+  const config = ts.readConfigFile(configPath, ts.sys.readFile)
+  if (config.error) return undefined
+  const parsed = ts.getParsedCommandLineOfConfigFile(configPath, {}, {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic: () => {},
+  })
+  return { configPath, raw: config.config, parsed }
+}
+
+function entryFiles() {
+  const html = ts.sys.readFile('/work/index.html') ?? ''
+  const moduleTags = [...html.matchAll(/<script\b[^>]*\btype=["']module["'][^>]*>/gi)].map(match => match[0])
+  return moduleTags
+    .map(tag => tag.match(/\bsrc=["']([^"']+)["']/i)?.[1])
+    .filter(source => source && !/^(?:[a-z]+:|\/\/)/i.test(source))
+    .map(source => path.resolve('/work', source.replace(/^\/+/, '').split(/[?#]/, 1)[0]))
+}
+
 function typescriptAliases() {
-  const configs = ['tsconfig.app.json', 'tsconfig.json', 'jsconfig.json']
+  const roots = ['tsconfig.json', 'jsconfig.json']
     .map(name => path.join('/work', name))
     .filter(file => ts.sys.fileExists(file))
-    .map(configPath => {
-      const config = ts.readConfigFile(configPath, ts.sys.readFile)
-      if (config.error) return undefined
-      const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, path.dirname(configPath), undefined, configPath)
-      return { configPath, parsed }
-    })
-    .filter(Boolean)
-  const projectConfig = configs.find(({ parsed }) => Object.keys(parsed.options.paths ?? {}).length > 0) ?? configs[0]
-  if (!projectConfig) return []
-  const { configPath, parsed } = projectConfig
+  const pending = [...roots]
+  const visited = new Set()
+  const configs = []
+
+  while (pending.length) {
+    const configPath = path.resolve(pending.shift())
+    if (visited.has(configPath)) continue
+    visited.add(configPath)
+
+    const config = parseProjectConfig(configPath)
+    if (!config) continue
+    configs.push(config)
+
+    for (const reference of Array.isArray(config.raw.references) ? config.raw.references : []) {
+      if (typeof reference?.path !== 'string') continue
+      const referencePath = path.resolve(path.dirname(configPath), reference.path)
+      const target = ts.sys.directoryExists(referencePath)
+        ? path.join(referencePath, 'tsconfig.json')
+        : referencePath
+      if (ts.sys.fileExists(target)) pending.push(target)
+    }
+  }
+
+  const aliasConfigs = configs.filter(({ parsed }) => Object.keys(parsed?.options.paths ?? {}).length > 0)
+  if (!aliasConfigs.length) return []
+
+  const entries = new Set(entryFiles())
+  const containingEntry = aliasConfigs.filter(({ parsed }) =>
+    parsed?.fileNames.some(file => entries.has(path.resolve(file))),
+  )
+  const jsxConfigs = aliasConfigs.filter(({ parsed }) => parsed?.options.jsx !== undefined)
+  const candidates = containingEntry.length
+    ? containingEntry
+    : jsxConfigs.length
+      ? jsxConfigs
+      : aliasConfigs
+  const signatures = new Set(candidates.map(({ configPath, parsed }) => JSON.stringify({
+    baseUrl: parsed?.options.baseUrl ?? parsed?.options.pathsBasePath ?? path.dirname(configPath),
+    paths: parsed?.options.paths,
+  })))
+  if (signatures.size > 1) {
+    throw new Error('Ripple preview cannot safely resolve conflicting TypeScript path aliases in referenced configs')
+  }
+
+  const { configPath, parsed } = candidates[0]
+  if (!parsed) return []
+  const baseUrl = parsed.options.baseUrl ?? parsed.options.pathsBasePath ?? path.dirname(configPath)
   const aliases = []
   for (const [pattern, destinations] of Object.entries(parsed.options.paths ?? {})) {
     if (destinations.length !== 1) continue
     const target = destinations[0]
     const wildcard = pattern.indexOf('*')
     if (wildcard < 0) {
-      if (!target.includes('*')) aliases.push({ find: pattern, replacement: path.resolve(parsed.options.baseUrl ?? '/work', target) })
+      if (!target.includes('*')) aliases.push({ find: pattern, replacement: path.resolve(baseUrl, target) })
       continue
     }
     if (pattern.indexOf('*', wildcard + 1) >= 0 || target.indexOf('*') !== target.lastIndexOf('*')) continue
-    const prefix = pattern.slice(0, wildcard).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const suffix = pattern.slice(wildcard + 1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const prefix = pattern.slice(0, wildcard).replace(/[.*+?^$()|[\]\\]/g, '\\$&')
+    const suffix = pattern.slice(wildcard + 1).replace(/[.*+?^$()|[\]\\]/g, '\\$&')
     const targetIndex = target.indexOf('*')
     const targetPrefix = target.slice(0, targetIndex)
     const targetSuffix = target.slice(targetIndex + 1)
     aliases.push({
-      find: new RegExp(`^${prefix}(.*)${suffix}$`),
-      replacement: `${path.resolve(parsed.options.baseUrl ?? '/work', targetPrefix)}${path.sep}$1${targetSuffix}`,
+      find: new RegExp('^' + prefix + '(.*)' + suffix + '$'),
+      replacement: path.resolve(baseUrl, targetPrefix) + path.sep + '$1' + targetSuffix,
     })
   }
   return aliases
