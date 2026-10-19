@@ -2,6 +2,7 @@ import { describe, it, afterAll } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
+import * as ts from 'typescript'
 import { analyzeProject } from './project'
 import { sourceProvenPageImpact } from './scope'
 
@@ -59,6 +60,7 @@ afterAll(() => {
   const out = JSON.stringify({
     generatedAt: new Date().toISOString(),
     rippleHead: frozenSha(process.cwd()),
+    runtimeFingerprint: { node: process.version, typescript: ts.version },
     projects: results,
   }, null, 2)
   if (process.env.RIPPLE_PROBE_OUT) {
