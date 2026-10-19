@@ -101,14 +101,39 @@ export interface InteractionObservation {
   baselinePassed: boolean
   candidatePassed: boolean
 }
-export interface EditOperation {
+export interface EditOperationBase {
   id: Id
-  kind: EditKind
   targetRef: Id
   before: string
   after: string
   overrideAction?: 'remove'
 }
+export type ResponsiveVariantMechanism = 'srcset' | 'picture' | 'css' | 'container-rule'
+export interface MediaAssetSwapPayload {
+  assetRef: string
+  assetHash: string
+  focalPoint?: { x: number; y: number }
+  variants?: Array<{
+    mechanism: ResponsiveVariantMechanism
+    condition: string
+    assetRef: string
+    assetHash: string
+  }>
+  containerHint?: { selector: string; aspect: number }
+}
+export interface TokenLocalProjectionPayload {
+  declarationRef: Id
+  value: string
+  localScope: { pageRef: Id; mechanism: 'css-override' | 'style-prop' }
+}
+type PayloadlessEditOperation<K extends EditKind> = EditOperationBase & { kind: K; action?: never; payload?: never }
+export type EditOperation =
+  | PayloadlessEditOperation<'TEXT'>
+  | PayloadlessEditOperation<'CODE'>
+  | PayloadlessEditOperation<'MEDIA'>
+  | PayloadlessEditOperation<'TOKEN'>
+  | (EditOperationBase & { kind: 'MEDIA'; action: 'asset-swap'; payload: MediaAssetSwapPayload })
+  | (EditOperationBase & { kind: 'TOKEN'; action: 'local-projection'; payload: TokenLocalProjectionPayload })
 export interface CandidatePatch {
   id: Id
   baseSourceDigest: string

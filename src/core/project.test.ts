@@ -180,6 +180,21 @@ describe('real project graph and candidate executor', () => {
     })
   })
 
+  it('does not execute a structured action through the literal candidate replacement path', () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const target = graph.nodes.find(node => node.kind === 'data' && node.label === 'Home title')!
+    const scope: ScopeDecision = { id: 'structured-edit', version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() }
+    const operation = {
+      id: 'structured-text', kind: 'TEXT', targetRef: target.id, before: target.value!, after: 'Literal fallback must not run',
+      action: 'asset-swap', payload: { assetRef: 'assets/unused.webp', assetHash: 'a'.repeat(64) },
+    } as unknown as EditOperation
+    const candidateRoot = path.join(container, 'structured-candidate')
+    expect(() => createCandidate({ projectRoot: root, candidateRoot, artifactRoot: path.join(container, 'structured-artifacts'), graph, scope, operations: [operation] })).toThrow(CandidateError)
+    expect(fs.existsSync(candidateRoot)).toBe(false)
+    expect(fs.readFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), 'utf8')).toContain('Home title')
+  })
+
   it('adds runtime source references only to served JSX and keeps original project files untouched', async () => {
     const { root } = sampleProject()
     const file = path.join(root, 'src', 'pages', 'HomePage.tsx')

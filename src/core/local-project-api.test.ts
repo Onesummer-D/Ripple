@@ -65,6 +65,13 @@ describe('loopback Project API', () => {
     const cta = analysis.targets.find(target => target.label === 'Browse items')!
     expect(title.impact).toEqual({ pageRefs: ['page:home'], unresolved: [], certainty: 'source-proven' })
     const scope = { id: 'scope-local-home', version: 1, includedRefs: ['page:home', title.id, cta.id], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() }
+    const malformedOperation = await fetch(`${baseUrl}/__ripple/api/candidate`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({
+      projectId: analysis.revision.projectId, rawIntent: 'Reject a malformed structured operation', scope,
+      operations: [{ id: 'missing-payload', kind: 'MEDIA', targetRef: title.id, before: 'old.jpg', after: 'new.jpg', action: 'asset-swap' }],
+      verificationContract: { pages: [{ pageRef: 'page:home', path: '/', markerText: 'Baseline title' }], interactions: [] },
+    }) })
+    expect(malformedOperation.status).toBe(409)
+    expect(await malformedOperation.json()).toMatchObject({ code: 'invalid-operation', path: 'operations[0].payload' })
     const candidateResponse = await fetch(`${baseUrl}/__ripple/api/candidate`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({
       projectId: analysis.revision.projectId, rawIntent: 'Update the home hero while preserving other pages', scope,
       operations: [

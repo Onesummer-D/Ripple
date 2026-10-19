@@ -3,8 +3,8 @@ import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import type { Approval, BrowserVerificationContract, CandidatePatch, EditSession, ProjectRevision, ScopeDecision, VerificationRun } from './model'
-import { approve, beginVerification, chooseScope, openSession, recordAppliedRevision, recordRollback, recordSourceGraph, recordVerificationFailure, registerVerification, stageCandidate, stageOperations } from './session'
+import type { Approval, BrowserVerificationContract, CandidatePatch, EditOperation, EditSession, ProjectRevision, ScopeDecision, VerificationRun } from './model'
+import { approve, beginVerification, chooseScope, openSession, recordAppliedRevision, recordRollback, recordSourceGraph, recordVerificationFailure, registerVerification, SessionInvariantError, stageCandidate, stageOperations } from './session'
 import { attestBrowserExecution } from './verification-receipt'
 import { verificationContractHash } from './verification-contract'
 import { projectPreviewViewports } from './project-viewports'
@@ -60,6 +60,27 @@ const runFor = (p: CandidatePatch, result: 'pass' | 'risk' | 'unknown' = 'pass',
 const approvalFor = (p: CandidatePatch, run: VerificationRun): Approval => ({ candidateId: p.id, verificationRunId: run.id, by: 'user', at: '2026-10-18T00:02:00Z' })
 const analyzed = () => recordSourceGraph(openSession('session-1', revision, '更新本季活动，保留历史', [], contract), 'graph-1', revision.sourceDigest)
 const staged = () => { const s = scope(); const withScope = chooseScope(analyzed(), s); return stageCandidate(stageOperations(withScope, candidate(s).operations), candidate(s)) }
+function expectSessionError(action: () => unknown, expected: Pick<SessionInvariantError, 'code' | 'path'>): void {
+  let caught: unknown
+  try { action() } catch (error) { caught = error }
+  expect(caught).toBeInstanceOf(SessionInvariantError)
+  expect(caught).toMatchObject(expected)
+}
+
+function editOperationTypeContract(): void {
+  const literalMedia: EditOperation = { id: 'media-literal', kind: 'MEDIA', targetRef: 'media:hero', before: 'old.jpg', after: 'new.jpg' }
+  const structuredMedia: EditOperation = {
+    id: 'media-structured', kind: 'MEDIA', action: 'asset-swap', targetRef: 'media:hero', before: 'old.jpg', after: 'new.jpg',
+    payload: { assetRef: 'assets/new.jpg', assetHash: 'a'.repeat(64) },
+  }
+  // @ts-expect-error TEXT cannot carry a structured action.
+  const textWithAction: EditOperation = { id: 'text-action', kind: 'TEXT', targetRef: 'data:title', before: 'a', after: 'b', action: 'asset-swap' }
+  // @ts-expect-error TEXT cannot carry a structured payload.
+  const textWithPayload: EditOperation = { id: 'text-payload', kind: 'TEXT', targetRef: 'data:title', before: 'a', after: 'b', payload: {} }
+  // @ts-expect-error A structured action requires its matching payload.
+  const mediaWithoutPayload: EditOperation = { id: 'media-missing', kind: 'MEDIA', targetRef: 'media:hero', before: 'old.jpg', after: 'new.jpg', action: 'asset-swap' }
+  void [literalMedia, structuredMedia, textWithAction, textWithPayload, mediaWithoutPayload]
+}
 
 describe('Project-first session invariants', () => {
   afterEach(() => { for (const root of artifactRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true }) })
@@ -73,6 +94,60 @@ describe('Project-first session invariants', () => {
     expect(s.candidate?.operations).toHaveLength(2)
     expect(s.scope?.protectedRefs).toEqual(['story.2018'])
   })
+  it('keeps all current payloadless operation kinds source-compatible', () => {
+    editOperationTypeContract()
+    const operations: EditOperation[] = [
+      { id: 'text', kind: 'TEXT', targetRef: 'text', before: 'a', after: 'b' },
+      { id: 'media', kind: 'MEDIA', targetRef: 'media', before: 'a.jpg', after: 'b.jpg' },
+      { id: 'token', kind: 'TOKEN', targetRef: 'token', before: '#111', after: '#222' },
+      { id: 'code', kind: 'CODE', targetRef: 'code', before: 'a()', after: 'b()' },
+    ]
+    const decision = { ...scope(), includedRefs: operations.map(operation => operation.targetRef) }
+    expect(stageOperations(chooseScope(analyzed(), decision), operations).operations).toEqual(operations)
+  })
+  it('rejects accidental payload or action fields on payloadless operations with structured paths', () => {
+    const operations: EditOperation[] = [
+      { id: 'text', kind: 'TEXT', targetRef: 'text', before: 'a', after: 'b' },
+      { id: 'media', kind: 'MEDIA', targetRef: 'media', before: 'a.jpg', after: 'b.jpg' },
+      { id: 'token', kind: 'TOKEN', targetRef: 'token', before: '#111', after: '#222' },
+      { id: 'code', kind: 'CODE', targetRef: 'code', before: 'a()', after: 'b()' },
+    ]
+    const decision = { ...scope(), includedRefs: operations.map(operation => operation.targetRef) }
+    const session = chooseScope(analyzed(), decision)
+    for (const operation of operations) {
+      for (const [field, value] of [['action', 'unexpected'], ['payload', { unexpected: true }]] as const) {
+        let caught: unknown
+        try { stageOperations(session, [{ ...operation, [field]: value } as unknown as EditOperation]) }
+        catch (error) { caught = error }
+        expect(caught).toBeInstanceOf(SessionInvariantError)
+        expect(caught).toMatchObject({ code: 'invalid-operation' })
+        expect((caught as SessionInvariantError).path).toMatch(/^operations\[0\]\.(action|payload)$/)
+      }
+    }
+  })
+  it('validates structured payload shape and refuses unimplemented execution without string fallback', () => {
+    const decision = { ...scope(), includedRefs: ['media:hero'] }
+    const session = chooseScope(analyzed(), decision)
+    const media = { id: 'asset-swap', kind: 'MEDIA', targetRef: 'media:hero', before: 'old.jpg', after: 'new.jpg', action: 'asset-swap' }
+    expectSessionError(() => stageOperations(session, [media as unknown as EditOperation]), { code: 'invalid-operation', path: 'operations[0].payload' })
+
+    const validStructured = { ...media, payload: { assetRef: 'assets/new.jpg', assetHash: 'a'.repeat(64) } } as unknown as EditOperation
+    expectSessionError(() => stageOperations(session, [validStructured]), { code: 'unsupported-operation', path: 'operations[0].action' })
+
+    const badHash = { ...validStructured, payload: { assetRef: 'assets/new.jpg', assetHash: 'not-a-hash' } } as unknown as EditOperation
+    expectSessionError(() => stageOperations(session, [badHash]), { code: 'invalid-operation', path: 'operations[0].payload.assetHash' })
+    const unknownAction = { ...media, action: 'image-magic', payload: {} } as unknown as EditOperation
+    expectSessionError(() => stageOperations(session, [unknownAction]), { code: 'invalid-operation', path: 'operations[0].action' })
+    const mismatchedAction = { ...validStructured, kind: 'TOKEN', action: 'asset-swap' } as unknown as EditOperation
+    expectSessionError(() => stageOperations(session, [mismatchedAction]), { code: 'invalid-operation', path: 'operations[0].action' })
+
+    const tokenSession = chooseScope(analyzed(), { ...decision, includedRefs: ['token:accent'] })
+    const tokenProjection = {
+      id: 'token-projection', kind: 'TOKEN', targetRef: 'token:accent', before: '#111', after: '#222', action: 'local-projection',
+      payload: { declarationRef: 'token:accent', value: '#222', localScope: { pageRef: 'page:home', mechanism: 'css-override' } },
+    } as unknown as EditOperation
+    expectSessionError(() => stageOperations(tokenSession, [tokenProjection]), { code: 'unsupported-operation', path: 'operations[0].action' })
+  })
   it('rejects protected/included overlap', () => {
     expect(() => chooseScope(analyzed(), { ...scope(), protectedRefs: ['home.title'] })).toThrow(/conflicts/)
   })
@@ -84,6 +159,8 @@ describe('Project-first session invariants', () => {
     const decision = scope()
     const edited = stageOperations(chooseScope(analyzed(), decision), candidate(decision).operations)
     expect(() => stageCandidate(edited, { ...candidate(decision), operations: [{ ...candidate(decision).operations[0], after: 'regenerated edit' }] })).toThrow(/exact operations/)
+    const unexpectedStructuredAction = { ...candidate(decision).operations[0], action: 'asset-swap', payload: { assetRef: 'assets/new.webp', assetHash: 'a'.repeat(64) } } as unknown as EditOperation
+    expect(() => stageCandidate(edited, { ...candidate(decision), operations: [unexpectedStructuredAction, candidate(decision).operations[1]] })).toThrow(/exact operations/)
   })
   it('rejects evidence from another patch or runtime environment', () => {
     const s = staged()

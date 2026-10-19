@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS, type AppliedRevision, type Approval, type BrowserVerificationContract, type CandidatePatch, type EditOperation, type EditSession, type ProjectRevision, type RollbackRevision, type ScopeDecision, type VerificationRun } from './model'
 import { assertTrustedBrowserExecution } from './verification'
 import { carryTrustedBrowserExecution } from './verification-receipt'
@@ -5,7 +6,10 @@ import { verificationContractHash } from './verification-contract'
 import { expectedTextForScope } from './scope'
 
 export class SessionInvariantError extends Error {
-  constructor(message: string) { super(message); this.name = 'SessionInvariantError' }
+  constructor(message: string, readonly code: 'invariant-violation' | 'invalid-operation' | 'unsupported-operation' = 'invariant-violation', readonly path?: string) {
+    super(message)
+    this.name = 'SessionInvariantError'
+  }
 }
 function requireCondition(condition: unknown, message: string): asserts condition {
   if (!condition) throw new SessionInvariantError(message)
@@ -41,9 +45,85 @@ export function chooseScope(session: EditSession, scope: ScopeDecision): EditSes
   return { ...session, scope: { ...scope, includedRefs: [...scope.includedRefs], excludedRefs: [...scope.excludedRefs], protectedRefs: [...scope.protectedRefs] }, candidate: undefined, approval: undefined, runs: session.runs.map(r => ({ ...r, status: 'stale' })), status: 'scoped' }
 }
 
+const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+const owns = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key)
+const hash = (value: unknown): value is string => typeof value === 'string' && /^[a-f\d]{64}$/i.test(value)
+const nonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+const finiteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+
+function invalidOperation(path: string, detail: string): never {
+  throw new SessionInvariantError(detail, 'invalid-operation', path)
+}
+
+function validateStructuredPayload(kind: unknown, action: unknown, payload: unknown, index: number): void {
+  const basePath = `operations[${index}].payload`
+  if (!record(payload)) invalidOperation(basePath, 'Structured edit operation requires an object payload')
+
+  if (kind === 'MEDIA' && action === 'asset-swap') {
+    if (!nonEmptyString(payload.assetRef)) invalidOperation(`${basePath}.assetRef`, 'assetRef must be a non-empty candidate-relative path')
+    if (!hash(payload.assetHash)) invalidOperation(`${basePath}.assetHash`, 'assetHash must be a SHA-256 digest')
+    if (payload.focalPoint !== undefined && (!record(payload.focalPoint) || !finiteNumber(payload.focalPoint.x) || !finiteNumber(payload.focalPoint.y) || payload.focalPoint.x < 0 || payload.focalPoint.x > 1 || payload.focalPoint.y < 0 || payload.focalPoint.y > 1)) {
+      invalidOperation(`${basePath}.focalPoint`, 'focalPoint coordinates must be between 0 and 1')
+    }
+    if (payload.variants !== undefined) {
+      if (!Array.isArray(payload.variants)) invalidOperation(`${basePath}.variants`, 'variants must be an array')
+      const mechanisms = new Set(['srcset', 'picture', 'css', 'container-rule'])
+      for (let variantIndex = 0; variantIndex < payload.variants.length; variantIndex += 1) {
+        const variant = payload.variants[variantIndex]
+        const variantPath = `${basePath}.variants[${variantIndex}]`
+        if (!record(variant)) invalidOperation(variantPath, 'Each responsive variant must be an object')
+        if (!mechanisms.has(String(variant.mechanism))) invalidOperation(`${variantPath}.mechanism`, 'Unsupported responsive variant mechanism')
+        if (!nonEmptyString(variant.condition)) invalidOperation(`${variantPath}.condition`, 'A responsive variant must identify its actual condition')
+        if (!nonEmptyString(variant.assetRef)) invalidOperation(`${variantPath}.assetRef`, 'assetRef must be a non-empty candidate-relative path')
+        if (!hash(variant.assetHash)) invalidOperation(`${variantPath}.assetHash`, 'assetHash must be a SHA-256 digest')
+      }
+    }
+    if (payload.containerHint !== undefined && (!record(payload.containerHint) || !nonEmptyString(payload.containerHint.selector) || !finiteNumber(payload.containerHint.aspect) || payload.containerHint.aspect <= 0)) {
+      invalidOperation(`${basePath}.containerHint`, 'containerHint requires a selector and positive aspect ratio')
+    }
+    return
+  }
+
+  if (kind === 'TOKEN' && action === 'local-projection') {
+    if (!nonEmptyString(payload.declarationRef)) invalidOperation(`${basePath}.declarationRef`, 'declarationRef is required')
+    if (typeof payload.value !== 'string' || !payload.value.trim()) invalidOperation(`${basePath}.value`, 'Token projection value is required')
+    if (!record(payload.localScope)) invalidOperation(`${basePath}.localScope`, 'Token projection requires a local scope')
+    if (!nonEmptyString(payload.localScope.pageRef)) invalidOperation(`${basePath}.localScope.pageRef`, 'Token projection pageRef is required')
+    if (payload.localScope.mechanism !== 'css-override' && payload.localScope.mechanism !== 'style-prop') invalidOperation(`${basePath}.localScope.mechanism`, 'Unsupported token projection mechanism')
+    return
+  }
+
+  invalidOperation(`operations[${index}].action`, 'The action does not match its edit kind')
+}
+
+function validateOperation(operation: unknown, index: number): asserts operation is EditOperation {
+  const path = `operations[${index}]`
+  if (!record(operation)) invalidOperation(path, 'Edit operation must be an object')
+  if (!nonEmptyString(operation.id)) invalidOperation(`${path}.id`, 'Operation id is required')
+  if (!nonEmptyString(operation.targetRef)) invalidOperation(`${path}.targetRef`, 'Operation targetRef is required')
+  if (typeof operation.before !== 'string') invalidOperation(`${path}.before`, 'Operation before value must be a string')
+  if (typeof operation.after !== 'string') invalidOperation(`${path}.after`, 'Operation after value must be a string')
+  if (!['TEXT', 'MEDIA', 'TOKEN', 'CODE'].includes(String(operation.kind))) invalidOperation(`${path}.kind`, 'Unknown edit kind')
+  if (operation.overrideAction !== undefined && operation.overrideAction !== 'remove') invalidOperation(`${path}.overrideAction`, 'Unknown override action')
+
+  const hasAction = owns(operation, 'action')
+  const hasPayload = owns(operation, 'payload')
+  if (!hasAction && !hasPayload) return
+  if (operation.kind !== 'MEDIA' && operation.kind !== 'TOKEN') invalidOperation(`${path}.${hasAction ? 'action' : 'payload'}`, 'TEXT and CODE operations cannot carry structured action or payload fields')
+  if (!hasAction) invalidOperation(`${path}.action`, 'A structured payload requires an explicit action')
+
+  const knownAction = (operation.kind === 'MEDIA' && operation.action === 'asset-swap') ||
+    (operation.kind === 'TOKEN' && operation.action === 'local-projection')
+  if (!knownAction) invalidOperation(`${path}.action`, 'Unknown or mismatched structured edit action')
+  if (!hasPayload) invalidOperation(`${path}.payload`, 'Structured edit action requires a payload')
+  validateStructuredPayload(operation.kind, operation.action, operation.payload, index)
+  throw new SessionInvariantError('Structured edit action has no implemented candidate executor', 'unsupported-operation', `${path}.action`)
+}
+
 export function stageOperations(session: EditSession, operations: EditOperation[]): EditSession {
   requireCondition(session.status !== 'applied', 'Applied session is immutable')
   requireCondition(!!session.scope, 'Explicit scope required before editing operations')
+  operations.forEach(validateOperation)
   requireCondition(unique(operations.map(operation => operation.id)) && unique(operations.map(operation => operation.targetRef)), 'Operation identities and targets must be unique')
   const included = new Set(session.scope.includedRefs)
   const excluded = new Set([...session.scope.excludedRefs, ...session.scope.protectedRefs])
@@ -61,7 +141,7 @@ export function stageCandidate(session: EditSession, patch: CandidatePatch): Edi
   requireCondition(patch.baseSourceDigest === session.projectRevision.sourceDigest, 'Candidate baseline does not match project')
   requireCondition(patch.scopeDecisionId === scope.id && patch.scopeVersion === scope.version, 'Candidate scope is stale')
   requireCondition(!!patch.id && !!patch.patchHash && !!patch.candidateTreeDigest && !!patch.diffArtifact && patch.operations.length > 0, 'Real patch and output tree digest required')
-  const sameOperation = (left: EditOperation, right: EditOperation) => left.id === right.id && left.kind === right.kind && left.targetRef === right.targetRef && left.before === right.before && left.after === right.after && left.overrideAction === right.overrideAction
+  const sameOperation = (left: EditOperation, right: EditOperation) => isDeepStrictEqual(left, right)
   requireCondition(session.operations.length === patch.operations.length && session.operations.every((operation, index) => sameOperation(operation, patch.operations[index])), 'Candidate must contain the exact operations in this EditSession')
   const included = new Set(scope.includedRefs)
   requireCondition(patch.operations.every(op => included.has(op.targetRef) && !!op.id &&

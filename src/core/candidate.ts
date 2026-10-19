@@ -366,6 +366,11 @@ function removeWorktree(projectRoot: string, candidateRoot: string): void {
 }
 
 export function createCandidate(request: CandidateRequest): CandidateRecord {
+  if (!Array.isArray(request.operations)) throw new CandidateError('候选操作必须是数组')
+  for (const operation of request.operations as unknown[]) {
+    if (!operation || typeof operation !== 'object') throw new CandidateError('候选操作必须是对象')
+    if ('action' in operation || 'payload' in operation) throw new CandidateError('结构化操作尚无候选执行器，拒绝按字面量替换降级执行')
+  }
   const snapshot = readProjectSnapshot(request.projectRoot)
   if (snapshot.revision.sourceDigest !== request.graph.revision.sourceDigest) throw new CandidateError('候选图不再对应项目当前源码')
   if (snapshot.revision.gitCommit !== request.graph.revision.gitCommit) throw new CandidateError('候选图不再对应项目当前 Git 基线')

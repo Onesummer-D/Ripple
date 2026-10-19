@@ -359,7 +359,12 @@ export default function ProjectWorkbench() {
     if (!target || target.value === undefined || target.value === after) return
     if (operations.some(operation => operation.targetRef === target.id)) { setError('同一候选中每个源码目标只能编辑一次'); return }
     if (!await invalidateCandidate()) return
-    const operation: EditOperation = { id: `operation-${crypto.randomUUID()}`, kind: operationKind(target.kind), targetRef: target.id, before: target.value, after }
+    const fields = { id: `operation-${crypto.randomUUID()}`, targetRef: target.id, before: target.value, after }
+    const operation: EditOperation = target.kind === 'data'
+      ? { ...fields, kind: 'TEXT' }
+      : target.kind === 'media'
+        ? { ...fields, kind: 'MEDIA' }
+        : { ...fields, kind: 'TOKEN' }
     setOperations(current => [...current, operation])
     setError('')
   }

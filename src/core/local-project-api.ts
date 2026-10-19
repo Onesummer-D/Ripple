@@ -9,7 +9,7 @@ import { startCandidatePreview, stopCandidatePreview } from './candidate-preview
 import { referencedPreviewResourceUrls, saveTrustedPreviewResourceUrls, trustedPreviewResourceUrls } from './preview-resource-policy'
 import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
 import { sourceProvenPageImpact } from './scope'
-import { approve, beginVerification, chooseScope, openSession, recordAppliedRevision, recordRollback, recordSourceGraph, recordVerificationFailure, registerVerification, stageCandidate, stageOperations } from './session'
+import { approve, beginVerification, chooseScope, openSession, recordAppliedRevision, recordRollback, recordSourceGraph, recordVerificationFailure, registerVerification, SessionInvariantError, stageCandidate, stageOperations } from './session'
 import { assertTrustedBrowserExecution, restoreBrowserExecution } from './verification-receipt'
 import { runCandidateVerification } from './verification-runner'
 import type { EditOperation, EditSession, ScopeDecision, SourceGraph, VerificationRun } from './model'
@@ -30,7 +30,7 @@ function json(response: ServerResponse, status: number, value: unknown): void {
   response.end(body)
 }
 
-function reject(response: ServerResponse, status: number, message: string): void { json(response, status, { error: message }) }
+function reject(response: ServerResponse, status: number, message: string, details?: { code: string; path?: string }): void { json(response, status, { error: message, ...details }) }
 
 async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
   const contentType = request.headers['content-type']?.split(';')[0]
@@ -501,7 +501,8 @@ export function localProjectApiPlugin(): Plugin {
           const failure = error instanceof Error ? error as Error & { statusCode?: number } : undefined
           const code = failure && 'code' in failure ? failure.code : undefined
           const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' || failure?.name === 'VerificationRunnerError' ? 503 : failure instanceof PatchApplyError || failure?.name === 'CandidateError' || failure?.name === 'SessionInvariantError' || failure?.name === 'VerificationEvidenceError' ? 409 : failure instanceof VerificationContractError || failure?.name === 'PreviewResourcePolicyError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
-          reject(response, status, error instanceof Error ? error.message : 'Project API failed')
+          const sessionError = error instanceof SessionInvariantError ? { code: error.code, ...(error.path ? { path: error.path } : {}) } : undefined
+          reject(response, status, error instanceof Error ? error.message : 'Project API failed', sessionError)
         })
       })
       server.httpServer?.once('close', () => {
