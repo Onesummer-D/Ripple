@@ -25,6 +25,28 @@ function summarizeViteTransformError(pathname: string, body: string): string {
   if (unknownUtility) return `${pathname}: unknown utility ${unknownUtility[1]}`
   return `${pathname}: Vite HTTP 500, ${Buffer.byteLength(body)} bytes, sha256=${createHash('sha256').update(body).digest('hex')}`
 }
+function readPreviewContainerLogs(previewId: string): string {
+  try {
+    const containers = execFileSync('docker', [
+      'ps', '--all', '--quiet',
+      '--filter', 'label=com.ripple.preview=true',
+      '--filter', 'label=com.ripple.candidate=' + previewId,
+    ], { encoding: 'utf8', timeout: 10_000 }).trim().split(/\r?\n/).filter(Boolean)
+    if (!containers.length) return 'no source-preview container found'
+    return containers.map(container => {
+      const role = execFileSync('docker', ['inspect', '--format', '{{index .Config.Labels "com.ripple.preview.role"}}', container], {
+        encoding: 'utf8', timeout: 10_000,
+      }).trim()
+      const logs = execFileSync('docker', ['logs', '--tail', '120', container], {
+        encoding: 'utf8', timeout: 10_000, maxBuffer: 1024 * 1024,
+      })
+      return '[' + role + ' ' + container + ']\n' + logs.slice(-8_000)
+    }).join('\n\n')
+  } catch (error) {
+    return 'unable to read source-preview container logs: ' + (error instanceof Error ? error.message : String(error))
+  }
+}
+
 let candidateId = ''
 let sourcePreviewProjectId = ''
 let sourcePreviewId = ''
@@ -138,6 +160,20 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     expect(sourcePreview.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
     expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
     const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
+  const sourcePreviewOrigin = new URL(sourcePreview.url).origin
+  const sourcePreviewBrowserErrors: string[] = []
+  page.on('console', message => {
+    const location = message.location()
+    if (message.type() === 'error' && location.url.startsWith(sourcePreviewOrigin)) sourcePreviewBrowserErrors.push('console: ' + message.text().slice(0, 500))
+  })
+  page.on('pageerror', error => sourcePreviewBrowserErrors.push('pageerror: ' + error.message.slice(0, 500)))
+  page.on('requestfailed', request => {
+    const url = new URL(request.url())
+    if (url.origin === sourcePreviewOrigin || ['images.pexels.com', 'fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname)) {
+      sourcePreviewBrowserErrors.push('requestfailed: ' + request.url() + ' (' + (request.failure()?.errorText ?? 'unknown') + ')')
+    }
+  })
+  
     await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
     await projectFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'workbench-source-preview-1440.png') })
     await page.getByTestId('project-preview-viewport-375').click()
@@ -794,11 +830,17 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     })())
   })
   const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
-  const sourcePreviewTransformErrors = new Map<string, Promise<string>>()
+  const sourcePreviewTransformErrors = new Map<string, { status: number; contentType: string; contentLength: string; body: Promise<string> }>()
   page.on('response', response => {
     const url = new URL(response.url())
-    if (url.port === '4173' || response.status() < 500 || !/^\/src\/(?:index\.css|App\.tsx)$/.test(url.pathname)) return
-    sourcePreviewTransformErrors.set(url.pathname, response.text().then(body => summarizeViteTransformError(url.pathname, body)).catch(() => `${url.pathname}: unable to read Vite error response`))
+    if (url.port === '4173' || response.status() < 500 || !['/src/index.css', '/src/App.tsx'].includes(url.pathname)) return
+    const headers = response.headers()
+    sourcePreviewTransformErrors.set(url.pathname, {
+      status: response.status(),
+      contentType: headers['content-type'] ?? '',
+      contentLength: headers['content-length'] ?? '',
+      body: response.text().then(body => summarizeViteTransformError(url.pathname, body)).catch(() => url.pathname + ': unable to read Vite error response'),
+    })
   })
   await page.getByTestId('toggle-project-preview').click()
   const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
@@ -810,9 +852,11 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   try {
     await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
   } catch (error) {
-    const diagnostics = await Promise.all([...sourcePreviewTransformErrors].map(async ([url, body]) => `${url}: ${await body}`))
-    if (!diagnostics.length) throw error
-    throw new Error(`${error instanceof Error ? error.message : String(error)}\nVite preview transform responses:\n${diagnostics.join('\n\n')}`)
+    const diagnostics = await Promise.all([...sourcePreviewTransformErrors].map(async ([url, failure]) =>
+      url + ' [HTTP ' + failure.status + ', content-type=' + (failure.contentType || 'none') + ', content-length=' + (failure.contentLength || 'unspecified') + ']: ' + await failure.body))
+    const browserErrors = sourcePreviewBrowserErrors.length ? sourcePreviewBrowserErrors.join('\n') : 'none recorded'
+    const containerLogs = readPreviewContainerLogs(sourcePreviewId)
+    throw new Error((error instanceof Error ? error.message : String(error)) + '\nVite preview transform responses:\n' + (diagnostics.length ? diagnostics.join('\n\n') : 'none recorded') + '\nPreview browser errors:\n' + browserErrors + '\nPreview container logs:\n' + containerLogs)
   }
   const heroImage = projectFrame.locator('img[alt="山野器物"]')
   await expect.poll(() => heroImage.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
