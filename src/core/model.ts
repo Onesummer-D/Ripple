@@ -75,6 +75,7 @@ export interface BrowserVerificationContract {
     expectedText: string
   }>
 }
+export type RouteIdentityStatus = 'verified' | 'missing' | 'ambiguous' | 'wrong-route'
 export interface ScopePropagationObservation {
   pageRef: Id
   route: string
@@ -82,6 +83,10 @@ export interface ScopePropagationObservation {
   markerText: string
   baselineMarkerVisible: boolean
   candidateMarkerVisible: boolean
+  baselineMarkerMatchCount: number
+  candidateMarkerMatchCount: number
+  baselineRouteIdentity: RouteIdentityStatus
+  candidateRouteIdentity: RouteIdentityStatus
   operations: Array<{
     operationId: Id
     expectedBaselineText: string
@@ -98,6 +103,8 @@ export interface InteractionObservation {
   role: BrowserControlRole
   name: string
   expectedText: string
+  baselineRouteIdentity: RouteIdentityStatus
+  candidateRouteIdentity: RouteIdentityStatus
   baselinePassed: boolean
   candidatePassed: boolean
 }
