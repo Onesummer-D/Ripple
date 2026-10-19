@@ -124,7 +124,7 @@ export default {
     strictPort: true,
     hmr: false,
     cors: { origin: 'null' },
-    fs: { strict: true, allow: ['/work', '/deps', '/ripple/core', '/ripple/node_modules'] },
+    fs: { strict: true, allow: ['/work', '/ripple/core', '/ripple/node_modules'] },
     headers: {
       'content-security-policy': contentSecurityPolicy,
       'referrer-policy': 'no-referrer',

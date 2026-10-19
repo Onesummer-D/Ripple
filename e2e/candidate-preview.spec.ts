@@ -9,6 +9,7 @@ const tempRoot = path.join(process.cwd(), 'node_modules', '.tmp')
 fs.mkdirSync(tempRoot, { recursive: true })
 const sandbox = fs.mkdtempSync(path.join(tempRoot, 'ripple-preview-browser-'))
 const projectRoot = path.join(sandbox, 'site')
+const fixtureNodeModules = path.resolve('test/fixtures/react-vite-tailwind/node_modules')
 const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence')
 const dockerAvailable = spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
 let candidateId = ''
@@ -25,17 +26,22 @@ test('runs the exact candidate source in a Docker-isolated browser preview', asy
     if (process.env.CI) throw new Error('Docker-backed candidate preview is mandatory in CI; docker info did not succeed')
     test.skip(true, 'Docker is unavailable in this local environment')
   }
+  expect(fs.existsSync(path.join(fixtureNodeModules, 'tailwindcss', 'package.json'))).toBe(true)
+  expect(fs.existsSync(path.join(fixtureNodeModules, '@alloc', 'quick-lru', 'package.json'))).toBe(true)
 
   fs.mkdirSync(path.join(projectRoot, 'src', 'pages'), { recursive: true })
   fs.writeFileSync(path.join(projectRoot, '.gitignore'), 'node_modules/\n')
   fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'ripple-isolated-preview', private: true, type: 'module' }))
   fs.writeFileSync(path.join(projectRoot, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.jsx"></script>')
   fs.writeFileSync(path.join(projectRoot, 'vite.config.ts'), "throw new Error('the target Vite config must not execute in Ripple preview')\n")
-  fs.writeFileSync(path.join(projectRoot, 'src', 'main.jsx'), "import React from 'react'; import { createRoot } from 'react-dom/client'; import { App } from './App.jsx'; createRoot(document.getElementById('root')).render(<App />)\n")
+  fs.writeFileSync(path.join(projectRoot, 'postcss.config.cjs'), "module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }\n")
+  fs.writeFileSync(path.join(projectRoot, 'tailwind.config.cjs'), "module.exports = { content: ['./index.html', './src/**/*.{js,jsx}'], theme: { extend: {} }, plugins: [] }\n")
+  fs.writeFileSync(path.join(projectRoot, 'src', 'main.jsx'), "import React from 'react'; import { createRoot } from 'react-dom/client'; import './preview.css'; import { App } from './App.jsx'; createRoot(document.getElementById('root')).render(<App />)\n")
+  fs.writeFileSync(path.join(projectRoot, 'src', 'preview.css'), '@tailwind base;\n@tailwind components;\n@tailwind utilities;\n')
   fs.writeFileSync(path.join(projectRoot, 'src', 'App.jsx'), `import { useState } from 'react'; import { HomePage } from './pages/HomePage.jsx'; import { SecondaryPage } from './pages/SecondaryPage.jsx'; export function App(){const [page,setPage]=useState('home');return <><nav><button onClick={()=>setPage('home')}>Home</button><button onClick={()=>setPage('secondary')}>Secondary</button></nav>{page==='home'&&<HomePage/>}{page==='secondary'&&<SecondaryPage/>}</>}`)
-  fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), `import { useState } from 'react'; export function HomePage(){const [count,setCount]=useState(0);return <main><h1>Baseline preview title</h1><p>Unaffected page copy stays intact.</p><button onClick={()=>setCount(count+1)}>Clicked {count}</button></main>}`)
+  fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), `import { useState } from 'react'; export function HomePage(){const [count,setCount]=useState(0);return <main className="pt-4"><h1>Baseline preview title</h1><p>Unaffected page copy stays intact.</p><button onClick={()=>setCount(count+1)}>Clicked {count}</button></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'SecondaryPage.jsx'), `export function SecondaryPage(){return <main><h1>Secondary page stays unchanged</h1></main>}`)
-  fs.symlinkSync(path.join(process.cwd(), 'node_modules'), path.join(projectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
+  fs.symlinkSync(fixtureNodeModules, path.join(projectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
   const git = (...args: string[]) => execFileSync('git', ['-C', projectRoot, ...args], { stdio: 'pipe' })
   git('init', '-q'); git('config', 'user.email', 'ripple-preview@example.invalid'); git('config', 'user.name', 'Ripple preview test'); git('add', '.'); git('commit', '-qm', 'preview baseline')
 
@@ -88,6 +94,7 @@ test('runs the exact candidate source in a Docker-isolated browser preview', asy
     throw new Error(`${error instanceof Error ? error.message : String(error)}\nCandidate iframe diagnostics: ${JSON.stringify({ frameState, browserDiagnostics })}`)
   }
   await expect(preview.getByText('Unaffected page copy stays intact.')).toBeVisible()
+  await expect.poll(() => preview.locator('main').evaluate(element => getComputedStyle(element).paddingTop)).toBe('16px')
   const firstInstance = await preview.getByRole('heading', { name: 'Candidate preview title' }).getAttribute('data-ripple-instance')
   expect(firstInstance).toBeTruthy()
   await preview.getByRole('button', { name: 'Clicked 0' }).click()
@@ -126,7 +133,7 @@ test('runs the exact candidate source in a Docker-isolated browser preview', asy
     schemaVersion: 1, completed: true, execution: 'docker-backed-playwright-preview', candidateId: discardedId, patchHash,
     previewOrigin: new URL(previewUrl!).origin, sourceUnchanged: true, targetChangedInBrowser: true, nonTargetPageNavigable: true,
     sandboxOrigin, viewport: { width: 1440, height: 1000 }, screenshot: { path: path.basename(screenshotPath), sha256: screenshotSha256 },
-    assertions: ['candidate source rendered', 'target text updated', 'non-target copy preserved', 'React event handler worked', 'instance ID survived rerender', 'page scope navigation worked', 'target Vite config not required', 'scope change retired the candidate container, network, and worktree'],
+    assertions: ['candidate source rendered', 'target text updated', 'non-target copy preserved', 'Tailwind 3 PostCSS plugin generated pt-4 and its browser computed style was 16px', 'React event handler worked', 'instance ID survived rerender', 'page scope navigation worked', 'target Vite config not required', 'scope change retired the candidate container, network, and worktree'],
     formalVerification: 'not-run',
   }, null, 2))
   candidateId = ''

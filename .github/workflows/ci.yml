@@ -20,7 +20,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/fixtures/react-vite-tailwind/package-lock.json
       - run: npm ci
+      - name: Install the pinned React/Vite/Tailwind preview fixture
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix test/fixtures/react-vite-tailwind
       - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
       - run: npm test -- --run
