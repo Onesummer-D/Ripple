@@ -250,7 +250,7 @@ interface AdapterCapabilities {
 
 ### 4.5 冻结的最小契约测试范围（`ripple-edit-operation-session/v1`）
 
-以下范围对应 PR #2 `f2aeadf` 已实现且通过完整 CI #161 的代码；五项设计决策与该最小测试边界由 A/B 对齐，负责人已批准冻结。实现位于 `src/core/model.ts`、`session.ts` 及现有 Scope、candidate、verification 测试，不要求新增平行测试框架。
+以下范围对应 PR #2 `f2aeadf` 已实现且通过完整 CI #161 的代码。五项技术决策已由 A/B 对齐；该最小测试边界由 A 按当前实现收敛并获负责人批准，已请 B 只核对是否存在可复现的接口/测试遗漏。确认边界不要求重新讨论已决架构，B 可按冻结 schema 开始 MEDIA `asset-swap`。实现位于 `src/core/model.ts`、`session.ts` 及现有 Scope、candidate、verification 测试，不要求新增平行测试框架。
 
 1. **简单操作兼容与类型边界**：TEXT/MEDIA/TOKEN/CODE 的 payloadless 操作继续可用；所有 payloadless 变体均禁止意外 `action` 与 `payload`，TypeScript 与运行时 JSON 输入都覆盖。
 2. **结构化操作判别与 Session 错误**：MEDIA `asset-swap` 与 TOKEN `local-projection` 的 action/payload 必须匹配；缺失、畸形、未知 action 或不匹配 kind 按结构化错误拒绝，并包含稳定的 `code` 与字段 `path`。JSON 往返后仍按同一 schema 校验。合法但未实现的结构化执行器返回 `unsupported-operation`，不得降级到字符串替换。
