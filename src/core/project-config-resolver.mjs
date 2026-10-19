@@ -74,6 +74,7 @@ function aliasRules(config) {
   const baseUrl = options.baseUrl ?? options.pathsBasePath ?? path.dirname(config.configPath)
   const rules = []
   for (const [pattern, destinations] of Object.entries(options.paths ?? {})) {
+    if (pattern.startsWith('*')) return { status: 'ambiguous', reason: `Alias ${pattern} requires TypeScript file-existence fallback for package imports; the bounded preview alias adapter cannot safely reproduce it.`, rules: [] }
     if (destinations.length !== 1) return { status: 'ambiguous', reason: `Alias ${pattern} has multiple destinations.`, rules: [] }
     const target = destinations[0]
     const wildcardCount = value => [...value].filter(char => char === '*').length

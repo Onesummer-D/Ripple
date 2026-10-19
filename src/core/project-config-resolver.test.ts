@@ -51,4 +51,13 @@ describe('shared application config resolution', () => {
     expect(graph.aliases.status).toBe('ambiguous')
     expect(toViteAliasRules(graph)).toEqual([])
   })
+
+  it('refuses unprefixed wildcard aliases that would capture package dependencies', () => {
+    const root = project({
+      'site.config.json': { compilerOptions: { jsx: 'react-jsx', baseUrl: '.', paths: { '*': ['src/*'] } }, include: ['src'] },
+    })
+    const graph = resolveProjectConfigGraph(root, ts)
+    expect(graph.aliases).toMatchObject({ status: 'ambiguous', reason: expect.stringContaining('file-existence fallback') })
+    expect(toViteAliasRules(graph)).toEqual([])
+  })
 })
