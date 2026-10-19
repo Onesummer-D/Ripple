@@ -25,8 +25,9 @@ test.beforeAll(() => {
   fs.writeFileSync(path.join(projectRoot, '.gitignore'), 'node_modules/\n')
   fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'workbench-browser-project', private: true }))
   fs.writeFileSync(path.join(projectRoot, 'index.html'), '<!doctype html><html><head><meta charset="UTF-8"></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>')
-  fs.writeFileSync(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
-  fs.writeFileSync(path.join(projectRoot, 'src', 'main.tsx'), `import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />)`)
+  fs.writeFileSync(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ files: [], references: [{ path: './tsconfig.app.json' }] }))
+  fs.writeFileSync(path.join(projectRoot, 'tsconfig.app.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler', baseUrl: '.', paths: { '@/*': ['src/*'] } }, include: ['src'] }))
+  fs.writeFileSync(path.join(projectRoot, 'src', 'main.tsx'), `import { createRoot } from 'react-dom/client'; import { App } from '@/App'; createRoot(document.getElementById('root')!).render(<App />)`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), `/* suggested asset https://assets.example.test/preview-check.gif; injected hostile URL https://untrusted.example.invalid/pixel.gif */ import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; import { AutumnPage } from './pages/AutumnPage'; export function App(){const [page,setPage]=useState('home'); return <><button onClick={()=>setPage('home')}>Home route</button><button onClick={()=>setPage('autumn')}>Autumn route</button>{page === 'home' && <><Navigation/><HomePage/></>}{page === 'autumn' && <><Navigation/><AutumnPage/></>}</>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), `import { useState } from 'react'; export function HomePage(){const [clicks,setClicks]=useState(0); return <main><h1>Baseline title</h1><img alt="approved test image" src="https://assets.example.test/preview-check.gif"/><img alt="not approved image" src="https://untrusted.example.invalid/pixel.gif"/><a href="https://untrusted.example.invalid/leave">External navigation</a><button>Browse items</button><button onClick={()=>setClicks(clicks+1)}>Clicks {clicks}</button></main>}`)
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'AutumnPage.tsx'), `export function AutumnPage(){return <main><h1>Autumn baseline</h1></main>}`)
@@ -779,6 +780,12 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     })())
   })
   const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
+  const sourcePreviewTransformErrors = new Map<string, Promise<string>>()
+  page.on('response', response => {
+    const url = new URL(response.url())
+    if (url.port === '4173' || response.status() < 500 || !/^\\/src\\/(?:index\\.css|App\\.tsx)$/.test(url.pathname)) return
+    sourcePreviewTransformErrors.set(url.pathname, response.text().then(body => body.slice(0, 4000)).catch(error => `Unable to read error response: ${String(error)}`))
+  })
   await page.getByTestId('toggle-project-preview').click()
   const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
   sourcePreviewProjectId = sourcePreview.projectId
@@ -786,7 +793,13 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   expect(sourcePreview.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
   expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
   const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
-  await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
+  try {
+    await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
+  } catch (error) {
+    const diagnostics = await Promise.all([...sourcePreviewTransformErrors].map(async ([url, body]) => `${url}:\\n${await body}`))
+    if (!diagnostics.length) throw error
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\\nVite preview transform responses:\\n${diagnostics.join('\\n\\n')}`)
+  }
   const heroImage = projectFrame.locator('img[alt="山野器物"]')
   await expect.poll(() => heroImage.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   const auditedPexelsResponses = await Promise.all(pexelsResponses)

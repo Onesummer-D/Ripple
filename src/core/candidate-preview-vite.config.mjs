@@ -106,14 +106,19 @@ function selectionBridge() {
 }
 
 function typescriptAliases() {
-  const configPath = ['tsconfig.json', 'tsconfig.app.json', 'jsconfig.json']
+  const configs = ['tsconfig.app.json', 'tsconfig.json', 'jsconfig.json']
     .map(name => path.join('/work', name))
-    .find(file => ts.sys.fileExists(file))
-  if (!configPath) return []
-
-  const config = ts.readConfigFile(configPath, ts.sys.readFile)
-  if (config.error) return []
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, path.dirname(configPath), undefined, configPath)
+    .filter(file => ts.sys.fileExists(file))
+    .map(configPath => {
+      const config = ts.readConfigFile(configPath, ts.sys.readFile)
+      if (config.error) return undefined
+      const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, path.dirname(configPath), undefined, configPath)
+      return { configPath, parsed }
+    })
+    .filter(Boolean)
+  const projectConfig = configs.find(({ parsed }) => Object.keys(parsed.options.paths ?? {}).length > 0) ?? configs[0]
+  if (!projectConfig) return []
+  const { configPath, parsed } = projectConfig
   const aliases = []
   for (const [pattern, destinations] of Object.entries(parsed.options.paths ?? {})) {
     if (destinations.length !== 1) continue
