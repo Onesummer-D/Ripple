@@ -151,22 +151,6 @@ function objectLiteralPropertyValue(element: ts.ObjectLiteralExpression, propert
   return undefined
 }
 
-/** Values of `property` across ALL object literal elements of an array literal.
- *  Strict by design: if ANY element is not a statically resolvable object literal for
- *  this property (non-literal element, inner spread, duplicated key, non-literal value),
- *  returns undefined — the resolvable subset must never be upgraded, because the
- *  unresolved elements may carry real consumers that a subset result would hide. */
-function objectLiteralPropertyValues(array: ts.ArrayLiteralExpression, property: string, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined): DrilledProperty[] | undefined {
-  const values: DrilledProperty[] = []
-  for (const element of array.elements) {
-    if (!ts.isObjectLiteralExpression(element)) return undefined
-    const value = objectLiteralPropertyValue(element, property, resolveAsset)
-    if (!value) return undefined
-    values.push(value)
-  }
-  return values
-}
-
 /** In-place mutating array methods. A reference to the drilled binding on the receiver
  *  side of one of these calls makes every literal element value unreliable. */
 const MUTATING_ARRAY_METHODS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill', 'copyWithin'])
@@ -191,21 +175,27 @@ function isArrayMutationReference(identifier: ts.Identifier): boolean {
   return false
 }
 
-/**
- * Bounded backward drill from a JSX attribute / callback expression to the string
- * literal values (or imported asset files) of `property`, through identifiers bound
- * to array literals, callback parameters of `.map` / `.filter` / `.slice`, and chained
- * calls of those methods. Anything outside this shape yields [] — the caller keeps the
- * honest lower-certainty result instead of guessing.
+/** Resolves the array-literal element expressions that can reach a drilled access,
+ *  applying map/filter/slice chain semantics precisely. Returns undefined when the shape
+ *  is outside the supported boundary — callers must fail closed and never upgrade a
+ *  guessed subset.
  * Soundness rules: only `const` declarations are drilled (a reassigned `let` makes the
- * initializer value non-provable); a conditional must have BOTH arms drillable; an array
- * literal with ANY unresolvable element yields nothing (subset upgrades are unsound);
- * a `const` array mutated anywhere in the project (`arr.push(...)`, `arr[i] = x`,
- * cross-file included) yields nothing via `bindingMayBeMutated`.
- */
-function arrayDrill(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined, bindingMayBeMutated: (symbol: ts.Symbol) => boolean): DrilledProperty[] {
-  if (visited.has(expression)) return []
+ *  initializer value non-provable); a conditional must have BOTH arms resolvable; a `const`
+ *  array mutated anywhere in the project (`arr.push(...)`, `arr[i] = x`, cross-file
+ *  included) yields nothing via `bindingMayBeMutated`; `map` must be an identity callback;
+ *  `filter` predicates and `slice` bounds are evaluated syntactically — unsupported forms
+ *  fail closed instead of assuming the whole base array is consumed. */
+function drillableElements(expression: ts.Expression, checker: ts.TypeChecker, visited: Set<ts.Node>, bindingMayBeMutated: (symbol: ts.Symbol) => boolean): ts.Expression[] | undefined {
+  if (visited.has(expression)) return undefined
   visited.add(expression)
+  if (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) || ts.isSatisfiesExpression(expression)) return drillableElements(expression.expression, checker, visited, bindingMayBeMutated)
+  if (ts.isConditionalExpression(expression)) {
+    // Only when BOTH arms resolve do we know the element set regardless of runtime branch.
+    const whenTrue = drillableElements(expression.whenTrue, checker, visited, bindingMayBeMutated)
+    const whenFalse = drillableElements(expression.whenFalse, checker, visited, bindingMayBeMutated)
+    if (!whenTrue || !whenFalse) return undefined
+    return [...whenTrue, ...whenFalse]
+  }
   if (ts.isIdentifier(expression) || ts.isPropertyAccessExpression(expression)) {
     const symbol = checker.getSymbolAtLocation(ts.isIdentifier(expression) ? expression : expression.name)
     // Export aliases (`export const products`) carry no valueDeclaration on the alias symbol.
@@ -217,69 +207,183 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
       // literals are then not the runtime values. Fail closed. (`const` lives on the
       // VariableDeclarationList, so check both levels defensively.)
       const constFlag = (declaration.flags | (ts.isVariableDeclarationList(declaration.parent) ? declaration.parent.flags : 0)) & ts.NodeFlags.Const
-      if (!constFlag) return []
-      let initializer: ts.Expression = declaration.initializer
-      if (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer)) initializer = initializer.expression
-      if (ts.isParenthesizedExpression(initializer)) return arrayDrill(initializer.expression, property, checker, visited, resolveAsset, bindingMayBeMutated)
-      if (ts.isConditionalExpression(initializer)) {
-        // Only when BOTH arms drill do we know the property value regardless of runtime branch.
-        const whenTrue = arrayDrill(initializer.whenTrue, property, checker, visited, resolveAsset, bindingMayBeMutated)
-        const whenFalse = arrayDrill(initializer.whenFalse, property, checker, visited, resolveAsset, bindingMayBeMutated)
-        if (!whenTrue.length || !whenFalse.length) return []
-        return [...whenTrue, ...whenFalse]
-      }
-      if (ts.isArrayLiteralExpression(initializer)) {
-        // Mutated const array: literal elements are not the runtime values. Fail closed.
-        if (symbol && bindingMayBeMutated(symbol)) return []
-        // Partial resolution: the resolvable subset must not be upgraded — unresolved
-        // elements may carry real consumers.
-        return objectLiteralPropertyValues(initializer, property, resolveAsset) ?? []
-      }
-      // `const featured = products.filter(...).slice(0, 3)` — drill through call chains too.
-      if (ts.isCallExpression(initializer)) return arrayDrill(initializer, property, checker, visited, resolveAsset, bindingMayBeMutated)
-      return []
+      if (!constFlag) return undefined
+      // Mutated const array: literal elements are not the runtime values. Fail closed.
+      if (symbol && bindingMayBeMutated(symbol)) return undefined
+      return drillableElements(declaration.initializer, checker, visited, bindingMayBeMutated)
     }
     if (declaration && ts.isParameter(declaration)) {
+      // The callback parameter IS the base element (usage JSX passes it unchanged);
+      // the callback body shape is irrelevant on this path.
       let fn: ts.Node | undefined = declaration.parent
       while (fn && !(ts.isArrowFunction(fn) || ts.isFunctionExpression(fn))) fn = fn.parent
       let call: ts.Node | undefined = fn?.parent
       while (call && !ts.isCallExpression(call)) call = call.parent
       if (call && ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression) &&
         ['map', 'filter', 'slice'].includes(call.expression.name.text) && call.expression.expression) {
-        return arrayDrill(call.expression.expression, property, checker, visited, resolveAsset, bindingMayBeMutated)
+        return drillableElements(call.expression.expression, checker, visited, bindingMayBeMutated)
       }
     }
-    return []
+    return undefined
   }
+  if (ts.isArrayLiteralExpression(expression)) return [...expression.elements]
   if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
     const method = expression.expression.name.text
-    if (method === 'map' || method === 'filter' || method === 'slice') {
-      // `map` may transform elements (`xs.map(p => ({ ...p, image: newUrl }))`): unless
-      // the callback returns its own parameter unchanged, the drilled values are NOT the
-      // base array's — the callback body is never inspected, so fail closed.
-      if (method === 'map' && !isIdentityMapCallback(expression.arguments[0])) return []
-      return arrayDrill(expression.expression.expression, property, checker, visited, resolveAsset, bindingMayBeMutated)
+    if (method !== 'map' && method !== 'filter' && method !== 'slice') return undefined
+    // `map` may transform elements (`xs.map(p => ({ ...p, image: newUrl }))`): unless the
+    // callback returns its own parameter unchanged, the drilled values are NOT the base
+    // array's — the callback body is never inspected, so fail closed.
+    if (method === 'map' && !isIdentityMapCallback(expression.arguments[0])) return undefined
+    const base = drillableElements(expression.expression.expression, checker, visited, bindingMayBeMutated)
+    if (!base) return undefined
+    if (method === 'map') return base
+    if (method === 'slice') {
+      // Only literal bounds are provable; `slice(count)` etc. fail closed.
+      const clamp = (n: number) => {
+        const truncated = Math.trunc(n)
+        return truncated < 0 ? Math.max(base.length + truncated, 0) : Math.min(truncated, base.length)
+      }
+      let start = 0
+      let end = base.length
+      const arg0 = expression.arguments[0]
+      if (arg0 !== undefined) {
+        if (!ts.isNumericLiteral(arg0)) return undefined
+        start = clamp(Number(arg0.text))
+      }
+      const arg1 = expression.arguments[1]
+      if (arg1 !== undefined) {
+        if (!ts.isNumericLiteral(arg1)) return undefined
+        end = clamp(Number(arg1.text))
+      }
+      return base.slice(start, end)
     }
-    return []
+    // filter: the predicate decides per element. Elements it provably keeps are
+    // drillable; a predicate we cannot evaluate voids the whole chain — assuming the
+    // full base array would mark never-rendered media as proven.
+    const kept: ts.Expression[] = []
+    for (const element of base) {
+      const keep = filterKeepsElement(expression.arguments[0], element)
+      if (keep === undefined) return undefined
+      if (keep) kept.push(element)
+    }
+    return kept
   }
-  return []
+  return undefined
+}
+
+/** Extracts the single effective return expression of a callback (`p => expr`,
+ *  `(p) => (expr)`, `function (p) { return expr }`). */
+function callbackReturnExpression(callback: ts.Expression | undefined): ts.Expression | undefined {
+  if (!callback || !(ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) return undefined
+  if (ts.isArrowFunction(callback) && !ts.isBlock(callback.body)) return callback.body
+  if (ts.isBlock(callback.body) && callback.body.statements.length === 1) {
+    const statement = callback.body.statements[0]
+    if (ts.isReturnStatement(statement)) return statement.expression
+  }
+  return undefined
 }
 
 /** True only for a callback that returns its own first parameter unchanged (`p => p`,
  *  `(p) => (p)`, `function (p) { return p }`). Any other map callback may transform
  *  elements, so drilled values cannot be taken from the base array. */
 function isIdentityMapCallback(callback: ts.Expression | undefined): boolean {
-  if (!callback || !(ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) return false
-  const param = callback.parameters[0]
-  if (!param || !ts.isIdentifier(param.name)) return false
-  const isParam = (expression: ts.Expression | undefined) =>
-    !!expression && (ts.isParenthesizedExpression(expression) ? isParam(expression.expression) : ts.isIdentifier(expression) && expression.text === param.name.text)
-  if (ts.isArrowFunction(callback) && !ts.isBlock(callback.body)) return isParam(callback.body)
-  if (ts.isBlock(callback.body) && callback.body.statements.length === 1) {
-    const statement = callback.body.statements[0]
-    if (ts.isReturnStatement(statement)) return isParam(statement.expression)
+  const paramName = callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && ts.isIdentifier(callback.parameters[0]?.name) ? callback.parameters[0].name.text : undefined
+  if (!paramName) return false
+  const isParam = (expression: ts.Expression | undefined): boolean =>
+    !!expression && (ts.isParenthesizedExpression(expression) ? isParam(expression.expression) : ts.isIdentifier(expression) && expression.text === paramName)
+  return isParam(callbackReturnExpression(callback))
+}
+
+/** Unique string/number literal text of `key` on an object literal element. */
+function literalPropertyText(element: ts.Expression, key: string): string | undefined {
+  if (!ts.isObjectLiteralExpression(element)) return undefined
+  const matches = element.properties.filter((entry): entry is ts.PropertyAssignment => ts.isPropertyAssignment(entry) && propertyName(entry) === key)
+  if (matches.length !== 1) return undefined
+  const initializer = matches[0].initializer
+  return ts.isStringLiteral(initializer) || ts.isNumericLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer) ? initializer.text : undefined
+}
+
+function predicateKeyOperand(node: ts.Expression, paramName: string): string | undefined {
+  if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === paramName) return node.name.text
+  if (ts.isElementAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === paramName && node.argumentExpression && ts.isStringLiteral(node.argumentExpression)) return node.argumentExpression.text
+  return undefined
+}
+
+function referencesIdentifier(node: ts.Node, name: string): boolean {
+  let found = false
+  const visit = (child: ts.Node): void => {
+    if (found) return
+    if (ts.isIdentifier(child) && child.text === name) { found = true; return }
+    child.forEachChild(visit)
   }
-  return false
+  visit(node)
+  return found
+}
+
+const EQUALITY_OPERATORS = [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken]
+
+/** Evaluates a filter predicate against one literal element, or undefined when the
+ *  predicate is outside the supported boundary (fail closed). Supported: single
+ *  comparisons `p.key === 'lit'` / `!==` / `==` / `!=` (with `&&` chains and leading
+ *  `!`), and constant `true`/`false` predicates. Anything else → undefined. */
+function filterKeepsElement(predicate: ts.Expression | undefined, element: ts.Expression): boolean | undefined {
+  if (!predicate || !(ts.isArrowFunction(predicate) || ts.isFunctionExpression(predicate))) return undefined
+  const paramName = ts.isIdentifier(predicate.parameters[0]?.name) ? predicate.parameters[0].name.text : undefined
+  const condition = callbackReturnExpression(predicate)
+  if (!condition) return undefined
+  const literalText = (node: ts.Expression): string | undefined =>
+    ts.isStringLiteral(node) || ts.isNumericLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : undefined
+  const evaluate = (node: ts.Expression): boolean | undefined => {
+    if (ts.isParenthesizedExpression(node)) return evaluate(node.expression)
+    if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
+      const inner = evaluate(node.operand)
+      return inner === undefined ? undefined : !inner
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+      const left = evaluate(node.left)
+      const right = evaluate(node.right)
+      return left === undefined || right === undefined ? undefined : left && right
+    }
+    if (ts.isBinaryExpression(node) && EQUALITY_OPERATORS.includes(node.operatorToken.kind) && paramName) {
+      const key = predicateKeyOperand(node.left, paramName) ?? predicateKeyOperand(node.right, paramName)
+      const literal = literalText(node.left) !== undefined && predicateKeyOperand(node.left, paramName) === undefined ? literalText(node.left) : literalText(node.right)
+      if (!key || literal === undefined) return undefined
+      const actual = literalPropertyText(element, key)
+      if (actual === undefined) return undefined
+      const negated = node.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken || node.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsToken
+      return negated ? actual !== literal : actual === literal
+    }
+    // Constant predicate without a param reference (`() => true` keeps everything).
+    if ((paramName === undefined || !referencesIdentifier(node, paramName)) && !ts.isBinaryExpression(node)) {
+      if (node.kind === ts.SyntaxKind.TrueKeyword) return true
+      if (node.kind === ts.SyntaxKind.FalseKeyword) return false
+    }
+    return undefined
+  }
+  return evaluate(condition)
+}
+
+/**
+ * Bounded backward drill from a JSX attribute / callback expression to the string
+ * literal values (or imported asset files) of `property`, through identifiers bound
+ * to array literals and map/filter/slice chains, with the chain semantics applied
+ * precisely (see drillableElements). Yields [] whenever the element set cannot be
+ * proven — the caller keeps the honest lower-certainty result instead of guessing.
+ * Strict subset rule: any element that is not an object literal with exactly one
+ * resolvable `property` value voids the WHOLE drill — a resolvable subset must never
+ * be upgraded, because unresolved elements may carry real consumers.
+ */
+function arrayDrill(expression: ts.Expression, property: string, checker: ts.TypeChecker, visited: Set<ts.Node>, resolveAsset: (name: string, sourceFile: ts.SourceFile) => string | undefined, bindingMayBeMutated: (symbol: ts.Symbol) => boolean): DrilledProperty[] {
+  const elements = drillableElements(expression, checker, visited, bindingMayBeMutated)
+  if (!elements) return []
+  const values: DrilledProperty[] = []
+  for (const element of elements) {
+    if (!ts.isObjectLiteralExpression(element)) return []
+    const value = objectLiteralPropertyValue(element, property, resolveAsset)
+    if (!value) return []
+    values.push(value)
+  }
+  return values
 }
 
 /** Exact `array[n]` resolution, sound only when the base identifier is a `const` array

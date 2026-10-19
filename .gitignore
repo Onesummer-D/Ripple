@@ -11,3 +11,6 @@ playwright-report/
 coverage/
 *.log
 
+
+# TypeScript incremental build info
+tsconfig.node.tsbuildinfo

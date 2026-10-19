@@ -590,3 +590,75 @@ describe('fail-closed drilling guards (independent review P1 follow-ups)', () =>
     expect(edges[0].to).toBe(graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!.id)
   })
 })
+
+describe('filter/slice precision (proven impact must match rendered elements)', () => {
+  const card = `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`
+  const urlA = 'https://images.pexels.com/photos/93/pexels-photo-93.jpeg?auto=compress'
+  const urlB = 'https://images.pexels.com/photos/94/pexels-photo-94.jpeg?auto=compress'
+
+  it('filter that keeps only one product does not prove the filtered-out media', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}' }, { id: 'p2', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.id === 'p1').map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!
+    const mediaB = graph.nodes.find(node => node.kind === 'media' && node.value === urlB)!
+    // p1 renders on both pages; p2 is filtered out on the list page and must NOT be
+    // proven there — the drill now resolves exactly the kept elements.
+    expect(sourceProvenPageImpact(graph, mediaA.id).pageRefs).toEqual(['page:home', 'page:list'])
+    expect(sourceProvenPageImpact(graph, mediaB.id).pageRefs).toEqual(['page:home'])
+    const listId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ListPage')!.id
+    expect(assetEdges(graph, listId).filter(edge => edge.to === mediaB.id && edge.certainty === 'source-proven').length).toBe(0)
+  })
+
+  it('unsupported filter predicates fail closed instead of upgrading the whole array', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string; score: number };\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}', score: 5 }, { id: 'p2', image: '${urlB}', score: 1 }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    // `p.score > 2` is outside the supported predicate boundary: the list usage must
+    // stay unproven rather than assume all elements render.
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.score > 2).map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven' && edge.from.startsWith('component:src/pages/ListPage')).length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!
+    expect(sourceProvenPageImpact(graph, mediaA.id).pageRefs).toEqual(['page:home'])
+  })
+
+  it('slice with literal bounds proves exactly the sliced elements', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}' }, { id: 'p2', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.slice(0, 1).map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaB = graph.nodes.find(node => node.kind === 'media' && node.value === urlB)!
+    expect(sourceProvenPageImpact(graph, mediaB.id).pageRefs).toEqual(['page:home'])
+  })
+
+  it('slice with non-literal bounds fails closed', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}' }, { id: 'p2', image: '${urlB}' }];\nexport const count = 1;`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products, count } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.slice(count).map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven' && edge.from.startsWith('component:src/pages/ListPage')).length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+})
