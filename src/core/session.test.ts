@@ -148,6 +148,38 @@ describe('Project-first session invariants', () => {
     } as unknown as EditOperation
     expectSessionError(() => stageOperations(tokenSession, [tokenProjection]), { code: 'unsupported-operation', path: 'operations[0].action' })
   })
+  it('preserves structured MEDIA/TOKEN payloads through JSON and validates them before refusing execution', () => {
+    const structured = [
+      {
+        id: 'serialized-asset-swap', kind: 'MEDIA', targetRef: 'media:hero', before: 'old.jpg', after: 'new.jpg', action: 'asset-swap',
+        payload: {
+          assetRef: 'assets/new.webp', assetHash: 'a'.repeat(64), focalPoint: { x: 0.5, y: 0.35 },
+          variants: [{ mechanism: 'picture', condition: '(max-width: 640px)', assetRef: 'assets/new-mobile.webp', assetHash: 'b'.repeat(64) }],
+        },
+      },
+      {
+        id: 'serialized-local-projection', kind: 'TOKEN', targetRef: 'token:accent', before: '#111', after: '#222', action: 'local-projection',
+        payload: { declarationRef: 'token:accent', value: '#222', localScope: { pageRef: 'page:home', mechanism: 'css-override' } },
+      },
+    ]
+    const session = chooseScope(analyzed(), { ...scope(), includedRefs: ['media:hero', 'token:accent'] })
+
+    for (const operation of structured) {
+      const restored = JSON.parse(JSON.stringify(operation))
+      expect(restored).toEqual(operation)
+      expectSessionError(() => stageOperations(session, [restored as EditOperation]), { code: 'unsupported-operation', path: 'operations[0].action' })
+    }
+
+    const invalidVariant = {
+      ...structured[0], payload: { ...structured[0].payload, variants: [{ mechanism: 'viewport', condition: 'mobile', assetRef: 'assets/mobile.webp', assetHash: 'b'.repeat(64) }] },
+    } as unknown as EditOperation
+    expectSessionError(() => stageOperations(session, [invalidVariant]), { code: 'invalid-operation', path: 'operations[0].payload.variants[0].mechanism' })
+
+    const invalidProjection = {
+      ...structured[1], payload: { ...structured[1].payload, localScope: { pageRef: 'page:home', mechanism: 'global-css' } },
+    } as unknown as EditOperation
+    expectSessionError(() => stageOperations(session, [invalidProjection]), { code: 'invalid-operation', path: 'operations[0].payload.localScope.mechanism' })
+  })
   it('rejects protected/included overlap', () => {
     expect(() => chooseScope(analyzed(), { ...scope(), protectedRefs: ['home.title'] })).toThrow(/conflicts/)
   })
