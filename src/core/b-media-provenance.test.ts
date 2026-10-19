@@ -690,3 +690,40 @@ describe('filter predicate precision (boolean flags, real-project patterns)', ()
     expect(sourceProvenPageImpact(graph, mediaB.id).pageRefs).toEqual([])
   })
 })
+
+describe('filter/slice edge semantics (independent review follow-ups)', () => {
+  const card = `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`
+  const urlA = 'https://images.pexels.com/photos/98/pexels-photo-98.jpeg?auto=compress'
+  const urlB = 'https://images.pexels.com/photos/99/pexels-photo-99.jpeg?auto=compress'
+
+  it('loose equality predicates fail closed (no coercion modeling)', () => {
+    const root = temp()
+    scaffold(root)
+    // `p.id != ''` coerces at runtime (0 != '' is false); the analyzer must not guess.
+    write(root, 'src/data/products.ts', `export type Product = { id: number | string; image: string };\nexport const products: Product[] = [{ id: 0, image: '${urlA}' }, { id: 'x', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={String(product.id)} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.id != '').map((product) => <ProductCard key={String(product.id)} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven' && edge.from.startsWith('component:src/pages/ListPage')).length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+
+  it('boolean flag comparison and negative slice bounds resolve exactly', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string; isNew?: boolean };\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}', isNew: true }, { id: 'p2', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.filter((p) => p.isNew === true).map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.slice(-1).map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!
+    const mediaB = graph.nodes.find(node => node.kind === 'media' && node.value === urlB)!
+    expect(sourceProvenPageImpact(graph, mediaA.id).pageRefs).toEqual(['page:home'])
+    expect(sourceProvenPageImpact(graph, mediaB.id).pageRefs).toEqual(['page:list'])
+  })
+})

@@ -238,7 +238,14 @@ function drillableElements(expression: ts.Expression, checker: ts.TypeChecker, v
     if (!base) return undefined
     if (method === 'map') return base
     if (method === 'slice') {
-      // Only literal bounds are provable; `slice(count)` etc. fail closed.
+      // Only literal bounds (including negative literals like `-1`) are provable;
+      // `slice(count)` etc. fail closed.
+      const numericLiteralValue = (arg: ts.Expression | undefined): number | undefined => {
+        if (arg === undefined) return undefined
+        if (ts.isNumericLiteral(arg)) return Number(arg.text)
+        if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(arg.operand)) return -Number(arg.operand.text)
+        return undefined
+      }
       const clamp = (n: number) => {
         const truncated = Math.trunc(n)
         return truncated < 0 ? Math.max(base.length + truncated, 0) : Math.min(truncated, base.length)
@@ -247,13 +254,15 @@ function drillableElements(expression: ts.Expression, checker: ts.TypeChecker, v
       let end = base.length
       const arg0 = expression.arguments[0]
       if (arg0 !== undefined) {
-        if (!ts.isNumericLiteral(arg0)) return undefined
-        start = clamp(Number(arg0.text))
+        const value = numericLiteralValue(arg0)
+        if (value === undefined) return undefined
+        start = clamp(value)
       }
       const arg1 = expression.arguments[1]
       if (arg1 !== undefined) {
-        if (!ts.isNumericLiteral(arg1)) return undefined
-        end = clamp(Number(arg1.text))
+        const value = numericLiteralValue(arg1)
+        if (value === undefined) return undefined
+        end = clamp(value)
       }
       return base.slice(start, end)
     }
@@ -334,13 +343,17 @@ function referencesIdentifier(node: ts.Node, name: string): boolean {
   return found
 }
 
-const EQUALITY_OPERATORS = [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken]
+// Loose equality is deliberately excluded: `==`/`!=` coerce across types (`0 == ''`
+// is true) and modeling coercion is not worth the soundness risk. Only strict
+// equality is evaluated; loose-equality predicates fail closed.
+const EQUALITY_OPERATORS = [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken]
 
 /** Evaluates a filter predicate against one literal element, or undefined when the
- *  predicate is outside the supported boundary (fail closed). Supported: single
- *  comparisons `p.key === 'lit'` / `!==` / `==` / `!=`; boolean-flag truthiness
- *  (`p.isNew`, absent optional flags read as falsy); `&&` / `||` chains; leading `!`;
- *  and constant `true`/`false` predicates. Anything else → undefined. */
+ *  predicate is outside the supported boundary (fail closed). Supported: strict
+ *  comparisons `p.key === 'lit'` / `!== 'lit'` and `p.flag === true/false`; boolean-flag
+ *  truthiness (`p.isNew`, absent optional flags read as falsy); `&&` / `||` chains;
+ *  leading `!`; and constant `true`/`false` predicates. Loose `==`/`!=` and anything
+ *  else → undefined. */
 function filterKeepsElement(predicate: ts.Expression | undefined, element: ts.Expression): boolean | undefined {
   if (!predicate || !(ts.isArrowFunction(predicate) || ts.isFunctionExpression(predicate))) return undefined
   const paramName = ts.isIdentifier(predicate.parameters[0]?.name) ? predicate.parameters[0].name.text : undefined
@@ -372,11 +385,24 @@ function filterKeepsElement(predicate: ts.Expression | undefined, element: ts.Ex
     }
     if (ts.isBinaryExpression(node) && EQUALITY_OPERATORS.includes(node.operatorToken.kind) && paramName) {
       const key = predicateKeyOperand(node.left, paramName) ?? predicateKeyOperand(node.right, paramName)
+      if (key === undefined) return undefined
+      const negated = node.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken
+      // Boolean-flag comparison: `p.isNew === true`.
+      const booleanSide = node.left.kind === ts.SyntaxKind.TrueKeyword || node.left.kind === ts.SyntaxKind.FalseKeyword ? node.left
+        : node.right.kind === ts.SyntaxKind.TrueKeyword || node.right.kind === ts.SyntaxKind.FalseKeyword ? node.right : undefined
+      if (booleanSide) {
+        const expected = booleanSide.kind === ts.SyntaxKind.TrueKeyword
+        const actual = booleanFlagValue(element, key)
+        if (actual === undefined) return undefined
+        return negated ? actual !== expected : actual === expected
+      }
       const literal = literalText(node.left) !== undefined && predicateKeyOperand(node.left, paramName) === undefined ? literalText(node.left) : literalText(node.right)
-      if (!key || literal === undefined) return undefined
+      if (literal === undefined) return undefined
       const actual = literalPropertyText(element, key)
-      if (actual === undefined) return undefined
-      const negated = node.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken || node.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsToken
+      // An absent property is undefined at runtime: `undefined === lit` is false and
+      // `undefined !== lit` is true. (Elements hiding values behind a spread still void
+      // the whole drill in the strict per-element pass downstream.)
+      if (actual === undefined) return negated
       return negated ? actual !== literal : actual === literal
     }
     // Constant predicate without a param reference (`() => true` keeps everything).
