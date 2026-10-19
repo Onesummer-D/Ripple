@@ -64,12 +64,26 @@ async function snapshotOutsideTargets(page, bindings, baseline, pageRef) {
   }, specs)
 }
 
-async function visitContractPage(page, host, spec) {
+async function visitContractPage(page, host, spec, contractPages) {
   await page.goto(`http://${host}:5173${spec.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
   await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
   await page.waitForFunction(() => !!document.querySelector('#root')?.textContent?.trim(), undefined, { timeout: 15_000 })
   if (spec.navigateBy) await page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
-  return page.getByText(spec.markerText, { exact: true }).first().isVisible().catch(() => false)
+
+  const marker = page.getByText(spec.markerText, { exact: true })
+  const markerMatchCount = await marker.count()
+  const markerVisible = markerMatchCount > 0 && await marker.first().isVisible().catch(() => false)
+  const declaredMatches = contractPages.filter(item => item.markerText === spec.markerText).length
+  let routeIdentity = declaredMatches !== 1 || markerMatchCount > 1 ? 'ambiguous' : markerMatchCount === 0 ? 'missing' : 'verified'
+  if (routeIdentity === 'verified') {
+    for (const otherMarker of new Set(contractPages.filter(item => item.pageRef !== spec.pageRef).map(item => item.markerText))) {
+      if (await page.getByText(otherMarker, { exact: true }).count() > 0) {
+        routeIdentity = 'wrong-route'
+        break
+      }
+    }
+  }
+  return { markerVisible, markerMatchCount, routeIdentity }
 }
 
 async function mappedValues(page, sourceRef) {
@@ -78,20 +92,20 @@ async function mappedValues(page, sourceRef) {
     .map(element => (element.textContent ?? '').trim()), sourceRef)
 }
 
-async function visitWithErrors(spec, host, viewport) {
+async function visitWithErrors(spec, host, viewport, contractPages) {
   const page = await browser.newPage({ viewport })
   page.on('pageerror', error => browserErrors.push(error.message))
   page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()) })
   try {
-    const markerVisible = await visitContractPage(page, host, spec)
-    return { page, markerVisible }
+    return { page, ...await visitContractPage(page, host, spec, contractPages) }
   } catch (error) {
     browserErrors.push(error instanceof Error ? error.message : String(error))
-    return { page, markerVisible: false }
+    return { page, markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing' }
   }
 }
 
 const browser = await chromium.launch({ headless: true })
+const contractPages = input.verificationContract?.pages ?? []
 try {
   for (const viewport of viewportPlan) {
     const checkId = `${input.runId}-${viewport.name}`
@@ -196,8 +210,8 @@ try {
 
       for (const spec of input.verificationContract?.pages ?? []) {
         const [baselineProbe, candidateProbe] = await Promise.all([
-          visitWithErrors(spec, input.baselineHost, viewport),
-          visitWithErrors(spec, input.previewHost, viewport),
+          visitWithErrors(spec, input.baselineHost, viewport, contractPages),
+          visitWithErrors(spec, input.previewHost, viewport, contractPages),
         ])
         const operations = []
         for (const binding of input.targetBindings) {
@@ -210,7 +224,9 @@ try {
         }
         scopeObservations.push({
           pageRef: spec.pageRef, route: spec.path, viewport: { width: viewport.width, height: viewport.height },
-          markerText: spec.markerText, baselineMarkerVisible: baselineProbe.markerVisible, candidateMarkerVisible: candidateProbe.markerVisible, operations,
+          markerText: spec.markerText, baselineMarkerVisible: baselineProbe.markerVisible, candidateMarkerVisible: candidateProbe.markerVisible,
+          baselineMarkerMatchCount: baselineProbe.markerMatchCount, candidateMarkerMatchCount: candidateProbe.markerMatchCount,
+          baselineRouteIdentity: baselineProbe.routeIdentity, candidateRouteIdentity: candidateProbe.routeIdentity, operations,
         })
         await Promise.all([baselineProbe.page.close(), candidateProbe.page.close()])
       }
@@ -220,23 +236,30 @@ try {
         const spec = input.verificationContract.pages.find(pageSpec => pageSpec.pageRef === interaction.pageRef)
         if (!spec) continue
         const [baselineProbe, candidateProbe] = await Promise.all([
-          visitWithErrors(spec, input.baselineHost, viewport),
-          visitWithErrors(spec, input.previewHost, viewport),
+          visitWithErrors(spec, input.baselineHost, viewport, contractPages),
+          visitWithErrors(spec, input.previewHost, viewport, contractPages),
         ])
-        const activate = async page => {
+        const activate = async (page, routeIdentity) => {
+          if (routeIdentity !== 'verified') return false
           try {
             await page.getByRole(interaction.role, { name: interaction.name, exact: true }).click()
-            return await page.getByText(interaction.expectedText, { exact: true }).first().isVisible()
+            const result = page.getByText(interaction.expectedText, { exact: true })
+            return await result.count() === 1 && await result.first().isVisible()
           } catch (error) {
             browserErrors.push(error instanceof Error ? error.message : String(error))
             return false
           }
         }
-        const [baselinePassed, candidatePassed] = await Promise.all([activate(baselineProbe.page), activate(candidateProbe.page)])
+        const [baselinePassed, candidatePassed] = await Promise.all([
+          activate(baselineProbe.page, baselineProbe.routeIdentity),
+          activate(candidateProbe.page, candidateProbe.routeIdentity),
+        ])
         interactionObservations.push({
           interactionIndex, pageRef: interaction.pageRef, route: spec.path,
           viewport: { width: viewport.width, height: viewport.height }, role: interaction.role,
-          name: interaction.name, expectedText: interaction.expectedText, baselinePassed, candidatePassed,
+          name: interaction.name, expectedText: interaction.expectedText,
+          baselineRouteIdentity: baselineProbe.routeIdentity, candidateRouteIdentity: candidateProbe.routeIdentity,
+          baselinePassed, candidatePassed,
         })
         await Promise.all([baselineProbe.page.close(), candidateProbe.page.close()])
       }
@@ -267,7 +290,6 @@ try {
 
 const all = (values, predicate) => values.length > 0 && values.every(predicate)
 const any = (values, predicate) => values.some(predicate)
-const contractPages = input.verificationContract?.pages ?? []
 const contractInteractions = input.verificationContract?.interactions ?? []
 const pageRefs = contractPages.map(page => page.pageRef).sort()
 const supportedScopeContract = contractPages.length > 0 && JSON.stringify(pageRefs) === JSON.stringify([...input.routeRefs].sort()) &&
@@ -275,7 +297,9 @@ const supportedScopeContract = contractPages.length > 0 && JSON.stringify(pageRe
     (input.scopeTargetPageRefs[operation.id] ?? []).length === contractPages.length && contractPages.every(page => input.scopeTargetPageRefs[operation.id].includes(page.pageRef))) &&
   input.targetBindings.length === input.operations.length && input.targetBindings.every(binding => binding.sourceRefs.length === 1 && binding.baselineSourceRefs.length === 1 && contractPages.every(page => !!binding.pageExpectations[page.pageRef]?.baselineText && !!binding.pageExpectations[page.pageRef]?.candidateText))
 const scopePassed = supportedScopeContract && scopeObservations.length === contractPages.length * viewportPlan.length && scopeObservations.every(observation => {
-  if (!observation.baselineMarkerVisible || !observation.candidateMarkerVisible) return false
+  if (!observation.baselineMarkerVisible || !observation.candidateMarkerVisible ||
+    observation.baselineMarkerMatchCount !== 1 || observation.candidateMarkerMatchCount !== 1 ||
+    observation.baselineRouteIdentity !== 'verified' || observation.candidateRouteIdentity !== 'verified') return false
   return observation.operations.length === input.operations.length && input.operations.every(operation => {
     const values = observation.operations.find(item => item.operationId === operation.id)
     const expectation = input.targetBindings.find(binding => binding.operationId === operation.id)?.pageExpectations[observation.pageRef]
@@ -285,15 +309,18 @@ const scopePassed = supportedScopeContract && scopeObservations.length === contr
   })
 })
 const scopeFailed = supportedScopeContract && scopeObservations.some(observation =>
-  observation.baselineMarkerVisible && observation.candidateMarkerVisible && observation.operations.some(item =>
+  observation.baselineMarkerVisible && observation.candidateMarkerVisible &&
+  observation.baselineRouteIdentity === 'verified' && observation.candidateRouteIdentity === 'verified' && observation.operations.some(item =>
     item.baselineValues.length > 0 && item.candidateValues.length > 0 && input.operations.some(operation => {
       if (operation.id !== item.operationId) return false
         const expectation = input.targetBindings.find(binding => binding.operationId === operation.id)?.pageExpectations[observation.pageRef]
         return !expectation || item.expectedBaselineText !== expectation.baselineText || item.expectedCandidateText !== expectation.candidateText || !item.baselineValues.every(value => value.includes(expectation.baselineText)) || !item.candidateValues.every(value => value.includes(expectation.candidateText))
     })))
-const interactionsSupported = contractInteractions.length > 0 && interactionObservations.length === contractInteractions.length * viewportPlan.length
-const interactionsPassed = interactionsSupported && interactionObservations.every(item => item.baselinePassed && item.candidatePassed)
-const interactionsFailed = interactionObservations.some(item => !item.baselinePassed || !item.candidatePassed)
+const interactionsComplete = contractInteractions.length > 0 && interactionObservations.length === contractInteractions.length * viewportPlan.length
+const interactionsRoutesVerified = interactionsComplete && interactionObservations.every(item =>
+  item.baselineRouteIdentity === 'verified' && item.candidateRouteIdentity === 'verified')
+const interactionsPassed = interactionsRoutesVerified && interactionObservations.every(item => item.baselinePassed && item.candidatePassed)
+const interactionsFailed = interactionsRoutesVerified && interactionObservations.some(item => !item.baselinePassed || !item.candidatePassed)
 const assertions = [
   {
     id: 'target-change',
@@ -325,7 +352,7 @@ if (assertions.length !== requiredAssertions.length || assertions.some(assertion
 }
 
 const manifest = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   executor: 'playwright',
   completed: true,
   runId: input.runId,
