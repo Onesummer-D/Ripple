@@ -14,6 +14,17 @@ let boltDisposableRoot = ''
 const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence')
 const dockerAvailable = process.platform === 'linux' && spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
 const expectedProjectViewports = projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height }))
+
+function summarizeViteTransformError(pathname: string, body: string): string {
+  const text = body.replace(/<[^>]*>/g, ' ')
+  const unresolvedImport = text.match(/Failed to resolve import\\s+["']([^"']{1,160})["']\\s+from\\s+["']([^"']{1,160})["']/i)
+  if (unresolvedImport) return `${pathname}: unresolved import ${unresolvedImport[1]} from ${unresolvedImport[2]}`
+  const missingPackage = text.match(/Cannot find package ["']([^"']{1,160})["']/i)
+  if (missingPackage) return `${pathname}: missing package ${missingPackage[1]}`
+  const unknownUtility = text.match(/Cannot apply unknown utility class ["']([^"']{1,120})["']/i)
+  if (unknownUtility) return `${pathname}: unknown utility ${unknownUtility[1]}`
+  return `${pathname}: Vite HTTP 500, ${Buffer.byteLength(body)} bytes, sha256=${createHash('sha256').update(body).digest('hex')}`
+}
 let candidateId = ''
 let sourcePreviewProjectId = ''
 let sourcePreviewId = ''
@@ -784,7 +795,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   page.on('response', response => {
     const url = new URL(response.url())
     if (url.port === '4173' || response.status() < 500 || !/^\/src\/(?:index\.css|App\.tsx)$/.test(url.pathname)) return
-    sourcePreviewTransformErrors.set(url.pathname, response.text().then(body => body.slice(0, 4000)).catch(error => `Unable to read error response: ${String(error)}`))
+    sourcePreviewTransformErrors.set(url.pathname, response.text().then(body => summarizeViteTransformError(url.pathname, body)).catch(() => `${url.pathname}: unable to read Vite error response`))
   })
   await page.getByTestId('toggle-project-preview').click()
   const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
