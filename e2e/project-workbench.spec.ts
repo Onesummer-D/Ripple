@@ -115,20 +115,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
 
   if (dockerAvailable) {
     await page.route('https://assets.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', 'base64') }))
-    const pexelsResponses: Array<Promise<{ url: string; status: number; contentType: string; sha256: string }>> = []
-  page.on('response', response => {
-    if (!response.url().startsWith('https://images.pexels.com/')) return
-    pexelsResponses.push((async () => {
-      const bytes = await response.body()
-      return {
-        url: response.url(),
-        status: response.status(),
-        contentType: response.headers()['content-type'] ?? '',
-        sha256: createHash('sha256').update(bytes).digest('hex'),
-      }
-    })())
-  })
-  const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
+const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
     await page.getByTestId('toggle-project-preview').click()
     const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
     sourcePreviewProjectId = sourcePreview.projectId
@@ -777,6 +764,19 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   await expect(resourceDraft).toHaveValue(/images\.pexels\.com/)
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-analysis.png'), fullPage: true })
 
+  const pexelsResponses: Array<Promise<{ url: string; status: number; contentType: string; sha256: string }>> = []
+  page.on('response', response => {
+    if (!response.url().startsWith('https://images.pexels.com/')) return
+    pexelsResponses.push((async () => {
+      const bytes = await response.body()
+      return {
+        url: response.url(),
+        status: response.status(),
+        contentType: response.headers()['content-type'] ?? '',
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+      }
+    })())
+  })
   const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
   await page.getByTestId('toggle-project-preview').click()
   const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
