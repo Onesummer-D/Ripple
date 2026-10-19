@@ -8,7 +8,7 @@ describe('VerificationContractEditor', () => {
     const onChange = vi.fn()
     const routes = [{ id: 'page:home', label: '首页' }, { id: 'page:story', label: '故事页' }]
     const draft = createVerificationContractDraft(routes)
-    render(<VerificationContractEditor routes={routes} value={draft} disabled={false} onChange={onChange} />)
+    render(<VerificationContractEditor routes={routes} markerSuggestions={{}} value={draft} disabled={false} onChange={onChange} />)
 
     fireEvent.change(screen.getByLabelText('首页 页面标记文字'), { target: { value: '首页主标题' } })
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
