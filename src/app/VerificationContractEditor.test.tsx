@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { VerificationContractEditor } from './VerificationContractEditor'
-import { createVerificationContractDraft } from './verification-contract-form'
+import {
+  createVerificationContractDraft,
+  rebaseVerificationContractDraft,
+  toBrowserVerificationContract,
+  type VerificationContractDraft,
+} from './verification-contract-form'
 
 describe('VerificationContractEditor', () => {
   it('lets users declare page and interaction checks without editing JSON', () => {
@@ -21,16 +26,37 @@ describe('VerificationContractEditor', () => {
     expect(screen.queryByRole('textbox', { name: 'verification-contract' })).toBeNull()
   })
 
-  it('copies a source-backed suggestion into the page marker field without treating it as evidence', () => {
+  it('copies a source-backed suggestion into the final browser contract and preserves manual markers as suggestions refresh', () => {
     const routes = [{ id: 'page:home', label: '首页' }]
-    const onChange = vi.fn()
-    const draft = createVerificationContractDraft(routes)
-    render(<VerificationContractEditor routes={routes} markerSuggestions={{ 'page:home': ['Home baseline'] }} value={draft} disabled={false} onChange={onChange} />)
+    let selectedDraft: VerificationContractDraft = createVerificationContractDraft(routes)
+    const onChange = vi.fn((next: VerificationContractDraft) => { selectedDraft = next })
+    const view = render(<VerificationContractEditor routes={routes} markerSuggestions={{ 'page:home': ['Home baseline'] }} value={selectedDraft} disabled={false} onChange={onChange} />)
 
     fireEvent.change(screen.getByLabelText('首页 页面标记建议'), { target: { value: 'Home baseline' } })
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
-      pages: [expect.objectContaining({ pageRef: 'page:home', markerText: 'Home baseline' })],
-    }))
-    expect(screen.getByText(/不是浏览器证据/)).toBeTruthy()
+    view.rerender(<VerificationContractEditor routes={routes} markerSuggestions={{ 'page:home': ['Home baseline'] }} value={selectedDraft} disabled={false} onChange={onChange} />)
+    expect(screen.getByLabelText('首页 页面标记文字')).toHaveValue('Home baseline')
+
+    const withPath = {
+      ...selectedDraft,
+      pages: selectedDraft.pages.map(page => ({ ...page, path: '/' })),
+    }
+    expect(toBrowserVerificationContract(withPath)?.pages).toEqual([
+      { pageRef: 'page:home', path: '/', markerText: 'Home baseline' },
+    ])
+
+    const manualDraft: VerificationContractDraft = {
+      ...withPath,
+      pages: withPath.pages.map(page => ({ ...page, markerText: 'Manually entered home marker' })),
+    }
+    const callsBeforeRefresh = onChange.mock.calls.length
+    view.rerender(<VerificationContractEditor routes={routes} markerSuggestions={{ 'page:home': ['New source suggestion'] }} value={manualDraft} disabled={false} onChange={onChange} />)
+    expect(screen.getByLabelText('首页 页面标记文字')).toHaveValue('Manually entered home marker')
+    expect(onChange).toHaveBeenCalledTimes(callsBeforeRefresh)
+
+    const afterReanalysis = rebaseVerificationContractDraft(routes, manualDraft)
+    expect(afterReanalysis.pages[0].markerText).toBe('Manually entered home marker')
+    expect(toBrowserVerificationContract(afterReanalysis)?.pages[0]).toEqual({
+      pageRef: 'page:home', path: '/', markerText: 'Manually entered home marker',
+    })
   })
 })
