@@ -303,20 +303,34 @@ function isIdentityMapCallback(callback: ts.Expression | undefined): boolean {
   return isParam(callbackReturnExpression(callback))
 }
 
-/** Unique string/number literal text of `key` on an object literal element. */
-function literalPropertyText(element: ts.Expression, key: string): string | undefined {
-  if (!ts.isObjectLiteralExpression(element)) return undefined
+/** How a predicate key access resolves on one object literal element. `absent` means
+ *  no such key and NO spread — the runtime value is undefined. `unresolvable` means
+ *  present-but-dynamic (`id: getId()`), duplicated, spread-hidden, or non-literal:
+ *  the value cannot be proven, so the whole predicate must fail closed. A spread
+ *  voids everything because any key may be hidden behind it. */
+type PropertyResolution =
+  | { status: 'literal'; kind: 'string' | 'number'; text: string }
+  | { status: 'absent' }
+  | { status: 'unresolvable' }
+
+function resolveLiteralProperty(element: ts.Expression, key: string): PropertyResolution {
+  if (!ts.isObjectLiteralExpression(element)) return { status: 'unresolvable' }
+  if (element.properties.some(ts.isSpreadAssignment)) return { status: 'unresolvable' }
   const matches = element.properties.filter((entry): entry is ts.PropertyAssignment => ts.isPropertyAssignment(entry) && propertyName(entry) === key)
-  if (matches.length !== 1) return undefined
+  if (matches.length === 0) return { status: 'absent' }
+  if (matches.length !== 1) return { status: 'unresolvable' }
   const initializer = matches[0].initializer
-  return ts.isStringLiteral(initializer) || ts.isNumericLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer) ? initializer.text : undefined
+  if (ts.isStringLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer)) return { status: 'literal', kind: 'string', text: initializer.text }
+  if (ts.isNumericLiteral(initializer)) return { status: 'literal', kind: 'number', text: initializer.text }
+  return { status: 'unresolvable' }
 }
 
 /** Truthiness of `p.key` on an object literal element for boolean flags: a single
- *  boolean literal, or ABSENT (optional flags read as undefined → falsy). Duplicated
- *  or non-boolean values are not provable → undefined. */
+ *  boolean literal, or ABSENT (optional flags read as undefined → falsy). Spread,
+ *  duplicated, or non-boolean values are not provable → undefined (fail closed). */
 function booleanFlagValue(element: ts.Expression, key: string): boolean | undefined {
   if (!ts.isObjectLiteralExpression(element)) return undefined
+  if (element.properties.some(ts.isSpreadAssignment)) return undefined
   const matches = element.properties.filter((entry): entry is ts.PropertyAssignment => ts.isPropertyAssignment(entry) && propertyName(entry) === key)
   if (matches.length === 0) return false
   if (matches.length !== 1) return undefined
@@ -396,14 +410,20 @@ function filterKeepsElement(predicate: ts.Expression | undefined, element: ts.Ex
         if (actual === undefined) return undefined
         return negated ? actual !== expected : actual === expected
       }
-      const literal = literalText(node.left) !== undefined && predicateKeyOperand(node.left, paramName) === undefined ? literalText(node.left) : literalText(node.right)
+      const literalNode = predicateKeyOperand(node.left, paramName) !== undefined ? node.right
+        : literalText(node.left) !== undefined ? node.left : node.right
+      const literal = literalText(literalNode)
       if (literal === undefined) return undefined
-      const actual = literalPropertyText(element, key)
-      // An absent property is undefined at runtime: `undefined === lit` is false and
-      // `undefined !== lit` is true. (Elements hiding values behind a spread still void
-      // the whole drill in the strict per-element pass downstream.)
-      if (actual === undefined) return negated
-      return negated ? actual !== literal : actual === literal
+      const literalKind: 'string' | 'number' = ts.isNumericLiteral(literalNode) ? 'number' : 'string'
+      const actual = resolveLiteralProperty(element, key)
+      // Present-but-dynamic (id: getId()), duplicated, or spread-hidden values cannot
+      // be proven → fail closed. Only a genuinely ABSENT key is undefined at runtime
+      // (`undefined === lit` is false, `undefined !== lit` is true).
+      if (actual.status === 'unresolvable') return undefined
+      if (actual.status === 'absent') return negated
+      // JS strict equality: same type AND same value (`1 !== '1'`).
+      const equal = actual.kind === literalKind && actual.text === literal
+      return negated ? !equal : equal
     }
     // Constant predicate without a param reference (`() => true` keeps everything).
     if ((paramName === undefined || !referencesIdentifier(node, paramName)) && !ts.isBinaryExpression(node)) {

@@ -727,3 +727,61 @@ describe('filter/slice edge semantics (independent review follow-ups)', () => {
     expect(sourceProvenPageImpact(graph, mediaB.id).pageRefs).toEqual(['page:list'])
   })
 })
+
+describe('filter strict-equality type semantics (independent review P1 regressions)', () => {
+  const card = `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`
+
+  it('distinguishes number 1 from string "1" in strict equality', () => {
+    const root = temp()
+    scaffold(root)
+    const urlA = 'https://images.pexels.com/photos/100/pexels-photo-100.jpeg?auto=compress'
+    const urlB = 'https://images.pexels.com/photos/101/pexels-photo-101.jpeg?auto=compress'
+    // `p.id === '1'` matches ONLY the string element at runtime; a text-only comparison
+    // would wrongly keep the numeric element too.
+    write(root, 'src/data/products.ts', `export type Product = { id: number | string; image: string };\nexport const products: Product[] = [{ id: 1, image: '${urlA}' }, { id: '1', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={String(product.id)} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.id === '1').map((product) => <ProductCard key={String(product.id)} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!
+    const mediaB = graph.nodes.find(node => node.kind === 'media' && node.value === urlB)!
+    expect(sourceProvenPageImpact(graph, mediaA.id).pageRefs).toEqual(['page:home'])
+    expect(sourceProvenPageImpact(graph, mediaB.id).pageRefs).toEqual(['page:home', 'page:list'])
+  })
+
+  it('dynamic field values (id: getId()) fail closed instead of guessing', () => {
+    const root = temp()
+    scaffold(root)
+    const urlA = 'https://images.pexels.com/photos/102/pexels-photo-102.jpeg?auto=compress'
+    const urlB = 'https://images.pexels.com/photos/103/pexels-photo-103.jpeg?auto=compress'
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nfunction getId(): string { return 'p1' }\nexport const products: Product[] = [{ id: getId(), image: '${urlA}' }, { id: 'p2', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.id === 'p1').map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven' && edge.from.startsWith('component:src/pages/ListPage')).length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+
+  it('spread elements fail closed the whole filter chain', () => {
+    const root = temp()
+    scaffold(root)
+    const urlA = 'https://images.pexels.com/photos/104/pexels-photo-104.jpeg?auto=compress'
+    const urlB = 'https://images.pexels.com/photos/105/pexels-photo-105.jpeg?auto=compress'
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\ndeclare const extra: Partial<Product>;\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}' }, { id: 'p1', image: '${urlB}', ...extra } as Product];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{products.filter((p) => p.id === 'p1').map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    // The spread element may hide values behind it: the predicate result is unprovable,
+    // so the list usage must not upgrade anything.
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven' && edge.from.startsWith('component:src/pages/ListPage')).length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+})
