@@ -17,7 +17,7 @@ const expectedProjectViewports = projectPreviewViewports.map(({ name, width, hei
 
 function summarizeViteTransformError(pathname: string, body: string): string {
   const text = body.replace(/<[^>]*>/g, ' ')
-  const unresolvedImport = text.match(/Failed to resolve import\\s+["']([^"']{1,160})["']\\s+from\\s+["']([^"']{1,160})["']/i)
+  const unresolvedImport = text.match(/Failed to resolve import\s+["']([^"']{1,160})["']\\s+from\\s+["']([^"']{1,160})["']/i)
   if (unresolvedImport) return `${pathname}: unresolved import ${unresolvedImport[1]} from ${unresolvedImport[2]}`
   const missingPackage = text.match(/Cannot find package ["']([^"']{1,160})["']/i)
   if (missingPackage) return `${pathname}: missing package ${missingPackage[1]}`
