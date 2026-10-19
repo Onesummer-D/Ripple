@@ -72,7 +72,7 @@ function createApprovalProject(titles = { home: 'Home page', autumn: 'Autumn pag
   fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
   fs.writeFileSync(path.join(root, 'src', 'main.tsx'), "import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />)")
   fs.writeFileSync(path.join(root, 'src', 'App.tsx'), "import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; import { AutumnPage } from './pages/AutumnPage'; export function App(){const [page,setPage]=useState('home'); return <><button onClick={()=>setPage('home')}>Home route</button><button onClick={()=>setPage('autumn')}>Autumn route</button><Navigation/>{page==='home' && <HomePage/>}{page==='autumn' && <AutumnPage/>}</>}")
-  fs.writeFileSync(path.join(root, 'src', 'components', 'Navigation.tsx'), 'export function Navigation(){return <nav aria-label="Primary"><a>Shared navigation brand</a></nav>}')
+  fs.writeFileSync(path.join(root, 'src', 'components', 'Navigation.tsx'), 'export function Navigation(){return <nav aria-label="Primary"><a>Shared navigation brand</a><span>Common route marker</span></nav>}')
   fs.writeFileSync(path.join(root, 'tailwind.config.js'), "export default { theme: { extend: { colors: { brand: { 700: '#246' } } } } }")
   fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { useState } from 'react'; export function HomePage(){const [clicks,setClicks]=useState(0); return <main>${withMedia ? '<img alt="Home hero" src="/hero.jpg" />' : ''}<h1 className="text-brand-700">${titles.home}</h1><button onClick={()=>setClicks(clicks+1)}>Clicks {clicks}</button></main>}`)
   fs.writeFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), `export function AutumnPage(){return <main><h1>${titles.autumn}</h1></main>}`)
@@ -97,6 +97,11 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await expect(autumnMarkerSuggestions.locator('option').filter({ hasText: 'Autumn baseline' })).toHaveCount(1)
   await expect(homeMarkerSuggestions.locator('option').filter({ hasText: 'Shared navigation brand' })).toHaveCount(0)
   await expect(page.locator('.verification-marker-suggestion small').first()).toContainText('不是浏览器证据')
+  await page.getByLabel('home 页面访问路径').fill('/')
+  await page.getByLabel('home 页面标记文字').fill('Manual home acceptance marker')
+  await page.getByTestId('analyze-project').click()
+  await expect(page.getByLabel('home 页面标记文字')).toHaveValue('Manual home acceptance marker')
+  await expect(page.getByLabel('home 页面标记建议').locator('option').filter({ hasText: 'Baseline title' })).toHaveCount(1)
   await expect(page.getByTestId('preview-resource-draft')).toHaveValue('')
   const resourcePolicy = page.getByTestId('preview-resource-policy')
   await expect(resourcePolicy.getByText('https://assets.example.test/preview-check.gif')).toBeVisible()
@@ -162,6 +167,7 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await page.getByTestId('after-input').fill('Candidate title')
   await page.getByTestId('add-operation').click()
   await expect(homeMarkerSuggestions.locator('option').filter({ hasText: 'Baseline title' })).toHaveCount(0)
+  await expect(page.getByLabel('home 页面标记文字')).toHaveValue('Manual home acceptance marker')
   const ctaId = await targetSelect.locator('option').filter({ hasText: 'Browse items' }).getAttribute('value')
   expect(ctaId).toBeTruthy()
   await targetSelect.selectOption(ctaId!)
@@ -400,6 +406,64 @@ test('records trusted four-viewport evidence while unsupported assertions stay u
     fs.writeFileSync(path.join(evidenceRoot, `workbench-single-target-${projectPreviewViewports[index].width}.png`), bytes)
   }
 
+  await page.getByTestId('discard-candidate').click()
+  await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
+  candidateId = ''
+})
+
+test('keeps ambiguous shared route markers unknown when SPA navigation leaves the verifier on the wrong page', async ({ page }) => {
+  test.setTimeout(180_000)
+  test.skip(!dockerAvailable, 'Docker-backed VerificationRunner is required to attest route identity')
+  const project = createApprovalProject()
+  await page.goto('/')
+  await page.getByTestId('project-path').fill(project)
+  await page.getByTestId('analyze-project').click()
+  const targetSelect = page.getByTestId('target-select')
+  const brandId = await targetSelect.locator('option').filter({ hasText: 'Shared navigation brand' }).getAttribute('value')
+  expect(brandId).toBeTruthy()
+  await targetSelect.selectOption(brandId!)
+  await page.getByTestId('intent-input').fill('Update the shared navigation label while verifying both routed pages.')
+  await page.getByTestId('after-input').fill('Verified navigation label')
+  await page.getByTestId('add-operation').click()
+  await page.getByTestId('scope-page:home').selectOption('include')
+  await page.getByTestId('scope-page:autumn').selectOption('include')
+  await page.getByLabel('home 页面访问路径').fill('/')
+  await page.getByLabel('home 页面标记文字').fill('Common route marker')
+  await page.getByLabel('autumn 页面访问路径').fill('/')
+  await page.getByLabel('autumn 页面标记文字').fill('Common route marker')
+  await page.getByLabel('autumn 页面导航控件名称').fill('Home route')
+  await page.getByTestId('create-real-candidate').click()
+  await expect(page.getByTestId('candidate-id')).toBeVisible({ timeout: 30_000 })
+  candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
+  await page.getByTestId('run-verification').click()
+  await expect(page.getByTestId('verification-state')).toContainText(/INCOMPLETE|RISKS/, { timeout: 120_000 })
+  const assertions = page.getByTestId('verification-assertions')
+  await expect(assertions.locator('div').filter({ hasText: 'scope-propagation' })).toContainText('UNKNOWN')
+  await expect(assertions.locator('div').filter({ hasText: 'target-change' })).toContainText('PASS')
+  const recordHref = await page.locator('.verification-record a').getAttribute('href')
+  expect(recordHref).toBeTruthy()
+  const execution = await (await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())).json()
+  expect(execution).toMatchObject({ candidateId })
+  const observations = execution.scopeObservations as Array<{
+    pageRef: string
+    baselineMarkerVisible: boolean
+    candidateMarkerVisible: boolean
+    baselineMarkerMatchCount: number
+    candidateMarkerMatchCount: number
+    baselineRouteIdentity: string
+    candidateRouteIdentity: string
+    viewport: { width: number; height: number }
+  }>
+  expect(observations).toHaveLength(2 * projectPreviewViewports.length)
+  for (const observation of observations) {
+    expect(observation.baselineMarkerVisible).toBe(true)
+    expect(observation.candidateMarkerVisible).toBe(true)
+    expect(observation.baselineMarkerMatchCount).toBe(1)
+    expect(observation.candidateMarkerMatchCount).toBe(1)
+    expect(observation.baselineRouteIdentity).toBe('ambiguous')
+    expect(observation.candidateRouteIdentity).toBe('ambiguous')
+  }
+  fs.writeFileSync(path.join(evidenceRoot, 'workbench-ambiguous-route-identity.json'), JSON.stringify(execution, null, 2))
   await page.getByTestId('discard-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
   candidateId = ''
