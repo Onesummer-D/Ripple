@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-18T16:24:34.576Z",
-  "rippleHead": "653e08285423cd261f1338d41a3d642449c0e891",
+  "generatedAt": "2026-10-19T02:12:09.420Z",
+  "rippleHead": "c54dbe87f4be26311752e8cda7977efa41079db5",
   "runtimeFingerprint": {
     "node": "v24.21.0",
     "typescript": "5.9.3"
@@ -11,7 +11,7 @@
       "rootEnv": "RIPPLE_PROBE_QINGYE",
       "frozenSha": "f7e4998a5c77ab4aeb3232dbc31e61196e9051a6",
       "nodes": 574,
-      "edges": 480,
+      "edges": 500,
       "kinds": {
         "file": 26,
         "component": 8,
@@ -22,15 +22,15 @@
         "data": 123
       },
       "assetConsumer": {
-        "sourceProven": 9,
-        "semanticCandidate": 2
+        "sourceProven": 25,
+        "semanticCandidate": 6
       },
       "mediaClosure": {
         "total": 13,
         "consumed": 11,
         "full": 9,
-        "partial": 2,
-        "unknown": 0,
+        "partial": 0,
+        "unknown": 2,
         "entries": [
           {
             "id": "media:src/data/products.ts#452",
@@ -38,7 +38,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -47,7 +47,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -56,7 +56,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -65,7 +65,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -73,10 +73,13 @@
             "label": "image",
             "path": "src/data/products.ts",
             "consumed": true,
-            "certainty": "partial",
-            "pageRefs": 4,
+            "certainty": "unknown",
+            "pageRefs": 0,
             "unresolved": [
-              "目标存在非确定的消费者关系：asset-candidate:component:src/components/ProductCard.tsx#152:media:src/data/products.ts#1831:372"
+              "目标存在非确定的消费者关系：asset-candidate:component:src/pages/HomePage.tsx#407:media:src/data/products.ts#1831:4240",
+              "目标存在非确定的消费者关系：asset-candidate:component:src/pages/HomePage.tsx#407:media:src/data/products.ts#1831:6801",
+              "目标存在非确定的消费者关系：asset-candidate:component:src/pages/ProductsPage.tsx#385:media:src/data/products.ts#1831:4410",
+              "目标没有可证明的页面消费者：media:src/data/products.ts#1831"
             ]
           },
           {
@@ -85,7 +88,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -94,7 +97,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -103,7 +106,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -112,7 +115,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 2,
             "unresolved": []
           },
           {
@@ -121,7 +124,7 @@
             "path": "src/data/products.ts",
             "consumed": true,
             "certainty": "source-proven",
-            "pageRefs": 4,
+            "pageRefs": 1,
             "unresolved": []
           },
           {
@@ -129,28 +132,35 @@
             "label": "image",
             "path": "src/data/products.ts",
             "consumed": false,
-            "certainty": "source-proven",
-            "pageRefs": 4,
-            "unresolved": []
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/products.ts#3650"
+            ]
           },
           {
             "id": "media:src/data/products.ts#3801",
             "label": "image",
             "path": "src/data/products.ts",
             "consumed": false,
-            "certainty": "source-proven",
-            "pageRefs": 4,
-            "unresolved": []
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/products.ts#3801"
+            ]
           },
           {
             "id": "media:src/data/products.ts#3952",
             "label": "image",
             "path": "src/data/products.ts",
             "consumed": true,
-            "certainty": "partial",
-            "pageRefs": 4,
+            "certainty": "unknown",
+            "pageRefs": 0,
             "unresolved": [
-              "目标存在非确定的消费者关系：asset-candidate:component:src/components/ProductCard.tsx#152:media:src/data/products.ts#3952:372"
+              "目标存在非确定的消费者关系：asset-candidate:component:src/pages/HomePage.tsx#407:media:src/data/products.ts#3952:4240",
+              "目标存在非确定的消费者关系：asset-candidate:component:src/pages/HomePage.tsx#407:media:src/data/products.ts#3952:6801",
+              "目标存在非确定的消费者关系：asset-candidate:component:src/pages/ProductsPage.tsx#385:media:src/data/products.ts#3952:4410",
+              "目标没有可证明的页面消费者：media:src/data/products.ts#3952"
             ]
           }
         ]
@@ -163,7 +173,7 @@
       "rootEnv": "RIPPLE_PROBE_MOUNTAIN",
       "frozenSha": "f838ae3361e78219559426c9931bab6a3a7f5889",
       "nodes": 871,
-      "edges": 781,
+      "edges": 790,
       "kinds": {
         "file": 101,
         "component": 206,
@@ -173,7 +183,7 @@
         "media": 12
       },
       "assetConsumer": {
-        "sourceProven": 15,
+        "sourceProven": 24,
         "semanticCandidate": 0
       },
       "mediaClosure": {
@@ -191,10 +201,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-1.jpg#asset"
             ]
           },
@@ -206,10 +212,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-2.jpg#asset"
             ]
           },
@@ -221,10 +223,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-3.jpg#asset"
             ]
           },
@@ -236,10 +234,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-4.jpg#asset"
             ]
           },
@@ -251,10 +245,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-5.jpg#asset"
             ]
           },
@@ -266,10 +256,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-6.jpg#asset"
             ]
           },
@@ -281,10 +267,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-7.jpg#asset"
             ]
           },
@@ -296,10 +278,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-8.jpg#asset"
             ]
           },
@@ -311,10 +289,6 @@
             "certainty": "unknown",
             "pageRefs": 0,
             "unresolved": [
-              "受影响子图含有未解析依赖：src/components/brand/shop.tsx → unresolvable-component:ShopContext.Provider",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unresolvable-component:Icon",
-              "受影响子图含有未解析依赖：src/routes/index.tsx → unproven-prop:product",
-              "受影响子图含有未解析依赖：src/test/product-badges.test.tsx → unproven-prop:product",
               "目标没有可证明的页面消费者：media:src/assets/products/item-9.jpg#asset"
             ]
           },
