@@ -110,8 +110,9 @@ describe('media-asset-swap', () => {
   })
   afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(bytesRoot, { recursive: true, force: true }) })
 
+  let bytesCounter = 0
   const provideBytes = (assetRef: string, content: string) => {
-    const source = path.join(bytesRoot, assetRef.split('/').pop()!)
+    const source = path.join(bytesRoot, `asset-${bytesCounter++}.bin`)
     fs.writeFileSync(source, content)
     context.assetBytes[assetRef] = source
   }
@@ -208,5 +209,67 @@ describe('media-asset-swap', () => {
     const broken = planned.edits.map(edit => ({ ...edit, replacement: '{' }))
     expect(() => applyEditsToFile(path.join(root, 'src/components/Hero.tsx'), 'src/components/Hero.tsx', broken)).toThrow(/语法错误/)
     expect(fs.readFileSync(path.join(root, 'src/components/Hero.tsx'), 'utf8')).toBe(updated)
+  })
+
+  it('assetRef 含引号/空格等不安全字符时拒绝（防 JSX 属性注入）', () => {
+    const evilRef = '/a.jpg" data-evil="1'
+    provideBytes(evilRef, 'evil-bytes')
+    const operation = swapOperation({
+      after: '"&#x2f;a.jpg" data-evil="1"',
+      payload: { assetRef: evilRef, assetHash: sha256('evil-bytes') },
+    } as Partial<EditOperation>)
+    expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(/不安全字符/)
+    expect(fs.readFileSync(path.join(root, 'src/components/Hero.tsx'), 'utf8')).toBe(HERO_SOURCE)
+  })
+
+  it('/ 开头 assetRef 中的 .. 段在折叠前拒绝（不依赖 normalize 后检查）', () => {
+    const sneakyRef = '/../src/App.tsx'
+    provideBytes(sneakyRef, 'sneaky-bytes')
+    const operation = swapOperation({
+      after: '"/../src/App.tsx"',
+      payload: { assetRef: sneakyRef, assetHash: sha256('sneaky-bytes') },
+    } as Partial<EditOperation>)
+    expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(MediaAssetStagingError)
+    expect(fs.existsSync(path.join(root, 'src', 'App.tsx'))).toBe(false)
+  })
+
+  it('非 JSX 消费文件带 srcset variant：显式拒绝且不暂存任何字节', () => {
+    const tsFile = 'src/data/banner.ts'
+    const sourceText = `export const banner = { src: "/images/hero.jpg" }\n`
+    const absolute = path.join(root, tsFile)
+    fs.mkdirSync(path.dirname(absolute), { recursive: true })
+    fs.writeFileSync(absolute, sourceText, 'utf8')
+    const start = sourceText.indexOf('"/images/hero.jpg"')
+    const tsNode: SourceNode = {
+      id: 'media:banner', kind: 'media', label: '/images/hero.jpg',
+      location: { path: tsFile, start, end: start + '"/images/hero.jpg"'.length },
+    }
+    context.nodes = new Map([[tsNode.id, tsNode]])
+    provideBytes('/images/hero-v2.jpg', 'new-hero-bytes')
+    provideBytes('/images/hero-small.jpg', 'small-bytes')
+    const operation = swapOperation({
+      targetRef: 'media:banner',
+      payload: {
+        assetRef: '/images/hero-v2.jpg',
+        assetHash: sha256('new-hero-bytes'),
+        variants: [{ mechanism: 'srcset', condition: '768w', assetRef: '/images/hero-small.jpg', assetHash: sha256('small-bytes') }],
+      },
+    } as Partial<EditOperation>)
+    expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(/找不到 src 属性所在的 JSX 元素/)
+    expect(fs.existsSync(path.join(root, 'public', 'images', 'hero-v2.jpg'))).toBe(false)
+    expect(fs.existsSync(path.join(root, 'public', 'images', 'hero-small.jpg'))).toBe(false)
+  })
+
+  it('批次中后序操作失败时，先序操作的暂存字节保留、由调用方整体丢弃 worktree', () => {
+    provideBytes('/images/hero-v2.jpg', 'new-hero-bytes')
+    const secondNode: SourceNode = {
+      id: 'media:other', kind: 'media', label: '/images/other.jpg',
+      location: { path: 'src/components/Other.tsx', start: 10, end: 28 },
+    }
+    context.nodes.set(secondNode.id, secondNode)
+    const stale = swapOperation({ id: 'op-2', targetRef: 'media:other', before: '"/images/stale.jpg"' } as Partial<EditOperation>)
+    expect(() => applyMediaAssetSwapOperations(context, [swapOperation(), stale])).toThrow(MediaAssetSwapError)
+    // op-1 的字节已暂存（文档化行为：失败即整体丢弃候选 worktree，不单独清理）
+    expect(fs.existsSync(path.join(root, 'public', 'images', 'hero-v2.jpg'))).toBe(true)
   })
 })

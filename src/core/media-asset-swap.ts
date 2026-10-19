@@ -41,13 +41,28 @@ export interface MediaSwapFileResult {
 const isAssetSwap = (operation: EditOperation): operation is EditOperation & { kind: 'MEDIA'; action: 'asset-swap'; payload: MediaAssetSwapPayload } =>
   operation.kind === 'MEDIA' && (operation as { action?: string }).action === 'asset-swap'
 
+/** URL 引用安全段：拒绝引号、空格、反斜杠等可注入或跨平台分歧的字符（纵深防御，防止经引号注入 JSX 属性） */
+const ASSET_REF_SEGMENT = /^[A-Za-z0-9._~%+-]+$/
+
+function assertAssetRef(assetRef: string, operationId: string): void {
+  if (!assetRef.startsWith('/') && !assetRef.startsWith('./') && !assetRef.startsWith('../')) {
+    throw new MediaAssetSwapError(`assetRef 形式不支持：${assetRef}（操作 ${operationId}）`)
+  }
+  const segments = assetRef.split('/').filter(segment => segment && segment !== '.' && segment !== '..')
+  if (!segments.length || segments.some(segment => !ASSET_REF_SEGMENT.test(segment))) {
+    throw new MediaAssetSwapError(`assetRef 含不安全字符：${assetRef}（操作 ${operationId}）`)
+  }
+}
+
 function assertSwapOperation(operation: EditOperation): asserts operation is EditOperation & { kind: 'MEDIA'; action: 'asset-swap'; payload: MediaAssetSwapPayload } {
   if (!isAssetSwap(operation)) throw new MediaAssetSwapError(`不是 MEDIA asset-swap 操作：${operation.id}`)
   const payload = operation.payload
   if (!payload || typeof payload !== 'object') throw new MediaAssetSwapError(`缺少 asset-swap payload：${operation.id}`)
   if (!payload.assetRef || !/^[0-9a-f]{64}$/.test(payload.assetHash)) throw new MediaAssetSwapError(`asset-swap payload 缺少合法 assetRef/assetHash：${operation.id}`)
+  assertAssetRef(payload.assetRef, operation.id)
   for (const variant of payload.variants ?? []) {
     if (!variant.assetRef || !/^[0-9a-f]{64}$/.test(variant.assetHash)) throw new MediaAssetSwapError(`variant 缺少合法 assetRef/assetHash：${operation.id}`)
+    assertAssetRef(variant.assetRef, operation.id)
   }
 }
 
@@ -82,7 +97,12 @@ function findJsxAttribute(source: ts.SourceFile, file: string, start: number, en
   return { attributes, selfClosing: ts.isJsxSelfClosingElement(found.element), elementStart: found.element.getStart(source), elementEnd: found.element.getEnd(source) }
 }
 
-/** 计算单个 asset-swap 操作的源码编辑与暂存清单（不落盘，便于测试与预检）。 */
+/**
+ * 计算并执行单个 asset-swap 操作：源码编辑返回给调用方归并应用，
+ * 资产字节立即暂存落盘（stageMediaAsset 内部有哈希校验）。
+ * 注意：调用方在批次中任一操作失败时必须丢弃整个候选 worktree
+ * （候选核心 createCandidate 的回滚即如此），已暂存字节不单独清理。
+ */
 export function planMediaAssetSwap(operation: EditOperation, node: SourceNode, context: MediaAssetSwapContext): MediaSwapFileResult {
   assertSwapOperation(operation)
   if (node.kind !== 'media' || !node.location?.path || node.location.start === undefined || node.location.end === undefined) {
@@ -92,6 +112,7 @@ export function planMediaAssetSwap(operation: EditOperation, node: SourceNode, c
   if (path.isAbsolute(file) || file.split('/').includes('..')) throw new MediaAssetSwapError(`目标文件路径越界：${file}`)
   const absolute = path.resolve(context.candidateRoot, file)
   if (path.relative(context.candidateRoot, absolute).startsWith('..')) throw new MediaAssetSwapError(`目标文件路径越界：${file}`)
+  if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) throw new MediaAssetSwapError(`目标文件不存在：${file}`)
   const sourceText = fs.readFileSync(absolute, 'utf8')
   const slice = sourceText.slice(node.location.start, node.location.end)
   if (slice !== operation.before) throw new MediaAssetSwapError(`源内容已变化，拒绝应用操作：${operation.id}`)
@@ -103,7 +124,7 @@ export function planMediaAssetSwap(operation: EditOperation, node: SourceNode, c
 
   const replacement = swapQuotedUrl(slice, operation.id, payload.assetRef)
   if (replacement === operation.before) throw new MediaAssetSwapError(`操作没有修改内容：${operation.id}`)
-  if (operation.after && operation.after !== replacement) {
+  if (operation.after !== replacement) {
     throw new MediaAssetSwapError(`operation.after 与执行器计算结果不一致：${operation.id}`)
   }
   const edits: MediaSwapFileResult['edits'] = [{ start: node.location.start, end: node.location.end, replacement, operationId: operation.id }]
@@ -116,22 +137,27 @@ export function planMediaAssetSwap(operation: EditOperation, node: SourceNode, c
     const result = stageMediaAsset(context.candidateRoot, relativePath, sourceBytes, assetHash)
     return { ...result, assetRef }
   }
-  staged.push(stageOne(payload.assetRef, payload.assetHash))
-
   const srcsetVariants = payload.variants ?? []
+  let located: ReturnType<typeof findJsxAttribute>
   if (srcsetVariants.length) {
+    // 先定位 JSX 元素再暂存任何字节，把不可执行的 variant 尽早挡在落盘之前
     const kind = /\.(tsx|jsx)$/i.test(file) ? ts.ScriptKind.TSX : /\.ts$/i.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JSX
     const source = ts.createSourceFile(file, sourceText, ts.ScriptTarget.Latest, true, kind)
-    const located = findJsxAttribute(source, file, node.location.start, node.location.end)
+    located = findJsxAttribute(source, file, node.location.start, node.location.end)
     if (!located) throw new MediaAssetSwapError(`找不到 src 属性所在的 JSX 元素，无法设置 srcSet：${operation.id}`)
-    for (const variant of srcsetVariants) staged.push(stageOne(variant.assetRef, variant.assetHash))
+  }
+
+  staged.push(stageOne(payload.assetRef, payload.assetHash))
+  for (const variant of srcsetVariants) staged.push(stageOne(variant.assetRef, variant.assetHash))
+
+  if (srcsetVariants.length) {
     const srcsetValue = srcsetVariants.map(variant => `${variant.assetRef} ${variant.condition}`).join(', ')
-    const existing = located.attributes.find(attribute => attribute.name === 'srcSet')
+    const existing = located!.attributes.find(attribute => attribute.name === 'srcSet')
     if (existing) {
       edits.push({ start: existing.start, end: existing.end, replacement: `srcSet=${JSON.stringify(srcsetValue)}`, operationId: `${operation.id}:srcset` })
     } else {
       // 在开始标签 name 之后插入，保持自闭合标签合法
-      const tagEnd = sourceText.lastIndexOf(located.selfClosing ? '/>' : '>', located.elementEnd)
+      const tagEnd = sourceText.lastIndexOf(located!.selfClosing ? '/>' : '>', located!.elementEnd)
       if (tagEnd < 0 || tagEnd < node.location.end) throw new MediaAssetSwapError(`无法定位 JSX 开始标签结尾：${operation.id}`)
       edits.push({ start: tagEnd, end: tagEnd, replacement: ` srcSet=${JSON.stringify(srcsetValue)}`, operationId: `${operation.id}:srcset` })
     }

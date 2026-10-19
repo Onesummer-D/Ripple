@@ -53,9 +53,11 @@ function assertInsideRoot(root: string, absolutePath: string, label: string): vo
 export function resolveAssetRefToRelativePath(assetRef: string, consumerFile: string, options: { publicDir?: string } = {}): string {
   if (!assetRef || typeof assetRef !== 'string') throw new MediaAssetStagingError('assetRef 必须是非空字符串')
   if (assetRef.startsWith('/')) {
-    const publicDir = options.publicDir ?? 'public'
-    const relative = path.posix.join(publicDir, assetRef)
-    if (relative.split('/').includes('..')) throw new MediaAssetStagingError(`assetRef 越出 public 目录：${assetRef}`)
+    // 先拒绝原始引用中的 .. 段：join/normalize 会把 '/../x' 折叠成 'x'，事后检查形同虚设
+    if (assetRef.split('/').includes('..')) throw new MediaAssetStagingError(`assetRef 不允许包含 .. 段：${assetRef}`)
+    const publicDir = (options.publicDir ?? 'public').split(path.sep).join('/')
+    const relative = path.posix.normalize(path.posix.join(publicDir, `.${assetRef}`))
+    if (relative !== publicDir && !relative.startsWith(`${publicDir}/`)) throw new MediaAssetStagingError(`assetRef 越出 public 目录：${assetRef}`)
     return relative
   }
   if (assetRef.startsWith('./') || assetRef.startsWith('../')) {

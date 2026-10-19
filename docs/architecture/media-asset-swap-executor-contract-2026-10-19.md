@@ -13,7 +13,7 @@ B 已实现 MEDIA asset-swap 执行器（B 侧模块，不改共享核心）：
 - `src/core/media-asset-swap.ts` — `applyMediaAssetSwapOperations(context, operations)`：校验 payload、核对 `operation.before`、计算替换、暂存字节、应用编辑并做 TSX 语法检查，返回修改的项目相对路径（源码 + 暂存资产）。
 - `src/core/media-asset-swap.test.ts` — 12 项单测全部通过；`tsc --noEmit` 通过。
 
-## 需要 A 确认的最小核心改动（3 处）
+## 需要 A 确认的最小核心改动（4 处，含 scope 门控）
 
 1. **路由而非拒绝**。`createCandidate` 的拒绝分支改为：
    `kind: 'MEDIA'` 且 `action: 'asset-swap'` 的操作放行给 B 的执行器；
@@ -31,6 +31,12 @@ B 已实现 MEDIA asset-swap 执行器（B 侧模块，不改共享核心）：
    - `assertCandidateIntegrity` 的 `git status --porcelain` 白名单基于 modifiedPaths，
      无需改动。
 
+4. **scope 门控（与第 1 条配套，防降级执行回归）**。第 1 条的放行仅适用于
+   `scope.strategy === 'shared'`。`applyPageOverrideOperations` 不检查 action/payload，
+   若不做门控，page-override 下的 MEDIA 操作会穿过校验后被静默降级为字符串替换——
+   这正是 candidate.ts:372 防线所禁止的行为。请在 `applyPageOverrideOperations` 入口
+   （或分发处）对带 `action`/`payload` 的操作维持拒绝。
+
 ## 语义约定（请 A 一并确认）
 
 - `operation.before` = 目标媒体节点 AST 位置的源码切片（带引号的字符串字面量，如
@@ -46,9 +52,10 @@ B 已实现 MEDIA asset-swap 执行器（B 侧模块，不改共享核心）：
 
 ## 验证状态
 
-- `media-asset-swap.test.ts`：12/12（src 替换、before 错位拒绝、缺字节源/哈希不符拒绝、
+- `media-asset-swap.test.ts`：16/16（src 替换、before 错位拒绝、缺字节源/哈希不符拒绝、
   srcset 追加与替换、unsupported mechanism 拒绝、after 不一致拒绝、语法检查防落盘、
-  覆盖拒绝、篡改复核失败、路径越界拒绝）。
+  覆盖拒绝、篡改复核失败、路径越界拒绝；独立审查后新增：assetRef 引号注入拒绝、
+  `/../` 折叠前拒绝、非 JSX 消费带 variant 拒绝且零暂存、批次失败暂存残留契约固化）。
 - 全量 `vitest run`：本机 21 个失败均为已知 Windows EPERM 临时目录清理错误（零断言失败），
   与基线一致；Linux CI 为准。
 - 四视口图片加载与裁切几何 Evidence 模块随后以独立提交加入本分支。
