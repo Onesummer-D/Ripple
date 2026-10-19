@@ -54,12 +54,12 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   fs.writeFileSync(comparisonPath, comparisonBytes)
   const comparisonDigest = createHash('sha256').update(baselineSnapshot).digest('hex')
   const baselineComparisons = [{ route: '/', viewport, baselineDigest: comparisonDigest, candidateDigest: comparisonDigest, maskedOperationIds: ['test-operation'], matched: true, artifactPath: comparisonPath, artifactHash: createHash('sha256').update(comparisonBytes).digest('hex') }]
-  const scopeObservations = contract.pages.map(page => ({ pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true, operations: candidate.operations.map(operation => {
+  const scopeObservations = contract.pages.map(page => ({ pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText, baselineMarkerVisible: true, candidateMarkerVisible: true, baselineMarkerMatchCount: 1, candidateMarkerMatchCount: 1, baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const, operations: candidate.operations.map(operation => {
     const source = { value: operation.before }
     const expectation = expectedTextForPage(source, operation, scope, page.pageRef)
     return { operationId: operation.id, expectedBaselineText: expectation.baselineText, expectedCandidateText: expectation.candidateText, baselineValues: [expectation.baselineText], candidateValues: [expectation.candidateText] }
   }) }))
-  const interactionObservations = [{ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button' as const, name: 'Home route', expectedText: 'Home page', baselinePassed: true, candidatePassed: true }]
+  const interactionObservations = [{ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button' as const, name: 'Home route', expectedText: 'Home page', baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const, baselinePassed: true, candidatePassed: true }]
   const run: VerificationRun = {
     id, candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
@@ -69,7 +69,7 @@ function trustedRun(candidate: ReturnType<typeof createCandidate>, runtimeFinger
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
-    schemaVersion: 3, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
+    schemaVersion: 4, executor: 'playwright', completed: true, runId: id, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint, verificationContractHash: verificationContractHash(contract), viewports: [{ name: 'desktop', width: viewport.width, height: viewport.height }], checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
