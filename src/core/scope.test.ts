@@ -128,7 +128,7 @@ describe('source-proven page impact', () => {
     })
   })
 
-  it('does not treat imported media definitions as consumption and follows concrete TEXT reads and imported CSS token use', () => {
+  it('does not treat imported media definitions as consumption and requires page-level CSS token cascade evidence', () => {
     const pages = ['home', 'shop', 'about', 'contact']
     const nodes: SourceGraph['nodes'] = [
       ...pages.flatMap(page => [
@@ -172,7 +172,18 @@ describe('source-proven page impact', () => {
       certainty: 'source-proven',
     })
     expect(sourceProvenPageImpact(sourceGraph, 'token:accent')).toMatchObject({
-      pageRefs: ['page:about', 'page:contact', 'page:home', 'page:shop'],
+      pageRefs: [],
+      certainty: 'unknown',
+    })
+    const cascadedGraph: SourceGraph = {
+      ...sourceGraph,
+      edges: [
+        ...edges,
+        { id: 'home-css-cascade', from: 'component:home', to: 'token:accent', kind: 'css-cascade', certainty: 'source-proven', evidenceRefs: [] },
+      ],
+    }
+    expect(sourceProvenPageImpact(cascadedGraph, 'token:accent')).toMatchObject({
+      pageRefs: ['page:home'],
       certainty: 'source-proven',
     })
   })
