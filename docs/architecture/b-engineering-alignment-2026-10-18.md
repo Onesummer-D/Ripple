@@ -250,7 +250,7 @@ interface AdapterCapabilities {
 
 ### 4.5 冻结的最小契约测试范围（`ripple-edit-operation-session/v1`）
 
-以下范围对应 PR #2 `f2aeadf` 已实现且通过完整 CI #161 的代码。五项技术决策已由 A/B 对齐；该最小测试边界由 A 按当前实现收敛并获负责人批准，已请 B 只核对是否存在可复现的接口/测试遗漏。确认边界不要求重新讨论已决架构，B 可按冻结 schema 开始 MEDIA `asset-swap`。实现位于 `src/core/model.ts`、`session.ts` 及现有 Scope、candidate、verification 测试，不要求新增平行测试框架。
+以下范围对应 PR #2 `f2aeadf` 已实现且通过完整 CI #161 的代码，是 `ripple-edit-operation-session/v1` 的冻结测试边界。A/B 已确认 §4.6 五项技术决策；A 确认下列回归足以冻结目前已实现的最小接口。B 可立即按该 schema 开始 MEDIA `asset-swap`，不必等待资产执行器完成；后续执行器新增的字节、裁切与 Evidence 测试属于实现验收，不扩大或重开 v1。实现位于 `src/core/model.ts`、`session.ts` 及现有 Scope、candidate、verification 测试，不新增平行测试框架。
 
 1. **简单操作兼容与类型边界**：TEXT/MEDIA/TOKEN/CODE 的 payloadless 操作继续可用；所有 payloadless 变体均禁止意外 `action` 与 `payload`，TypeScript 与运行时 JSON 输入都覆盖。
 2. **结构化操作判别与 Session 错误**：MEDIA `asset-swap` 与 TOKEN `local-projection` 的 action/payload 必须匹配；缺失、畸形、未知 action 或不匹配 kind 按结构化错误拒绝，并包含稳定的 `code` 与字段 `path`。JSON 往返后仍按同一 schema 校验。合法但未实现的结构化执行器返回 `unsupported-operation`，不得降级到字符串替换。
@@ -294,9 +294,9 @@ interface AdapterCapabilities {
 
 ## 6. 正式开发顺序
 
-1. **（当前）对齐 PR 评审**：负责人 + A 确认本报告与契约改动。
-2. **契约冻结 PR**：A/B 共同提交 §4.5 契约测试并冻结 `EditOperation.payload`、`OverrideRule` 两个最小扩展。
-3. **P0 MEDIA 闭环**（B）：青野/栖光真实工程上完成 媒体来源分析（import/资源路径/CSS background 三类，区分确定/动态/不确定）→ Scope → 隔离候选（含资产文件）→ **四视口**真实浏览器验证（加载、自然尺寸、裁切比例、object-position、容器溢出断言、protected 页面不变）→ Evidence 全链 → 交付 A 工作台所需数据接口。
+1. **（已完成）最小接口冻结**：A/B 已确认 §4.6 五项决定，负责人批准冻结 `ripple-edit-operation-session/v1`（PR #2 `f2aeadf4b21d8936df593f14261728a8a05e65d8`）；共享测试范围见 §4.5，完整 CI #161 为该基线提供证据。不另开“冻结 OverrideRule”的任务。
+2. **（可开始）MEDIA `asset-swap` 执行器**（B）：按冻结 payload/schema 进入既有 EditSession/Scope/CandidatePatch 生命周期；真实字节暂存、完整性、应用/回滚、裁切与 Evidence 需在该执行器交付时单独实测验收，未完成前继续 fail-closed。
+3. **后续纵向验收**：在青野/栖光真实工程完成来源分析（import/资源路径/CSS background，区分确定/动态/不确定）→ Scope → 隔离候选（含真实资产字节）→ **四视口**浏览器验证（1440×900、768×1024、375×812、390×844；加载、自然尺寸、裁切/焦点、容器断言及 protected 页面保持）→ Candidate-bound Evidence。实际未运行项保持 `NOT_RUN`/`UNKNOWN`。
 4. **P1 TOKEN**：CSS 变量来源追踪 + cascade/computed style 消费验证 + 局部覆盖 + 对比度。
 5. **P2 第三方适配**：复查 B 包2 的第三方审计冻结候选（shadcn/电商候选，`_audit/` 有快照），逐仓库填能力矩阵。
 
@@ -334,7 +334,7 @@ interface AdapterCapabilities {
 - **环境**：Windows 本机（node + Playwright channel: msedge，复用 B 包2 已验证方案），结果如实标注非 Docker。
 - **命令**：`npm ci && npm run typecheck && npm test -- --run && npm run build`，浏览器测试单独运行并记录。
 
-### 9.1 最小可复现纵向任务（契约冻结前的冒烟验收）
+### 9.1 最小纵向验收场景（待 MEDIA 执行器实现后运行；不属于 v1 冻结测试）
 
 以青野共享海报替换为例，覆盖"真实 MEDIA 操作 + 受保护页负例"全链路，接口输入输出如下（可原样改写为契约测试）：
 
@@ -343,11 +343,11 @@ interface AdapterCapabilities {
 - 冻结接口上的结构化操作：`{ kind: 'MEDIA', action: 'asset-swap', targetRef: <媒体节点>, before: './assets/festival.shared.poster.jpg', after: './assets/festival.poster.autumn.jpg', payload: { assetRef, assetHash, focalPoint, variants } }`。当前 Session 校验 payload，但 candidate executor 对未实现 action fail-closed；资产字节暂存和焦点/variants 执行尚未验收。
 - Scope 声明：受保护页列表（如归档页）+ excluded 规则。
 
-**执行链**：`session.addOperation`（fail-closed 校验）→ Scope 校验（影响闭包 = 3 页，归档页不在闭包）→ `createCandidate`（字面量替换 + 资产 staged，`patchHash`/`candidateTreeDigest` 可复算）→ `verification-runner` 四视口执行 → Evidence 落盘。
+**预期验收链（当前尚未实现，不能视为已运行）**：执行器落地后再执行 `stageOperations` → SourceGraph/Scope 闭包校验（影响闭包 = 3 页，归档页不在闭包）→ 在隔离 Candidate worktree 暂存真实字节并复算字节 SHA-256、`patchHash`/`candidateTreeDigest` → `verification-runner` 按四个共享视口执行 → 受信 Evidence 落盘。当前 `asset-swap` 仅通过 Session schema 校验，候选执行器仍 fail-closed；不得从该流程图推断已有候选或浏览器验收。
 
-**输出**
-- `CandidatePatch`：`{ patchHash, candidateTreeDigest, operations[], assetManifest: [{ assetRef, assetHash }] }`。
-- `VerificationRun`：每页 × 每视口一条 evidence，`{ candidateId, patchHash, viewport, state, assertions: [asset-loaded, natural-size, crop-ratio, container-rect, protected-unchanged], status }`，status ∈ `PASS | FAIL | NOT_RUN`，`UNKNOWN` 单独标注，不混入 PASS。
+**未来验收记录的最低预期（示意结构，不是当前 CandidatePatch/VerificationRun 的现存字段）**
+- 候选必须引用实际 staged 资产，并由候选完整性校验复算字节摘要；任何 `assetManifest` 设计需在执行器实现中与现有 `CandidatePatch` 同一补丁哈希语义核对后再纳入契约。
+- `VerificationRun` 按受影响页面 × 实际执行视口记录受信检查与证据，绑定 `candidateId`、`patchHash`、Scope 版本、页面状态、精确 viewport、运行环境和 artifact digest。断言包括 asset-loaded、natural-size、crop/focal behavior、container bounds、protected-unchanged；未执行为 `NOT_RUN`，无法证明为 `UNKNOWN`，不得映射成 PASS。
 - 受保护页负例：Scope 校验直接拒绝该操作作用到归档页；若操作合法但归档页在运行范围内，其 evidence 必须显示 `protected-unchanged` PASS。
 
 ---
