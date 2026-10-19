@@ -722,9 +722,20 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   test.skip(!boltProjectRoot, 'RIPPLE_BOLT_PROJECT is only available in the private Bolt acceptance workflow')
   if (!dockerAvailable) throw new Error('Docker-backed ProjectRunner and VerificationRunner are mandatory for the private Bolt acceptance workflow')
 
+  expect(fs.existsSync(path.join(boltProjectRoot!, 'package.json'))).toBe(true)
+  expect(fs.existsSync(path.join(boltProjectRoot!, 'package-lock.json'))).toBe(true)
+  expect(fs.statSync(path.join(boltProjectRoot!, 'src')).isDirectory()).toBe(true)
+  const boltGitRoot = execFileSync('git', ['-C', boltProjectRoot!, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
+  expect(path.resolve(boltGitRoot)).toBe(path.resolve(boltProjectRoot!))
   const originalHead = execFileSync('git', ['-C', boltProjectRoot!, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+  expect(originalHead).toBe(process.env.BOLT_REPO_REF)
   const originalStatus = execFileSync('git', ['-C', boltProjectRoot!, 'status', '--porcelain'], { encoding: 'utf8' }).trim()
+  expect(originalStatus).toBe('')
   const appliedProject = createBoltDisposableProject()
+  const disposableGitRoot = execFileSync('git', ['-C', appliedProject, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
+  expect(path.resolve(disposableGitRoot)).toBe(path.resolve(appliedProject))
+  expect(execFileSync('git', ['-C', appliedProject, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()).toBe(originalHead)
+  expect(fs.realpathSync(path.join(appliedProject, 'node_modules'))).toBe(fs.realpathSync(path.join(boltProjectRoot!, 'node_modules')))
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await page.getByTestId('project-path').fill(appliedProject)
@@ -732,6 +743,25 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   await expect(page.locator('.metric-card').filter({ hasText: '实际页面状态' })).toContainText('4')
   await expect(page.locator('.component-row').filter({ hasText: 'Footer' })).toContainText('/home')
   await expect(page.locator('.component-row').filter({ hasText: 'Footer' })).toContainText('/story')
+
+  // Explicitly approve only the exact Pexels image URLs and Google Fonts stylesheet URLs referenced by this pinned Bolt revision.
+  const resourceRows = page.getByTestId('preview-resource-policy').locator('li')
+  const resourceGroups = [
+    resourceRows.filter({ hasText: 'https://images.pexels.com/' }),
+    resourceRows.filter({ hasText: 'https://fonts.googleapis.com/' }),
+  ]
+  for (const rows of resourceGroups) {
+    const count = await rows.count()
+    expect(count).toBeGreaterThan(0)
+    for (let index = 0; index < count; index += 1) await rows.nth(index).getByTestId('add-preview-resource').click()
+  }
+  const resourceDraft = page.getByTestId('preview-resource-draft')
+  const approvedResourceUrls = (await resourceDraft.inputValue()).split(/\\r?\\n/).map(value => value.trim()).filter(Boolean)
+  expect(approvedResourceUrls.some(value => new URL(value).hostname === 'images.pexels.com')).toBe(true)
+  expect(approvedResourceUrls.some(value => new URL(value).hostname === 'fonts.googleapis.com')).toBe(true)
+  expect(approvedResourceUrls.every(value => ['images.pexels.com', 'fonts.googleapis.com'].includes(new URL(value).hostname))).toBe(true)
+  await page.getByTestId('save-preview-resources').click()
+  await expect(resourceDraft).toHaveValue(/images\\.pexels\\.com/)
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-analysis.png'), fullPage: true })
 
   const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
@@ -743,6 +773,8 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
   const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
   await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
+  const heroImage = projectFrame.locator('img[alt="山野器物"]')
+  await expect.poll(() => heroImage.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await page.getByTestId('toggle-project-element-selection').click()
   const footerBrand = projectFrame.locator('footer span').filter({ hasText: '山野器物' }).first()
   await footerBrand.scrollIntoViewIfNeeded()

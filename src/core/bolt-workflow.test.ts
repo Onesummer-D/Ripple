@@ -64,7 +64,11 @@ describe('manual Bolt workflow credential boundary', () => {
   })
 
   it('runs the Docker-backed workbench E2E without the removed host-side Bolt execution script', () => {
-    expect(workflow).toContain('npm ci --ignore-scripts --no-audit --no-fund --prefix bolt-source/project')
+    expect(workflow).toContain('BOLT_REPO_REF: f7e4998a5c77ab4aeb3232dbc31e61196e9051a6')
+    expect(workflow).toContain('ref: ${{ env.BOLT_REPO_REF }}')
+    expect(workflow).toContain('npm ci --ignore-scripts --no-audit --no-fund --prefix bolt-source')
+    expect(workflow).toContain('RIPPLE_BOLT_PROJECT: ${{ github.workspace }}/bolt-source')
+    expect(workflow).not.toContain('bolt-source/project')
     expect(workflow).toContain('npm run test:browser')
     expect(workflow).not.toContain('acceptance:bolt')
     expect(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')).not.toContain('"acceptance:bolt"')
