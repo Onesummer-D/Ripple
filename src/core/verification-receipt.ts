@@ -28,6 +28,10 @@ interface BrowserExecutionManifest {
   assertions: VerificationAssertion[]
   evidence: Array<Omit<VerificationRun['evidence'][number], 'artifactPath'> & { artifactPath?: string }>
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
+  resourceSnapshots?: Array<{ url: string; contentType: string; sha256: string; artifactPath: string; sizeBytes: number; source: string; upstreamSha256?: string }>
+  unavailableResources?: Array<{ url: string; reason: string }>
+  loadedExternalResourceUrls?: string[]
+  blockedExternalResourceUrls?: string[]
 }
 
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
@@ -89,6 +93,37 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
     const evidence = run.evidence.find(item => item.checkId === check.id)
     return !executed || !evidence || executed.passed !== (evidence.result === 'pass') || executed.route !== check.route || !sameViewport(executed.viewport, check.viewport) || !sameViewport(evidence.viewport, check.viewport) || executed.state !== check.state
   })) throw new VerificationEvidenceError('Playwright execution checks do not match the registered run')
+  if (manifest.resourceSnapshots !== undefined && !Array.isArray(manifest.resourceSnapshots)) throw new VerificationEvidenceError('Playwright execution record has invalid resource snapshots')
+  if (manifest.unavailableResources !== undefined && (!Array.isArray(manifest.unavailableResources) || manifest.unavailableResources.some(item => !item || typeof item.url !== 'string' || typeof item.reason !== 'string'))) throw new VerificationEvidenceError('Playwright execution record has invalid unavailable-resource entries')
+  const resourceSnapshots = manifest.resourceSnapshots ?? []
+  const resourceUrls = new Set<string>()
+  for (const resource of resourceSnapshots) {
+    let resourceUrl: URL | undefined
+    if (resource && typeof resource.url === 'string') {
+      try { resourceUrl = new URL(resource.url) } catch { /* validated below */ }
+    }
+    if (!resource || typeof resource.url !== 'string' || !resourceUrl || resourceUrl.protocol !== 'https:' || resourceUrl.username || resourceUrl.password || resourceUrl.hash ||
+      (resource.source === 'authorized-stylesheet-dependency' && resourceUrl.hostname !== 'fonts.gstatic.com') ||
+      typeof resource.contentType !== 'string' || !/^[a-f0-9]{64}$/.test(resource.sha256) ||
+      typeof resource.artifactPath !== 'string' || !Number.isInteger(resource.sizeBytes) || resource.sizeBytes <= 0 ||
+      !['authorized-url', 'authorized-stylesheet-dependency'].includes(resource.source) ||
+      (resource.upstreamSha256 !== undefined && !/^[a-f0-9]{64}$/.test(resource.upstreamSha256)) || resourceUrls.has(resource.url)) {
+      throw new VerificationEvidenceError('Playwright resource snapshot metadata is invalid or duplicated')
+    }
+    const snapshotPath = artifactPathWithin(root, resource.artifactPath)
+    const snapshotBytes = regularFile(snapshotPath)
+    if (snapshotBytes.length !== resource.sizeBytes || sha256(snapshotBytes) !== resource.sha256) throw new VerificationEvidenceError('Playwright resource snapshot content hash mismatch')
+    resourceUrls.add(resource.url)
+  }
+  const loadedResourceUrls = manifest.loadedExternalResourceUrls ?? []
+  const blockedResourceUrls = manifest.blockedExternalResourceUrls ?? []
+  if (!Array.isArray(loadedResourceUrls) || !Array.isArray(blockedResourceUrls) ||
+    loadedResourceUrls.some(url => typeof url !== 'string' || !resourceUrls.has(url)) ||
+    blockedResourceUrls.some(url => typeof url !== 'string' || !url) ||
+    new Set(loadedResourceUrls).size !== loadedResourceUrls.length || new Set(blockedResourceUrls).size !== blockedResourceUrls.length ||
+    loadedResourceUrls.some(url => blockedResourceUrls.includes(url))) {
+    throw new VerificationEvidenceError('Playwright loaded or blocked resource URLs do not match their snapshot records')
+  }
   if (manifest.baselineComparisons !== undefined && !Array.isArray(manifest.baselineComparisons)) throw new VerificationEvidenceError('Playwright execution record has invalid original-project baseline comparisons')
   const baselineComparisons = manifest.baselineComparisons ?? []
   const registeredComparisons = run.baselineComparisons ?? []
@@ -147,6 +182,7 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   })) throw new VerificationEvidenceError('Playwright assertion record does not match the registered run')
   const assertionIds = new Set(run.assertions.map(assertion => assertion.id))
   if (REQUIRED_VERIFICATION_ASSERTION_IDS.some(id => !assertionIds.has(id))) throw new VerificationEvidenceError('Required browser assertions are missing')
+  if (assertions.get('browser-errors')?.result === 'pass' && blockedResourceUrls.length > 0) throw new VerificationEvidenceError('Browser-errors PASS cannot include blocked external resource requests')
   const nonTargetAssertion = assertions.get('non-target-preserved')
   if (nonTargetAssertion?.result === 'pass' && (baselineComparisons.length !== run.checks.length || baselineComparisons.some(comparison =>
     !comparison.matched || !comparison.baselineDigest || !comparison.candidateDigest || !comparison.artifactPath || !comparison.artifactHash || comparison.maskedOperationIds.length === 0))) {

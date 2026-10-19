@@ -63,11 +63,16 @@ describe('manual Bolt workflow credential boundary', () => {
     expect(commands).toEqual([['-C', '/missing', 'rev-parse', '--git-dir']])
   })
 
-  it('runs the Docker-backed workbench E2E without the removed host-side Bolt execution script', () => {
+  it('uses one pinned Bolt checkout root for checkout, dependency installation and project analysis', () => {
+    const boltCheckout = checkoutSteps[1]
+    const checkoutPath = boltCheckout.match(/^          path: (.+)$/m)?.[1]
+    const installPath = workflow.match(/npm ci --ignore-scripts --no-audit --no-fund --prefix (\S+)/)?.[1]
+    const projectPath = workflow.match(/RIPPLE_BOLT_PROJECT: \${{ github\.workspace }}\/(.+)$/m)?.[1]
+
+    expect(checkoutPath).toBeTruthy()
+    expect([installPath, projectPath]).toEqual([checkoutPath, checkoutPath])
     expect(workflow).toContain('BOLT_REPO_REF: f7e4998a5c77ab4aeb3232dbc31e61196e9051a6')
-    expect(workflow).toContain('ref: ${{ env.BOLT_REPO_REF }}')
-    expect(workflow).toContain('npm ci --ignore-scripts --no-audit --no-fund --prefix bolt-source')
-    expect(workflow).toContain('RIPPLE_BOLT_PROJECT: ${{ github.workspace }}/bolt-source')
+    expect(boltCheckout).toContain('ref: ${{ env.BOLT_REPO_REF }}')
     expect(workflow).not.toContain('bolt-source/project')
     expect(workflow).toContain('npm run test:browser')
     expect(workflow).not.toContain('acceptance:bolt')

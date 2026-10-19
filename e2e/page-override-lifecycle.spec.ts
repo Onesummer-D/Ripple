@@ -214,6 +214,10 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
         if (spec.navigateBy) {
           await baselinePage.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
           await page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
+          await Promise.all([
+            expect(baselinePage.getByText(spec.markerText, { exact: true })).toBeVisible(),
+            expect(page.getByText(spec.markerText, { exact: true })).toBeVisible(),
+          ])
         }
         const [baselineMarker, candidateMarker] = await Promise.all([
           identifyRoute(baselinePage, spec),

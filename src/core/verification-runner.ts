@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -12,6 +12,7 @@ import { attestBrowserExecution } from './verification-receipt'
 import { expectedTextForPage, sourceProvenPageImpact } from './scope'
 import { verificationContractHash } from './verification-contract'
 import { projectPreviewViewports } from './project-viewports'
+import { snapshotAuthorizedPreviewResources, type PreviewResourceSnapshot } from './preview-resource-snapshot'
 
 export class VerificationRunnerError extends Error {
   constructor(message: string) { super(message); this.name = 'VerificationRunnerError' }
@@ -125,6 +126,10 @@ interface ExecutionManifest {
   assertions: VerificationAssertion[]
   evidence: Array<Omit<VerificationEvidence, 'artifactPath'> & { artifactPath?: string }>
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
+  resourceSnapshots: PreviewResourceSnapshot[]
+  unavailableResources: Array<{ url: string; reason: string }>
+  loadedExternalResourceUrls: string[]
+  blockedExternalResourceUrls: string[]
 }
 
 function evidenceFile(runRoot: string, relativePath: string): string {
@@ -132,6 +137,38 @@ function evidenceFile(runRoot: string, relativePath: string): string {
   const relative = path.relative(runRoot, absolute)
   if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new VerificationRunnerError('隔离浏览器工件路径超出本次验证目录')
   return absolute
+}
+
+function exportResourceSnapshots(runDirectory: string, runId: string, snapshots: PreviewResourceSnapshot[]): void {
+  const configuredRoot = process.env.RIPPLE_BROWSER_ARTIFACT_DIR
+  if (!configuredRoot || snapshots.length === 0) return
+  const exportRoot = path.resolve(process.cwd(), configuredRoot)
+  const relativeRoot = path.relative(process.cwd(), exportRoot)
+  if (!relativeRoot || relativeRoot === '..' || relativeRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeRoot)) {
+    throw new VerificationRunnerError('资源快照导出目录必须位于当前测试工作区内')
+  }
+  const destination = path.join(exportRoot, 'resource-snapshots', runId)
+  fs.mkdirSync(exportRoot, { recursive: true, mode: 0o700 })
+  const realExportRoot = fs.realpathSync(exportRoot)
+  const relativeExportRoot = path.relative(process.cwd(), realExportRoot)
+  if (!relativeExportRoot || relativeExportRoot === '..' || relativeExportRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeExportRoot)) {
+    throw new VerificationRunnerError('资源快照导出目录不能解析到测试工作区之外')
+  }
+  fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
+  const stat = fs.lstatSync(destination)
+  if (stat.isSymbolicLink() || !stat.isDirectory()) throw new VerificationRunnerError('资源快照导出目录无效')
+  for (const snapshot of snapshots) {
+    const source = evidenceFile(runDirectory, snapshot.artifactPath)
+    const target = path.join(destination, snapshot.sha256)
+    if (fs.existsSync(target)) {
+      const existing = fs.lstatSync(target)
+      if (existing.isSymbolicLink() || !existing.isFile() || createHash('sha256').update(fs.readFileSync(target)).digest('hex') !== snapshot.sha256) {
+        throw new VerificationRunnerError('已有导出资源快照与内容哈希不匹配')
+      }
+      continue
+    }
+    fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL)
+  }
 }
 
 export async function runCandidateVerification(candidate: CandidateRecord, session: EditSession, baseGraph: SourceGraph, preview: CandidatePreview): Promise<VerificationRun> {
@@ -163,7 +200,10 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   const scriptRoot = fs.realpathSync(path.join(rippleRoot, 'src', 'core'))
   const dependencies = fs.realpathSync(path.join(rippleRoot, 'node_modules'))
   let baseline: Awaited<ReturnType<typeof startCandidateBaseline>> | undefined
+  let resourceSnapshotResult: Awaited<ReturnType<typeof snapshotAuthorizedPreviewResources>>
   try {
+    resourceSnapshotResult = await snapshotAuthorizedPreviewResources(preview.authorizedResourceUrls, artifactRoot)
+    exportResourceSnapshots(artifactRoot, runId, resourceSnapshotResult.snapshots)
     baseline = await startCandidateBaseline(candidate, preview)
     fs.writeFileSync(inputPath, JSON.stringify({
       runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
@@ -181,6 +221,8 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       operations: session.operations,
       scopeTargetPageRefs: Object.fromEntries(session.operations.map(operation => [operation.id, sourceProvenPageImpact(baseGraph, operation.targetRef).pageRefs])),
       verificationContract: session.verificationContract,
+      resourceSnapshots: resourceSnapshotResult.snapshots,
+      unavailableResources: resourceSnapshotResult.unavailable,
     }), { flag: 'wx' })
     await docker([
       'run', '--rm', '--init', '--name', containerName,
@@ -215,6 +257,22 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   }
   const actualAssertionIds = new Set(manifest.assertions.map(assertion => assertion.id))
   if (REQUIRED_VERIFICATION_ASSERTION_IDS.some(id => !actualAssertionIds.has(id))) throw new VerificationRunnerError('浏览器执行记录缺少必需断言')
+  if (JSON.stringify(manifest.resourceSnapshots) !== JSON.stringify(resourceSnapshotResult.snapshots) ||
+    JSON.stringify(manifest.unavailableResources) !== JSON.stringify(resourceSnapshotResult.unavailable)) {
+    throw new VerificationRunnerError('隔离浏览器资源快照记录与本次授权资源不匹配')
+  }
+  const availableResources = new Map(resourceSnapshotResult.snapshots.map(snapshot => [snapshot.url, snapshot]))
+  if (manifest.loadedExternalResourceUrls.some(url => !availableResources.has(url)) ||
+    manifest.blockedExternalResourceUrls.some(url => !url || availableResources.has(url))) {
+    throw new VerificationRunnerError('浏览器使用或阻止的外部资源与授权快照不一致')
+  }
+  for (const snapshot of resourceSnapshotResult.snapshots) {
+    const file = evidenceFile(artifactRoot, snapshot.artifactPath)
+    const bytes = fs.readFileSync(file)
+    if (bytes.length !== snapshot.sizeBytes || createHash('sha256').update(bytes).digest('hex') !== snapshot.sha256) {
+      throw new VerificationRunnerError('候选浏览器资源快照哈希或字节长度不匹配')
+    }
+  }
   const checks: VerificationRun['checks'] = manifest.checks.map(check => ({
     id: check.id, route: check.route, viewport: check.viewport, state: check.state,
     description: check.state, mandatory: true,

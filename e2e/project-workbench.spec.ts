@@ -764,7 +764,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   await expect(resourceDraft).toHaveValue(/images\.pexels\.com/)
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-analysis.png'), fullPage: true })
 
-  const pexelsResponses: Array<Promise<{ url: string; status: number; contentType: string; sha256: string }>> = []
+  const pexelsResponses: Array<Promise<{ url: string; status: number; contentType: string; sha256: string; bytes: Buffer }>> = []
   page.on('response', response => {
     if (!response.url().startsWith('https://images.pexels.com/')) return
     pexelsResponses.push((async () => {
@@ -774,6 +774,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
         status: response.status(),
         contentType: response.headers()['content-type'] ?? '',
         sha256: createHash('sha256').update(bytes).digest('hex'),
+        bytes,
       }
     })())
   })
@@ -791,10 +792,17 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   const auditedPexelsResponses = await Promise.all(pexelsResponses)
   const loadedPexelsImages = auditedPexelsResponses.filter(response => response.status === 200 && response.contentType.startsWith('image/') && /^[a-f0-9]{64}$/.test(response.sha256))
   expect(loadedPexelsImages.length).toBeGreaterThan(0)
+  const sourceResourceDirectory = path.join(evidenceRoot, 'source-resource-snapshots')
+  fs.mkdirSync(sourceResourceDirectory, { recursive: true })
+  const sourceResourceAudit = loadedPexelsImages.map(({ bytes, ...resource }) => {
+    const artifactPath = path.join('source-resource-snapshots', resource.sha256)
+    fs.writeFileSync(path.join(evidenceRoot, artifactPath), bytes)
+    return { ...resource, artifactPath }
+  })
   fs.writeFileSync(path.join(evidenceRoot, 'bolt-resource-load-audit.json'), JSON.stringify({
     sourceCommit: originalHead,
     authorizedUrls: approvedResourceUrls,
-    loadedImages: loadedPexelsImages,
+    loadedImages: sourceResourceAudit,
   }, null, 2))
   await page.getByTestId('toggle-project-element-selection').click()
   const footerBrand = projectFrame.locator('footer span').filter({ hasText: '山野器物' }).first()
@@ -848,13 +856,30 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
   expect(recordResponse.ok()).toBe(true)
   const execution = await recordResponse.json() as {
-    candidateId: string; patchHash: string; candidateTreeDigest: string; scopeVersion: number
+    runId: string; candidateId: string; patchHash: string; candidateTreeDigest: string; scopeVersion: number
     viewports: Array<{ name: string; width: number; height: number }>
     scopeObservations: Array<{ pageRef: string; viewport: { width: number; height: number }; operations: Array<{ baselineValues: string[]; candidateValues: string[] }> }>
     evidence: Array<{ artifactHash: string }>
+    resourceSnapshots: Array<{ url: string; contentType: string; sha256: string; artifactPath: string; sizeBytes: number; source: string; upstreamSha256?: string }>
+    loadedExternalResourceUrls: string[]
+    blockedExternalResourceUrls: string[]
+    unavailableResources: Array<{ url: string; reason: string }>
   }
   expect(execution).toMatchObject({ candidateId, patchHash, scopeVersion: 1, candidateTreeDigest: expect.stringMatching(/^[a-f0-9]{64}$/) })
   expect(execution.viewports).toEqual(expectedProjectViewports)
+  expect(execution.blockedExternalResourceUrls).toEqual([])
+  const verifiedPexels = execution.resourceSnapshots.filter(resource => new URL(resource.url).hostname === 'images.pexels.com' && execution.loadedExternalResourceUrls.includes(resource.url))
+  expect(verifiedPexels.length).toBeGreaterThan(0)
+  for (const resource of verifiedPexels) {
+    expect(resource.contentType.startsWith('image/')).toBe(true)
+    expect(resource.artifactPath).toMatch(/^resources\/[a-f0-9]{64}$/)
+    expect(resource.sizeBytes).toBeGreaterThan(0)
+    expect(resource.sha256).toMatch(/^[a-f0-9]{64}$/)
+    const exportedSnapshot = path.join(evidenceRoot, 'resource-snapshots', execution.runId, resource.sha256)
+    const snapshotBytes = fs.readFileSync(exportedSnapshot)
+    expect(snapshotBytes.length).toBe(resource.sizeBytes)
+    expect(createHash('sha256').update(snapshotBytes).digest('hex')).toBe(resource.sha256)
+  }
   const expectedScopeObservationKeys = verificationPages.flatMap(([pageId]) => projectPreviewViewports.map(viewport => `page:${pageId}:${viewport.width}x${viewport.height}`)).sort()
   const actualScopeObservationKeys = execution.scopeObservations.map(observation =>
     `${observation.pageRef}:${observation.viewport.width}x${observation.viewport.height}`,

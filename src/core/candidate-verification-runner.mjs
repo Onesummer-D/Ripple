@@ -21,8 +21,45 @@ const targetResults = []
 const mappedResults = []
 const nonTargetResults = []
 const browserErrors = []
+const resourceSnapshots = input.resourceSnapshots ?? []
+const resourceByUrl = new Map(resourceSnapshots.map(snapshot => [snapshot.url, snapshot]))
+const loadedExternalResourceUrls = new Set()
+const blockedExternalResourceUrls = new Set()
 let overflowObserved = false
 let loadedViewports = 0
+
+async function installResourceSnapshots(page) {
+  await page.route('**/*', async route => {
+    const requestedUrl = route.request().url()
+    let parsed
+    try { parsed = new URL(requestedUrl) } catch { await route.abort(); return }
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return route.continue()
+    const localOrigins = new Set([input.previewHost, input.baselineHost].map(host => `http://${host}:5173`))
+    if (localOrigins.has(parsed.origin)) return route.continue()
+    if (route.request().method() !== 'GET' && route.request().method() !== 'HEAD') {
+      blockedExternalResourceUrls.add(requestedUrl)
+      browserErrors.push('Non-static external resource method was blocked: ' + route.request().method())
+      await route.abort()
+      return
+    }
+    const snapshot = resourceByUrl.get(requestedUrl)
+    if (snapshot) {
+      const filePath = path.resolve('/evidence', snapshot.artifactPath)
+      if (!filePath.startsWith('/evidence/resources/') || sha256(fs.readFileSync(filePath)) !== snapshot.sha256) {
+        blockedExternalResourceUrls.add(requestedUrl)
+        browserErrors.push('Resource snapshot integrity check failed: ' + requestedUrl)
+        await route.abort()
+        return
+      }
+      loadedExternalResourceUrls.add(requestedUrl)
+      await route.fulfill({ status: 200, contentType: snapshot.contentType, body: fs.readFileSync(filePath) })
+      return
+    }
+    blockedExternalResourceUrls.add(requestedUrl)
+    browserErrors.push('External resource request was not in the approved snapshot: ' + requestedUrl)
+    await route.abort()
+  })
+}
 
 async function snapshotOutsideTargets(page, bindings, baseline, pageRef) {
   const specs = bindings.map(binding => ({
@@ -94,6 +131,7 @@ async function mappedValues(page, sourceRef) {
 
 async function visitWithErrors(spec, host, viewport, contractPages) {
   const page = await browser.newPage({ viewport })
+  await installResourceSnapshots(page)
   page.on('pageerror', error => browserErrors.push(error.message))
   page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()) })
   try {
@@ -111,6 +149,8 @@ try {
     const checkId = `${input.runId}-${viewport.name}`
     const page = await browser.newPage({ viewport })
     const baselinePage = await browser.newPage({ viewport })
+    await installResourceSnapshots(page)
+    await installResourceSnapshots(baselinePage)
     const localErrors = []
     page.on('pageerror', error => localErrors.push(error.message))
     page.on('console', message => { if (message.type() === 'error') localErrors.push(message.text()) })
@@ -376,6 +416,10 @@ const manifest = {
   assertions,
   evidence,
   artifacts,
+  resourceSnapshots,
+  unavailableResources: input.unavailableResources ?? [],
+  loadedExternalResourceUrls: [...loadedExternalResourceUrls].sort(),
+  blockedExternalResourceUrls: [...blockedExternalResourceUrls].sort(),
 }
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2), { flag: 'wx' })
 console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.length ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))
