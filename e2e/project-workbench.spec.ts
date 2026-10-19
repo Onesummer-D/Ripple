@@ -115,7 +115,20 @@ test('opens a real local project, keeps multiple operations and explicit local S
 
   if (dockerAvailable) {
     await page.route('https://assets.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', 'base64') }))
-    const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
+    const pexelsResponses: Array<Promise<{ url: string; status: number; contentType: string; sha256: string }>> = []
+  page.on('response', response => {
+    if (!response.url().startsWith('https://images.pexels.com/')) return
+    pexelsResponses.push((async () => {
+      const bytes = await response.body()
+      return {
+        url: response.url(),
+        status: response.status(),
+        contentType: response.headers()['content-type'] ?? '',
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+      }
+    })())
+  })
+  const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
     await page.getByTestId('toggle-project-preview').click()
     const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
     sourcePreviewProjectId = sourcePreview.projectId
@@ -756,12 +769,12 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     for (let index = 0; index < count; index += 1) await rows.nth(index).getByTestId('add-preview-resource').click()
   }
   const resourceDraft = page.getByTestId('preview-resource-draft')
-  const approvedResourceUrls = (await resourceDraft.inputValue()).split(/\\r?\\n/).map(value => value.trim()).filter(Boolean)
+  const approvedResourceUrls = (await resourceDraft.inputValue()).split(/\r?\n/).map(value => value.trim()).filter(Boolean)
   expect(approvedResourceUrls.some(value => new URL(value).hostname === 'images.pexels.com')).toBe(true)
   expect(approvedResourceUrls.some(value => new URL(value).hostname === 'fonts.googleapis.com')).toBe(true)
   expect(approvedResourceUrls.every(value => ['images.pexels.com', 'fonts.googleapis.com'].includes(new URL(value).hostname))).toBe(true)
   await page.getByTestId('save-preview-resources').click()
-  await expect(resourceDraft).toHaveValue(/images\\.pexels\\.com/)
+  await expect(resourceDraft).toHaveValue(/images\.pexels\.com/)
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-analysis.png'), fullPage: true })
 
   const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
@@ -775,6 +788,14 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
   const heroImage = projectFrame.locator('img[alt="山野器物"]')
   await expect.poll(() => heroImage.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+  const auditedPexelsResponses = await Promise.all(pexelsResponses)
+  const loadedPexelsImages = auditedPexelsResponses.filter(response => response.status === 200 && response.contentType.startsWith('image/') && /^[a-f0-9]{64}$/.test(response.sha256))
+  expect(loadedPexelsImages.length).toBeGreaterThan(0)
+  fs.writeFileSync(path.join(evidenceRoot, 'bolt-resource-load-audit.json'), JSON.stringify({
+    sourceCommit: originalHead,
+    authorizedUrls: approvedResourceUrls,
+    loadedImages: loadedPexelsImages,
+  }, null, 2))
   await page.getByTestId('toggle-project-element-selection').click()
   const footerBrand = projectFrame.locator('footer span').filter({ hasText: '山野器物' }).first()
   await footerBrand.scrollIntoViewIfNeeded()
