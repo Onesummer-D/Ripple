@@ -1,0 +1,56 @@
+name: Bolt real-project acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bolt-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BOLT_REPO_REF: f7e4998a5c77ab4aeb3232dbc31e61196e9051a6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Onesummer-D/ripple-qingye-bolt
+          ref: ${{ env.BOLT_REPO_REF }}
+          token: ${{ secrets.BOLT_REPO_TOKEN }}
+          path: bolt-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Assert checkout credentials were not persisted
+        run: node --experimental-transform-types scripts/assert-no-checkout-credentials.ts "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/bolt-source"
+      - run: npm ci
+      - name: Install Bolt dependencies without running lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix bolt-source
+      - name: Install Chromium for the acceptance runner
+        run: mkdir -p "$RUNNER_TEMP/ripple-acceptance/playwright-browsers" && npx playwright install --with-deps chromium
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
+      - name: Require Docker for isolated candidate preview
+        run: docker info --format '{{.ServerVersion}}'
+      - name: Warm the supported preview runtime image
+        run: docker pull node:22-bookworm-slim
+      - name: Verify the real Bolt project through the Ripple workbench
+        run: npm run test:browser
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
+          RIPPLE_BOLT_PROJECT: ${{ github.workspace }}/bolt-source
+          RIPPLE_BROWSER_ARTIFACT_DIR: test-results/evidence-bolt-workbench
+      - name: Preserve real-workbench browser screenshots and run metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-bolt-workbench-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 30
