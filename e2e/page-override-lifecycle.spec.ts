@@ -132,6 +132,23 @@ async function snapshotOutsideTargets(page: import('@playwright/test').Page, bin
 }
 
 async function verifyPreview(page: import('@playwright/test').Page, candidate: CandidateRecord, session: EditSession, expectedHome: string[], expectedAutumn: string[], evidenceId: string): Promise<VerificationRun> {
+  const identifyRoute = async (targetPage: import('@playwright/test').Page, spec: NonNullable<EditSession['verificationContract']>['pages'][number]) => {
+    const pages = session.verificationContract!.pages
+    const marker = targetPage.getByText(spec.markerText, { exact: true })
+    const markerMatchCount = await marker.count()
+    const markerVisible = markerMatchCount > 0 && await marker.first().isVisible()
+    const declaredMatches = pages.filter(item => item.markerText === spec.markerText).length
+    let routeIdentity = declaredMatches !== 1 || markerMatchCount > 1 ? 'ambiguous' : markerMatchCount === 0 ? 'missing' : 'verified'
+    if (routeIdentity === 'verified') {
+      for (const otherMarker of new Set(pages.filter(item => item.pageRef !== spec.pageRef).map(item => item.markerText))) {
+        if (await targetPage.getByText(otherMarker, { exact: true }).count() > 0) {
+          routeIdentity = 'wrong-route'
+          break
+        }
+      }
+    }
+    return { markerVisible, markerMatchCount, routeIdentity }
+  }
   const startedAt = new Date().toISOString()
   const preview = await startCandidatePreview(candidate)
   previews.add(candidate.id)
@@ -198,9 +215,13 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
           await baselinePage.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
           await page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
         }
-        const baselineMarkerVisible = await baselinePage.getByText(spec.markerText, { exact: true }).first().isVisible()
-        const candidateMarkerVisible = await page.getByText(spec.markerText, { exact: true }).first().isVisible()
-        expect(baselineMarkerVisible && candidateMarkerVisible).toBe(true)
+        const [baselineMarker, candidateMarker] = await Promise.all([
+          identifyRoute(baselinePage, spec),
+          identifyRoute(page, spec),
+        ])
+        expect(baselineMarker.routeIdentity).toBe('verified')
+        expect(candidateMarker.routeIdentity).toBe('verified')
+        expect(baselineMarker.markerVisible && candidateMarker.markerVisible).toBe(true)
         const operations = await Promise.all(bindings.map(async binding => {
           const read = async (targetPage: import('@playwright/test').Page, sourceRefs: string[]) => sourceRefs.length === 1
             ? targetPage.locator('[data-ripple-source]').evaluateAll((elements, sourceRef) => elements.filter(element => element.getAttribute('data-ripple-source') === sourceRef).map(element => (element.textContent ?? '').trim()), sourceRefs[0])
@@ -209,7 +230,13 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
           const expectation = binding.pageExpectations[spec.pageRef]
           return { operationId: binding.operationId, expectedBaselineText: expectation?.baselineText ?? '', expectedCandidateText: expectation?.candidateText ?? '', baselineValues, candidateValues }
         }))
-        scopeObservations.push({ pageRef: spec.pageRef, route: spec.path, viewport, markerText: spec.markerText, baselineMarkerVisible, candidateMarkerVisible, operations })
+        scopeObservations.push({
+          pageRef: spec.pageRef, route: spec.path, viewport, markerText: spec.markerText,
+          baselineMarkerVisible: baselineMarker.markerVisible, candidateMarkerVisible: candidateMarker.markerVisible,
+          baselineMarkerMatchCount: baselineMarker.markerMatchCount, candidateMarkerMatchCount: candidateMarker.markerMatchCount,
+          baselineRouteIdentity: baselineMarker.routeIdentity, candidateRouteIdentity: candidateMarker.routeIdentity,
+          operations,
+        })
         if (spec.pageRef === 'page:home') {
           for (const value of expectedHome) await expect(page.getByText(value, { exact: true })).toBeVisible()
         } else {
@@ -221,10 +248,21 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
       await page.goto(preview.url)
       await baselinePage.getByRole('button', { name: 'Clicks 0', exact: true }).click()
       await page.getByRole('button', { name: 'Clicks 0', exact: true }).click()
-      const [baselineInteraction, candidateInteraction] = await Promise.all([
-        baselinePage.getByText('Clicks 1', { exact: true }).isVisible(), page.getByText('Clicks 1', { exact: true }).isVisible(),
+      const homeSpec = session.verificationContract!.pages.find(spec => spec.pageRef === 'page:home')
+      if (!homeSpec) throw new Error('Home route identity is required for the interaction observation')
+      const [baselineHomeIdentity, candidateHomeIdentity] = await Promise.all([
+        identifyRoute(baselinePage, homeSpec),
+        identifyRoute(page, homeSpec),
       ])
-      interactionObservations.push({ interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button', name: 'Clicks 0', expectedText: 'Clicks 1', baselinePassed: baselineInteraction, candidatePassed: candidateInteraction })
+      const [baselineInteraction, candidateInteraction] = await Promise.all([
+        baselineHomeIdentity.routeIdentity === 'verified' && await baselinePage.getByText('Clicks 1', { exact: true }).isVisible(),
+        candidateHomeIdentity.routeIdentity === 'verified' && await page.getByText('Clicks 1', { exact: true }).isVisible(),
+      ])
+      interactionObservations.push({
+        interactionIndex: 0, pageRef: 'page:home', route: '/', viewport, role: 'button', name: 'Clicks 0', expectedText: 'Clicks 1',
+        baselineRouteIdentity: baselineHomeIdentity.routeIdentity, candidateRouteIdentity: candidateHomeIdentity.routeIdentity,
+        baselinePassed: baselineInteraction, candidatePassed: candidateInteraction,
+      })
       expect(baselineInteraction && candidateInteraction).toBe(true)
       await page.goto(preview.url)
       const checkId = `${evidenceId}-home-${viewport.width}`
@@ -262,7 +300,7 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
   const recordPath = path.join(evidenceRoot, `${evidenceId}.json`)
   const artifacts = evidence.map(item => ({ checkId: item.checkId, path: path.basename(item.artifactPath!), sha256: item.artifactHash! }))
   const record = {
-    schemaVersion: 3, executor: 'playwright' as const, completed: true, runId, candidateId: candidate.id,
+    schemaVersion: 4, executor: 'playwright' as const, completed: true, runId, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint: analyzeProject(projectRoot).revision.runtimeFingerprint,
