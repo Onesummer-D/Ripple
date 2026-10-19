@@ -321,6 +321,10 @@ const interactionsRoutesVerified = interactionsComplete && interactionObservatio
   item.baselineRouteIdentity === 'verified' && item.candidateRouteIdentity === 'verified')
 const interactionsPassed = interactionsRoutesVerified && interactionObservations.every(item => item.baselinePassed && item.candidatePassed)
 const interactionsFailed = interactionsRoutesVerified && interactionObservations.some(item => !item.baselinePassed || !item.candidatePassed)
+const scopeRouteIdentityUnknown = scopeObservations.some(observation =>
+  observation.baselineRouteIdentity !== 'verified' || observation.candidateRouteIdentity !== 'verified')
+const interactionRouteIdentityUnknown = interactionsComplete && interactionObservations.some(item =>
+  item.baselineRouteIdentity !== 'verified' || item.candidateRouteIdentity !== 'verified')
 const assertions = [
   {
     id: 'target-change',
@@ -336,8 +340,8 @@ const assertions = [
         ? 'The original project and candidate rendered different non-target DOM content on / at one or more tested viewports.'
         : 'The baseline comparison could not uniquely mask every edited text target or both projects did not render on every viewport.',
   },
-  { id: 'scope-propagation', result: scopePassed ? 'pass' : scopeFailed ? 'risk' : 'unknown', detail: scopePassed ? `Declared page markers and every changed shared TEXT target matched the selected Scope across ${scopeObservations.length} original/candidate route-viewport observations.` : scopeFailed ? 'A declared page marker or target value did not match the original baseline and selected Scope.' : 'A complete supported route contract and unique shared TEXT source bindings were not supplied; Scope propagation remains unknown.' },
-  { id: 'interaction', result: interactionsPassed ? 'pass' : interactionsFailed ? 'risk' : 'unknown', detail: interactionsPassed ? `The declared accessible interactions reached their expected visible state in both original and candidate browsers at all ${viewportPlan.length} viewports.` : interactionsFailed ? 'At least one declared accessible interaction failed in the original or candidate project.' : 'No complete supported button/link interaction contract was supplied; interaction remains unknown.' },
+  { id: 'scope-propagation', result: scopePassed ? 'pass' : scopeFailed ? 'risk' : 'unknown', detail: scopePassed ? `Declared page markers and every changed shared TEXT target matched the selected Scope across ${scopeObservations.length} original/candidate route-viewport observations.` : scopeFailed ? 'A declared page marker or target value did not match the original baseline and selected Scope.' : scopeRouteIdentityUnknown ? 'At least one route marker was missing, ambiguous, or did not identify the requested page in the original/candidate DOM; Scope propagation remains unknown.' : 'A complete supported route contract and unique shared TEXT source bindings were not supplied; Scope propagation remains unknown.' },
+  { id: 'interaction', result: interactionsPassed ? 'pass' : interactionsFailed ? 'risk' : 'unknown', detail: interactionsPassed ? `The declared accessible interactions reached their expected visible state in both original and candidate browsers at all ${viewportPlan.length} viewports.` : interactionsFailed ? 'At least one declared accessible interaction failed in the original or candidate project.' : interactionRouteIdentityUnknown ? 'The route marker did not uniquely verify the requested page for every declared interaction in the original/candidate DOM; interaction remains unknown.' : 'No complete supported button/link interaction contract was supplied; interaction remains unknown.' },
   { id: 'responsive-layout', result: overflowObserved ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: overflowObserved ? 'At least one tested viewport had horizontal document overflow.' : loadedViewports === viewportPlan.length ? 'Candidate rendered without horizontal document overflow at desktop, tablet and mobile widths.' : 'Not all planned viewports rendered, so responsive behavior is incomplete.' },
   {
     id: 'source-mapping',
