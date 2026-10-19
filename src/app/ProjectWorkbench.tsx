@@ -159,6 +159,7 @@ export default function ProjectWorkbench() {
   const [analysis, setAnalysis] = useState<Analysis>()
   const [resourceDraft, setResourceDraft] = useState('')
   const [targetId, setTargetId] = useState('')
+  const [focusAfterInputRequest, setFocusAfterInputRequest] = useState(0)
   const [after, setAfter] = useState('')
   const [operations, setOperations] = useState<EditOperation[]>([])
   const [pageScope, setPageScope] = useState<Record<string, PageScope>>({})
@@ -181,6 +182,15 @@ export default function ProjectWorkbench() {
   const [selectionKind, setSelectionKind] = useState<'project' | 'candidate'>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!focusAfterInputRequest) return
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    document.getElementById('edit-panel')?.scrollIntoView({ block: 'start', behavior })
+    const input = document.getElementById('after-input') as HTMLInputElement | null
+    input?.focus()
+    input?.select()
+  }, [focusAfterInputRequest])
 
   useEffect(() => {
     let active = true
@@ -381,12 +391,7 @@ export default function ProjectWorkbench() {
     setTargetId(targetRef)
     setAfter(scopeStrategy === 'page-override' ? selectedTarget.pageOverrides?.[localPageRef] ?? selectedTarget.value : selectedTarget.value)
     setError('')
-    document.getElementById('edit-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-    window.requestAnimationFrame(() => {
-      const input = document.getElementById('after-input') as HTMLInputElement | null
-      input?.focus()
-      input?.select()
-    })
+    setFocusAfterInputRequest(request => request + 1)
   }
 
   function addResourceToDraft(resourceUrl: string) {
