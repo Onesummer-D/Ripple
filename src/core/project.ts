@@ -254,11 +254,32 @@ function arrayDrill(expression: ts.Expression, property: string, checker: ts.Typ
   if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
     const method = expression.expression.name.text
     if (method === 'map' || method === 'filter' || method === 'slice') {
+      // `map` may transform elements (`xs.map(p => ({ ...p, image: newUrl }))`): unless
+      // the callback returns its own parameter unchanged, the drilled values are NOT the
+      // base array's — the callback body is never inspected, so fail closed.
+      if (method === 'map' && !isIdentityMapCallback(expression.arguments[0])) return []
       return arrayDrill(expression.expression.expression, property, checker, visited, resolveAsset, bindingMayBeMutated)
     }
     return []
   }
   return []
+}
+
+/** True only for a callback that returns its own first parameter unchanged (`p => p`,
+ *  `(p) => (p)`, `function (p) { return p }`). Any other map callback may transform
+ *  elements, so drilled values cannot be taken from the base array. */
+function isIdentityMapCallback(callback: ts.Expression | undefined): boolean {
+  if (!callback || !(ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) return false
+  const param = callback.parameters[0]
+  if (!param || !ts.isIdentifier(param.name)) return false
+  const isParam = (expression: ts.Expression | undefined) =>
+    !!expression && (ts.isParenthesizedExpression(expression) ? isParam(expression.expression) : ts.isIdentifier(expression) && expression.text === param.name.text)
+  if (ts.isArrowFunction(callback) && !ts.isBlock(callback.body)) return isParam(callback.body)
+  if (ts.isBlock(callback.body) && callback.body.statements.length === 1) {
+    const statement = callback.body.statements[0]
+    if (ts.isReturnStatement(statement)) return isParam(statement.expression)
+  }
+  return false
 }
 
 /** Exact `array[n]` resolution, sound only when the base identifier is a `const` array
@@ -360,16 +381,35 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     const cached = mutationCache.get(target)
     if (cached !== undefined) return cached
     const declarations = target.declarations ?? []
+    // Follow const-alias indirection: `const reversed = products; reversed.reverse()`
+    // mutates the same array, but the mutation reference resolves to the ALIAS
+    // declaration, not the drilled binding's. Chase identifier initializers (including
+    // array-destructuring bindings like `const [first] = products`, which aliases the
+    // element objects) up to a few hops.
+    const resolvesToTarget = (sym: ts.Symbol | undefined, depth: number): boolean => {
+      if (!sym || depth > 4) return false
+      const resolved = (sym.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(sym) : sym
+      if ((resolved.declarations ?? []).some(d => declarations.includes(d))) return true
+      for (const d of resolved.declarations ?? []) {
+        let aliasSource: ts.Identifier | undefined
+        if (ts.isVariableDeclaration(d) && d.initializer && ts.isIdentifier(d.initializer)) aliasSource = d.initializer
+        else if (ts.isBindingElement(d)) {
+          let variable: ts.Node | undefined = d.parent
+          while (variable && !ts.isVariableDeclaration(variable)) variable = variable.parent
+          if (variable && ts.isVariableDeclaration(variable) && variable.initializer && ts.isIdentifier(variable.initializer)) aliasSource = variable.initializer
+        }
+        if (aliasSource && resolvesToTarget(checker.getSymbolAtLocation(aliasSource), depth + 1)) return true
+      }
+      return false
+    }
     let mutated = false
     for (const source of sourceFiles.values()) {
       const visit = (node: ts.Node): void => {
         if (mutated || !declarations.length) return
-        if (ts.isIdentifier(node)) {
+        // Cheap syntactic shape first: symbol resolution only runs at mutation-shaped sites.
+        if (ts.isIdentifier(node) && isArrayMutationReference(node)) {
           const at = checker.getSymbolAtLocation(node)
-          if (!at) return
-          const resolved = (at.flags & ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(at) : at
-          if (!(resolved.declarations ?? []).some(d => declarations.includes(d))) return
-          if (isArrayMutationReference(node)) mutated = true
+          if (at && resolvesToTarget(at, 0)) mutated = true
         }
         node.forEachChild(visit)
       }

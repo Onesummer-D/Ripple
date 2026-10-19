@@ -536,3 +536,57 @@ describe('fail-closed drilling guards (A-side recheck 2026-10-19)', () => {
     }
   })
 })
+
+describe('fail-closed drilling guards (independent review P1 follow-ups)', () => {
+  const card = `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`
+  const urlA = 'https://images.pexels.com/photos/91/pexels-photo-91.jpeg?auto=compress'
+  const urlB = 'https://images.pexels.com/photos/92/pexels-photo-92.jpeg?auto=compress'
+
+  it('detects mutations through a local const alias of the binding', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const products: Product[] = [{ id: 'p1', image: '${urlA}' }, { id: 'p2', image: '${urlB}' }];`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    // `reversed` is a const alias of the SAME array: the mutation reference resolves to
+    // the alias declaration, but the drilled binding must still fail closed.
+    write(root, 'src/pages/HomePage.tsx', `import { products } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nconst reversed = products;\nreversed.reverse();\nexport function HomePage() { return <main>{products.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven').length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+
+  it('refuses to drill an array produced by a transforming map callback', () => {
+    const root = temp()
+    scaffold(root)
+    // `normalized` rewrites image at runtime: drilling it back to `raw`'s literal image
+    // would claim a consumer for a URL that is never consumed.
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const raw: Product[] = [{ id: 'p1', image: '${urlA}' }];\nexport const normalized: Product[] = raw.map((p) => ({ ...p, image: '${urlB}' }));`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { normalized } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{normalized.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    expect(assetEdges(graph).filter(edge => edge.certainty === 'source-proven').length).toBe(0)
+    expect(graph.unresolved.some(entry => entry.includes('unproven-prop:product'))).toBe(true)
+  })
+
+  it('keeps an identity map callback drillable (supported boundary)', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const raw: Product[] = [{ id: 'p1', image: '${urlA}' }];\nexport const same: Product[] = raw.map((p) => p);`)
+    write(root, 'src/components/ProductCard.tsx', card)
+    write(root, 'src/pages/HomePage.tsx', `import { same } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{same.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const edges = assetEdges(graph)
+    expect(edges.length).toBe(1)
+    expect(edges[0].certainty).toBe('source-proven')
+    expect(edges[0].to).toBe(graph.nodes.find(node => node.kind === 'media' && node.value === urlA)!.id)
+  })
+})
