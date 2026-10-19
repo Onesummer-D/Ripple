@@ -160,20 +160,6 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     expect(sourcePreview.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
     expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
     const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
-  const sourcePreviewOrigin = new URL(sourcePreview.url).origin
-  const sourcePreviewBrowserErrors: string[] = []
-  page.on('console', message => {
-    const location = message.location()
-    if (message.type() === 'error' && location.url.startsWith(sourcePreviewOrigin)) sourcePreviewBrowserErrors.push('console: ' + message.text().slice(0, 500))
-  })
-  page.on('pageerror', error => sourcePreviewBrowserErrors.push('pageerror: ' + error.message.slice(0, 500)))
-  page.on('requestfailed', request => {
-    const url = new URL(request.url())
-    if (url.origin === sourcePreviewOrigin || ['images.pexels.com', 'fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname)) {
-      sourcePreviewBrowserErrors.push('requestfailed: ' + request.url() + ' (' + (request.failure()?.errorText ?? 'unknown') + ')')
-    }
-  })
-  
     await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
     await projectFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'workbench-source-preview-1440.png') })
     await page.getByTestId('project-preview-viewport-375').click()
@@ -848,6 +834,20 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   sourcePreviewId = sourcePreview.previewId
   expect(sourcePreview.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
   expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
+    const sourcePreviewOrigin = new URL(sourcePreview.url).origin
+  const sourcePreviewBrowserErrors: string[] = []
+  page.on('console', message => {
+    const location = message.location()
+    if (message.type() === 'error' && location.url.startsWith(sourcePreviewOrigin)) sourcePreviewBrowserErrors.push('console: ' + message.text().slice(0, 500))
+  })
+  page.on('pageerror', error => sourcePreviewBrowserErrors.push('pageerror: ' + error.message.slice(0, 500)))
+  page.on('requestfailed', request => {
+    const url = new URL(request.url())
+    if (url.origin === sourcePreviewOrigin || ['images.pexels.com', 'fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname)) {
+      sourcePreviewBrowserErrors.push('requestfailed: ' + request.url() + ' (' + (request.failure()?.errorText ?? 'unknown') + ')')
+    }
+  })
+  
   const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
   try {
     await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
