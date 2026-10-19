@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { VerificationContractEditor } from './VerificationContractEditor'
 import {
   createVerificationContractDraft,
@@ -7,6 +7,8 @@ import {
   toBrowserVerificationContract,
   type VerificationContractDraft,
 } from './verification-contract-form'
+
+afterEach(cleanup)
 
 describe('VerificationContractEditor', () => {
   it('lets users declare page and interaction checks without editing JSON', () => {
