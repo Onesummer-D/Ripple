@@ -2,9 +2,16 @@
 
 **日期**：2026-10-18（同日修订一轮，见下方修订记录）
 **作者**：B（thisisCarys + 开发 AI）
-**状态**：待负责人与 A 评审；确认前不代表 B 开始修改共享核心代码
+**状态**：A/B 已对齐五项公共接口决策；负责人于 2026-10-19 批准冻结最小 EditOperation/Session v1。B 可据此开始 MEDIA `asset-swap` 执行器；未实现能力仍按 §4.5、§4.6 和 §9 标注，不因接口冻结视为验收。
 **基线**：`feat/project-first-core-20261018` @ `91b0b83dd32cd294e1202ee6a7ce65374bf07765`
 **输入材料**：A《Project-first 扩展契约提案》（`docs/architecture/project-first-extension-contract-proposal-2026-10-18.md`）、PR #2 独立审查评论（comment-6250535989）、B 第二份交付包 `ripple-B-package2-2026-10-14.tar.gz`（SHA-256 `fceb17feb7ee4af3d537e233df74c0a4a874828dc1472a589776cae7f9463956`）
+
+**契约冻结记录（2026-10-19）**：
+
+- 冻结标识：`ripple-edit-operation-session/v1`，代码基线 PR #2 `f2aeadf4b21d8936df593f14261728a8a05e65d8`。
+- 冻结范围：现有 `EditOperation` 判别联合、payloadless 简单操作兼容、结构化 `asset-swap` / `local-projection` schema、`SessionInvariantError` 错误代码/字段路径及“未实现执行器 fail-closed”行为。
+- 不在本次验收内：MEDIA 字节暂存、字节哈希与 CandidatePatch/Evidence 的端到端完整性、焦点裁切/variants 的运行效果及 MEDIA 专属 Evidence。它们须随对应执行器实装后单独验收。接口冻结不表示这些能力已可用。
+- A/B 已确认五项设计决策；A 依据下方现有自动化测试范围冻结最小契约。B 可基于该版本开始 MEDIA `asset-swap`，无需再次讨论整体架构。
 
 **修订记录（2026-10-18 晚，按负责人评审意见）**：
 
@@ -97,7 +104,7 @@
 
 **接受**审查诊断：`EditOperation.before/after: string` 确实只能表达受限文本/字面量替换（`candidate.ts:344-367` 按源偏移整体替换），无法表达二进制资产、焦点坐标、响应式变体、CSS 声明结构化修改。
 
-**不接受**"把复杂负载编码成 JSON 字符串塞进 after"的妥协方向，也**不接受**新建平行 Operation 状态机。负责人已接受"增加结构化 MEDIA/TOKEN 负载"的方向；以下按"真正的 TypeScript 判别联合"书写，并**接受 A 在 PR #3 评论（19:01 / 19:37）提出的兼容边界**（`payload` 不得对 MEDIA/TOKEN 全体强制——现状的受限字面量路径必须继续可用），待双方共同确认后冻结：
+**不接受**"把复杂负载编码成 JSON 字符串塞进 after"的妥协方向，也**不接受**新建平行 Operation 状态机。负责人已接受"增加结构化 MEDIA/TOKEN 负载"的方向；以下按"真正的 TypeScript 判别联合"书写，并**接受 A 在 PR #3 评论（19:01 / 19:37）提出的兼容边界**（`payload` 不得对 MEDIA/TOKEN 全体强制——现状的受限字面量路径必须继续可用）。五项设计决策已由 A/B 确认，最小接口于 PR #2 `f2aeadf4b21d8936df593f14261728a8a05e65d8` 冻结为 `ripple-edit-operation-session/v1`：
 
 ```ts
 // 公共字段：所有变体共享（漂移校验、回滚、覆盖语义不变）
@@ -113,10 +120,10 @@ interface EditOperationBase {
 // TEXT/CODE 永远禁止 payload；MEDIA/TOKEN 仅限已支持的受限字面量替换路径
 //（import 路径 / URL 字符串 / token 值字符串，candidate.ts 按源偏移整体替换）。
 export type EditOperation =
-  | (EditOperationBase & { kind: 'TEXT'; payload?: never })
-  | (EditOperationBase & { kind: 'CODE'; payload?: never })
-  | (EditOperationBase & { kind: 'MEDIA'; payload?: never })
-  | (EditOperationBase & { kind: 'TOKEN'; payload?: never })
+  | (EditOperationBase & { kind: 'TEXT'; action?: never; payload?: never })
+  | (EditOperationBase & { kind: 'CODE'; action?: never; payload?: never })
+  | (EditOperationBase & { kind: 'MEDIA'; action?: never; payload?: never })
+  | (EditOperationBase & { kind: 'TOKEN'; action?: never; payload?: never })
   // 结构化操作：显式 action 判别子 + 必需 payload；缺失/畸形/未知 subtype 一律
   // fail-closed 拒绝（session/candidate 校验），不得退回字符串替换。
   | (EditOperationBase & { kind: 'MEDIA'; action: 'asset-swap'; payload: MediaAssetSwapPayload })
@@ -241,24 +248,37 @@ interface AdapterCapabilities {
 4. **共享 fallback vs 页面实际值**：确认可保留区分。B 的验证断言将消费 `expectedTextForPage`/`expectedTextForScope`（`scope.ts` 唯一纯计算入口），不复制 Scope 分支规则；MEDIA/TOKEN 的对应期望值计算将加在同一入口（扩展为 `expectedValueForPage`），UI 展示"共享来源值 / 当前页面生效值"两栏。
 5. **focal point / responsive variants**：B 第二包**不具备**成熟 focal/variants 能力（仅有单资产替换演示）。建议 P0 采用 Shopify 式焦点坐标 + 项目自然响应式机制（`srcset`/CSS），不自研变体生成；如后续引入图像处理依赖，先提交许可与依赖审查。
 
-### 4.5 契约冻结前需 A/B 共同通过的契约测试（B 提议）
+### 4.5 冻结的最小契约测试范围（`ripple-edit-operation-session/v1`）
 
-1. **序列化往返**：`EditOperation`（含 payload）+ `OverrideRule` 序列化/反序列化无损。
-2. **Scope 拒绝**：MEDIA/TOKEN 操作指向 excluded/protected、非 source-proven 影响闭包、缺失 AST 位置——全部拒绝且不产生 worktree 副作用。
-3. **多操作候选**：同文件多区间 + 资产文件 + 覆盖规则混合候选，patchHash/candidateTreeDigest 可复算。
-4. **补丁/证据一致性**：篡改资产字节、patch、截图工件分别导致 `assertCandidateIntegrity` / 回执校验失败。
-5. **覆盖维护幂等**：同一覆盖连续执行两次、全部规则移除后源码与 registry 与基线完全一致。
+以下范围对应 PR #2 `f2aeadf` 已实现且通过完整 CI #161 的代码；五项设计决策与该最小测试边界由 A/B 对齐，负责人已批准冻结。实现位于 `src/core/model.ts`、`session.ts` 及现有 Scope、candidate、verification 测试，不要求新增平行测试框架。
 
-### 4.6 A/B 决策表（2026-10-19 修订：收敛交付）
+1. **简单操作兼容与类型边界**：TEXT/MEDIA/TOKEN/CODE 的 payloadless 操作继续可用；所有 payloadless 变体均禁止意外 `action` 与 `payload`，TypeScript 与运行时 JSON 输入都覆盖。
+2. **结构化操作判别与 Session 错误**：MEDIA `asset-swap` 与 TOKEN `local-projection` 的 action/payload 必须匹配；缺失、畸形、未知 action 或不匹配 kind 按结构化错误拒绝，并包含稳定的 `code` 与字段 `path`。JSON 往返后仍按同一 schema 校验。合法但未实现的结构化执行器返回 `unsupported-operation`，不得降级到字符串替换。
+3. **Scope 与候选边界**：excluded/protected、未知/非 source-proven 来源 fail-closed；拒绝发生在候选副作用之前。候选操作必须与当前 Session 完全一致，并绑定 Scope 决策 ID/版本、源版本及补丁哈希。
+4. **验证状态边界（仅现有执行器能力）**：运行记录中的四视口计划、实际检查与截图必须一致；未运行/缺证据不能成为 PASS。现有文本流程的证据还须绑定实际 CandidatePatch、Scope、源码和 runtime fingerprint。该测试不代表 MEDIA 资产字节或裁切 Evidence 已验收。
+5. **现有 TEXT 覆盖回归**：页面覆盖连续新增、更新、复用和移除保持既有幂等性；它是独立的 TEXT 维护回归，不扩展为本次新增 MEDIA/TOKEN registry v3 契约。
 
-| 状态 | 事项 |
+以上共享回归已在 PR #2 `f2aeadf` 的 Actions #161 通过：27/27 测试文件、130/130 单测、类型检查、构建通过；Playwright 9 passed / 1 skipped / 0 failed（唯一跳过为私有真实 Bolt 专项）。该结果是冻结基线，不替代 B 后续 MEDIA 执行器的纵向验收。
+
+**明确不纳入当前冻结/验收**：新资产字节进入候选 worktree、资产字节 SHA-256 被复算并纳入 CandidatePatch、篡改字节后拒绝、focal point 实际裁切、variants 按 `srcset`/`picture`/`css`/`container-rule` 运行、MEDIA 专属视觉/几何 Evidence。payload schema 接受某个字段，不等于其执行、字节真实性或浏览器效果已验收；这些由 B 在 asset-swap 实现中补充真实资产、候选、四视口和可信 Evidence 回归。
+
+### 4.6 A/B 决策及实施边界（2026-10-19 冻结）
+
+| 项目 | 决定 / 状态 |
 |---|---|
-| **已确认语义**（可直接写入契约） | ① payloadless 字面量操作兼容，TEXT/CODE/MEDIA/TOKEN 现状路径不动；② TEXT/CODE 禁止 payload；③ 结构化操作（显式 action 判别子 + 必需 payload）缺失/畸形/未知 subtype 一律 fail-closed 拒绝，不退回字符串替换；④ 无平行生命周期——结构化操作仍进同一 EditSession / Scope / CandidatePatch / VerificationRun / 审批 / 应用 / 回滚；⑤ 暂不迁移 TEXT 已稳定的 registry v2，先以 MEDIA/TOKEN 真实任务验证结构；⑥ 资产字节必须 staged 进候选 worktree，`assetRef + assetHash` 纳入既有 `patchHash`/`candidateTreeDigest` 哈希纪律；⑦ variants 每项必须声明真实消费机制（`srcset`/`picture`/`css`/`container-rule` + condition），验证按声明机制逐条断言；⑧ 四视口验收方案（见 §9） |
-| **尚待 A 决定** | ① 结构化 subtype 命名：`asset-swap` / `local-projection` 是否沿用，或改为 A 习惯的命名；② `session.ts` 校验失败的错误格式（结构化错误对象 vs 字符串，含字段路径）；③ `variants[].mechanism` 枚举值集合；④ scope.ts 入边过滤修复方案的选择（A 主责；根因诊断与两个修法 + 最小复现已发于 PR #4 评论）；⑤ `runtimeFingerprint` 与 `RuntimeEnvironment` 的记录位置（B 建议见 §4.4-2，待 A 确认） |
-| **实测待验**（开发中验证，不阻塞契约冻结） | ① 目标 ID 跨源码修改的稳定性（registry v2 的 fallback 关联机制对 MEDIA/TOKEN 目标能否原样复用）；② asset-swap 执行器 + 资产加载断言的端到端落地；③ TOKEN 局部投影（`css-override`）在青野/栖光真实项目的自然机制核实；④ 候选 worktree 资产暂存流程与 `assertCandidateIntegrity` 的实际集成 |
+| subtype 名称 | 冻结为 MEDIA `asset-swap`、TOKEN `local-projection`。 |
+| Session 校验错误 | 冻结为 `{ error, code, path? }`；code 为 `invariant-violation` / `invalid-operation` / `unsupported-operation`，path 使用如 `operations[0].payload.assetHash` 的字段路径。 |
+| variants mechanism | 最小枚举冻结为 `srcset`、`picture`、`css`、`container-rule`；`condition` 必填。机制/条件与真实消费者无法证明匹配时保持 UNKNOWN。 |
+| CSS Token Scope 证据 | 文件级 imports/uses-token 只表达模块依赖，不证明某页面消费具体 token；只有组件/路由级 cascade 消费边可证明具体影响，其他来源保持 unknown/semantic-candidate。沿用 PR #2 对应负例，不由此冻结 B 后续分析实现。 |
+| runtimeFingerprint / RuntimeEnvironment | `runtimeFingerprint` 保留在 ProjectRevision 并复制至 VerificationRun 做匹配；详细 `RuntimeEnvironment` 由受信执行器记录在 `VerificationRun.execution`，不伪造未采集字段。 |
+| 操作生命周期 | 结构化操作仍属于同一 EditSession / Scope / CandidatePatch / VerificationRun / Approval / Apply / Rollback；不新建第二套生命周期。 |
+| 简单路径 | 现有 payloadless TEXT/MEDIA/TOKEN/CODE 字面量操作保持兼容；任何 payloadless 操作带上 `action` 或 `payload` 都拒绝。 |
+| 结构化执行状态 | Session 能校验 schema；结构化 MEDIA/TOKEN 执行器尚未实现时明确返回 unsupported，不回退到字符串路径。 |
+| TEXT OverrideRegistry | 保留现有 v2；本次不迁移 registry v3。 |
 
-B 对 A 兼容边界提案的正式回复：**接受（Accept）**，§4.1 已按该边界重写。上述"尚待 A 决定"五项请 A 裁定后即可进入契约冻结 PR。
+**版本边界**：`ripple-edit-operation-session/v1` 冻结在 PR #2 `f2aeadf4b21d8936df593f14261728a8a05e65d8`。扩展该判别联合、错误模型或现有简单操作语义需提出兼容性变更；MEDIA 执行器可在不改变该最小 Session 生命周期的前提下实现已声明的 `asset-swap` payload。
 
+**尚未验收的实现**：MEDIA 资产暂存/实际字节完整性/应用回滚资产语义、焦点和响应式裁切、媒体加载与几何 Evidence；TOKEN `local-projection` 执行器及 computed-style 证据；MEDIA/TOKEN 的跨资源 OverrideRegistry v3。它们不在 v1 当前实现验收范围内，应由相应执行器提交后另行验收。
 ---
 
 ## 5. 与 A 的职责边界
@@ -267,7 +287,7 @@ B 对 A 兼容边界提案的正式回复：**接受（Accept）**，§4.1 已�
 |---|---|
 | A（不动） | `src/core/model.ts`、`session.ts` 的状态机与不变量；`page-overrides.ts` 的 TEXT 路径与注册表底座；工作台 UI；验证契约编辑器 |
 | B（主责） | 分析器 MEDIA/TOKEN 节点与边补强（`project.ts` 及新增模块）；MEDIA/TOKEN 候选执行路径（`candidate.ts` 扩展，**先向 A 说明再动**）；验证执行器几何/颜色观测与断言（`verification-runner.ts` 及 B 迁移模块）；青野/栖光/第三方工程适配；验收 CLI |
-| 共享接口（需双方确认后冻结） | `EditOperation`（+payload）、`OverrideRule`/registry v3、`VerificationEvidence` 几何扩展、`AdapterCapabilities`、期望值纯计算入口 |
+| 共享接口（当前边界） | `EditOperation`/Session 最小接口已按 `ripple-edit-operation-session/v1` 冻结；`OverrideRule`/registry v3、`VerificationEvidence` 几何扩展、`AdapterCapabilities` 与期望值扩展仍需真实执行场景验证，不属于本次冻结 |
 | 易冲突文件 | `src/core/model.ts`、`candidate.ts`、`page-overrides.ts`、`scope.ts`、`verification-runner.ts`——**B 在契约 PR 合并前不修改这些文件**，实验代码放 B 分支独立目录验证 |
 
 ---
@@ -320,7 +340,7 @@ B 对 A 兼容边界提案的正式回复：**接受（Accept）**，§4.1 已�
 
 **输入**
 - SourceGraph 片段（真实节点）：`media:src/assets/festival.shared.poster.jpg`，3 个消费点（首页/节目页/购票卡，均 source-proven）；归档页消费的是另一独立媒体节点，不在本操作影响闭包。
-- 操作（payloadless 简单路径，当前即可执行）：`{ kind: 'MEDIA', targetRef: <媒体节点>, before: './assets/festival.shared.poster.jpg', after: './assets/festival.poster.autumn.jpg' }`；新资产字节随 CandidatePatch 暂存进候选 worktree。结构化 `asset-swap` 形式（含 focalPoint/variants）在 §4.1 冻结后替换本操作，链路不变。
+- 冻结接口上的结构化操作：`{ kind: 'MEDIA', action: 'asset-swap', targetRef: <媒体节点>, before: './assets/festival.shared.poster.jpg', after: './assets/festival.poster.autumn.jpg', payload: { assetRef, assetHash, focalPoint, variants } }`。当前 Session 校验 payload，但 candidate executor 对未实现 action fail-closed；资产字节暂存和焦点/variants 执行尚未验收。
 - Scope 声明：受保护页列表（如归档页）+ excluded 规则。
 
 **执行链**：`session.addOperation`（fail-closed 校验）→ Scope 校验（影响闭包 = 3 页，归档页不在闭包）→ `createCandidate`（字面量替换 + 资产 staged，`patchHash`/`candidateTreeDigest` 可复算）→ `verification-runner` 四视口执行 → Evidence 落盘。
