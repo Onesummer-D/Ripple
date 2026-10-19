@@ -41,7 +41,7 @@ function selectionBridge() {
 (() => {
   let active = false;
   let token = '';
-  let candidateId = '';
+  let previewId = '';
   let hovered = null;
   const style = document.createElement('style');
   style.textContent = '[data-ripple-select-hover="true"]{outline:2px solid #a8c477!important;outline-offset:2px!important;cursor:crosshair!important}';
@@ -65,8 +65,8 @@ function selectionBridge() {
     const data = event.data;
     if (event.source !== window.parent || !data || data.type !== 'ripple:selection-mode') return;
     token = typeof data.token === 'string' ? data.token : '';
-    candidateId = typeof data.candidateId === 'string' ? data.candidateId : '';
-    active = data.enabled === true && !!token && !!candidateId;
+    previewId = typeof data.previewId === 'string' ? data.previewId : '';
+    active = data.enabled === true && !!token && !!previewId;
     if (!active) clearHover();
     document.documentElement.style.cursor = active ? 'crosshair' : '';
   });
@@ -85,7 +85,7 @@ function selectionBridge() {
     event.preventDefault();
     event.stopImmediatePropagation();
     window.parent.postMessage({
-      type: 'ripple:element-selected', token, candidateId,
+      type: 'ripple:element-selected', token, previewId,
       sourceRef: target.getAttribute('data-ripple-source'),
       runtimeInstanceId: target.getAttribute('data-ripple-instance'),
       identityCertainty: target.getAttribute('data-ripple-identity-certainty') || 'unknown',

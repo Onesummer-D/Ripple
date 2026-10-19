@@ -48,6 +48,22 @@ afterEach(async () => {
 })
 
 describe('loopback Project API', () => {
+  it('rejects project element selections without a current preview and refuses stale source preview baselines', async () => {
+    const projectRoot = makeGitProject()
+    await startApi()
+    const request = (route: string, body: unknown) => fetch(`${baseUrl}/__ripple/api/${route}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify(body) })
+    const analysis = await (await request('analyze', { projectRoot })).json() as { revision: { projectId: string; sourceDigest: string } }
+    const unissuedSelection = await request('project/source-selection', {
+      projectId: analysis.revision.projectId, previewId: 'project-preview-unissued', sourceDigest: analysis.revision.sourceDigest, sourceRef: 'jsx:src/pages/HomePage.tsx#0',
+    })
+    expect(unissuedSelection.status).toBe(409)
+
+    fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), 'export function HomePage(){return <main><h1>Changed after analyze</h1></main>}')
+    const stalePreview = await request('project/preview', { projectId: analysis.revision.projectId })
+    expect(stalePreview.status).toBe(409)
+    expect((await stalePreview.json()).error).toMatch(/工作树已发生修改/)
+  })
+
   it('analyzes a real Git project, forwards explicit local Scope to a multi-op worktree candidate and discards it', async () => {
     const projectRoot = makeGitProject()
     await startApi()
@@ -94,6 +110,10 @@ describe('loopback Project API', () => {
     const mapped = await mappedResponse.json() as { candidateId: string; patchHash: string; sourceDigest: string; element: { id: string; location: { path: string } }; editableText: Array<{ value: string }> }
     expect(mapped).toMatchObject({ candidateId: candidate.candidate.id, patchHash: candidate.candidate.patchHash, sourceDigest: candidate.candidate.candidateTreeDigest, element: { id: candidateHeading.id, location: { path: 'src/pages/HomePage.tsx' } } })
     expect(mapped.editableText.map(item => item.value)).toContain('Candidate title')
+    const forgedProjectSelection = await fetch(`${baseUrl}/__ripple/api/project/source-selection`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({
+      projectId: analysis.revision.projectId, previewId: 'project-preview-forged', sourceDigest: analysis.revision.sourceDigest, sourceRef: candidateHeading.id,
+    }) })
+    expect(forgedProjectSelection.status).toBe(409)
     const previewWithoutProjectDependencies = await fetch(`${baseUrl}/__ripple/api/candidate/preview`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({ candidateId: candidate.candidate.id, dependencyRoot: process.cwd() }) })
     expect(previewWithoutProjectDependencies.status).toBe(503)
     expect((await previewWithoutProjectDependencies.json()).error).toMatch(/项目 node_modules/)

@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { assertCandidateCurrent, assertCandidateIntegrity, CandidateError, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
 import { applyApprovedCandidate, isAppliedCandidateRollbackable, PatchApplyError, rollbackAppliedCandidate } from './apply'
-import { startCandidatePreview, stopCandidatePreview } from './candidate-preview'
+import { isCurrentProjectSourcePreview, startCandidatePreview, startProjectSourcePreview, stopCandidatePreview, stopProjectSourcePreview } from './candidate-preview'
 import { referencedPreviewResourceUrls, saveTrustedPreviewResourceUrls, trustedPreviewResourceUrls } from './preview-resource-policy'
 import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
 import { sourceProvenPageImpact } from './scope'
@@ -22,6 +22,7 @@ interface LiveCandidate { record: CandidateRecord; session: EditSession; lifecyc
 const projects = new Map<string, OpenProject>()
 const candidates = new Map<string, LiveCandidate>()
 const candidateLocks = new Set<string>()
+const projectPreviewLocks = new Set<string>()
 const bodyLimit = 256 * 1024
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -121,6 +122,14 @@ async function retireProjectCandidates(projectId: string): Promise<void> {
   }
 }
 
+function assertProjectAnalysisCurrent(project: OpenProject): void {
+  if (!isProjectWorkingTreeClean(project.root)) throw new CandidateError('项目工作树已发生修改，请重新分析后再预演或定位源码')
+  const revision = readProjectSnapshot(project.root, false).revision
+  if (revision.projectId !== project.graph.revision.projectId || revision.sourceDigest !== project.graph.revision.sourceDigest) {
+    throw new CandidateError('预览对应的项目源码已过期，请重新分析工程')
+  }
+}
+
 async function retireCandidate(candidateId: string, lifecycle: CandidateLifecycle = 'discarded', alreadyLocked = false): Promise<void> {
   const live = candidates.get(candidateId)
   if (!live) return
@@ -138,6 +147,19 @@ export async function withCandidateLock<T>(candidateId: string, action: () => Pr
   candidateLocks.add(candidateId)
   try { return await action() }
   finally { candidateLocks.delete(candidateId) }
+}
+
+async function withProjectPreviewLock<T>(projectId: string, action: () => Promise<T>): Promise<T> {
+  if (projectPreviewLocks.has(projectId)) throw new CandidateError('项目预览已有启动、停止或源码定位操作正在执行')
+  projectPreviewLocks.add(projectId)
+  try { return await action() }
+  finally { projectPreviewLocks.delete(projectId) }
+}
+
+function assertNoActiveProjectCandidate(projectId: string): void {
+  if ([...candidates.values()].some(live => live.lifecycle === 'active' && live.session.projectRevision.projectId === projectId)) {
+    throw new CandidateError('当前项目存在活动候选；请先完成或清理候选，再启动只读项目预览')
+  }
 }
 
 async function assertCurrentOrRetire(candidateId: string, live: LiveCandidate, alreadyLocked: boolean): Promise<void> {
@@ -248,12 +270,62 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   }
   if (request.method !== 'POST') return reject(response, 405, '仅支持 POST')
 
+  if (url.pathname === '/__ripple/api/project/preview' || url.pathname === '/__ripple/api/project/preview/stop') {
+    const body = await readJson(request)
+    if (typeof body.projectId !== 'string') return reject(response, 400, '项目预演需要 projectId')
+    const project = projects.get(body.projectId)
+    if (!project) return reject(response, 404, '项目分析已过期，请重新读取')
+    const result = await withProjectPreviewLock(body.projectId, async () => {
+      if (url.pathname.endsWith('/stop')) {
+        if (typeof body.previewId !== 'string') throw new CandidateError('停止项目预演需要 previewId')
+        await stopProjectSourcePreview(body.projectId as string, body.previewId as string)
+        return { projectId: body.projectId, previewId: body.previewId, stopped: true }
+      }
+      assertNoActiveProjectCandidate(body.projectId as string)
+      assertProjectAnalysisCurrent(project)
+      const preview = await startProjectSourcePreview(body.projectId as string, project.root, project.graph.revision.sourceDigest, trustedPreviewResourceUrls(body.projectId as string))
+      try { assertProjectAnalysisCurrent(project) }
+      catch (error) {
+        await stopProjectSourcePreview(body.projectId as string, preview.previewId)
+        throw error
+      }
+      return preview
+    })
+    return json(response, 200, result)
+  }
+
+  if (url.pathname === '/__ripple/api/project/source-selection') {
+    const body = await readJson(request)
+    if (typeof body.projectId !== 'string' || typeof body.previewId !== 'string' || typeof body.sourceDigest !== 'string' || typeof body.sourceRef !== 'string') {
+      return reject(response, 400, '项目源码定位需要 projectId、previewId、sourceDigest 和 sourceRef')
+    }
+    const project = projects.get(body.projectId)
+    if (!project) return reject(response, 404, '项目分析已过期，请重新读取')
+    const result = await withProjectPreviewLock(body.projectId, async () => {
+      if (!isCurrentProjectSourcePreview(body.projectId as string, body.previewId as string, body.sourceDigest as string)) throw new CandidateError('页面点选来自已关闭或已替换的项目预览')
+      assertProjectAnalysisCurrent(project)
+      const { element, editableText } = resolveJsxSourceElement(project.graph, body.sourceRef as string)
+      return {
+        projectId: body.projectId,
+        previewId: body.previewId,
+        sourceDigest: project.graph.revision.sourceDigest,
+        element,
+        editableText: editableText.map(node => ({ ...node, impact: sourceProvenPageImpact(project.graph, node.id) })),
+      }
+    })
+    return json(response, 200, result)
+  }
+
   if (url.pathname === '/__ripple/api/preview/resources') {
     const body = await readJson(request)
     if (typeof body.projectId !== 'string' || !Array.isArray(body.urls)) return reject(response, 400, '资源授权需要 projectId 和 URL 列表')
     const project = projects.get(body.projectId)
     if (!project) return reject(response, 409, '请先分析项目，再修改其预演资源授权')
-    const authorizedUrls = saveTrustedPreviewResourceUrls(body.projectId, body.urls)
+    const authorizedUrls = await withProjectPreviewLock(body.projectId, async () => {
+      assertNoActiveProjectCandidate(body.projectId as string)
+      await stopProjectSourcePreview(body.projectId as string)
+      return saveTrustedPreviewResourceUrls(body.projectId as string, body.urls as unknown[])
+    })
     return json(response, 200, { previewResources: { referencedUrls: referencedPreviewResourceUrls(project.root), authorizedUrls } })
   }
 
@@ -265,6 +337,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     const snapshot = readProjectSnapshot(root)
     const graph = analyzeProject(root)
     if (snapshot.revision.sourceDigest !== graph.revision.sourceDigest) return reject(response, 409, '分析期间项目源码发生变化，请重新读取')
+    for (const projectId of projects.keys()) await withProjectPreviewLock(projectId, async () => stopProjectSourcePreview(projectId))
     if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== snapshot.revision.projectId) await retireCandidate(body.previousCandidateId)
     await retireProjectCandidates(snapshot.revision.projectId)
     projects.set(snapshot.revision.projectId, { root, graph })
@@ -274,40 +347,44 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   if (url.pathname === '/__ripple/api/candidate') {
     const body = await readJson(request)
     if (typeof body.projectId !== 'string' || typeof body.rawIntent !== 'string' || !Array.isArray(body.operations) || !body.scope || typeof body.scope !== 'object') return reject(response, 400, '候选需要 projectId、原始意图、操作列表和 Scope 决策')
+    const rawIntent = body.rawIntent
     const project = projects.get(body.projectId)
     if (!project) return reject(response, 404, '项目分析已过期，请重新读取')
-    const routeRefs = project.graph.nodes.filter(node => node.kind === 'route').map(node => node.id)
-    const verificationContract = normalizeVerificationContract(body.verificationContract, routeRefs)
-    const operations = body.operations as EditOperation[]
-    const scope = body.scope as ScopeDecision
-    const candidateId = `candidate-${randomUUID()}`
-    const sessionId = `session-${candidateId.slice('candidate-'.length)}`
-    const stateRoot = workbenchStateRoot()
-    const artifactRoot = path.join(stateRoot, sessionId, 'artifacts')
-    const candidateRoot = path.join(stateRoot, sessionId, 'candidate')
-    const session = recordSourceGraph(openSession(sessionId, project.graph.revision, body.rawIntent, [], verificationContract), project.graph.id, project.graph.revision.sourceDigest)
-    const scoped = chooseScope(session, scope)
-    const staged = stageOperations(scoped, operations)
-    const record = createCandidate({ projectRoot: project.root, candidateRoot, artifactRoot, graph: project.graph, scope, operations, candidateId })
-    try {
-      const candidateSession = stageCandidate(staged, record)
-      assertCandidateCurrent(record)
-      if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== project.graph.revision.projectId) await retireCandidate(body.previousCandidateId)
-      await retireProjectCandidates(project.graph.revision.projectId)
-      const live: LiveCandidate = { record, session: candidateSession, lifecycle: 'active' }
-      persistCandidate(live)
-      candidates.set(record.id, live)
-      return json(response, 200, {
-        sessionId,
-        status: candidateSession.status,
-        candidate: candidateView(record),
-        verification: verificationView(undefined, record.id, candidateSession.verificationFailure),
-        workflow: workflowView(live),
-      })
-    } catch (error) {
-      if (fs.existsSync(record.markerPath)) removeCandidate(record)
-      throw error
-    }
+    return withProjectPreviewLock(project.graph.revision.projectId, async () => {
+      const routeRefs = project.graph.nodes.filter(node => node.kind === 'route').map(node => node.id)
+      const verificationContract = normalizeVerificationContract(body.verificationContract, routeRefs)
+      const operations = body.operations as EditOperation[]
+      const scope = body.scope as ScopeDecision
+      const candidateId = `candidate-${randomUUID()}`
+      const sessionId = `session-${candidateId.slice('candidate-'.length)}`
+      const stateRoot = workbenchStateRoot()
+      const artifactRoot = path.join(stateRoot, sessionId, 'artifacts')
+      const candidateRoot = path.join(stateRoot, sessionId, 'candidate')
+      const session = recordSourceGraph(openSession(sessionId, project.graph.revision, rawIntent, [], verificationContract), project.graph.id, project.graph.revision.sourceDigest)
+      const scoped = chooseScope(session, scope)
+      const staged = stageOperations(scoped, operations)
+      await stopProjectSourcePreview(project.graph.revision.projectId)
+      const record = createCandidate({ projectRoot: project.root, candidateRoot, artifactRoot, graph: project.graph, scope, operations, candidateId })
+      try {
+        const candidateSession = stageCandidate(staged, record)
+        assertCandidateCurrent(record)
+        if (typeof body.previousCandidateId === 'string' && candidates.get(body.previousCandidateId)?.session.projectRevision.projectId !== project.graph.revision.projectId) await retireCandidate(body.previousCandidateId)
+        await retireProjectCandidates(project.graph.revision.projectId)
+        const live: LiveCandidate = { record, session: candidateSession, lifecycle: 'active' }
+        persistCandidate(live)
+        candidates.set(record.id, live)
+        return json(response, 200, {
+          sessionId,
+          status: candidateSession.status,
+          candidate: candidateView(record),
+          verification: verificationView(undefined, record.id, candidateSession.verificationFailure),
+          workflow: workflowView(live),
+        })
+      } catch (error) {
+        if (fs.existsSync(record.markerPath)) removeCandidate(record)
+        throw error
+      }
+    })
   }
 
   if (url.pathname === '/__ripple/api/candidate/preview' || url.pathname === '/__ripple/api/candidate/preview/stop') {
@@ -482,9 +559,14 @@ async function cleanupCandidates(): Promise<void> {
     try { await stopCandidatePreview(id) }
     catch (error) { failures.push(error) }
   }
+  for (const projectId of projects.keys()) {
+    try { await stopProjectSourcePreview(projectId) }
+    catch (error) { failures.push(error) }
+  }
   candidates.clear()
   projects.clear()
   candidateLocks.clear()
+  projectPreviewLocks.clear()
   if (failures.length) throw new AggregateError(failures, 'Some candidate worktrees were preserved because safe cleanup failed')
 }
 

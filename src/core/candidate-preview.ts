@@ -27,6 +27,13 @@ export interface CandidateBaselinePreview {
   address: string
 }
 
+export interface ProjectSourcePreview {
+  projectId: string
+  previewId: string
+  sourceDigest: string
+  url: string
+}
+
 export function addressOnPreviewNetwork(networksJson: string, networkName: string): string {
   const networks = JSON.parse(networksJson) as Record<string, { IPAddress?: string }>
   const address = networks[networkName]?.IPAddress
@@ -108,6 +115,8 @@ export function previewRelayRejection(request: { method?: string; url?: string; 
 const previews = new Map<string, CandidatePreview>()
 const relays = new Map<string, Server>()
 const starting = new Map<string, Promise<CandidatePreview>>()
+const projectSourcePreviews = new Map<string, { previewId: string; sourceDigest: string; preview: CandidatePreview; ready: boolean }>()
+const projectSourceStarting = new Map<string, Promise<ProjectSourcePreview>>()
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const image = 'node:22-bookworm-slim'
 
@@ -268,7 +277,7 @@ async function closePreviewResources(candidateId: string, preview: CandidatePrev
   previews.delete(candidateId)
 }
 
-async function launchProjectContainer(candidateId: string, projectRoot: string, sourceRoot: string, networkName: string, containerName: string, authorizedResourceUrls: string[], role: 'candidate' | 'baseline'): Promise<string> {
+async function launchProjectContainer(candidateId: string, projectRoot: string, sourceRoot: string, networkName: string, containerName: string, authorizedResourceUrls: string[], role: 'candidate' | 'baseline' | 'source'): Promise<string> {
   if (process.platform !== 'linux') throw new CandidatePreviewError('隔离预演使用 Linux 容器并挂载原生依赖；请在 Linux 或 WSL2 中运行 Ripple 与目标项目，并将两者放在 Linux 文件系统中')
   const dependencyPath = path.join(projectRoot, 'node_modules')
   if (!fs.existsSync(dependencyPath)) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
@@ -297,6 +306,93 @@ async function launchProjectContainer(candidateId: string, projectRoot: string, 
   const address = await resolveCandidatePreviewAddress(probe)
   await waitForEndpoint(`http://${address}:5173/`, probe, address)
   return address
+}
+
+export function isCurrentProjectSourcePreview(projectId: string, previewId: string, sourceDigest: string): boolean {
+  const current = projectSourcePreviews.get(projectId)
+  return current?.ready === true && current.previewId === previewId && current.sourceDigest === sourceDigest && previews.get(previewId) === current.preview
+}
+
+export async function startProjectSourcePreview(projectId: string, projectRoot: string, sourceDigest: string, authorizedResourceUrls: string[] = []): Promise<ProjectSourcePreview> {
+  const pending = projectSourceStarting.get(projectId)
+  if (pending) {
+    const active = await pending
+    const current = projectSourcePreviews.get(projectId)
+    if (active.sourceDigest !== sourceDigest || JSON.stringify(current?.preview.authorizedResourceUrls) !== JSON.stringify(authorizedResourceUrls)) {
+      throw new CandidatePreviewError('当前项目已有不同源码版本或资源授权的预览正在启动')
+    }
+    return active
+  }
+  const operation = launchProjectSourcePreview(projectId, projectRoot, sourceDigest, authorizedResourceUrls)
+  projectSourceStarting.set(projectId, operation)
+  try { return await operation }
+  finally { if (projectSourceStarting.get(projectId) === operation) projectSourceStarting.delete(projectId) }
+}
+
+async function launchProjectSourcePreview(projectId: string, projectRoot: string, sourceDigest: string, authorizedResourceUrls: string[]): Promise<ProjectSourcePreview> {
+  const current = projectSourcePreviews.get(projectId)
+  if (current?.ready && current.sourceDigest === sourceDigest && JSON.stringify(current.preview.authorizedResourceUrls) === JSON.stringify(authorizedResourceUrls)) {
+    const running = await docker(['inspect', '--format', '{{.State.Running}}', current.preview.containerName]).catch(error => {
+      if (error instanceof CandidatePreviewError && /No such container|No such object|not found/i.test(error.message)) return 'false'
+      throw error
+    })
+    if (running === 'true' && relays.get(current.previewId)?.listening) {
+      const containerIp = await resolveCandidatePreviewAddress(current.preview)
+      await waitForEndpoint(current.preview.url, current.preview, containerIp)
+      return { projectId, previewId: current.previewId, sourceDigest, url: current.preview.url }
+    }
+  }
+  if (current) {
+    await closePreviewResources(current.previewId, current.preview)
+    projectSourcePreviews.delete(projectId)
+  }
+
+  const projectRootReal = fs.realpathSync(projectRoot)
+  const previewId = `project-preview-${randomUUID()}`
+  const networkName = `ripple-preview-net-${randomUUID()}`
+  const containerName = `ripple-source-preview-${randomUUID().slice(0, 12)}`
+  const preview: CandidatePreview = { candidateId: previewId, url: '', containerName, networkName, authorizedResourceUrls: [...authorizedResourceUrls] }
+  let networkCreated = false
+  try {
+    await docker(['version', '--format', '{{.Server.Version}}'])
+    await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', `com.ripple.project=${projectId}`, networkName])
+    networkCreated = true
+    previews.set(previewId, preview)
+    const containerIp = await launchProjectContainer(previewId, projectRootReal, projectRootReal, networkName, containerName, authorizedResourceUrls, 'source')
+    const relay = await startHostRelay(containerIp)
+    preview.url = relay.url
+    relays.set(previewId, relay.server)
+    await waitForEndpoint(preview.url, preview, containerIp)
+    const result = { projectId, previewId, sourceDigest, url: preview.url }
+    projectSourcePreviews.set(projectId, { previewId, sourceDigest, preview, ready: true })
+    return result
+  } catch (error) {
+    const cleanupFailures: string[] = []
+    try { await closeHostRelay(relays.get(previewId)); relays.delete(previewId) }
+    catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
+    try { await removeContainer(containerName) }
+    catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
+    if (networkCreated) {
+      try { await docker(['network', 'rm', networkName]) }
+      catch (cleanupError) {
+        if (!(cleanupError instanceof CandidatePreviewError) || !/not found|No such network/i.test(cleanupError.message)) cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError))
+      }
+    }
+    if (!cleanupFailures.length) previews.delete(previewId)
+    else if (networkCreated) projectSourcePreviews.set(projectId, { previewId, sourceDigest, preview, ready: false })
+    const message = error instanceof Error ? error.message : '项目预览启动失败'
+    throw new CandidatePreviewError(cleanupFailures.length ? `${message}；清理仍需重试：${cleanupFailures.join('；')}` : message)
+  }
+}
+
+export async function stopProjectSourcePreview(projectId: string, previewId?: string): Promise<void> {
+  const pending = projectSourceStarting.get(projectId)
+  if (pending) await pending.catch(() => undefined)
+  const current = projectSourcePreviews.get(projectId)
+  if (!current) return
+  if (previewId && current.previewId !== previewId) throw new CandidatePreviewError('项目预览已被替换，拒绝停止新的预览实例')
+  await closePreviewResources(current.previewId, current.preview)
+  projectSourcePreviews.delete(projectId)
 }
 
 export async function startCandidateBaseline(candidate: CandidateRecord, preview: CandidatePreview): Promise<CandidateBaselinePreview> {

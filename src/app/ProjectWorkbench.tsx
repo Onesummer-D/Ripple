@@ -73,8 +73,10 @@ interface VerificationView {
   recordHash?: string
 }
 interface SourceSelection {
-  candidateId: string
-  patchHash: string
+  candidateId?: string
+  projectId?: string
+  previewId?: string
+  patchHash?: string
   sourceDigest: string
   element: { id: string; label: string; location?: { path: string; start?: number; end?: number } }
   editableText: Array<{ id: string; label: string; value?: string; location?: { path: string; start?: number; end?: number }; impact: { pageRefs: string[]; unresolved: string[]; certainty: 'source-proven' | 'partial' | 'unknown' } }>
@@ -83,6 +85,7 @@ interface SourceSelection {
   tagName: string
   text: string
 }
+interface ProjectSourcePreview { projectId: string; previewId: string; sourceDigest: string; url: string }
 type PageScope = PageScopeChoice
 const operationKind = (kind: TargetSummary['kind']): EditKind => kind === 'data' ? 'TEXT' : kind === 'media' ? 'MEDIA' : 'TOKEN'
 const candidateStorageKey = 'ripple.workbench.activeCandidate'
@@ -105,13 +108,17 @@ async function loadHistory(): Promise<HistoryItem[]> {
 
 interface CandidatePreviewPaneProps {
   url: string
+  previewTestId: 'project-preview' | 'candidate-preview'
+  viewportTestIdPrefix: 'project-preview' | 'preview'
+  selectionTestId: string
+  previewTitle: string
   selectionNonce: string
   frameRef: { current: HTMLIFrameElement | null }
   onFrameLoad: (event: { currentTarget: HTMLIFrameElement }) => void
   onToggleSelection: () => void
 }
 
-function CandidatePreviewPane({ url, selectionNonce, frameRef, onFrameLoad, onToggleSelection }: CandidatePreviewPaneProps) {
+function CandidatePreviewPane({ url, previewTestId, viewportTestIdPrefix, selectionTestId, previewTitle, selectionNonce, frameRef, onFrameLoad, onToggleSelection }: CandidatePreviewPaneProps) {
   const host = useRef<HTMLDivElement>(null)
   const [hostWidth, setHostWidth] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(1440)
@@ -127,13 +134,23 @@ function CandidatePreviewPane({ url, selectionNonce, frameRef, onFrameLoad, onTo
   }, [])
 
   return <>
-    <div className="preview-toolbar"><div><strong>隔离浏览器预演</strong><small>候选运行于 Docker internal network；iframe 的外部资源默认受限，外链与表单导航会拦截。它不是用于对抗刻意恶意脚本的浏览器沙箱，请只预演可信项目。</small></div><div className="preview-actions"><div className="preview-size-controls" role="group" aria-label="候选页面视口">{previewSizes.map(size => <button type="button" key={size.width} data-testid={`preview-viewport-${size.width}`} aria-pressed={viewportWidth === size.width} onClick={() => setViewportWidth(size.width)}>{size.label}</button>)}</div><button type="button" data-testid="toggle-element-selection" className="quiet-button" aria-pressed={!!selectionNonce} onClick={onToggleSelection}>{selectionNonce ? '取消点选' : '点选页面元素'}</button></div></div>
+    <div className="preview-toolbar"><div><strong>{previewTitle}</strong><small>Linux 容器只读挂载源码与依赖，再复制到临时文件系统运行固定 Ripple Vite 配置；不会执行目标工程的 npm 脚本。浏览器外链与表单导航受限。它不是 VM 级沙箱，请只预演可信项目。</small></div><div className="preview-actions"><div className="preview-size-controls" role="group" aria-label="页面预演视口">{previewSizes.map(size => <button type="button" key={size.width} data-testid={`${viewportTestIdPrefix}-viewport-${size.width}`} aria-pressed={viewportWidth === size.width} onClick={() => setViewportWidth(size.width)}>{size.label}</button>)}</div><button type="button" data-testid={selectionTestId} className="quiet-button" aria-pressed={!!selectionNonce} onClick={onToggleSelection}>{selectionNonce ? '取消点选' : '点选页面元素'}</button></div></div>
     <div className="preview-viewport-shell" ref={host} data-testid="preview-viewport-shell" style={{ height: `${Math.ceil(viewport.height * scale)}px` }}>
       <div className="preview-viewport-surface" style={{ width: `${viewport.width}px`, height: `${viewport.height}px`, left: `${Math.max(0, (hostWidth - viewport.width * scale) / 2)}px`, transform: `scale(${scale})` }}>
-        <iframe ref={frameRef} onLoad={onFrameLoad} data-testid="candidate-preview" title={`隔离候选浏览器预演 · ${viewport.label}`} src={url} width={viewport.width} height={viewport.height} sandbox="allow-scripts" referrerPolicy="no-referrer" loading="eager" />
+        <iframe ref={frameRef} onLoad={onFrameLoad} data-testid={previewTestId} title={`${previewTitle} · ${viewport.label}`} src={url} width={viewport.width} height={viewport.height} sandbox="allow-scripts" referrerPolicy="no-referrer" loading="eager" />
       </div>
     </div>
   </>
+}
+
+function SourceSelectionDetails({ selection, kind, onUseText }: { selection: SourceSelection; kind: 'project' | 'candidate'; onUseText?: (targetId: string) => void }) {
+  return <div className="source-selection" data-testid="selected-source">
+    <div><span className="eyebrow">{kind === 'project' ? 'PROJECT SOURCE MAPPING' : 'CANDIDATE SOURCE MAPPING'}</span><strong>{selection.element.label} · &lt;{selection.tagName}&gt;</strong><code data-testid="selected-jsx-source">{selection.element.location?.path}#{selection.element.location?.start}</code></div>
+    <p>{selection.patchHash ? <>绑定候选 Patch <code>{selection.patchHash.slice(0, 16)}</code> 与源码摘要</> : <>绑定当前项目源码摘要</>} <code>{selection.sourceDigest.slice(0, 16)}</code>。这是本次预演的定位信息，不是验证证据。</p>
+    <p>运行时实例：<code>{selection.runtimeInstanceId ?? '未提供'}</code> · 身份确定性：<strong>{selection.identityCertainty}</strong>{selection.identityCertainty === 'position-dependent' || selection.identityCertainty === 'unknown' || selection.identityCertainty === 'unmapped' ? ' · 不允许按唯一实例精准修改' : ' · 仅用于定位，不构成编辑授权'}</p>
+    <p>页面文本：{selection.text || '（无文本）'}</p>
+    {selection.editableText.length > 0 ? <ul>{selection.editableText.map(item => <li key={item.id}><code>{item.location?.path}#{item.location?.start}</code> {item.label} · {item.impact.certainty}{item.impact.pageRefs.length ? ` · ${item.impact.pageRefs.map(ref => ref.replace('page:', '/')).join('、')}` : ''}{kind === 'project' && onUseText && item.value !== undefined && <button type="button" className="quiet-button" data-testid={`use-source-text-${item.id}`} onClick={() => onUseText(item.id)}>设为修改目标</button>}</li>)}</ul> : <small>此 JSX 元素没有直接映射到可编辑文本节点。</small>}
+  </div>
 }
 
 export default function ProjectWorkbench() {
@@ -155,9 +172,13 @@ export default function ProjectWorkbench() {
   const [verificationBusy, setVerificationBusy] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string>()
   const [previewBusy, setPreviewBusy] = useState(false)
+  const [sourcePreview, setSourcePreview] = useState<ProjectSourcePreview>()
+  const [sourcePreviewBusy, setSourcePreviewBusy] = useState(false)
   const [selectionNonce, setSelectionNonce] = useState('')
   const [selection, setSelection] = useState<SourceSelection>()
   const previewFrame = useRef<HTMLIFrameElement>(null)
+  const sourcePreviewFrame = useRef<HTMLIFrameElement>(null)
+  const [selectionKind, setSelectionKind] = useState<'project' | 'candidate'>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -243,26 +264,35 @@ export default function ProjectWorkbench() {
     scope: scopePageDecision,
   }), [analysis, operations, pageScope, scopePageDecision])
   useEffect(() => {
-    if (!candidate || !previewUrl) return
-    previewFrame.current?.contentWindow?.postMessage({
-      type: 'ripple:selection-mode', candidateId: candidate.id, token: selectionNonce, enabled: !!selectionNonce,
-    }, '*')
-  }, [candidate?.id, previewUrl, selectionNonce])
+    const active = candidate && previewUrl
+      ? { kind: 'candidate' as const, previewId: candidate.id, frame: previewFrame.current }
+      : sourcePreview
+        ? { kind: 'project' as const, previewId: sourcePreview.previewId, frame: sourcePreviewFrame.current }
+        : undefined
+    if (!active?.frame?.contentWindow) return
+    active.frame.contentWindow.postMessage({ type: 'ripple:selection-mode', previewId: active.previewId, token: selectionNonce, enabled: !!selectionNonce }, '*')
+  }, [candidate?.id, previewUrl, sourcePreview?.previewId, selectionNonce])
 
   useEffect(() => {
-    if (!candidate || !selectionNonce) return
+    const kind = candidate && previewUrl ? 'candidate' : sourcePreview ? 'project' : undefined
+    const previewId = kind === 'candidate' ? candidate?.id : sourcePreview?.previewId
+    const frameRef = kind === 'candidate' ? previewFrame : sourcePreviewFrame
+    if (!kind || !previewId || !selectionNonce) return
     const onMessage = (event: MessageEvent) => {
-      const frame = previewFrame.current
+      const frame = frameRef.current
       const data = event.data as Record<string, unknown> | null
       const certainties = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
       if (!frame?.contentWindow || event.source !== frame.contentWindow || !data || data.type !== 'ripple:element-selected' ||
-        data.candidateId !== candidate.id || data.token !== selectionNonce || typeof data.sourceRef !== 'string' ||
+        data.previewId !== previewId || data.token !== selectionNonce || typeof data.sourceRef !== 'string' ||
         typeof data.identityCertainty !== 'string' || !certainties.includes(data.identityCertainty) ||
         typeof data.tagName !== 'string' || typeof data.text !== 'string') return
-      void post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('candidate/source-selection', {
-        candidateId: candidate.id, sourceRef: data.sourceRef,
-      }).then(mapped => {
-        if (candidate?.id !== data.candidateId || selectionNonce !== data.token) return
+      const request = kind === 'candidate'
+        ? post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('candidate/source-selection', { candidateId: previewId, sourceRef: data.sourceRef })
+        : post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('project/source-selection', {
+          projectId: sourcePreview?.projectId, previewId, sourceDigest: sourcePreview?.sourceDigest, sourceRef: data.sourceRef,
+        })
+      void request.then(mapped => {
+        if (selectionNonce !== data.token || (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
         setSelection({
           ...mapped,
           runtimeInstanceId: typeof data.runtimeInstanceId === 'string' ? data.runtimeInstanceId : undefined,
@@ -270,27 +300,27 @@ export default function ProjectWorkbench() {
           tagName: data.tagName as string,
           text: data.text as string,
         })
+        setSelectionKind(kind)
       }).catch(cause => setError(cause instanceof Error ? `元素没有可确认的 JSX 来源：${cause.message}` : '元素没有可确认的 JSX 来源'))
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [candidate?.id, selectionNonce])
+  }, [candidate?.id, previewUrl, sourcePreview?.projectId, sourcePreview?.previewId, sourcePreview?.sourceDigest, selectionNonce])
 
-  function toggleElementSelection() {
-    if (!candidate) return
+  function toggleElementSelection(previewId: string, frame: { current: HTMLIFrameElement | null }) {
     if (selectionNonce) {
-      previewFrame.current?.contentWindow?.postMessage({ type: 'ripple:selection-mode', candidateId: candidate.id, token: selectionNonce, enabled: false }, '*')
+      frame.current?.contentWindow?.postMessage({ type: 'ripple:selection-mode', previewId, token: selectionNonce, enabled: false }, '*')
       setSelectionNonce('')
     } else {
       setSelection(undefined)
+      setSelectionKind(undefined)
       setSelectionNonce(crypto.randomUUID())
     }
   }
 
-  function syncElementSelection(event: { currentTarget: HTMLIFrameElement }) {
-    if (!candidate) return
+  function syncElementSelection(event: { currentTarget: HTMLIFrameElement }, previewId: string) {
     event.currentTarget.contentWindow?.postMessage({
-      type: 'ripple:selection-mode', candidateId: candidate.id, token: selectionNonce, enabled: !!selectionNonce,
+      type: 'ripple:selection-mode', previewId, token: selectionNonce, enabled: !!selectionNonce,
     }, '*')
   }
 
@@ -305,6 +335,8 @@ export default function ProjectWorkbench() {
       setWorkflow(undefined)
       setVerification({ state: 'not-run', reason: '浏览器验证尚未运行。' })
       setPreviewUrl(undefined)
+      setSourcePreview(undefined)
+      setSelectionKind(undefined)
       setSelectionNonce('')
       setSelection(undefined)
       window.sessionStorage.removeItem(candidateStorageKey)
@@ -319,6 +351,39 @@ export default function ProjectWorkbench() {
     finally { setBusy(false) }
   }
 
+  async function toggleProjectSourcePreview() {
+    if (!analysis) return
+    setSourcePreviewBusy(true); setError('')
+    try {
+      if (sourcePreview) {
+        await post('project/preview/stop', { projectId: sourcePreview.projectId, previewId: sourcePreview.previewId })
+        setSourcePreview(undefined)
+        setSelectionNonce('')
+        setSelection(undefined)
+        setSelectionKind(undefined)
+      } else {
+        const preview = await post<ProjectSourcePreview>('project/preview', { projectId: analysis.revision.projectId })
+        if (preview.sourceDigest !== analysis.revision.sourceDigest) throw new Error('项目源码已变化，请重新分析后再选择目标')
+        setSourcePreview(preview)
+        setSelection(undefined)
+        setSelectionKind(undefined)
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法启动真实项目预览') }
+    finally { setSourcePreviewBusy(false) }
+  }
+
+  function useSelectedSourceText(targetRef: string) {
+    const selectedTarget = analysis?.targets.find(item => item.id === targetRef)
+    if (!selectedTarget || selectedTarget.value === undefined) {
+      setError('点选来源没有可执行的文字目标；可以查看源码位置，但不能将其当作可编辑文本')
+      return
+    }
+    setTargetId(targetRef)
+    setAfter(scopeStrategy === 'page-override' ? selectedTarget.pageOverrides?.[localPageRef] ?? selectedTarget.value : selectedTarget.value)
+    setError('')
+    document.getElementById('intent')?.focus()
+  }
+
   function addResourceToDraft(resourceUrl: string) {
     setResourceDraft(current => [...new Set([...current.split(/\r?\n/).map(value => value.trim()).filter(Boolean), resourceUrl])].join('\n'))
   }
@@ -327,6 +392,13 @@ export default function ProjectWorkbench() {
     if (!analysis) return
     setBusy(true); setError('')
     try {
+      if (sourcePreview) {
+        await post('project/preview/stop', { projectId: sourcePreview.projectId, previewId: sourcePreview.previewId })
+        setSourcePreview(undefined)
+        setSelectionNonce('')
+        setSelection(undefined)
+        setSelectionKind(undefined)
+      }
       const urls = resourceDraft.split(/\r?\n/).map(value => value.trim()).filter(Boolean)
       const result = await post<{ previewResources: Analysis['previewResources'] }>('preview/resources', { projectId: analysis.revision.projectId, urls })
       setAnalysis(current => current ? { ...current, previewResources: result.previewResources } : current)
@@ -346,6 +418,7 @@ export default function ProjectWorkbench() {
       setPreviewUrl(undefined)
       setSelectionNonce('')
       setSelection(undefined)
+      setSelectionKind(undefined)
       if (window.sessionStorage.getItem(candidateStorageKey) === candidate.id) window.sessionStorage.removeItem(candidateStorageKey)
       await refreshHistory()
       return true
@@ -409,11 +482,13 @@ export default function ProjectWorkbench() {
       const verificationContract = toBrowserVerificationContract(verificationContractDraft)
       const result = await post<{ candidate: CandidateView; verification: VerificationView; workflow: WorkflowView }>('candidate', { projectId: analysis.revision.projectId, rawIntent: intent, operations, scope, verificationContract, previousCandidateId: candidate?.id })
       setCandidate(result.candidate)
+      setSourcePreview(undefined)
       setVerification(result.verification)
       setWorkflow(result.workflow)
       setPreviewUrl(undefined)
       setSelectionNonce('')
       setSelection(undefined)
+      setSelectionKind(undefined)
       window.sessionStorage.setItem(candidateStorageKey, result.candidate.id)
       await refreshHistory()
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法创建隔离候选') }
@@ -535,7 +610,7 @@ export default function ProjectWorkbench() {
 
     <section className="project-open panel">
       <div className="section-title"><span className="step-badge">01</span><div><h2>打开本机工程</h2><p>只读分析干净的 Git 工作树；候选文件与补丁保存在工程目录之外。</p></div></div>
-      <div className="project-open-form"><label htmlFor="project-path">Git 项目目录</label><div className="project-path-row"><input id="project-path" data-testid="project-path" value={projectPath} onChange={event => setProjectPath(event.target.value)} placeholder="例如 D:\\projects\\ripple-qingye-bolt\\project" spellCheck={false} /><button data-testid="analyze-project" type="button" onClick={() => void analyze()} disabled={busy || previewBusy || verificationBusy || !projectPath.trim()}>{busy && !analysis ? '正在读取…' : '分析工程'}<span>↗</span></button></div></div>
+      <div className="project-open-form"><label htmlFor="project-path">Git 项目目录</label><div className="project-path-row"><input id="project-path" data-testid="project-path" value={projectPath} onChange={event => setProjectPath(event.target.value)} placeholder="例如 D:\\projects\\ripple-qingye-bolt\\project" spellCheck={false} /><button data-testid="analyze-project" type="button" onClick={() => void analyze()} disabled={busy || sourcePreviewBusy || previewBusy || verificationBusy || !projectPath.trim()}>{busy && !analysis ? '正在读取…' : '分析工程'}<span>↗</span></button></div></div>
       {error && <p className="api-error" role="alert">{error}</p>}
     </section>
 
@@ -545,6 +620,13 @@ export default function ProjectWorkbench() {
         <article className="metric-card"><span>实际页面状态</span><strong>{analysis.routes.length}</strong><small>{analysis.routes.map(route => route.page ?? route.label).join(' · ') || '未解析到页面'}</small></article>
         <article className="metric-card"><span>源码编辑目标</span><strong>{analysis.targets.length}</strong><small>TEXT · MEDIA · TOKEN 统一进入 EditSession</small></article>
         <article className={analysis.unresolved.length ? 'metric-card metric-warning' : 'metric-card'}><span>分析确定性</span><strong>{analysis.unresolved.length ? `${analysis.unresolved.length} 项待确认` : '依赖完整'}</strong><small>{analysis.unresolved.length ? '模糊关系不会被当作已证明影响' : '来源与页面消费关系已读取'}</small></article>
+      </section>
+
+      <section className="panel project-source-preview" data-testid="project-source-preview">
+        <div className="section-title compact"><span className="step-badge">↗</span><div><h2>先看真实页面，再选源码目标</h2><p>只读预演当前分析版本；页面点选后由 Ripple 服务端重新核实 JSX 来源。</p></div><button type="button" data-testid="toggle-project-preview" className="quiet-button" onClick={() => void toggleProjectSourcePreview()} disabled={busy || sourcePreviewBusy || previewBusy || verificationBusy || !!candidate}>{sourcePreviewBusy ? '准备只读预演…' : sourcePreview ? '关闭项目预演' : '启动真实页面预演'}</button></div>
+        {sourcePreview && <CandidatePreviewPane url={sourcePreview.url} previewTestId="project-preview" viewportTestIdPrefix="project-preview" selectionTestId="toggle-project-element-selection" previewTitle="真实项目 · 只读预演" selectionNonce={selectionNonce} frameRef={sourcePreviewFrame} onFrameLoad={event => syncElementSelection(event, sourcePreview.previewId)} onToggleSelection={() => toggleElementSelection(sourcePreview.previewId, sourcePreviewFrame)} />}
+        {selection && selectionKind === 'project' && <SourceSelectionDetails selection={selection} kind="project" onUseText={useSelectedSourceText} />}
+        {!sourcePreview && <p className="empty-note">启动后可在四种项目视口中切换并点选页面元素。预演不会写入原项目，也不会运行其 npm scripts；资源仅加载你已明确授权的 URL。</p>}
       </section>
 
       <div className="workbench-columns">
@@ -567,7 +649,7 @@ export default function ProjectWorkbench() {
 
       <section className="panel resource-policy-panel" data-testid="preview-resource-policy">
         <div className="section-title compact"><span className="step-badge">↗</span><div><h2>预演外部静态资源授权</h2><p>源码 URL 仅作为建议；每项授权都由你明确保存，且只允许对应 HTTPS 路径。</p></div></div>
-        <div className="resource-policy-columns"><div><strong>源码引用（未授权）</strong>{analysis.previewResources.referencedUrls.length ? <ul>{analysis.previewResources.referencedUrls.map(url => <li key={url}><code>{url}</code><button type="button" className="quiet-button" data-testid="add-preview-resource" onClick={() => addResourceToDraft(url)} disabled={busy || !!candidate}>加入授权草稿</button></li>)}</ul> : <small>没有发现 HTTPS 静态资源引用。</small>}</div><label><strong>明确授权的 URL</strong><textarea data-testid="preview-resource-draft" value={resourceDraft} onChange={event => setResourceDraft(event.target.value)} disabled={busy || !!candidate} placeholder="每行一条 HTTPS 图片、字体或样式表 URL" spellCheck={false} /><small>每条必须是具体文件路径（不接受根目录/目录授权）；CSP 路径匹配不包含 query。源码或注释里的 URL 不会自动授权。</small><button type="button" data-testid="save-preview-resources" className="quiet-button" onClick={() => void savePreviewResources()} disabled={busy || !!candidate}>保存资源授权</button></label></div>
+        <div className="resource-policy-columns"><div><strong>源码引用（未授权）</strong>{analysis.previewResources.referencedUrls.length ? <ul>{analysis.previewResources.referencedUrls.map(url => <li key={url}><code>{url}</code><button type="button" className="quiet-button" data-testid="add-preview-resource" onClick={() => addResourceToDraft(url)} disabled={busy || sourcePreviewBusy || !!candidate}>加入授权草稿</button></li>)}</ul> : <small>没有发现 HTTPS 静态资源引用。</small>}</div><label><strong>明确授权的 URL</strong><textarea data-testid="preview-resource-draft" value={resourceDraft} onChange={event => setResourceDraft(event.target.value)} disabled={busy || sourcePreviewBusy || !!candidate} placeholder="每行一条 HTTPS 图片、字体或样式表 URL" spellCheck={false} /><small>每条必须是具体文件路径（不接受根目录/目录授权）；CSP 路径匹配不包含 query。源码或注释里的 URL 不会自动授权。</small><button type="button" data-testid="save-preview-resources" className="quiet-button" onClick={() => void savePreviewResources()} disabled={busy || sourcePreviewBusy || !!candidate}>保存资源授权</button></label></div>
       </section>
 
       <section className="panel scope-panel">
@@ -588,7 +670,7 @@ export default function ProjectWorkbench() {
         <ScopeEffectPreview rows={scopeEffectRows} />
         <VerificationContractEditor routes={analysis.routes} value={verificationContractDraft} disabled={busy || previewBusy || verificationBusy || !!candidate} onChange={setVerificationContractDraft} />
         {incompleteVerificationDeclarations(verificationContractDraft) > 0 && <p className="verification-contract-note" role="status">有 {incompleteVerificationDeclarations(verificationContractDraft)} 项验收信息尚未填写完整；不完整项不会送入执行器，相关断言将保持 UNKNOWN。</p>}
-        <div className="scope-footer"><span>{operations.length} 项操作 · {impactedPages.length} 个已证明页面消费者{scopeStrategy === 'page-override' ? ' · 一项页面覆盖' : ''}</span><button type="button" data-testid="create-real-candidate" onClick={() => void createCandidate()} disabled={busy || previewBusy || verificationBusy || !analysis || !intent.trim() || !operations.length || !scopesComplete || !scopesValid}>{busy ? '正在创建隔离候选…' : '创建真实隔离候选'}<span>↗</span></button></div>
+        <div className="scope-footer"><span>{operations.length} 项操作 · {impactedPages.length} 个已证明页面消费者{scopeStrategy === 'page-override' ? ' · 一项页面覆盖' : ''}</span><button type="button" data-testid="create-real-candidate" onClick={() => void createCandidate()} disabled={busy || sourcePreviewBusy || previewBusy || verificationBusy || !analysis || !intent.trim() || !operations.length || !scopesComplete || !scopesValid}>{busy ? '正在创建隔离候选…' : '创建真实隔离候选'}<span>↗</span></button></div>
       </section>
 
       {candidate && <section className="panel candidate-panel">
@@ -597,8 +679,8 @@ export default function ProjectWorkbench() {
         <div className="candidate-files"><span>修改文件</span>{candidate.modifiedPaths.map(file => <code key={file}>{file}</code>)}</div>
         <pre className="diff-view" data-testid="candidate-diff" aria-label="真实候选补丁差异">{candidate.diff}</pre>
         <div className="preview-toolbar"><div><strong>隔离浏览器预演</strong><small>候选运行于 Docker internal network；iframe 的外部资源默认受限，外链与表单导航会拦截。它不是用于对抗刻意恶意脚本的浏览器沙箱，请只预演可信项目。</small></div><div className="preview-actions"><button type="button" data-testid="verify-candidate" className="quiet-button" onClick={() => void verifyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{verificationBusy ? '浏览器验证中…' : `运行 ${projectPreviewViewports.length} 个视口验证`}</button><button type="button" data-testid="toggle-candidate-preview" className="quiet-button" onClick={() => void togglePreview()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{previewBusy ? '启动中…' : previewUrl ? '关闭预演' : '启动真实预演'}</button></div></div>
-        {previewUrl && <CandidatePreviewPane url={previewUrl} selectionNonce={selectionNonce} frameRef={previewFrame} onFrameLoad={syncElementSelection} onToggleSelection={toggleElementSelection} />}
-        {selection && <div className="source-selection" data-testid="selected-source"><div><span className="eyebrow">CANDIDATE SOURCE MAPPING</span><strong>{selection.element.label} · &lt;{selection.tagName}&gt;</strong><code data-testid="selected-jsx-source">{selection.element.location?.path}#{selection.element.location?.start}</code></div><p>绑定候选 Patch <code>{selection.patchHash.slice(0, 16)}</code> 与源码摘要 <code>{selection.sourceDigest.slice(0, 16)}</code>。这是当前预演的定位信息，不是验证证据。</p><p>运行时实例：<code>{selection.runtimeInstanceId ?? '未提供'}</code> · 身份确定性：<strong>{selection.identityCertainty}</strong>{selection.identityCertainty === 'position-dependent' || selection.identityCertainty === 'unknown' || selection.identityCertainty === 'unmapped' ? ' · 不允许按唯一实例精准修改' : ''}</p><p>页面文本：{selection.text || '（无文本）'}</p>{selection.editableText.length > 0 ? <ul>{selection.editableText.map(item => <li key={item.id}><code>{item.location?.path}#{item.location?.start}</code> {item.label} · {item.impact.certainty}{item.impact.pageRefs.length ? ` · ${item.impact.pageRefs.map(ref => ref.replace('page:', '/')).join('、')}` : ''}</li>)}</ul> : <small>此 JSX 元素没有直接映射到可编辑文本节点。</small>}</div>}
+        {previewUrl && candidate && <CandidatePreviewPane url={previewUrl} previewTestId="candidate-preview" viewportTestIdPrefix="preview" selectionTestId="toggle-element-selection" previewTitle="隔离候选 · 真实预演" selectionNonce={selectionNonce} frameRef={previewFrame} onFrameLoad={event => syncElementSelection(event, candidate.id)} onToggleSelection={() => toggleElementSelection(candidate.id, previewFrame)} />}
+        {selection && selectionKind === 'candidate' && <SourceSelectionDetails selection={selection} kind="candidate" />}
         <div className={`verification-state verification-${verification.state}`} data-testid="verification-state"><span>{verificationLabel(verification.state)}</span><p>{verification.reason ?? (verification.state === 'passed' ? '本次必需检查和断言均通过。候选审批严格绑定此验证运行与补丁哈希。' : verification.state === 'risks' ? '浏览器观察到明确风险；此候选不可批准。' : verification.state === 'incomplete' ? '浏览器执行已留存，但有断言未知或未运行；此候选不可批准。' : verification.state === 'stale' ? '证据对应的候选或源码已过期。' : '预演不等于验证；请运行受限浏览器检查。')}</p><button type="button" data-testid="run-verification" onClick={() => void verifyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{verificationBusy ? '执行中…' : verification.state === 'not-run' || verification.state === 'failed-to-run' ? '运行验证' : '重新验证'}</button></div>
         {verification.assertions && <div className="verification-assertions" data-testid="verification-assertions">{verification.assertions.map(assertion => <div key={assertion.id}><span>{assertion.result.toUpperCase()}</span><strong>{assertion.id}</strong><p>{assertion.detail}</p></div>)}</div>}
         {verification.evidence?.length ? <div className="verification-evidence" data-testid="verification-evidence">{verification.evidence.map(evidence => <article key={evidence.id}><div><strong>{evidence.viewport.width} × {evidence.viewport.height}</strong><span>{evidence.result.toUpperCase()} · {evidence.runtimeState}</span></div>{evidence.artifactUrl ? <img src={evidence.artifactUrl} alt={`候选浏览器截图 ${evidence.viewport.width}×${evidence.viewport.height}`} /> : <p>{evidence.reason ?? '本次没有生成可验证截图。'}</p>}</article>)}</div> : null}

@@ -14,6 +14,8 @@ const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'te
 const dockerAvailable = process.platform === 'linux' && spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
 const expectedProjectViewports = projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height }))
 let candidateId = ''
+let sourcePreviewProjectId = ''
+let sourcePreviewId = ''
 fs.mkdirSync(evidenceRoot, { recursive: true })
 
 test.beforeAll(() => {
@@ -35,6 +37,7 @@ test.beforeAll(() => {
 
 test.afterAll(async () => {
   if (candidateId) await fetch('http://127.0.0.1:4173/__ripple/api/discard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ candidateId }) }).catch(() => undefined)
+  if (sourcePreviewProjectId && sourcePreviewId) await fetch('http://127.0.0.1:4173/__ripple/api/project/preview/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projectId: sourcePreviewProjectId, previewId: sourcePreviewId }) }).catch(() => undefined)
   fs.rmSync(sandbox, { recursive: true, force: true })
 })
 
@@ -85,6 +88,48 @@ test('opens a real local project, keeps multiple operations and explicit local S
   await expect(page.locator('.route-list').getByText('page:home', { exact: true })).toBeVisible()
   await expect(page.getByText('SOURCE-PROVEN', { exact: true })).toBeVisible()
   await page.screenshot({ path: path.join(evidenceRoot, 'workbench-analysis-1440.png'), fullPage: true })
+
+  if (dockerAvailable) {
+    await page.route('https://assets.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', 'base64') }))
+    const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
+    await page.getByTestId('toggle-project-preview').click()
+    const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
+    sourcePreviewProjectId = sourcePreview.projectId
+    sourcePreviewId = sourcePreview.previewId
+    expect(sourcePreview.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
+    expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
+    const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
+    await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
+    await projectFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'workbench-source-preview-1440.png') })
+    await page.getByTestId('project-preview-viewport-375').click()
+    const projectFrameHandle = page.frames().find(frame => frame.url() === sourcePreview.url)
+    expect(projectFrameHandle).toBeTruthy()
+    await expect.poll(() => projectFrameHandle!.evaluate(() => innerWidth)).toBe(375)
+    await projectFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'workbench-source-preview-375.png') })
+    await page.getByTestId('project-preview-viewport-1440').click()
+    await page.getByTestId('toggle-project-element-selection').click()
+    await projectFrame.getByRole('heading', { name: 'Baseline title' }).click()
+    await expect(page.getByTestId('selected-source')).toContainText('PROJECT SOURCE MAPPING', { timeout: 15_000 })
+    await expect(page.getByTestId('selected-jsx-source')).toContainText('src/pages/HomePage.tsx#')
+    const selectedSourceRef = await projectFrameHandle!.locator('h1').getAttribute('data-ripple-source')
+    expect(selectedSourceRef).toMatch(/^jsx:src\/pages\/HomePage\.tsx#\d+$/)
+    const titleId = await page.getByTestId('target-select').locator('option').filter({ hasText: 'Baseline title' }).getAttribute('value')
+    expect(titleId).toBeTruthy()
+    await page.getByTestId(`use-source-text-${titleId}`).click()
+    await expect(page.getByTestId('target-select')).toHaveValue(titleId!)
+    await expect(page.getByTestId('after-input')).toHaveValue('Baseline title')
+    await page.getByTestId('toggle-project-preview').click()
+    await expect(page.getByTestId('project-preview')).toHaveCount(0)
+    const staleSelection = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/source-selection', { data: {
+      projectId: sourcePreview.projectId, previewId: sourcePreview.previewId, sourceDigest: sourcePreview.sourceDigest, sourceRef: selectedSourceRef,
+    } })
+    expect(staleSelection.status()).toBe(409)
+    expect(execFileSync('git', ['-C', projectRoot, 'status', '--porcelain'], { encoding: 'utf8' })).toBe('')
+    sourcePreviewId = ''
+    sourcePreviewProjectId = ''
+  } else if (process.env.CI) {
+    throw new Error('Docker-backed read-only project preview and source picking are mandatory in CI')
+  }
 
   await page.getByTestId('intent-input').fill('Update only the home headline and primary action while preserving other page behavior.')
   const targetSelect = page.getByTestId('target-select')
@@ -143,7 +188,6 @@ test('opens a real local project, keeps multiple operations and explicit local S
     await page.screenshot({ path: path.join(evidenceRoot, `workbench-candidate-${viewport.width}.png`), fullPage: true })
   }
   if (dockerAvailable) {
-    await page.route('https://assets.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', 'base64') }))
     await page.getByTestId('toggle-candidate-preview').click()
     const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toBeVisible({ timeout: 90_000 })
