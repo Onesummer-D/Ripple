@@ -51,15 +51,3 @@ jobs:
           path: test-results/
           if-no-files-found: warn
           retention-days: 30
-      - name: Run real Bolt isolated-candidate browser acceptance
-        run: npm run acceptance:bolt -- "$GITHUB_WORKSPACE/bolt-source/project" "$RUNNER_TEMP/ripple-acceptance"
-        env:
-          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/ripple-acceptance/playwright-browsers
-      - name: Preserve screenshots, pixel diffs and execution record
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ripple-bolt-acceptance-${{ github.run_id }}
-          path: ${{ runner.temp }}/ripple-acceptance/artifacts/
-          if-no-files-found: warn
-          retention-days: 30

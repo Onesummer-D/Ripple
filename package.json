@@ -10,7 +10,6 @@
     "test": "vitest",
     "test:browser": "playwright test",
     "verify": "node scripts/verify.mjs",
-    "acceptance:bolt": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/bolt-integration-acceptance.mjs",
     "smoke:static": "node scripts/static-acceptance.mjs",
     "acceptance:phase4": "node scripts/phase4-acceptance.mjs",
     "acceptance:phase5": "node scripts/phase5-acceptance.mjs",

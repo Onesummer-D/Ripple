@@ -62,4 +62,11 @@ describe('manual Bolt workflow credential boundary', () => {
     )
     expect(commands).toEqual([['-C', '/missing', 'rev-parse', '--git-dir']])
   })
+
+  it('runs the Docker-backed workbench E2E without the removed host-side Bolt execution script', () => {
+    expect(workflow).toContain('npm ci --ignore-scripts --no-audit --no-fund --prefix bolt-source/project')
+    expect(workflow).toContain('npm run test:browser')
+    expect(workflow).not.toContain('acceptance:bolt')
+    expect(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')).not.toContain('"acceptance:bolt"')
+  })
 })

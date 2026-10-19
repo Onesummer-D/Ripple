@@ -1,6 +1,6 @@
 # Project-first 扩展契约（A/B 对齐记录）
 
-**状态：五项 A/B 接口决策已互相接受；公共契约仍未冻结。** B 在 PR #3 评论 `6259317121` 逐项接受 subtype 命名、Session 错误格式、响应式 mechanism、CSS Token Scope 证据语义及运行环境字段位置。冻结仍需共同复核契约测试；结构化 MEDIA/TOKEN 执行和资产字节完整性尚未实现，本文不把类型定义等同于产品能力。
+**状态：最小 EditOperation/Session 接口已冻结。** 冻结标识为 `ripple-edit-operation-session/v1`，代码基线为 PR #2 `f2aeadf4b21d8936df593f14261728a8a05e65d8`。五项 A/B 决策已互相接受，且当前接口与 Session 校验通过 Actions #161。该冻结仅覆盖已有类型、校验与 fail-closed 行为，不代表 MEDIA/TOKEN 执行能力已验收。
 
 ## 目标与已有事实
 
@@ -34,7 +34,7 @@ Ripple 的 Project-first 核心对象定义在 `src/core/model.ts`，会话转�
 | 稳定 | `VerificationRun` / `VerificationEvidence` 的可信执行器与版本绑定 | 浏览器截图和 Playwright 记录由执行器生成并由接收边界复算；分析器或媒体工具只能报告观察，不得制造 `pass`。 |
 | 稳定 | `.ripple/overrides.json` schema v2 的 UUID 目标及页面覆盖维护语义 | 复用目标身份、更新与删除规则；禁止以源码偏移生成长期 ID 或建立第二个覆盖注册表。 |
 | 待确认 | `ProjectAdapter`、`CandidateExecutor`、`VerificationExecutor` 的接口名称与具体调用形状 | 作为职责草案，B 可给出现有函数映射；不为形式统一增加空包装器。 |
-| 已实现、尚未冻结 | `EditOperation` payloadless 与结构化分支 | payloadless TEXT/MEDIA/TOKEN/CODE 保持现状；结构化 MEDIA 用 `asset-swap` + `MediaAssetSwapPayload`，结构化 TOKEN 用 `local-projection` + `TokenLocalProjectionPayload`。`session.ts` 校验字段路径、hash 格式、mechanism 与 kind/action/payload 配对；合法但未实现的执行器返回 `unsupported-operation`。不得回退为字符串替换。 |
+| 已冻结接口 v1 | `EditOperation` payloadless 与结构化分支 | payloadless TEXT/MEDIA/TOKEN/CODE 保持现状且禁止意外 `action`/`payload`；结构化 MEDIA 用 `asset-swap` + `MediaAssetSwapPayload`，结构化 TOKEN 用 `local-projection` + `TokenLocalProjectionPayload`。`session.ts` 校验字段路径、hash 格式、mechanism 与 kind/action/payload 配对；合法但未实现的执行器返回 `unsupported-operation`。不得回退为字符串替换。 |
 | 未实现 | 结构化 MEDIA/TOKEN 候选执行 | 类型中的资源引用和摘要还不能代替实际资产字节；MEDIA 执行器必须暂存字节至候选 worktree，并让候选树、patch 与 Evidence 校验同一字节。TOKEN 局部投影执行与对应浏览器断言同样未实现。 |
 | 实验 | `RuntimeSourceMap` 的实例级写入授权 | 浏览器点选可用于源码导航；在宿主核验实例唯一性、候选、源码摘要、页面状态及运行时指纹前，不可授权实例精准修改。 |
 | 实验 | 任意 React/Vite 工程的运行命令与完整浏览器验收 | 当前受限预演适配是已验证的窄路径，不等同于一般项目的构建兼容承诺。 |
@@ -55,7 +55,7 @@ Ripple 的 Project-first 核心对象定义在 `src/core/model.ts`，会话转�
 4. **资产字节完整性**：篡改候选资产字节后 patch/tree/evidence 必须失败。此项尚不能执行验收，因为结构化 MEDIA 候选和 asset staging 尚未实现；不能用仅校验 `assetHash` 字符串的 schema 测试代替。
 5. **覆盖幂等性**：TEXT registry v2 的连续维护、删除最后规则与源码清理已有自动化 E2E；不迁移到 registry v3，待真实 MEDIA/TOKEN 任务验证结构后再议。
 
-**冻结条件补充：** 五项 A/B 决策已被双方接受，代码与测试是当前基线；这不代表结构化执行能力存在，也不单方面冻结契约。A/B 需共同确认上述已有测试足以固定共享边界，并在 B 的 MEDIA 垂直闭环中补齐实际资产暂存、篡改拒绝与四视口 Evidence 测试。TEXT registry v2 继续原样保留。
+**冻结边界：** 最小 EditOperation/Session v1 已冻结在 PR #2 `f2aeadf`。当前契约测试固定简单操作兼容、禁止额外 action/payload、结构化 schema 与字段路径错误、未知/未实现操作 fail-closed、Scope/候选一致性及四视口证据状态边界；TEXT registry v2 连续维护继续作为既有回归。**尚未验收**：MEDIA 资产字节暂存与字节哈希端到端校验、篡改资产拒绝、焦点裁切/variants 实际效果、MEDIA 专属浏览器 Evidence；以及 TOKEN `local-projection` 执行器与 computed-style Evidence。B 可按已冻结 schema 开始 `asset-swap`；以上功能须在对应执行器完成后以真实候选和浏览器证据单独验收，不由 Session schema 测试替代。
 
 ### 已确认的 EditOperation 最小兼容形状
 
@@ -73,7 +73,7 @@ type EditOperation =
 
 稳定校验错误为 `SessionInvariantError`，API 形态 `{ error, code, path? }`，code 为 `invariant-violation | invalid-operation | unsupported-operation`；例如 `operations[0].payload.assetHash`。响应式 mechanism 为 `srcset | picture | css | container-rule`，必须匹配项目真实消费者与非空条件，不能从 viewport 标签推断。CSS Token 的文件级定义、`var()` 或普通 imports 不证明页面消费；只有可渲染 component/route 上 source-proven 的 `uses-token` / `css-cascade` 关系才证明页面影响。`runtimeFingerprint` 属于 `ProjectRevision` 并复制到 `VerificationRun`；详细 `RuntimeEnvironment` 由受信任执行器记于 `VerificationRun.execution`。
 
-最小接入点已经实现于 `session.ts` 的运行时组合校验和 Candidate 的 fail-closed 拒绝。候选执行器只运行已实现的 payloadless 路径；任何未实现结构化 action 都返回 `unsupported-operation`，绝不忽略 payload 后做字符串替换。这个接口形状仍待双方依据共同测试确认，`OverrideRegistry` v2 不迁移。
+最小接入点已冻结为 `ripple-edit-operation-session/v1`，实现于 `session.ts` 的运行时组合校验和 Candidate 的 fail-closed 拒绝。候选执行器只运行已实现的 payloadless 路径；任何未实现结构化 action 都返回 `unsupported-operation`，绝不忽略 payload 后做字符串替换。`OverrideRegistry` v2 不迁移。
 
 ## 建议的窄适配接口
 

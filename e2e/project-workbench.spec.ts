@@ -10,6 +10,7 @@ import { createServer } from 'node:net'
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-workbench-browser-'))
 const projectRoot = path.join(sandbox, 'site')
 const boltProjectRoot = process.env.RIPPLE_BOLT_PROJECT
+let boltDisposableRoot = ''
 const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence')
 const dockerAvailable = process.platform === 'linux' && spawnSync('docker', ['version', '--format', '{{.Server.Version}}'], { encoding: 'utf8', windowsHide: true }).status === 0
 const expectedProjectViewports = projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height }))
@@ -38,8 +39,20 @@ test.beforeAll(() => {
 test.afterAll(async () => {
   if (candidateId) await fetch('http://127.0.0.1:4173/__ripple/api/discard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ candidateId }) }).catch(() => undefined)
   if (sourcePreviewProjectId && sourcePreviewId) await fetch('http://127.0.0.1:4173/__ripple/api/project/preview/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projectId: sourcePreviewProjectId, previewId: sourcePreviewId }) }).catch(() => undefined)
+  if (boltDisposableRoot && boltProjectRoot) execFileSync('git', ['-C', boltProjectRoot, 'worktree', 'remove', '--force', boltDisposableRoot], { stdio: 'pipe' })
   fs.rmSync(sandbox, { recursive: true, force: true })
 })
+
+function createBoltDisposableProject(): string {
+  if (!boltProjectRoot) throw new Error('RIPPLE_BOLT_PROJECT is required')
+  const disposableRoot = path.join(sandbox, 'bolt-disposable')
+  execFileSync('git', ['-C', boltProjectRoot, 'worktree', 'add', '--detach', disposableRoot, 'HEAD'], { stdio: 'pipe' })
+  boltDisposableRoot = disposableRoot
+  const dependencies = path.join(boltProjectRoot, 'node_modules')
+  if (!fs.existsSync(dependencies)) throw new Error('Bolt dependency tree is missing; prepare it with npm ci --ignore-scripts in the isolated acceptance job')
+  fs.symlinkSync(dependencies, path.join(disposableRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
+  return disposableRoot
+}
 
 async function expectCandidateRetired(id: string) {
   const response = await fetch('http://127.0.0.1:4173/__ripple/api/discard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ candidateId: id }) })
@@ -623,46 +636,162 @@ test('approves, applies, rolls back and restores a contract-verified shared TEXT
   }
 })
 
-test('opens the supplied Bolt project in the workbench and builds a shared-scope candidate', async ({ page }) => {
+test('runs the Bolt shared TEXT workflow through the workbench, applies the same patch in a disposable worktree, then rolls it back', async ({ page }) => {
+  test.setTimeout(900_000)
   test.skip(!boltProjectRoot, 'RIPPLE_BOLT_PROJECT is only available in the private Bolt acceptance workflow')
+  if (!dockerAvailable) throw new Error('Docker-backed ProjectRunner and VerificationRunner are mandatory for the private Bolt acceptance workflow')
+
+  const originalHead = execFileSync('git', ['-C', boltProjectRoot!, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+  const originalStatus = execFileSync('git', ['-C', boltProjectRoot!, 'status', '--porcelain'], { encoding: 'utf8' }).trim()
+  const appliedProject = createBoltDisposableProject()
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
-  await page.getByTestId('project-path').fill(boltProjectRoot!)
+  await page.getByTestId('project-path').fill(appliedProject)
   await page.getByTestId('analyze-project').click()
   await expect(page.locator('.metric-card').filter({ hasText: '实际页面状态' })).toContainText('4')
   await expect(page.locator('.component-row').filter({ hasText: 'Footer' })).toContainText('/home')
   await expect(page.locator('.component-row').filter({ hasText: 'Footer' })).toContainText('/story')
-  const footerSource = fs.readFileSync(path.join(boltProjectRoot!, 'src', 'components', 'Footer.tsx'), 'utf8')
-  const brandStart = footerSource.indexOf('山野器物')
-  const brandTargetId = `literal:src/components/Footer.tsx#${brandStart}`
-  await expect(page.getByTestId('target-select').locator(`option[value="${brandTargetId}"]`)).toHaveCount(1)
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-analysis.png'), fullPage: true })
 
-  await page.getByTestId('intent-input').fill('Update the shared footer brand on every page without changing page content.')
-  const targetSelect = page.getByTestId('target-select')
-  await targetSelect.selectOption(brandTargetId)
+  const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
+  await page.getByTestId('toggle-project-preview').click()
+  const sourcePreview = await (await sourcePreviewResponse).json() as { projectId: string; previewId: string; sourceDigest: string; url: string }
+  sourcePreviewProjectId = sourcePreview.projectId
+  sourcePreviewId = sourcePreview.previewId
+  expect(sourcePreview.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
+  expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
+  const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
+  await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
+  await page.getByTestId('toggle-project-element-selection').click()
+  const footerBrand = projectFrame.locator('footer span').filter({ hasText: '山野器物' }).first()
+  await footerBrand.scrollIntoViewIfNeeded()
+  await footerBrand.click()
+  await expect(page.getByTestId('selected-jsx-source')).toContainText('src/components/Footer.tsx#')
+  const setTargetButton = page.getByTestId('selected-source').getByRole('button', { name: '设为修改目标' })
+  await expect(setTargetButton).toHaveCount(1)
+  const brandTargetId = (await setTargetButton.getAttribute('data-testid'))!.replace('use-source-text-', '')
+  await setTargetButton.click()
+  await expect(page.getByTestId('target-select')).toHaveValue(brandTargetId)
+  await page.getByTestId('toggle-project-preview').click()
+  await expect(page.getByTestId('project-preview')).toHaveCount(0)
+  sourcePreviewProjectId = ''
+  sourcePreviewId = ''
+
+  await page.getByTestId('intent-input').fill('Update the shared footer brand on every page without changing page content or navigation.')
   await page.getByTestId('after-input').fill('山野器物 · Ripple UI验收')
   await page.getByTestId('add-operation').click()
   for (const pageId of ['home', 'autumn', 'products', 'story']) await page.getByTestId(`scope-page:${pageId}`).selectOption('include')
+  const verificationPages = [
+    ['home', '山野之间，器以新生', ''],
+    ['autumn', '秋日手作节 · 限定活动', '秋日手作节'],
+    ['products', '器物全集', '商品专题'],
+    ['story', '从山野，到日常', '品牌故事'],
+  ] as const
+  for (const [pageId, markerText, navigationName] of verificationPages) {
+    await page.getByLabel(`${pageId} 页面访问路径`).fill('/')
+    await page.getByLabel(`${pageId} 页面标记文字`).fill(markerText)
+    if (navigationName) await page.getByLabel(`${pageId} 页面导航控件名称`).fill(navigationName)
+  }
+  await page.getByTestId('add-verification-interaction').click()
+  await page.getByLabel('交互检查 1 所在页面').selectOption('page:home')
+  await page.getByLabel('交互检查 1 控件名称').fill('浏览器物')
+  await page.getByLabel('交互检查 1 预期结果').fill('器物全集')
   await page.getByTestId('create-real-candidate').click()
   await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toBeVisible({ timeout: 30_000 })
   candidateId = (await page.getByTestId('candidate-id').innerText()).trim()
+  const patchHash = (await page.locator('.hash-grid > div').nth(1).locator('code').innerText()).trim()
   await expect(page.getByTestId('candidate-diff')).toContainText('山野器物 · Ripple UI验收')
-  await expect(page.getByTestId('verification-state')).toContainText('NOT RUN')
-  await page.getByTestId('toggle-candidate-preview').click()
-  await expect(page.getByTestId('candidate-preview')).toBeVisible({ timeout: 75_000 })
-  const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
-  await expect(preview.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible({ timeout: 30_000 })
-  for (const label of ['秋日手作节', '商品专题', '品牌故事']) {
-    await preview.getByRole('button', { name: label, exact: true }).first().click()
-    await expect(preview.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible()
+  await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-candidate.png'), fullPage: true })
+
+  await page.getByTestId('verify-candidate').click()
+  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 480_000 })
+  const assertions = page.getByTestId('verification-assertions')
+  for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
+    await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
   }
-  await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-isolated-preview.png'), fullPage: true })
-  await page.getByTestId('toggle-candidate-preview').click()
-  await expect(page.getByTestId('candidate-preview')).toHaveCount(0)
-  await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-shared-candidate.png'), fullPage: true })
-  await page.getByTestId('discard-candidate').click()
-  await expect(page.getByRole('heading', { name: '候选补丁已生成' })).toHaveCount(0)
+  const recordHref = await page.locator('.verification-record a').getAttribute('href')
+  expect(recordHref).toBeTruthy()
+  const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
+  expect(recordResponse.ok()).toBe(true)
+  const execution = await recordResponse.json() as {
+    candidateId: string; patchHash: string; candidateTreeDigest: string; scopeVersion: number
+    viewports: Array<{ name: string; width: number; height: number }>
+    scopeObservations: Array<{ pageRef: string; viewport: { width: number; height: number }; operations: Array<{ baselineValues: string[]; candidateValues: string[] }> }>
+    evidence: Array<{ artifactHash: string }>
+  }
+  expect(execution).toMatchObject({ candidateId, patchHash, scopeVersion: 1, candidateTreeDigest: expect.stringMatching(/^[a-f0-9]{64}$/) })
+  expect(execution.viewports).toEqual(expectedProjectViewports)
+  const expectedScopeObservationKeys = verificationPages.flatMap(([pageId]) => projectPreviewViewports.map(viewport => `page:${pageId}:${viewport.width}x${viewport.height}`)).sort()
+  const actualScopeObservationKeys = execution.scopeObservations.map(observation =>
+    `${observation.pageRef}:${observation.viewport.width}x${observation.viewport.height}`,
+  ).sort()
+  expect(actualScopeObservationKeys).toEqual(expectedScopeObservationKeys)
+  expect(execution.scopeObservations.every(observation => observation.operations.length === 1 &&
+    observation.operations[0].baselineValues.length === 1 && observation.operations[0].candidateValues.length === 1 &&
+    observation.operations[0].candidateValues[0] === '山野器物 · Ripple UI验收')).toBe(true)
+  fs.writeFileSync(path.join(evidenceRoot, 'bolt-workbench-execution.json'), JSON.stringify(execution, null, 2))
+  const evidenceImages = page.getByTestId('verification-evidence').locator('img')
+  await expect(evidenceImages).toHaveCount(projectPreviewViewports.length)
+  const evidenceUrls = await evidenceImages.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))
+  for (const [index, url] of evidenceUrls.entries()) {
+    const screenshot = await page.request.get(url)
+    expect(screenshot.ok()).toBe(true)
+    const bytes = await screenshot.body()
+    expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(execution.evidence[index].artifactHash)
+    fs.writeFileSync(path.join(evidenceRoot, `bolt-workbench-${projectPreviewViewports[index].width}.png`), bytes)
+  }
+
+  await page.getByTestId('approve-candidate').click()
+  await expect(page.getByTestId('candidate-workflow')).toContainText('已批准')
+  await page.getByTestId('apply-candidate').click()
+  await expect(page.getByTestId('candidate-workflow')).toContainText('applied')
+  expect(fs.readFileSync(path.join(appliedProject, 'src', 'components', 'Footer.tsx'), 'utf8')).toContain('山野器物 · Ripple UI验收')
+  expect(execFileSync('git', ['-C', appliedProject, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()).toBe(originalHead)
+
+  const restored = await (await page.request.post('http://127.0.0.1:4173/__ripple/api/candidate/restore', { data: { candidateId } })).json() as { analysis: { revision: { projectId: string } } }
+  const appliedPreviewResponse = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/preview', { data: { projectId: restored.analysis.revision.projectId } })
+  expect(appliedPreviewResponse.ok()).toBe(true)
+  const appliedPreview = await appliedPreviewResponse.json() as { projectId: string; previewId: string; url: string }
+  sourcePreviewProjectId = appliedPreview.projectId
+  sourcePreviewId = appliedPreview.previewId
+  await page.evaluate(url => {
+    const frame = document.createElement('iframe')
+    frame.id = 'applied-bolt-preview'
+    frame.title = 'Applied Bolt project'
+    frame.sandbox.add('allow-scripts')
+    frame.src = url
+    document.body.append(frame)
+  }, appliedPreview.url)
+  const appliedFrame = page.frameLocator('#applied-bolt-preview')
+  await expect(appliedFrame.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible({ timeout: 90_000 })
+  for (const label of ['秋日手作节', '商品专题', '品牌故事']) {
+    await appliedFrame.getByRole('button', { name: label, exact: true }).first().click()
+    await expect(appliedFrame.locator('footer').getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible()
+  }
+  await appliedFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-applied-site.png') })
+  const stopPreview = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/preview/stop', { data: { projectId: sourcePreviewProjectId, previewId: sourcePreviewId } })
+  expect(stopPreview.ok()).toBe(true)
+  sourcePreviewProjectId = ''
+  sourcePreviewId = ''
+
+  await page.getByTestId('rollback-candidate').click()
+  await expect(page.getByTestId('candidate-workflow')).toContainText('rolled-back')
+  const rolledBackFooter = fs.readFileSync(path.join(appliedProject, 'src', 'components', 'Footer.tsx'), 'utf8')
+  expect(rolledBackFooter).toContain('山野器物</span>')
+  expect(rolledBackFooter).not.toContain('Ripple UI验收')
+  expect(execFileSync('git', ['-C', appliedProject, 'status', '--porcelain'], { encoding: 'utf8' }).trim()).toBe('')
+  expect(execFileSync('git', ['-C', boltProjectRoot!, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()).toBe(originalHead)
+  expect(execFileSync('git', ['-C', boltProjectRoot!, 'status', '--porcelain'], { encoding: 'utf8' }).trim()).toBe(originalStatus)
+
+  const history = await (await page.request.get('http://127.0.0.1:4173/__ripple/api/history')).json() as { history: Array<{ candidateId: string; lifecycle: string; patchHash: string }> }
+  expect(history.history.find(item => item.candidateId === candidateId)).toMatchObject({ lifecycle: 'rolled-back', patchHash })
+  const historyRow = page.getByTestId('candidate-history').locator('article').filter({ hasText: candidateId })
+  await historyRow.getByRole('button', { name: '恢复记录' }).click()
+  await expect(page.getByTestId('candidate-id')).toHaveText(candidateId)
+  await expect(page.locator('.hash-grid > div').nth(1).locator('code')).toHaveText(patchHash)
+  await expect(page.getByTestId('verification-state')).toContainText('PASSED')
+  await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-history-restored.png'), fullPage: true })
   candidateId = ''
 })
 
