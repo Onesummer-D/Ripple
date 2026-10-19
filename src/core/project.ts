@@ -406,7 +406,12 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     }
     scanValues(source)
   }
-  for (const file of snapshot.trackedFiles.filter(candidate => /\.css$/i.test(candidate))) {
+  // Two phases on purpose: index ALL definitions across every stylesheet first, then
+  // resolve var() uses against the complete index. A per-file loop makes uses-token
+  // edges depend on tracked-file ordering (card.css before theme.css loses the edge);
+  // duplicate definitions stay unresolved via the single-definition guard.
+  const cssFiles = snapshot.trackedFiles.filter(candidate => /\.css$/i.test(candidate))
+  for (const file of cssFiles) {
     const absolute = path.join(snapshot.root, file)
     if (fs.lstatSync(absolute).isSymbolicLink()) continue
     const css = fs.readFileSync(absolute, 'utf8')
@@ -418,6 +423,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const token: SourceNode = { id: nodeId(file, 'token', start), kind: 'token', label: match[1], value, location: { path: file, start, end: start + value.length } }
       addIndexedValue(token, tokenNodes, match[1])
     }
+  }
+  for (const file of cssFiles) {
+    const absolute = path.join(snapshot.root, file)
+    if (fs.lstatSync(absolute).isSymbolicLink()) continue
+    const css = fs.readFileSync(absolute, 'utf8')
     for (const match of css.matchAll(/var\((--[\w-]+)/g)) {
       const definitionsForToken = tokenNodes.get(match[1]) ?? []
       if (definitionsForToken.length === 1) addEdge(`file:${file}`, definitionsForToken[0].id, 'uses-token', `css-token-use:${file}:${match.index}`)
@@ -447,7 +457,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   // asset file, plus per-file binding names for identifier provenance. Asset-backed media has
   // no source offsets — editing it is an asset-swap candidate, not a literal replacement.
   const assetImportBindings = new Map<string, Map<string, string>>()
-  const componentUsages: Array<{ targetId: string; element: ts.JsxOpeningLikeElement; source: ts.SourceFile; file: string }> = []
+  const componentUsages: Array<{ targetId: string; ownerId: string; element: ts.JsxOpeningLikeElement; source: ts.SourceFile; file: string }> = []
   const pendingDrills: Array<{ ownerId: string; paramName: string; property: string; position: number; file: string }> = []
   for (const [absolute, source] of sourceFiles) {
     const relative = relativeTo(snapshot.root, absolute)
@@ -623,7 +633,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           if (!componentRenders.has(ownerComponent.id)) componentRenders.set(ownerComponent.id, new Set())
           componentRenders.get(ownerComponent.id)!.add(target.id)
           addEdge(ownerComponent.id, target.id, 'renders', `render:${ownerComponent.id}:${node.getStart(source)}`)
-          componentUsages.push({ targetId: target.id, element: node, source, file: relative })
+          componentUsages.push({ targetId: target.id, ownerId: ownerComponent.id, element: node, source, file: relative })
           if (appComponent?.id === ownerComponent.id) appDirect.add(target.id)
         }
         // A capitalized tag that resolves to no component and is not imported at all
@@ -679,16 +689,48 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     }
     for (const drill of pendingDrills) {
       const drilled = new Map<string, DrilledProperty>()
-      // Unproven usage sites must NOT vanish from the graph: an invisibly-rendered media
-      // would let a page impact closure be overestimated. Where the array is syntactically
-      // reachable (spread of a map param, element access) we name candidate media and both
-      // emit semantic-candidate edges and poison each candidate's file via `unresolved`, so
-      // sourceProvenPageImpact fails closed whenever that file is in the proven subgraph.
-      const candidatesFromUnproven = new Map<string, DrilledProperty>()
+      // Edges are emitted per USAGE SITE (the component whose JSX carries the drilled
+      // prop), not per drilled component: a shared component rendered on several routes
+      // must not merge bindings — each page's impact closure follows its own usage.
+      // Unproven usage sites must NOT vanish either: an invisibly-rendered media would
+      // overestimate nothing but hide real consumers, so where the array is syntactically
+      // reachable (spread of a map param, element access) we name candidate media, emit
+      // semantic-candidate edges, and poison each candidate's declaration file via
+      // `unresolved` — scope.ts fails closed whenever that file is in the proven subgraph.
       const unprovenUsageFiles = new Set<string>()
       let sawUsage = false
       for (const usage of componentUsages) {
         if (usage.targetId !== drill.ownerId) continue
+        const usagePos = usage.element.getStart(usage.source)
+        const emitDrilled = (items: DrilledProperty[]) => {
+          const seen = new Set<string>()
+          for (const item of items) {
+            const key = JSON.stringify(item)
+            if (seen.has(key)) continue
+            seen.add(key)
+            const node = mediaNodeFor(item)
+            if (node) {
+              addEdge(usage.ownerId, node.id, 'asset-consumer', `asset:${usage.ownerId}:${node.id}:${usagePos}`)
+            } else {
+              for (const candidate of candidateNodesFor(item)) {
+                addEdge(usage.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${usage.ownerId}:${candidate.id}:${usagePos}`, 'semantic-candidate')
+              }
+            }
+          }
+        }
+        const emitUnproven = (base: ts.Expression) => {
+          unprovenUsageFiles.add(usage.file)
+          for (const item of arrayDrill(base, drill.property, checker, new Set(), resolveAsset)) {
+            for (const candidate of candidateNodesFor(item)) {
+              addEdge(usage.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${usage.ownerId}:${candidate.id}:${usagePos}`, 'semantic-candidate')
+              // Poison the candidate's closure: scope.ts flags unresolved entries whose
+              // importer file is in the proven consumer subgraph. The media's declaration
+              // file is always reachable from the media itself, so this entry guarantees
+              // fail-closed impact for every named candidate.
+              if (candidate.location?.path) unresolved.push(`${candidate.location.path} → unproven-usage:${usage.file}`)
+            }
+          }
+        }
         const attribute = usage.element.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(usage.source) === drill.paramName)
         const initializer = attribute && ts.isJsxAttribute(attribute) ? attribute.initializer : undefined
         const expression = initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined
@@ -702,11 +744,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
             const exact = arrayLiteralPropertyValueAt(expression.expression, numeric, drill.property, checker, resolveAsset)
             if (exact) {
               drilled.set(JSON.stringify(exact), exact)
+              emitDrilled([exact])
               continue
             }
           }
-          unprovenUsageFiles.add(usage.file)
-          for (const item of arrayDrill(expression.expression, drill.property, checker, new Set(), resolveAsset)) candidatesFromUnproven.set(JSON.stringify(item), item)
+          emitUnproven(expression.expression)
           continue
         }
         if (expression) {
@@ -714,6 +756,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           const items = arrayDrill(expression, drill.property, checker, new Set(), resolveAsset)
           if (items.length) {
             for (const item of items) drilled.set(JSON.stringify(item), item)
+            emitDrilled(items)
             continue
           }
           unprovenUsageFiles.add(usage.file)
@@ -724,9 +767,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         // this drill and must not be recorded as an unknown one.
         if (!usage.element.attributes.properties.some(ts.isJsxSpreadAttribute)) continue
         sawUsage = true
-        unprovenUsageFiles.add(usage.file)
-        let candidateSource: ts.Expression | undefined
         // Walk up from the JSX element to an enclosing .map/.filter callback parameter.
+        let candidateSource: ts.Expression | undefined
         {
           let node: ts.Node | undefined = usage.element
           while (node && !ts.isCallExpression(node)) node = node.parent
@@ -738,34 +780,9 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           candidateSource = param
         }
         if (candidateSource) {
-          for (const item of arrayDrill(candidateSource, drill.property, checker, new Set(), resolveAsset)) candidatesFromUnproven.set(JSON.stringify(item), item)
-        }
-      }
-      for (const item of drilled.values()) {
-        const node = mediaNodeFor(item)
-        if (node) {
-          addEdge(drill.ownerId, node.id, 'asset-consumer', `asset:${drill.ownerId}:${node.id}:${drill.position}`)
+          emitUnproven(candidateSource)
         } else {
-          for (const candidate of candidateNodesFor(item)) {
-            addEdge(drill.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${candidate.id}:${drill.position}`, 'semantic-candidate')
-          }
-        }
-      }
-      for (const item of candidatesFromUnproven.values()) {
-        for (const candidate of candidateNodesFor(item)) {
-          addEdge(drill.ownerId, candidate.id, 'asset-consumer', `asset-candidate:${drill.ownerId}:${candidate.id}:${drill.position}`, 'semantic-candidate')
-          // Poison the candidate's closure: scope.ts flags unresolved entries whose
-          // importer file is in the proven consumer subgraph. The media's declaration
-          // file is always reachable from the media itself, so these entries guarantee
-          // fail-closed impact for every named candidate. One entry per unproven usage
-          // file — the first file alone would hide additional unknown consumers.
-          if (candidate.location?.path) {
-            if (unprovenUsageFiles.size) {
-              for (const usageFile of unprovenUsageFiles) unresolved.push(`${candidate.location.path} → unproven-usage:${usageFile}`)
-            } else {
-              unresolved.push(`${candidate.location.path} → unproven-usage:${drill.file}`)
-            }
-          }
+          unprovenUsageFiles.add(usage.file)
         }
       }
       for (const usageFile of unprovenUsageFiles) unresolved.push(`${usageFile} → unproven-prop:${drill.paramName}`)

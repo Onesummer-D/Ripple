@@ -34,8 +34,8 @@ function scaffold(root: string) {
 
 const commit = (root: string) => { git(root, 'init', '-q'); git(root, 'add', '-A'); git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'fixture') }
 
-const assetEdges = (graph: SourceGraph, fromPrefix: string) =>
-  graph.edges.filter(edge => edge.kind === 'asset-consumer' && edge.from.startsWith(fromPrefix))
+const assetEdges = (graph: SourceGraph, fromPrefix?: string) =>
+  graph.edges.filter(edge => edge.kind === 'asset-consumer' && (!fromPrefix || edge.from.startsWith(fromPrefix)))
 
 describe('media provenance upgrade', () => {
   it('upgrades prop-drilled external URLs to source-proven (qingye ProductCard pattern)', () => {
@@ -48,8 +48,7 @@ describe('media provenance upgrade', () => {
     commit(root)
 
     const graph = analyzeProject(root)
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    const edges = assetEdges(graph, cardId)
+    const edges = assetEdges(graph)
     expect(edges.length).toBeGreaterThan(0)
     expect(edges.every(edge => edge.certainty === 'source-proven')).toBe(true)
     const mediaIds = new Set(edges.map(edge => edge.to))
@@ -58,6 +57,10 @@ describe('media provenance upgrade', () => {
     const impact = sourceProvenPageImpact(graph, [...mediaIds][0])
     expect(impact.unresolved).toEqual([])
     expect(impact.pageRefs).toEqual(['page:home', 'page:list'])
+    // Per-usage sourcing: home's media edge originates from HomePage, list's from ListPage —
+    // a shared component does not merge the two bindings.
+    expect(edges.some(edge => edge.from.startsWith('component:src/pages/HomePage'))).toBe(true)
+    expect(edges.some(edge => edge.from.startsWith('component:src/pages/ListPage'))).toBe(true)
   })
 
   it('resolves @/ alias imports and identifier-bound assets (mountain-spirit pattern)', () => {
@@ -84,8 +87,9 @@ describe('media provenance upgrade', () => {
     expect(homeEdges[0].certainty).toBe('source-proven')
     expect(homeEdges[0].to).toBe('media:src/assets/hero.jpg#asset')
 
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    const cardEdges = assetEdges(graph, cardId)
+    // The drilled prop edge is now sourced from the USAGE site (ListPage), not the card.
+    const listId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ListPage')!.id
+    const cardEdges = assetEdges(graph, listId)
     expect(cardEdges.length).toBe(1)
     expect(cardEdges[0].certainty).toBe('source-proven')
     expect(cardEdges[0].to).toBe('media:src/assets/item-1.jpg#asset')
@@ -102,8 +106,7 @@ describe('media provenance upgrade', () => {
     commit(root)
 
     const graph = analyzeProject(root)
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    const edges = assetEdges(graph, cardId)
+    const edges = assetEdges(graph)
     // One access, one shared value, two indistinguishable media nodes → one
     // semantic-candidate edge per media node (2 total), no proven edges.
     expect(edges.length).toBe(2)
@@ -125,8 +128,7 @@ describe('media provenance upgrade', () => {
     commit(root)
 
     const graph = analyzeProject(root)
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    const edges = assetEdges(graph, cardId)
+    const edges = assetEdges(graph)
     // Candidates are named (syntactic array reachable) but stay semantic-candidate.
     expect(edges.length).toBe(1)
     expect(edges[0].certainty).toBe('semantic-candidate')
@@ -170,8 +172,7 @@ describe('media provenance upgrade', () => {
     commit(root)
 
     const graph = analyzeProject(root)
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    const edges = assetEdges(graph, cardId)
+    const edges = assetEdges(graph)
     expect(edges.length).toBe(2)
     expect(edges.every(edge => edge.certainty === 'semantic-candidate')).toBe(true)
     for (const edge of edges) {
@@ -192,8 +193,7 @@ describe('media provenance upgrade', () => {
     commit(root)
 
     const graph = analyzeProject(root)
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    const edges = assetEdges(graph, cardId)
+    const edges = assetEdges(graph)
     // Both usage sites resolve to the same component: 2 proven (list map) + 2 candidates (home element access).
     expect(edges.filter(edge => edge.certainty === 'source-proven').length).toBe(2)
     expect(edges.filter(edge => edge.certainty === 'semantic-candidate').length).toBe(2)
@@ -235,8 +235,7 @@ describe('media provenance upgrade', () => {
     commit(root)
 
     const graph = analyzeProject(root)
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    const edges = assetEdges(graph, cardId)
+    const edges = assetEdges(graph)
     expect(edges.length).toBe(1)
     expect(edges[0].certainty).toBe('source-proven')
     const media = graph.nodes.find(node => node.id === edges[0].to)!
@@ -290,8 +289,7 @@ export function HomePage() { return <main>{products.map((product) => <ProductCar
   }
   const cardEdgesOf = (root: string) => {
     const graph = analyzeProject(root)
-    const cardId = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!.id
-    return assetEdges(graph, cardId)
+    return assetEdges(graph)
   }
 
   it('refuses to drill a reassigned let declaration', () => {
@@ -340,5 +338,115 @@ export function HomePage() { return <main><img src={heroImage} alt="hero" /></ma
     commit(root)
     const graph = analyzeProject(root)
     expect(graph.unresolved.some(entry => entry.includes('@/assets/hero.jpg'))).toBe(true)
+  })
+})
+
+describe('css token resolution (two-phase, order-independent)', () => {
+  const cssFixture = (root: string, files: Record<string, string>) => {
+    scaffold(root)
+    for (const [relative, content] of Object.entries(files)) write(root, relative, content)
+    write(root, 'src/pages/HomePage.tsx', `import '../styles/card.css';\nexport function HomePage() { return <main><p className="eyebrow">Home</p></main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+  }
+  const tokenEdgesFrom = (graph: SourceGraph, file: string) =>
+    graph.edges.filter(edge => edge.kind === 'uses-token' && edge.from === `file:${file}`)
+
+  it('resolves var() uses against definitions in a later-sorting stylesheet', () => {
+    const root = temp()
+    // card.css sorts BEFORE theme.css in tracked-file order yet consumes its token —
+    // the uses-token edge must exist regardless of ordering.
+    cssFixture(root, {
+      'src/styles/card.css': `.eyebrow { color: var(--brand-accent); font-weight: 600; }`,
+      'src/styles/theme.css': `:root { --brand-accent: #b5522d; }`,
+    })
+    const graph = analyzeProject(root)
+    const edges = tokenEdgesFrom(graph, 'src/styles/card.css')
+    expect(edges.length).toBe(1)
+    expect(edges[0].certainty).toBe('source-proven')
+    const token = graph.nodes.find(node => node.id === edges[0].to)!
+    expect(token.location?.path).toBe('src/styles/theme.css')
+    expect(token.label).toBe('--brand-accent')
+  })
+
+  it('duplicate definitions across files stay unresolved (no uses-token edge)', () => {
+    const root = temp()
+    cssFixture(root, {
+      'src/styles/card.css': `.eyebrow { color: var(--brand-accent); }`,
+      'src/styles/theme.css': `:root { --brand-accent: #b5522d; }`,
+      'src/styles/base.css': `:root { --brand-accent: #246; }`,
+    })
+    const graph = analyzeProject(root)
+    expect(tokenEdgesFrom(graph, 'src/styles/card.css')).toEqual([])
+  })
+})
+
+describe('integrated cross-page media bindings (merged A/B scope semantics)', () => {
+  it('same shared component on two routes keeps per-page media bindings distinct', () => {
+    const root = temp()
+    scaffold(root)
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const productsA: Product[] = [{ id: 'a1', image: 'https://images.pexels.com/photos/50/pexels-photo-50.jpeg?auto=compress' }];\nexport const productsB: Product[] = [{ id: 'b1', image: 'https://images.pexels.com/photos/51/pexels-photo-51.jpeg?auto=compress' }];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    // The SAME component is rendered on both routes with different arrays: the binding
+    // that matters is per-page (which array feeds the map), not component/module reuse.
+    write(root, 'src/pages/HomePage.tsx', `import { productsA } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{productsA.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { productsB } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{productsB.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value?.includes('pexels-photo-50'))!
+    const mediaB = graph.nodes.find(node => node.kind === 'media' && node.value?.includes('pexels-photo-51'))!
+    const impactA = sourceProvenPageImpact(graph, mediaA.id)
+    const impactB = sourceProvenPageImpact(graph, mediaB.id)
+    expect(impactA.pageRefs).toEqual(['page:home'])
+    expect(impactA.certainty).toBe('source-proven')
+    expect(impactB.pageRefs).toEqual(['page:list'])
+    expect(impactB.certainty).toBe('source-proven')
+  })
+
+  it('ambiguous shared value across pages stays partial, never silently proven', () => {
+    const root = temp()
+    scaffold(root)
+    // Both arrays share the same image URL: the media node is ambiguous, so every
+    // consuming page must stay non-proven rather than guess a binding.
+    const shared = 'https://images.pexels.com/photos/60/pexels-photo-60.jpeg?auto=compress'
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const productsA: Product[] = [{ id: 'a1', image: '${shared}' }];\nexport const productsB: Product[] = [{ id: 'b1', image: '${shared}' }];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    write(root, 'src/pages/HomePage.tsx', `import { productsA } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{productsA.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `import { productsB } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function ListPage() { return <main>{productsB.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const edges = assetEdges(graph)
+    expect(edges.length).toBeGreaterThan(0)
+    expect(edges.every(edge => edge.certainty === 'semantic-candidate')).toBe(true)
+    for (const edge of edges) {
+      const impact = sourceProvenPageImpact(graph, edge.to)
+      expect(impact.certainty).not.toBe('source-proven')
+    }
+  })
+
+  it('an unconsumed media definition does not acquire all-page impact via file imports (A scope rule)', () => {
+    const root = temp()
+    scaffold(root)
+    // productsC is declared in the shared data module but never consumed by any
+    // component. Under the merged Scope semantics, imports of the definition file do
+    // NOT prove consumption — the closure must be empty/unknown, not all four pages.
+    write(root, 'src/data/products.ts', `export type Product = { id: string; image: string };\nexport const productsA: Product[] = [{ id: 'a1', image: 'https://images.pexels.com/photos/70/pexels-photo-70.jpeg?auto=compress' }];\nexport const productsC: Product[] = [{ id: 'c1', image: 'https://images.pexels.com/photos/71/pexels-photo-71.jpeg?auto=compress' }];`)
+    write(root, 'src/components/ProductCard.tsx', `export function ProductCard({ product }: { product: { image: string } }) { return <img src={product.image} alt="" /> }`)
+    write(root, 'src/pages/HomePage.tsx', `import { productsA } from '../data/products';\nimport { ProductCard } from '../components/ProductCard';\nexport function HomePage() { return <main>{productsA.map((product) => <ProductCard key={product.id} product={product} />)}</main> }`)
+    write(root, 'src/pages/ListPage.tsx', `export function ListPage() { return <main>List</main> }`)
+    commit(root)
+
+    const graph = analyzeProject(root)
+    const mediaC = graph.nodes.find(node => node.kind === 'media' && node.value?.includes('pexels-photo-71'))!
+    const impactC = sourceProvenPageImpact(graph, mediaC.id)
+    expect(impactC.pageRefs).toEqual([])
+    expect(impactC.certainty).toBe('unknown')
+    // Sanity: the consumed sibling still proves its own page.
+    const mediaA = graph.nodes.find(node => node.kind === 'media' && node.value?.includes('pexels-photo-70'))!
+    const impactA = sourceProvenPageImpact(graph, mediaA.id)
+    expect(impactA.pageRefs).toEqual(['page:home'])
+    expect(impactA.certainty).toBe('source-proven')
   })
 })
