@@ -20,4 +20,17 @@ describe('VerificationContractEditor', () => {
     }))
     expect(screen.queryByRole('textbox', { name: 'verification-contract' })).toBeNull()
   })
+
+  it('copies a source-backed suggestion into the page marker field without treating it as evidence', () => {
+    const routes = [{ id: 'page:home', label: '首页' }]
+    const onChange = vi.fn()
+    const draft = createVerificationContractDraft(routes)
+    render(<VerificationContractEditor routes={routes} markerSuggestions={{ 'page:home': ['Home baseline'] }} value={draft} disabled={false} onChange={onChange} />)
+
+    fireEvent.change(screen.getByLabelText('首页 页面标记建议'), { target: { value: 'Home baseline' } })
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      pages: [expect.objectContaining({ pageRef: 'page:home', markerText: 'Home baseline' })],
+    }))
+    expect(screen.getByText(/不是浏览器证据/)).toBeTruthy()
+  })
 })
