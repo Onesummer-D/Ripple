@@ -4,7 +4,7 @@ import { VerificationContractEditor } from './VerificationContractEditor'
 import { ScopeEffectPreview } from './ScopeEffectPreview'
 import { buildScopeEffectPreview, type PageScopeChoice } from './scope-effect-preview'
 import { projectPreviewViewports } from '../core/project-viewports'
-import { createVerificationContractDraft, incompleteVerificationDeclarations, suggestVerificationPageMarkers, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
+import { createVerificationContractDraft, rebaseVerificationContractDraft, incompleteVerificationDeclarations, suggestVerificationPageMarkers, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
 import './project-workbench.css'
 
 interface RouteSummary { id: string; label: string; page?: string }
@@ -359,7 +359,7 @@ export default function ProjectWorkbench() {
       setPageScope(Object.fromEntries(next.routes.map(route => [route.id, ''])))
       setLocalPageRef(next.routes[0]?.id ?? '')
       setScopeStrategy('shared')
-      setVerificationContractDraft(createVerificationContractDraft(next.routes))
+      setVerificationContractDraft(rebaseVerificationContractDraft(next.routes, verificationContractDraft))
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法分析项目') }
     finally { setBusy(false) }
   }
