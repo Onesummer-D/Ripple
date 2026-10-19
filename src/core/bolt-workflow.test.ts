@@ -64,6 +64,10 @@ describe('manual Bolt workflow credential boundary', () => {
   })
 
   it('uses one pinned Bolt checkout root for checkout, dependency installation and project analysis', () => {
+    const checkoutSteps = workflow
+      .split(/(?=^      - )/m)
+      .filter(block => block.startsWith('      - uses: actions/checkout@v4'))
+      .map(block => block.split(/\r?\n      - /, 1)[0])
     const boltCheckout = checkoutSteps[1]
     const checkoutPath = boltCheckout.match(/^          path: (.+)$/m)?.[1]
     const installPath = workflow.match(/npm ci --ignore-scripts --no-audit --no-fund --prefix (\S+)/)?.[1]

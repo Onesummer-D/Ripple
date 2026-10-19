@@ -129,7 +129,7 @@ function fontUrls(css: string): string[] {
   return [...urls]
 }
 
-export export function replaceFontWithData(css: string, url: string, contentType: string, body: Buffer): string {
+export function replaceFontWithData(css: string, url: string, contentType: string, body: Buffer): string {
   const escapedUrl = url.split('').map(char => '\\^$.*+?()|[]{}'.includes(char) ? '\\' + char : char).join('')
   const pattern = new RegExp('url\\(\\s*([\\x22\\x27]?)' + escapedUrl + '\\1\\s*\\)', 'gi')
   return css.replace(pattern, 'url(data:' + contentType + ';base64,' + body.toString('base64') + ')')
