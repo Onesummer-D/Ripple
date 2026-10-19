@@ -1,0 +1,19 @@
+# Isolated candidate preview platform
+
+Ripple's candidate preview runs the target site's Vite server in a Linux Docker container. The container uses the target project's `node_modules` and Ripple's preview dependencies read-only; those native packages must match the container's Linux platform.
+
+On Windows, run both Ripple and the target project from a WSL2 Linux distribution with Docker Desktop's WSL integration enabled. Keep both checkouts and their `node_modules` under the WSL Linux filesystem (for example, `~/src`), not under `/mnt/c` or a Windows checkout. Install dependencies in that Linux environment using the project's lockfile, after reviewing and trusting its dependency scripts. Start Ripple's development server from WSL and open its `http://localhost:<port>` address in the Windows browser. Ripple refuses to start the isolated preview from a non-Linux Node process instead of mounting Windows-native binaries into a Linux container.
+
+The Linux/Docker route is exercised by the required GitHub Actions browser suite. This checkout did not have Docker available on Windows, so the WSL2/Docker Desktop route itself has not been locally verified. A future Linux dependency preparation/cache workflow could remove this host-platform constraint; Ripple does not currently run target-project install scripts automatically.
+
+External HTTPS references found in project source are suggestions only. They are not trusted automatically. Before creating a candidate, add the specific image, font, or stylesheet URL paths needed for preview and explicitly save them in the workbench. The preview emits those paths—not whole discovered origins—in the relevant CSP directives; query strings are not part of CSP path matching. Localhost, IP-literal, credential-bearing, and directory-root grants are rejected. The grants live in Ripple's local workbench state, not in the imported repository.
+
+The Docker candidate process is on an internal network. The host loopback relay accepts only its exact loopback Host, same-preview or opaque `null` Origin, GET/HEAD, and origin-form paths; it forwards a small request-header set, strips cookies, authorization, and Set-Cookie, and rejects upstream redirects to external origins. The candidate iframe is sandboxed with an opaque origin; CSP blocks unapproved resource/fetch channels, and injected guards cancel external link clicks and form submissions. This is not a complete security sandbox for deliberately malicious JavaScript: script-driven top-level-frame navigation cannot be reliably blocked by a shipped browser CSP directive. Only preview projects whose code you trust, and do not treat Docker or the iframe as hostile-code containment.
+
+Manual WSL2/Docker Desktop recheck on Windows:
+
+1. Install/enable WSL2 and Docker Desktop's WSL integration, then verify `wsl -l -v` shows the chosen distro on version 2 and run `docker info` inside it.
+2. Clone Ripple and the Bolt project under the distro's Linux home (not `/mnt/c`), install each lockfile's dependencies only after reviewing its lifecycle scripts, and start Ripple from that same distro with `npm run dev -- --host 0.0.0.0`.
+3. Open the emitted `http://localhost:<port>` URL in the Windows browser. In Ripple, analyze the Bolt project, verify that an unauthorized source URL stays only a suggestion, explicitly approve one static image URL, then preview and load that image.
+4. Check that the preview URL is loopback, the desktop/tablet/mobile viewports render, relay GET works while foreign Host/Origin and POST fail, then stop/discard and confirm Docker has no `com.ripple.candidate=<id>` container/network and `git worktree list` contains only Bolt's source checkout.
+5. Run the private Bolt acceptance workflow and inspect both uploaded artifacts before claiming Bolt acceptance. The synthetic CI project is not a substitute for that run.

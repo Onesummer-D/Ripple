@@ -1,12 +1,12 @@
 import { defineConfig } from '@playwright/test'
-
-const acceptanceDate = process.env.RIPPLE_ACCEPTANCE_DATE ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date())
+import path from 'node:path'
 
 export default defineConfig({
   testDir: './e2e',
+  outputDir: './test-results/playwright',
   timeout: 45000,
   workers: 1,
-  use: { baseURL: 'http://127.0.0.1:4173', channel: 'chrome', headless: true },
-  reporter: [['list'], ['json', { outputFile: `../../docs/acceptance/${acceptanceDate}/evidence/browser-results.json` }]],
-  webServer: { command: 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort', url: 'http://127.0.0.1:4173', reuseExistingServer: false },
+  use: { baseURL: 'http://127.0.0.1:4173', browserName: 'chromium', headless: true, screenshot: 'only-on-failure', trace: 'retain-on-failure' },
+  reporter: [['list'], ['json', { outputFile: './test-results/browser-results.json' }]],
+  webServer: { command: 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort', url: 'http://127.0.0.1:4173', reuseExistingServer: false, env: { RIPPLE_WORKBENCH_STATE_DIR: path.resolve('node_modules/.tmp/playwright-state') } },
 })

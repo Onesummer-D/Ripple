@@ -1,0 +1,40 @@
+name: Ripple CI
+
+concurrency:
+  group: ripple-ci-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run typecheck
+      - run: npm test -- --run
+      - run: npm run build
+      - name: Require Docker for isolated candidate browser preview
+        run: docker info --format '{{.ServerVersion}}'
+      - name: Warm the supported preview runtime image
+        run: docker pull node:22-bookworm-slim
+      - run: npm run test:browser
+      - name: Preserve browser screenshots, traces and run record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-browser-evidence-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 30

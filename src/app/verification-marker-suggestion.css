@@ -1,0 +1,25 @@
+.verification-marker-suggestion {
+  grid-column: 1 / -1;
+}
+
+.verification-marker-suggestion > span {
+  color: #c2c9b7;
+  font-size: 12px;
+}
+
+.verification-marker-suggestion select {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px;
+  border: 1px solid #3b4134;
+  border-radius: 4px;
+  background: #10120e;
+  color: #d7dfcb;
+  font-size: 12px;
+}
+
+.verification-marker-suggestion small {
+  color: #a5ad99;
+  font-size: 12px;
+  line-height: 1.55;
+}
