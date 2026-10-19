@@ -880,7 +880,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   await footerBrand.scrollIntoViewIfNeeded()
   await footerBrand.click()
   await expect(page.getByTestId('selected-jsx-source')).toContainText('src/components/Footer.tsx#')
-  const setTargetButton = page.getByTestId('selected-source').getByRole('button', { name: '设为修改目标' })
+  const setTargetButton = page.getByTestId('selected-source').getByRole('button', { name: '编辑这段文字：山野器物', exact: true })
   await expect(setTargetButton).toHaveCount(1)
   const brandTargetId = (await setTargetButton.getAttribute('data-testid'))!.replace('use-source-text-', '')
   await setTargetButton.click()
