@@ -17,6 +17,46 @@ export interface VerificationContractDraft {
   }>
 }
 
+export interface VerificationMarkerTarget {
+  id: string
+  kind: 'data' | 'media' | 'token'
+  value?: string
+  pageOverrides?: Record<string, string>
+  impact: {
+    pageRefs: string[]
+    unresolved: string[]
+    certainty: 'source-proven' | 'partial' | 'unknown'
+  }
+}
+
+export function suggestVerificationPageMarkers(
+  routes: Array<{ id: string }>,
+  targets: VerificationMarkerTarget[],
+  editedTargetRefs: string[],
+): Record<string, string[]> {
+  const routeRefs = new Set(routes.map(route => route.id))
+  const editedRefs = new Set(editedTargetRefs)
+  const valuesByPage = new Map<string, Map<string, { occurrences: number; singlePageTargets: number }>>()
+
+  for (const target of targets) {
+    const pageRefs = target.impact.pageRefs
+    if (editedRefs.has(target.id) || target.kind !== 'data' || target.impact.certainty !== 'source-proven' || target.impact.unresolved.length !== 0 || !pageRefs.length || pageRefs.some(pageRef => !routeRefs.has(pageRef))) continue
+    for (const pageRef of pageRefs) {
+      const text = (target.pageOverrides?.[pageRef] ?? target.value)?.trim()
+      if (!text || text.length > 300) continue
+      const values = valuesByPage.get(pageRef) ?? new Map<string, { occurrences: number; singlePageTargets: number }>()
+      const current = values.get(text) ?? { occurrences: 0, singlePageTargets: 0 }
+      values.set(text, { occurrences: current.occurrences + 1, singlePageTargets: current.singlePageTargets + Number(pageRefs.length === 1) })
+      valuesByPage.set(pageRef, values)
+    }
+  }
+
+  return Object.fromEntries(routes.map(route => [
+    route.id,
+    [...(valuesByPage.get(route.id) ?? new Map())].filter(([, count]) => count.occurrences === 1 && count.singlePageTargets === 1).map(([text]) => text),
+  ]))
+}
+
 export function createVerificationContractDraft(
   routes: Array<{ id: string }>,
   contract?: BrowserVerificationContract,
