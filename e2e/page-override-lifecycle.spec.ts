@@ -10,7 +10,7 @@ import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceG
 import { applyApprovedCandidate } from '../src/core/apply'
 import { createCandidate, removeCandidate, type CandidateRecord } from '../src/core/candidate'
 import { analyzeProject } from '../src/core/project'
-import type { BrowserVerificationContract, EditOperation, EditSession, InteractionObservation, ScopeDecision, ScopePropagationObservation, SourceGraph, SourceNode, VerificationRun } from '../src/core/model'
+import type { BrowserVerificationContract, EditOperation, EditSession, InteractionObservation, RouteIdentityStatus, ScopeDecision, ScopePropagationObservation, SourceGraph, SourceNode, VerificationRun } from '../src/core/model'
 import { startCandidateBaseline, startCandidatePreview, startHostRelay, stopCandidateBaseline, stopCandidatePreview } from '../src/core/candidate-preview'
 import { attestBrowserExecution } from '../src/core/verification-receipt'
 import { sourceBindings } from '../src/core/verification-runner'
@@ -138,7 +138,7 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
     const markerMatchCount = await marker.count()
     const markerVisible = markerMatchCount > 0 && await marker.first().isVisible()
     const declaredMatches = pages.filter(item => item.markerText === spec.markerText).length
-    let routeIdentity = declaredMatches !== 1 || markerMatchCount > 1 ? 'ambiguous' : markerMatchCount === 0 ? 'missing' : 'verified'
+    let routeIdentity: RouteIdentityStatus = declaredMatches !== 1 || markerMatchCount > 1 ? 'ambiguous' : markerMatchCount === 0 ? 'missing' : 'verified'
     if (routeIdentity === 'verified') {
       for (const otherMarker of new Set(pages.filter(item => item.pageRef !== spec.pageRef).map(item => item.markerText))) {
         if (await targetPage.getByText(otherMarker, { exact: true }).count() > 0) {
