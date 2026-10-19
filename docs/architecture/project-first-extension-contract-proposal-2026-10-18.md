@@ -1,6 +1,6 @@
-# Project-first 扩展契约（A/B 对齐记录）
+# Project-first 扩展契约（A/B v1 冻结记录）
 
-**状态：最小 EditOperation/Session 接口已冻结。** 冻结标识为 `ripple-edit-operation-session/v1`，代码基线为 PR #2 `f2aeadf4b21d8936df593f14261728a8a05e65d8`。五项 A/B 决策已互相接受，且当前接口与 Session 校验通过 Actions #161。该冻结仅覆盖已有类型、校验与 fail-closed 行为，不代表 MEDIA/TOKEN 执行能力已验收。
+**状态：最小 EditOperation/Session 接口已冻结。** 冻结标识为 `ripple-edit-operation-session/v1`，代码基线为 PR #2 `f2aeadf4b21d8936df593f14261728a8a05e65d8`。五项 A/B 决策已互相接受，冻结基线的接口与 Session 校验通过 Actions #161；后续兼容回归以 PR #2 当前 HEAD 对应 Actions 为准。该冻结仅覆盖已有类型、校验与 fail-closed 行为，不代表 MEDIA/TOKEN 执行能力已验收。
 
 ## 目标与已有事实
 
@@ -132,5 +132,5 @@ interface VerificationExecutor {
 3. 真实 Bolt 工作台验收仍依赖私有仓库只读输入和 Docker/受支持 Linux；本轮未能运行，工作台的合成 React/Vite CI 不能替代。
 4. iframe 回传的实例 ID 仍只作导航/定位信息，不是编辑授权。MEDIA 焦点/变体与 TOKEN 局部投影继续显式不可执行，直至真实候选、字节完整性和受信 Evidence 完成。
 
-**冻结条件：** 五项领域决策已有 B 的书面确认；双方还需确认共享契约测试范围，并将真实资产字节的 CandidatePatch/Evidence 完整性回归落到 MEDIA 执行器的端到端实现后，才能决定是否冻结版本。本文不宣称已完成 Bolt 专项、Windows/WSL2 实测或任意 React/Vite 适配。
+**冻结状态：** `ripple-edit-operation-session/v1` 已于 2026-10-19 按 PR #3 §4.5/§4.6 与 PR #2 基线 `f2aeadf` 冻结；冻结测试边界由 Actions #161 固定。未实现的结构化执行器仍须 fail-closed。本文不宣称完成 Bolt 专项、Windows/WSL2 实测、资产字节暂存/完整性、焦点裁切/variants、MEDIA 专属 Evidence、TOKEN local-projection、computed-style Evidence 或任意 React/Vite 适配。
 

@@ -1,6 +1,6 @@
 # RFC：Ripple Project-first 领域架构与迁移路线
 
-**日期：2026-10-18** · **状态：Project-first 核心、Docker 隔离候选预演、DOM→JSX/实例映射、四视口浏览器验证器、连续页面覆盖维护，以及工作台审批/同一补丁应用/回滚/历史恢复已实现。真实 Bolt 手动验收、运行时实例级编辑授权、MEDIA 焦点裁切和 TOKEN 局部覆盖仍未完成。B 的非 TEXT 扩展契约保持提案/未冻结；当前 CI 结果以 PR #2 对应 SHA 的检查为准。**
+**日期：2026-10-19** · **状态：Project-first 核心、Docker 隔离候选预演、DOM→JSX/实例映射、四视口浏览器验证器、连续页面覆盖维护，以及工作台审批/同一补丁应用/回滚/历史恢复已实现。公共接口 `ripple-edit-operation-session/v1` 已在 PR #2 基线 `f2aeadf` 冻结；冻结只覆盖现有 EditOperation/Session 类型、校验和未实现执行器 fail-closed 行为，不表示 MEDIA/TOKEN 功能已验收。真实 Bolt 手动验收、运行时实例级编辑授权、MEDIA 焦点裁切和 TOKEN 局部覆盖仍未完成；CI 状态以 PR #2 当前 SHA 的 Actions 为准。**
 来源：[产品与架构复审 v2](../strategy/Ripple_产品定位与架构复审_v2_2026-10-18.md) · [独立架构审计](./architecture-independent-audit-2026-10-18.md)。
 
 ## 已做出的技术决策
