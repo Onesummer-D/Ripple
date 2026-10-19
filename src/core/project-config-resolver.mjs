@@ -46,33 +46,31 @@ function collectConfigs(root, ts) {
   return configs
 }
 
-function configSignature(config, includeAliases) {
+function configSignature(config) {
   const options = config.parsed.options
   const signature = {
     jsx: options.jsx,
     moduleResolution: options.moduleResolution,
     allowJs: options.allowJs,
   }
-  if (includeAliases) {
-    signature.baseUrl = options.baseUrl ?? options.pathsBasePath ?? path.dirname(config.configPath)
-    signature.paths = options.paths ?? {}
-  }
+  signature.baseUrl = options.baseUrl ?? (Object.keys(options.paths ?? {}).length ? options.pathsBasePath ?? path.dirname(config.configPath) : undefined)
+  signature.paths = options.paths ?? {}
   return JSON.stringify(signature)
 }
 
-function chooseConfig(configs, entries, includeAliases) {
-  const candidates = includeAliases ? configs.filter(config => Object.keys(config.parsed.options.paths ?? {}).length > 0) : configs
-  if (!candidates.length) return { status: 'unsupported', reason: includeAliases ? 'No TypeScript path aliases are declared.' : 'No TypeScript project config was discovered.' }
+function chooseConfig(candidates, entries) {
+  if (!candidates.length) return { status: 'unsupported', reason: 'No TypeScript project config was discovered.' }
   const containingEntry = candidates.filter(config => config.parsed.fileNames.some(file => entries.includes(path.resolve(file))))
   const jsxConfigs = candidates.filter(config => config.parsed.options.jsx !== undefined)
   const selected = containingEntry.length ? containingEntry : jsxConfigs.length ? jsxConfigs : candidates
-  const signatures = new Set(selected.map(config => configSignature(config, includeAliases)))
+  const signatures = new Set(selected.map(config => configSignature(config)))
   if (signatures.size > 1) return { status: 'ambiguous', reason: 'Several referenced application configs contain conflicting compiler or path-alias settings.', candidates: selected }
   return { status: 'supported', config: [...selected].sort((a, b) => a.configPath.localeCompare(b.configPath, 'en'))[0] }
 }
 
 function aliasRules(config) {
   const options = config.parsed.options
+  if (!Object.keys(options.paths ?? {}).length) return { status: 'unsupported', reason: 'The selected application config declares no TypeScript path aliases.', rules: [] }
   const baseUrl = options.baseUrl ?? options.pathsBasePath ?? path.dirname(config.configPath)
   const rules = []
   for (const [pattern, destinations] of Object.entries(options.paths ?? {})) {
@@ -91,11 +89,10 @@ export function resolveProjectConfigGraph(inputRoot, ts) {
   const root = path.resolve(inputRoot)
   const entries = applicationEntries(root, ts)
   const configs = collectConfigs(root, ts)
-  const application = chooseConfig(configs, entries, false)
-  const aliasSelection = chooseConfig(configs, entries, true)
+  const application = chooseConfig(configs, entries)
   let aliases
-  if (aliasSelection.status !== 'supported') aliases = { status: aliasSelection.status, reason: aliasSelection.reason, rules: [] }
-  else aliases = aliasRules(aliasSelection.config)
+  if (application.status !== 'supported') aliases = { status: application.status, reason: application.reason, rules: [] }
+  else aliases = aliasRules(application.config)
   return {
     root,
     entries,
@@ -104,7 +101,7 @@ export function resolveProjectConfigGraph(inputRoot, ts) {
       ? { status: 'supported', configPath: application.config.configPath, parsed: application.config.parsed }
       : { status: application.status, reason: application.reason },
     aliases: aliases.status === 'supported'
-      ? { status: 'supported', configPath: aliasSelection.config.configPath, rules: aliases.rules }
+      ? { status: 'supported', configPath: application.config.configPath, rules: aliases.rules }
       : aliases,
   }
 }
@@ -121,7 +118,7 @@ export function toViteAliasRules(graph) {
     const targetSuffix = target.slice(targetWildcard + 1)
     return {
       find: new RegExp(`^${prefix}(.*)${suffix}$`),
-      replacement: `${targetPrefix}${path.sep}$1${targetSuffix}`,
+      replacement: `${targetPrefix}$1${targetSuffix}`,
     }
   })
 }

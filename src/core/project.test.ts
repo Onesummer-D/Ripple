@@ -228,6 +228,7 @@ describe('real project graph and candidate executor', () => {
     git(root, 'commit', '-qm', 'make aliases ambiguous')
     const ambiguous = inspectProjectCapabilities(root, analyzeProject(root), 'linux')
     expect(ambiguous.typescriptAliases.status).toBe('ambiguous')
+    expect(ambiguous.devPreview.status).toBe('ambiguous')
   })
 
   it('proves component token use but keeps imported CSS token usage unknown without cascade evidence', () => {
@@ -347,6 +348,15 @@ describe('real project graph and candidate executor', () => {
       expect(() => assertCandidateIntegrity(candidate)).toThrow(/未经记录的文件变更/)
     } finally { removeCandidate(candidate) }
   }, 30_000)
+
+  it('rejects staged asset input whose bytes do not match the requested SHA-256', () => {
+    const { container, root } = sampleProject()
+    const graph = analyzeProject(root)
+    const fixture = mediaSwapFixture(graph)
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'bad-input-candidate'), artifactRoot: path.join(container, 'bad-input-artifacts'), graph, scope: fixture.scope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: () => Buffer.from([9, 8, 7]) })).toThrow(/暂存资产字节与 SHA-256 不匹配/)
+    expect(fs.existsSync(path.join(container, 'bad-input-candidate'))).toBe(false)
+    expect(fs.existsSync(path.join(root, fixture.assetRef))).toBe(false)
+  })
 
   it('rejects structured source drift and candidate-relative path escape before writing', () => {
     const { container, root } = sampleProject()

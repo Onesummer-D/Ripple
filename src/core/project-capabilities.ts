@@ -91,6 +91,8 @@ export function inspectProjectCapabilities(rootInput: string, graph: SourceGraph
     ? { status: 'unsupported', reason: 'Candidate preview currently requires the Linux/Docker runtime; Windows-native and unverified WSL integrations are not supported.' }
     : !prepared
       ? { status: 'unsupported', reason: 'Project dependencies must already be prepared in node_modules; Ripple will not run install scripts.' }
+      : aliases.status === 'ambiguous'
+        ? { status: 'ambiguous', reason: aliases.reason }
       : framework.status !== 'supported' || entry.status !== 'supported'
         ? { status: 'unsupported', reason: 'The React DOM and single HTML module-entry preconditions are not both proven.' }
         : { status: 'supported', reason: 'The fixed Ripple React/Vite dev adapter can be attempted; this is static compatibility, not a successful preview run.', value: { adapter: 'ripple-bounded-react-vite', dependencyDirectory } }
