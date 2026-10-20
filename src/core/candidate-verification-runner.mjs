@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { chromium } from '/ripple/node_modules/playwright/index.mjs'
+import { createBrowserErrorAccumulator } from './browser-error-accumulator.mjs'
 
 const input = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const outputPath = '/evidence/execution.json'
@@ -20,19 +21,19 @@ const interactionObservations = []
 const targetResults = []
 const mappedResults = []
 const nonTargetResults = []
-const browserErrors = []
-// Run #7 taught us that a bare error count ("872 browser or page error(s)")
-// cannot be attributed after the fact: the runner container is gone by the
-// time anyone looks. Record a category and keep bounded samples + per-category
-// totals in the manifest so the record itself explains what was observed.
-const recordBrowserError = (category, message) => { browserErrors.push({ category, message: String(message).slice(0, 500) }) }
-const browserErrorSampleLimit = 25
+// Keep the exact count and category totals without retaining every repeated
+// event. Run #10 produced ~30k browser errors before the 180s budget expired;
+// the manifest must remain bounded while still explaining the failure.
+const browserErrors = createBrowserErrorAccumulator({ sampleLimit: 25, messageLimit: 500 })
+const recordBrowserError = (category, message, context = {}) => browserErrors.add(category, message, context)
 const resourceSnapshots = input.resourceSnapshots ?? []
 const resourceByUrl = new Map(resourceSnapshots.map(snapshot => [snapshot.url, snapshot]))
 const loadedExternalResourceUrls = new Set()
 const blockedExternalResourceUrls = new Set()
 let overflowObserved = false
 let loadedViewports = 0
+const routedPages = new WeakSet()
+const instrumentedPages = new WeakSet()
 // Run #8 died to a host-side 180 s budget kill with no surviving trace of
 // which check was running. Append one JSON line per completed check (and one
 // at start) so a timed-out run still leaves an attributable timeline the
@@ -53,6 +54,8 @@ const timed = async (phase, fn, extra) => {
 }
 
 async function installResourceSnapshots(page) {
+  if (routedPages.has(page)) return
+  routedPages.add(page)
   await page.route('**/*', async route => {
     const requestedUrl = route.request().url()
     let parsed
@@ -62,7 +65,7 @@ async function installResourceSnapshots(page) {
     if (localOrigins.has(parsed.origin)) return route.continue()
     if (route.request().method() !== 'GET' && route.request().method() !== 'HEAD') {
       blockedExternalResourceUrls.add(requestedUrl)
-      recordBrowserError('blocked-method', 'Non-static external resource method was blocked: ' + route.request().method())
+      recordBrowserError('blocked-method', 'Non-static external resource method was blocked: ' + route.request().method(), { url: requestedUrl, phase: currentCheckId })
       await route.abort()
       return
     }
@@ -71,7 +74,7 @@ async function installResourceSnapshots(page) {
       const filePath = path.resolve('/evidence', snapshot.artifactPath)
       if (!filePath.startsWith('/evidence/resources/') || sha256(fs.readFileSync(filePath)) !== snapshot.sha256) {
         blockedExternalResourceUrls.add(requestedUrl)
-        recordBrowserError('blocked-integrity', 'Resource snapshot integrity check failed: ' + requestedUrl)
+        recordBrowserError('blocked-integrity', 'Resource snapshot integrity check failed', { url: requestedUrl, phase: currentCheckId })
         await route.abort()
         return
       }
@@ -80,7 +83,7 @@ async function installResourceSnapshots(page) {
       return
     }
     blockedExternalResourceUrls.add(requestedUrl)
-    recordBrowserError('blocked-not-in-snapshot', 'External resource request was not in the approved snapshot: ' + requestedUrl)
+    recordBrowserError('blocked-not-in-snapshot', 'External resource request was not in the approved snapshot', { url: requestedUrl, phase: currentCheckId })
     await route.abort()
   })
 }
@@ -125,15 +128,29 @@ async function snapshotOutsideTargets(page, bindings, baseline, pageRef) {
   }, specs)
 }
 
-async function visitContractPage(page, host, spec, contractPages) {
-  await page.goto(`http://${host}:5173${spec.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-  await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
-  await page.waitForFunction(() => !!document.querySelector('#root')?.textContent?.trim(), undefined, { timeout: 15_000 })
-  if (spec.navigateBy) await page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
+function instrumentPage(page) {
+  if (instrumentedPages.has(page)) return
+  instrumentedPages.add(page)
+  page.on('pageerror', error => recordBrowserError('pageerror', error.message, { url: page.url(), phase: currentCheckId }))
+  page.on('console', message => { if (message.type() === 'error') recordBrowserError('console-error', message.text(), { url: page.url(), phase: currentCheckId }) })
+}
 
-  const marker = page.getByText(spec.markerText, { exact: true })
-  const markerMatchCount = await marker.count()
-  const markerVisible = markerMatchCount > 0 && await marker.first().isVisible().catch(() => false)
+async function visitContractPage(page, host, spec, contractPages, reuseCurrent = false) {
+  if (!reuseCurrent) {
+    await timed('scope-navigate', () => page.goto(`http://${host}:5173${spec.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }), { pageRef: spec.pageRef, route: spec.path })
+    await timed('scope-root', async () => {
+      await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
+      await page.waitForFunction(() => !!document.querySelector('#root')?.textContent?.trim(), undefined, { timeout: 15_000 })
+    }, { pageRef: spec.pageRef, route: spec.path })
+    if (spec.navigateBy) await timed('scope-navigation-action', () => page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click(), { pageRef: spec.pageRef, route: spec.path })
+  }
+
+  const { markerMatchCount, markerVisible } = await timed('scope-marker', async () => {
+    const marker = page.getByText(spec.markerText, { exact: true })
+    const markerMatchCount = await marker.count()
+    const markerVisible = markerMatchCount > 0 && await marker.first().isVisible().catch(() => false)
+    return { markerMatchCount, markerVisible }
+  }, { pageRef: spec.pageRef, route: spec.path })
   const declaredMatches = contractPages.filter(item => item.markerText === spec.markerText).length
   let routeIdentity = declaredMatches !== 1 || markerMatchCount > 1 ? 'ambiguous' : markerMatchCount === 0 ? 'missing' : 'verified'
   if (routeIdentity === 'verified') {
@@ -153,16 +170,16 @@ async function mappedValues(page, sourceRef) {
     .map(element => (element.textContent ?? '').trim()), sourceRef)
 }
 
-async function visitWithErrors(spec, host, viewport, contractPages) {
-  const page = await browser.newPage({ viewport })
+async function visitWithErrors(spec, host, viewport, contractPages, existingPage) {
+  const page = existingPage ?? await browser.newPage({ viewport })
   await installResourceSnapshots(page)
-  page.on('pageerror', error => recordBrowserError('pageerror', error.message))
-  page.on('console', message => { if (message.type() === 'error') recordBrowserError('console-error', message.text()) })
+  instrumentPage(page)
   try {
-    return { page, ...await visitContractPage(page, host, spec, contractPages) }
+    const reuseCurrent = !!existingPage && spec.path === '/' && !spec.navigateBy
+    return { page, owned: !existingPage, ...await visitContractPage(page, host, spec, contractPages, reuseCurrent) }
   } catch (error) {
-    recordBrowserError('page-visit-failed', error instanceof Error ? error.message : String(error))
-    return { page, markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing' }
+    recordBrowserError('page-visit-failed', error instanceof Error ? error.message : String(error), { url: page.url(), viewport, phase: currentCheckId })
+    return { page, owned: !existingPage, markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing' }
   }
 }
 
@@ -177,11 +194,8 @@ try {
     const baselinePage = await browser.newPage({ viewport })
     await installResourceSnapshots(page)
     await installResourceSnapshots(baselinePage)
-    const localErrors = []
-    page.on('pageerror', error => localErrors.push({ category: 'pageerror', message: error.message }))
-    page.on('console', message => { if (message.type() === 'error') localErrors.push({ category: 'console-error', message: message.text() }) })
-    baselinePage.on('pageerror', error => localErrors.push({ category: 'pageerror', message: `Baseline: ${error.message}` }))
-    baselinePage.on('console', message => { if (message.type() === 'error') localErrors.push({ category: 'console-error', message: `Baseline: ${message.text()}` }) })
+    instrumentPage(page)
+    instrumentPage(baselinePage)
     let response
     let baselineResponse
     let loaded = false
@@ -278,11 +292,15 @@ try {
       artifacts.push({ checkId, path: screenshotPath, sha256: screenshotHash })
       if (!noOverflow) runtimeState = 'horizontal-overflow'
 
-      for (const spec of input.verificationContract?.pages ?? []) {
+      const rootSpec = contractPages.find(spec => spec.path === '/' && !spec.navigateBy)
+      const scopeProbes = await timed('scope-probe-batch', () => Promise.all((input.verificationContract?.pages ?? []).map(async spec => {
         const [baselineProbe, candidateProbe] = await timed('scope-probe', () => Promise.all([
-          visitWithErrors(spec, input.baselineHost, viewport, contractPages),
-          visitWithErrors(spec, input.previewHost, viewport, contractPages),
+          visitWithErrors(spec, input.baselineHost, viewport, contractPages, spec === rootSpec ? baselinePage : undefined),
+          visitWithErrors(spec, input.previewHost, viewport, contractPages, spec === rootSpec ? page : undefined),
         ]), { pageRef: spec.pageRef })
+        return { spec, baselineProbe, candidateProbe }
+      })), { pageCount: contractPages.length })
+      for (const { spec, baselineProbe, candidateProbe } of scopeProbes) {
         const operations = []
         for (const binding of input.targetBindings) {
           const [baselineValues, candidateValues] = await Promise.all([
@@ -298,7 +316,10 @@ try {
           baselineMarkerMatchCount: baselineProbe.markerMatchCount, candidateMarkerMatchCount: candidateProbe.markerMatchCount,
           baselineRouteIdentity: baselineProbe.routeIdentity, candidateRouteIdentity: candidateProbe.routeIdentity, operations,
         })
-        await Promise.all([baselineProbe.page.close(), candidateProbe.page.close()])
+        await Promise.all([
+          baselineProbe.owned ? baselineProbe.page.close() : Promise.resolve(),
+          candidateProbe.owned ? candidateProbe.page.close() : Promise.resolve(),
+        ])
       }
 
       for (let interactionIndex = 0; interactionIndex < (input.verificationContract?.interactions ?? []).length; interactionIndex += 1) {
@@ -335,10 +356,9 @@ try {
       }
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error)
-      localErrors.push({ category: 'viewport-failed', message: failure })
+      recordBrowserError('viewport-failed', failure, { url: page.url(), viewport, phase: currentCheckId })
       loaded = false
     } finally {
-      browserErrors.push(...localErrors)
       const result = !loaded ? 'failed-to-run' : noOverflow ? 'pass' : 'risk'
       const capturedAt = new Date().toISOString()
       checks.push({
@@ -357,7 +377,7 @@ try {
       progress({
         event: 'check-complete', checkId, durationMs: Date.now() - checkStart, result,
         loadedExternalResources: loadedExternalResourceUrls.size, blockedExternalResources: blockedExternalResourceUrls.size,
-        browserErrors: browserErrors.length,
+        browserErrors: browserErrors.snapshot().total,
       })
     }
   }
@@ -425,7 +445,7 @@ const assertions = [
     result: input.targetBindings.length === 0 || loadedViewports !== viewportPlan.length ? 'unknown' : all(mappedResults, Boolean) ? 'pass' : 'unknown',
     detail: input.targetBindings.length === 0 ? 'No unique source binding was available for the changed targets.' : loadedViewports !== viewportPlan.length ? 'Not all planned viewports rendered, so source mapping is incomplete.' : all(mappedResults, Boolean) ? 'Each changed target source reference matched a rendered annotated element with a runtime instance identity.' : 'At least one changed source target could not be mapped to a rendered annotated element with a runtime instance identity.',
   },
-  { id: 'browser-errors', result: browserErrors.length ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: browserErrors.length ? `${browserErrors.length} browser or page error(s) were observed.` : loadedViewports === viewportPlan.length ? 'No uncaught page or console errors were observed at the tested viewports.' : 'Not all planned viewports rendered, so browser error coverage is incomplete.' },
+  { id: 'browser-errors', result: browserErrors.snapshot().total ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: browserErrors.snapshot().total ? `${browserErrors.snapshot().total} browser or page error(s) were observed.` : loadedViewports === viewportPlan.length ? 'No uncaught page or console errors were observed at the tested viewports.' : 'Not all planned viewports rendered, so browser error coverage is incomplete.' },
 ]
 
 if (assertions.length !== requiredAssertions.length || assertions.some(assertion => !requiredAssertions.includes(assertion.id))) {
@@ -457,16 +477,8 @@ const manifest = {
   unavailableResources: input.unavailableResources ?? [],
   loadedExternalResourceUrls: [...loadedExternalResourceUrls].sort(),
   blockedExternalResourceUrls: [...blockedExternalResourceUrls].sort(),
-  browserErrorDetails: (() => {
-    const byCategory = {}
-    for (const entry of browserErrors) byCategory[entry.category] = (byCategory[entry.category] ?? 0) + 1
-    return {
-      total: browserErrors.length,
-      byCategory,
-      samples: browserErrors.slice(0, browserErrorSampleLimit).map(entry => `[${entry.category}] ${entry.message}`),
-      truncated: browserErrors.length > browserErrorSampleLimit,
-    }
-  })(),
+  browserErrorDetails: browserErrors.snapshot(),
 }
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2), { flag: 'wx' })
-console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.length ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))
+console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.snapshot().total ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))
+

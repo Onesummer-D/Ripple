@@ -189,10 +189,56 @@ function exportRunDiagnostics(artifactRoot: string, runId: string): void {
   if (!exportRoot) return
   const destination = path.join(exportRoot, 'diagnostics', runId)
   fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
-  for (const name of ['progress.jsonl', 'snapshot-timing.json', 'resource-fetch-log.json']) {
+  for (const name of ['progress.jsonl', 'snapshot-timing.json', 'resource-fetch-log.json', 'failed-to-run.json']) {
     const source = path.join(artifactRoot, name)
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(destination, name))
   }
+}
+
+export function buildFailedToRunDiagnostic(input: {
+  runId: string
+  candidateId: string
+  scopeDecisionId: string
+  scopeVersion: number
+  baseSourceDigest: string
+  patchHash: string
+  candidateTreeDigest: string
+  runtimeFingerprint: string
+  reason: string
+}, progress: unknown[], recordedAt = new Date().toISOString()): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    executor: 'playwright',
+    completed: false,
+    status: 'failed-to-run',
+    ...input,
+    recordedAt,
+    completedChecks: progress.filter(item => typeof item === 'object' && item !== null && (item as { event?: unknown }).event === 'check-complete'),
+    lastProgress: progress.slice(-24),
+  }
+}
+
+function writeFailedToRunDiagnostic(artifactRoot: string, input: {
+  runId: string
+  candidateId: string
+  scopeDecisionId: string
+  scopeVersion: number
+  baseSourceDigest: string
+  patchHash: string
+  candidateTreeDigest: string
+  runtimeFingerprint: string
+  reason: string
+}): void {
+  const diagnosticPath = path.join(artifactRoot, 'failed-to-run.json')
+  if (fs.existsSync(diagnosticPath)) return
+  let progress: unknown[] = []
+  const progressPath = path.join(artifactRoot, 'progress.jsonl')
+  if (fs.existsSync(progressPath)) {
+    progress = fs.readFileSync(progressPath, 'utf8').split('\n').filter(Boolean).flatMap(line => {
+      try { return [JSON.parse(line)] } catch { return [] }
+    })
+  }
+  fs.writeFileSync(diagnosticPath, JSON.stringify(buildFailedToRunDiagnostic(input, progress), null, 2), { flag: 'wx' })
 }
 
 function readRunnerProgressTail(artifactRoot: string, maxLines = 24): string {
@@ -295,6 +341,13 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   } catch (error) {
     const wrapped = error instanceof VerificationRunnerError ? error : new VerificationRunnerError(error instanceof Error ? error.message : 'Playwright 执行失败')
     const progressTail = readRunnerProgressTail(artifactRoot)
+    try {
+      writeFailedToRunDiagnostic(artifactRoot, {
+        runId, candidateId: candidate.id, scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
+        baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
+        runtimeFingerprint: session.projectRevision.runtimeFingerprint, reason: wrapped.message,
+      })
+    } catch { /* failure diagnostics must never mask the original verification error */ }
     if (progressTail) throw new VerificationRunnerError(`${wrapped.message}\n隔离执行器进度（最后事件）：\n${progressTail}`)
     throw wrapped
   } finally {
@@ -359,3 +412,4 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   }
   return attestBrowserExecution(run, recordPath)
 }
+
