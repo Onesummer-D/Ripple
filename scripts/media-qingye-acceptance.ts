@@ -29,7 +29,7 @@
  * 故障注入（仅测试/演练，正常验收勿设）：
  *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=post-apply          应用成功后立即故障
  *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=tree-digest-mismatch 应用后摘要校验失败
- *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=rollback-failure     回滚本身失败（双故障现场保留）
+ *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=rollback-failure     显式回滚本身失败（现场保留于可丢弃副本）
  */
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -530,7 +530,14 @@ async function main(): Promise<void> {
       }))
       steps.apply = { appliedPatchHash: appliedSession.applied!.appliedPatchHash, treeDigestMatch: true, target: 'disposable project-src' }
 
-      rollbackAppliedCandidate(appliedSession, candidate)
+      try {
+        fault('rollback-failure')
+        rollbackAppliedCandidate(appliedSession, candidate)
+      } catch (rollbackError) {
+        // 显式回滚失败（含注入）：副本处于应用后状态，保留现场供人工处理（副本在 workDir 内，不影响原工程）
+        preserveScene = true
+        throw new AcceptanceError(`显式回滚失败，现场已保留于可丢弃副本 ${projectSrc}：${rollbackError instanceof Error ? rollbackError.message : rollbackError}`)
+      }
       const restored = readProjectSnapshot(projectSrc).revision.sourceDigest
       if (restored !== graph.revision.sourceDigest) throw new AcceptanceError('回滚后可丢弃副本未恢复基线摘要')
       if (fs.readFileSync(path.join(projectSrc, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('回滚后可丢弃副本仍含新引用')
@@ -554,7 +561,7 @@ async function main(): Promise<void> {
     // 清理基线 worktree（含 node_modules/dist，--force 允许脏树移除）
     try { run('git', ['-C', qingyeRoot, 'worktree', 'remove', '--force', baselineSrc]) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
     if (preserveScene) {
-      console.error(`现场保留（应用后故障且回滚失败）：${projectSrc}`)
+      console.error(`现场保留（回滚失败，副本处于应用后状态）：${projectSrc}`)
     } else {
       try { run('git', ['-C', qingyeRoot, 'worktree', 'remove', '--force', projectSrc]) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
     }
