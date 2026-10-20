@@ -21,6 +21,12 @@ const targetResults = []
 const mappedResults = []
 const nonTargetResults = []
 const browserErrors = []
+// Run #7 taught us that a bare error count ("872 browser or page error(s)")
+// cannot be attributed after the fact: the runner container is gone by the
+// time anyone looks. Record a category and keep bounded samples + per-category
+// totals in the manifest so the record itself explains what was observed.
+const recordBrowserError = (category, message) => { browserErrors.push({ category, message: String(message).slice(0, 500) }) }
+const browserErrorSampleLimit = 25
 const resourceSnapshots = input.resourceSnapshots ?? []
 const resourceByUrl = new Map(resourceSnapshots.map(snapshot => [snapshot.url, snapshot]))
 const loadedExternalResourceUrls = new Set()
@@ -38,7 +44,7 @@ async function installResourceSnapshots(page) {
     if (localOrigins.has(parsed.origin)) return route.continue()
     if (route.request().method() !== 'GET' && route.request().method() !== 'HEAD') {
       blockedExternalResourceUrls.add(requestedUrl)
-      browserErrors.push('Non-static external resource method was blocked: ' + route.request().method())
+      recordBrowserError('blocked-method', 'Non-static external resource method was blocked: ' + route.request().method())
       await route.abort()
       return
     }
@@ -47,7 +53,7 @@ async function installResourceSnapshots(page) {
       const filePath = path.resolve('/evidence', snapshot.artifactPath)
       if (!filePath.startsWith('/evidence/resources/') || sha256(fs.readFileSync(filePath)) !== snapshot.sha256) {
         blockedExternalResourceUrls.add(requestedUrl)
-        browserErrors.push('Resource snapshot integrity check failed: ' + requestedUrl)
+        recordBrowserError('blocked-integrity', 'Resource snapshot integrity check failed: ' + requestedUrl)
         await route.abort()
         return
       }
@@ -56,7 +62,7 @@ async function installResourceSnapshots(page) {
       return
     }
     blockedExternalResourceUrls.add(requestedUrl)
-    browserErrors.push('External resource request was not in the approved snapshot: ' + requestedUrl)
+    recordBrowserError('blocked-not-in-snapshot', 'External resource request was not in the approved snapshot: ' + requestedUrl)
     await route.abort()
   })
 }
@@ -132,12 +138,12 @@ async function mappedValues(page, sourceRef) {
 async function visitWithErrors(spec, host, viewport, contractPages) {
   const page = await browser.newPage({ viewport })
   await installResourceSnapshots(page)
-  page.on('pageerror', error => browserErrors.push(error.message))
-  page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()) })
+  page.on('pageerror', error => recordBrowserError('pageerror', error.message))
+  page.on('console', message => { if (message.type() === 'error') recordBrowserError('console-error', message.text()) })
   try {
     return { page, ...await visitContractPage(page, host, spec, contractPages) }
   } catch (error) {
-    browserErrors.push(error instanceof Error ? error.message : String(error))
+    recordBrowserError('page-visit-failed', error instanceof Error ? error.message : String(error))
     return { page, markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing' }
   }
 }
@@ -152,10 +158,10 @@ try {
     await installResourceSnapshots(page)
     await installResourceSnapshots(baselinePage)
     const localErrors = []
-    page.on('pageerror', error => localErrors.push(error.message))
-    page.on('console', message => { if (message.type() === 'error') localErrors.push(message.text()) })
-    baselinePage.on('pageerror', error => localErrors.push(`Baseline: ${error.message}`))
-    baselinePage.on('console', message => { if (message.type() === 'error') localErrors.push(`Baseline: ${message.text()}`) })
+    page.on('pageerror', error => localErrors.push({ category: 'pageerror', message: error.message }))
+    page.on('console', message => { if (message.type() === 'error') localErrors.push({ category: 'console-error', message: message.text() }) })
+    baselinePage.on('pageerror', error => localErrors.push({ category: 'pageerror', message: `Baseline: ${error.message}` }))
+    baselinePage.on('console', message => { if (message.type() === 'error') localErrors.push({ category: 'console-error', message: `Baseline: ${message.text()}` }) })
     let response
     let baselineResponse
     let loaded = false
@@ -286,7 +292,7 @@ try {
             const result = page.getByText(interaction.expectedText, { exact: true })
             return await result.count() === 1 && await result.first().isVisible()
           } catch (error) {
-            browserErrors.push(error instanceof Error ? error.message : String(error))
+            recordBrowserError('interaction-failed', error instanceof Error ? error.message : String(error))
             return false
           }
         }
@@ -305,7 +311,7 @@ try {
       }
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error)
-      localErrors.push(failure)
+      localErrors.push({ category: 'viewport-failed', message: failure })
       loaded = false
     } finally {
       browserErrors.push(...localErrors)
@@ -420,6 +426,16 @@ const manifest = {
   unavailableResources: input.unavailableResources ?? [],
   loadedExternalResourceUrls: [...loadedExternalResourceUrls].sort(),
   blockedExternalResourceUrls: [...blockedExternalResourceUrls].sort(),
+  browserErrorDetails: (() => {
+    const byCategory = {}
+    for (const entry of browserErrors) byCategory[entry.category] = (byCategory[entry.category] ?? 0) + 1
+    return {
+      total: browserErrors.length,
+      byCategory,
+      samples: browserErrors.slice(0, browserErrorSampleLimit).map(entry => `[${entry.category}] ${entry.message}`),
+      truncated: browserErrors.length > browserErrorSampleLimit,
+    }
+  })(),
 }
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2), { flag: 'wx' })
 console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.length ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))

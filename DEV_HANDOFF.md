@@ -169,6 +169,43 @@ Linux CI（[run #39425031601](https://github.com/Onesummer-D/Ripple/actions/runs
 
 **审查者提的唯一存疑（非违规）**：`requiredStableInspections=3` 与 `timeoutMs=30_000` 是工程经验值，注释给了方向性理由但无定量依据。这正是 Run #7 要回答的问题之一——若门槛过严会拖慢每次预演，过松则拦不住故障。
 
+### 00.8 Bolt Run #7 真实验收分析（2026-10-20 22:00，UTC+8）
+
+[Run #7](https://github.com/Onesummer-D/Ripple/actions/runs/39435139845)（`workflow_dispatch`，HEAD `00b3308`，BOLT_REPO_REF `f7e4998`）：**失败，但失败点与 Run #6 完全不同**。测试自身跑了 8.3 分钟（Run #6 是 88 秒超时），失败在验证断言环节（`e2e/project-workbench.spec.ts:953`），不是预演加载。
+
+#### 已由证据确认的结论
+
+1. **网络根因修复被真实验收证实。** `bolt-resource-load-audit.json` 里 `sourcePreviewRecovery: null` —— 首屏**一次加载成功**，无 `ERR_NETWORK_CHANGED`、未走恢复路径。就绪门 + 网络池 + keep-alive relay 的组合在真实 Docker runner 上生效。这是**无故障首次加载**，不是 recovered-after-network-change。
+2. **验证管线首次完整跑通到断言层。** 四视口全部 rendered（PASS）；`target-change` / `non-target-preserved` / `responsive-layout` / `source-mapping` 全部 PASS —— 候选补丁正确渲染、基线比对一致、来源映射到运行时实例。
+3. **失败驱动是 `browser-errors` 断言 = RISK（872 个浏览器/页面错误）**，加上 `scope-propagation` / `interaction` 两项 UNKNOWN（路由标记缺失/歧义）。
+
+#### 872 个错误的归因边界（诚实声明）
+
+错误**计数**在验证记录里，但**明细没有持久化**——runner 容器已销毁，无法事后取回。这是诊断缺口，本轮已修（见 00.9）。以下是由代码 + 实测能确证的边界：
+
+- **确证**：Google Fonts 的 CSS（`fonts.googleapis.com/css2?family=Noto+Serif+SC…&family=Noto+Sans+SC…`）包含 **202 个 gstatic 字体切片**（用代码中的精确 UA 实测），超过原 `maxCssDependencies = 64`。若该 CSS 在快照阶段被成功抓取，`fontUrls()` 必抛异常 → 整个快照阶段失败 → 验证**不可能**产出断言。Run #7 产出了完整断言 ⇒ **该 CSS 当时没有进入快照**（抓取失败 → 进了 `unavailableResources`）。验证时每个页面加载都请求它 → 「不在批准快照内」被阻断 → 产生错误。具体抓取失败原因在记录的 `unavailableResources` 里，同样没被持久化。
+- **推断（未证实）**：872 的其余构成可能包括 srcset/移动端变体图片 URL 不在 18 个批准 URL 之内（每次阻断 = runner 记账 1 条 + Chromium console 错误 1 条）、部分 contract 页面访问超时（同时解释两项 UNKNOWN 断言）。**精确构成待 Run #8 的持久化记录回答**。
+
+#### 处置（详见 00.9）
+
+- 本轮只做**诊断增强**与**有实测依据的容量修正**，不改判定口径、不放宽任何验证、不解除隔离。
+- Run #8 预期行为变化：Google Fonts CSS 若抓取成功 → 202 个字体内联为 data URL 进入快照（不再阻断）；若仍失败 → CSS 进 `unavailableResources` 且**记录在 artifact 里**，同时错误明细带分类计数与样例，可直接归因。
+
+### 00.9 Run #7 之后的工程收尾（诊断增强 + 质量项）
+
+针对 Run #7 暴露的缺口与 00.7 遗留项，本轮改动：
+
+| 改动 | 文件 | 证据 |
+| --- | --- | --- |
+| 验证 manifest 新增 `browserErrorDetails`（总数、按类计数、前 25 条样例、截断标记），并经 `verification-runner` → `VerificationRun` → API → 工作台 UI 透出 | `candidate-verification-runner.mjs`、`model.ts`、`verification-receipt.ts`、`verification-runner.ts`、`local-project-api.ts`、`ProjectWorkbench.tsx` | 新增 Receipt 校验（格式非法拒收）；UI 在 RISKS 状态下显示错误构成 |
+| E2E 在断言 PASSED **之前**先把验证记录写入 evidence——失败时记录也留在 artifact | `e2e/project-workbench.spec.ts` | Run #7 的记录丢失是本轮最直接的教训 |
+| `maxCssDependencies` 64 → 256（实测 CJK 字体栈需 202）；超限样式表降级为 `unavailable` 而非整体抛错（与抓取失败的既有路径一致） | `preview-resource-snapshot.ts` | 新增 4 个用例：202 字体全内联 / 257 降级 / 抓取失败不影响其余资源 / 字体依赖失败降级 |
+| `snapshotAuthorizedPreviewResources` 增加可注入 fetcher（默认实网），使上述路径可单测 | `preview-resource-snapshot.ts` | 调用方签名向后兼容 |
+| `stopPreviewNetworkPool` 对 in-use 网络：清理 Ripple 自有容器后重试，失败告警不中断关闭（00.7 遗留 P2 → 已修） | `candidate-preview.ts` | 新增 6 个用例（含负例：非 in-use/not-found 错误仍抛出） |
+| relay 事件环形缓冲截断时在摘要里报 `events-truncated=N`（00.7 遗留 P2 → 已修） | `candidate-preview.ts` | 新增 2 个用例 |
+
+验证等级：以上全部为**单测/合成层面**改动；真实 Bolt 验收仍待 Run #8。`browserErrorDetails` 是否完整回答 Run #7 的归因问题，以 Run #8 artifact 中的 `bolt-workbench-execution.json` 为准。
+
 ### 00.6 下一动作
 
 1. ✅ 提交本轮改动（业务代码 + 交接文档），排除 `tsconfig.node.tsbuildinfo`（`ccc7dfc` → `4bc58f9` → `1ea7230`）。

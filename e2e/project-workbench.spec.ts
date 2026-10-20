@@ -950,16 +950,20 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-candidate.png'), fullPage: true })
 
   await page.getByTestId('verify-candidate').click()
-  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 480_000 })
-  const assertions = page.getByTestId('verification-assertions')
-  for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
-    await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
-  }
+  // Wait for a terminal verification state, then capture the full execution
+  // record into evidence BEFORE asserting PASSED. Run #7 ended with a RISKS
+  // verdict whose record was never persisted to the artifact, leaving its 872
+  // browser errors unattributable; the record must survive a failing run.
+  // The wait is class-based: the failed-to-run label ("FAILED TO RUN") contains
+  // the substring "NOT RUN", so a text-based wait would never resolve there.
+  await expect(page.getByTestId('verification-state')).not.toHaveClass(/verification-not-run/, { timeout: 480_000 })
   const recordHref = await page.locator('.verification-record a').getAttribute('href')
   expect(recordHref).toBeTruthy()
   const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
   expect(recordResponse.ok()).toBe(true)
   const execution = await recordResponse.json() as {
+    browserErrorDetails?: { total: number; byCategory: Record<string, number>; samples: string[]; truncated: boolean }
+    unavailableResources?: Array<{ url: string; reason: string }>
     runId: string; candidateId: string; patchHash: string; candidateTreeDigest: string; scopeVersion: number
     viewports: Array<{ name: string; width: number; height: number }>
     scopeObservations: Array<{ pageRef: string; viewport: { width: number; height: number }; operations: Array<{ baselineValues: string[]; candidateValues: string[] }> }>
@@ -967,7 +971,12 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     resourceSnapshots: Array<{ url: string; contentType: string; sha256: string; artifactPath: string; sizeBytes: number; source: string; upstreamSha256?: string }>
     loadedExternalResourceUrls: string[]
     blockedExternalResourceUrls: string[]
-    unavailableResources: Array<{ url: string; reason: string }>
+  }
+  fs.writeFileSync(path.join(evidenceRoot, 'bolt-workbench-execution.json'), JSON.stringify(execution, null, 2))
+  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 480_000 })
+  const assertions = page.getByTestId('verification-assertions')
+  for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
+    await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
   }
   expect(execution).toMatchObject({ candidateId, patchHash, scopeVersion: 1, candidateTreeDigest: expect.stringMatching(/^[a-f0-9]{64}$/) })
   expect(execution.viewports).toEqual(expectedProjectViewports)
@@ -992,7 +1001,6 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   expect(execution.scopeObservations.every(observation => observation.operations.length === 1 &&
     observation.operations[0].baselineValues.length === 1 && observation.operations[0].candidateValues.length === 1 &&
     observation.operations[0].candidateValues[0] === '山野器物 · Ripple UI验收')).toBe(true)
-  fs.writeFileSync(path.join(evidenceRoot, 'bolt-workbench-execution.json'), JSON.stringify(execution, null, 2))
   const evidenceImages = page.getByTestId('verification-evidence').locator('img')
   await expect(evidenceImages).toHaveCount(projectPreviewViewports.length)
   const evidenceUrls = await evidenceImages.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))

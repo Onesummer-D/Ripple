@@ -208,6 +208,7 @@ export interface PreviewRelayEvent {
 
 export interface PreviewRelayAccounting {
   started: number
+  dropped: number
   outcomes: Record<PreviewRelayOutcome, number>
   events: PreviewRelayEvent[]
 }
@@ -215,13 +216,19 @@ export interface PreviewRelayAccounting {
 const defaultRelayEventLimit = 64
 
 export function createPreviewRelayAccounting(): PreviewRelayAccounting {
-  return { started: 0, outcomes: { completed: 0, denied: 0, 'client-aborted': 0, 'upstream-failed': 0 }, events: [] }
+  return { started: 0, dropped: 0, outcomes: { completed: 0, denied: 0, 'client-aborted': 0, 'upstream-failed': 0 }, events: [] }
 }
 
 export function recordPreviewRelayEvent(accounting: PreviewRelayAccounting, event: PreviewRelayEvent, limit = defaultRelayEventLimit): void {
   accounting.outcomes[event.outcome] += 1
   accounting.events.push(event)
-  if (accounting.events.length > limit) accounting.events.splice(0, accounting.events.length - limit)
+  if (accounting.events.length > limit) {
+    // Count what the ring buffer discards. A truncated history that reports
+    // itself as complete hides the very early events an incident post-mortem
+    // needs most, so the drop count travels with the summary.
+    accounting.dropped += accounting.events.length - limit
+    accounting.events.splice(0, accounting.events.length - limit)
+  }
 }
 
 /**
@@ -241,7 +248,10 @@ export function recordPreviewRelayEvent(accounting: PreviewRelayAccounting, even
 export function summarizePreviewRelayAccounting(accounting: PreviewRelayAccounting): string {
   const outcomes = accounting.outcomes
   const settled = outcomes.completed + outcomes.denied + outcomes['client-aborted'] + outcomes['upstream-failed']
-  return `started=${accounting.started} completed=${outcomes.completed} denied=${outcomes.denied} client-aborted=${outcomes['client-aborted']} upstream-failed=${outcomes['upstream-failed']} unsettled=${Math.max(0, accounting.started - settled)}`
+  const base = `started=${accounting.started} completed=${outcomes.completed} denied=${outcomes.denied} client-aborted=${outcomes['client-aborted']} upstream-failed=${outcomes['upstream-failed']} unsettled=${Math.max(0, accounting.started - settled)}`
+  // Say so explicitly when the event detail has been truncated; a silent ring
+  // buffer makes a long preview look fully recorded when it is not.
+  return accounting.dropped > 0 ? `${base} events-truncated=${accounting.dropped}` : base
 }
 
 export function previewRelayRejection(request: { method?: string; url?: string; host?: string; origin?: string }, expectedHost: string): { status: number; message: string } | undefined {
@@ -343,13 +353,54 @@ function releasePreviewNetwork(networkName: string): void {
   if (previewNetworkPool.has(networkName)) previewNetworkPool.set(networkName, 'available')
 }
 
+/**
+ * Remove one preview network, tolerating the shutdown-ordering case where
+ * preview containers are still attached. Ripple-owned preview containers are
+ * labeled, so they are removed first and the network removal is retried once;
+ * anything still attached afterwards is left alone and reported.
+ *
+ * Returns undefined when the network is gone, otherwise a human-readable
+ * reason it could not be removed. Never throws for the in-use case: this runs
+ * during service teardown, and a leftover network must not abort the shutdown
+ * of everything else.
+ */
+export async function removePreviewNetworkWithCleanup(name: string, run: (args: string[]) => Promise<string>): Promise<string | undefined> {
+  const notFound = (message: string) => /not found|No such network/i.test(message)
+  try {
+    await run(['network', 'rm', name])
+    return undefined
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (notFound(message)) return undefined
+    if (!/active endpoints|has active endpoints/i.test(message)) throw error
+  }
+  const attached = (await run(['ps', '-aq', '--filter', `network=${name}`, '--filter', 'label=com.ripple.preview=true'])).trim()
+  if (!attached) return 'network is still in use by containers Ripple does not own'
+  await run(['rm', '-f', ...attached.split(/\r?\n/)])
+  try {
+    await run(['network', 'rm', name])
+    return undefined
+  } catch (retryError) {
+    const message = retryError instanceof Error ? retryError.message : String(retryError)
+    if (notFound(message)) return undefined
+    return message
+  }
+}
+
 export async function stopPreviewNetworkPool(): Promise<void> {
   const names = [...previewNetworkPool.keys()]
   previewNetworkPool.clear()
   previewNetworkPoolReady = undefined
-  await Promise.all(names.map(name => docker(['network', 'rm', name]).catch(error => {
-    if (!(error instanceof CandidatePreviewError) || !/not found|No such network/i.test(error.message)) throw error
-  })))
+  const leftover: string[] = []
+  for (const name of names) {
+    try {
+      const failure = await removePreviewNetworkWithCleanup(name, args => docker(args))
+      if (failure) leftover.push(`${name}: ${failure}`)
+    } catch (error) {
+      leftover.push(`${name}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  if (leftover.length) console.warn(`部分隔离预演网络未能清理，将留待 Docker 侧处理：${leftover.join('；')}`)
 }
 
 function mount(source: string, target: string, readonly = true): string {

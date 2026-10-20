@@ -113,6 +113,7 @@ function verificationView(run: VerificationRun | undefined, candidateId: string,
     })),
     recordUrl: run.execution ? `/__ripple/api/candidate/${encodeURIComponent(candidateId)}/runs/${encodeURIComponent(run.id)}` : undefined,
     recordHash: run.execution?.recordHash,
+    ...(run.browserErrorDetails ? { browserErrorDetails: run.browserErrorDetails } : {}),
   }
 }
 

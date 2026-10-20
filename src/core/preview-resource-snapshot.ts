@@ -20,7 +20,7 @@ export interface PreviewResourceSnapshotResult {
   unavailable: Array<{ url: string; reason: string }>
 }
 
-interface DownloadedResource {
+export interface DownloadedResource {
   status: number
   location?: string
   contentType: string
@@ -29,7 +29,11 @@ interface DownloadedResource {
 
 const maxResourceBytes = 12 * 1024 * 1024
 const maxTotalBytes = 48 * 1024 * 1024
-const maxCssDependencies = 64
+// A full CJK family stack is far wider than a Latin one: the pinned Bolt
+// revision's Google Fonts CSS references 202 font files (measured against the
+// exact downloader UA). The bound below still caps snapshot work per
+// stylesheet, and the total-bytes cap bounds the run as a whole.
+const maxCssDependencies = 256
 const fontContentTypes = new Set(['font/woff', 'font/woff2', 'application/font-woff', 'application/x-font-ttf', 'application/x-font-opentype', 'application/vnd.ms-fontobject'])
 
 export function isPublicPreviewResourceAddress(address: string): boolean {
@@ -125,7 +129,7 @@ function fontUrls(css: string): string[] {
     const url = new URL(match[2])
     if (url.protocol === 'https:' && url.hostname === 'fonts.gstatic.com' && !url.username && !url.password && !url.hash) urls.add(url.href)
   }
-  if (urls.size > maxCssDependencies) throw new Error('Authorized stylesheet exceeds the 64 font-resource limit.')
+  if (urls.size > maxCssDependencies) throw new Error(`Authorized stylesheet exceeds the ${maxCssDependencies} font-resource limit.`)
   return [...urls]
 }
 
@@ -135,7 +139,7 @@ export function replaceFontWithData(css: string, url: string, contentType: strin
   return css.replace(pattern, 'url(data:' + contentType + ';base64,' + body.toString('base64') + ')')
 }
 
-export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirectory: string): Promise<PreviewResourceSnapshotResult> {
+export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirectory: string, fetchResource: (input: string) => Promise<DownloadedResource> = downloadHttps): Promise<PreviewResourceSnapshotResult> {
   const authorized = validatePreviewResourceUrls(urls)
   const snapshots: PreviewResourceSnapshot[] = []
   const snapshotUrls = new Set<string>()
@@ -145,7 +149,7 @@ export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirec
 
   const fetchAndStore = async (url: string, source: PreviewResourceSnapshot['source']) => {
     try {
-      const downloaded = await downloadHttps(url)
+      const downloaded = await fetchResource(url)
       if (downloaded.status !== 200 || !acceptedContentType(downloaded.contentType)) throw new Error('Unexpected resource response: HTTP ' + downloaded.status + ', ' + (downloaded.contentType || 'unknown content type') + '.')
       if (downloaded.body.length === 0 || downloaded.body.length > maxResourceBytes) throw new Error('Authorized resource is empty or too large.')
       totalBytes += downloaded.body.length
@@ -169,7 +173,17 @@ export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirec
       let rewrittenCss = originalCss
       const dependencies: Array<{ url: string; body: Buffer; contentType: string; snapshot: PreviewResourceSnapshot }> = []
       let dependenciesAvailable = true
-      for (const dependencyUrl of fontUrls(originalCss)) {
+      // An over-wide stylesheet degrades this one resource to "unavailable"
+      // instead of aborting the whole snapshot phase: the verification still
+      // runs, blocks the stylesheet at runtime, and records a diagnosable risk.
+      let fontList: string[]
+      try {
+        fontList = fontUrls(originalCss)
+      } catch (error) {
+        unavailable.push({ url, reason: error instanceof Error ? error.message : String(error) })
+        continue
+      }
+      for (const dependencyUrl of fontList) {
         const dependency = await fetchAndStore(dependencyUrl, 'authorized-stylesheet-dependency')
         if (!dependency || !fontContentTypes.has(dependency.contentType)) {
           dependenciesAvailable = false

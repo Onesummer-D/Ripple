@@ -6,6 +6,7 @@ import {
   addressOnPreviewNetwork,
   CandidatePreviewError,
   createPreviewRelayAccounting,
+  removePreviewNetworkWithCleanup,
   parsePreviewContainerInspection,
   previewRelayRejection,
   recordPreviewRelayEvent,
@@ -220,6 +221,22 @@ describe('candidate preview relay', () => {
     expect(accounting.events[accounting.events.length - 1].path).toBe('/m199')
   })
 
+  it('reports event-history truncation so a long preview cannot look fully recorded', () => {
+    const accounting = createPreviewRelayAccounting()
+    accounting.started = 200
+    for (let index = 0; index < 200; index += 1) {
+      recordPreviewRelayEvent(accounting, { sequence: index, path: `/m${index}`, outcome: 'completed', status: 200, detail: '', durationMs: 1 }, 16)
+    }
+    expect(accounting.dropped).toBe(184)
+    expect(summarizePreviewRelayAccounting(accounting)).toContain('events-truncated=184')
+  })
+
+  it('does not mention truncation when nothing was dropped', () => {
+    const accounting = createPreviewRelayAccounting()
+    recordPreviewRelayEvent(accounting, { sequence: 1, path: '/a', outcome: 'completed', status: 200, detail: '', durationMs: 1 }, 16)
+    expect(summarizePreviewRelayAccounting(accounting)).not.toContain('events-truncated')
+  })
+
   it('records a client abort when the browser abandons an in-flight module request', async () => {
     const upstream = createServer(() => { /* deliberately never responds */ })
     await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
@@ -267,5 +284,69 @@ describe('candidate preview relay', () => {
     await (await fetch(relay.url)).text()
     expect(seen[0]).not.toBe('close')
     await new Promise<void>(resolve => upstream.close(() => resolve()))
+  })
+})
+
+describe('preview network pool teardown', () => {
+  const inUseError = new CandidatePreviewError("Error response from daemon: network ripple-preview-pool-x has active endpoints")
+
+  it('removes a free network without touching any container', async () => {
+    const calls: string[][] = []
+    const failure = await removePreviewNetworkWithCleanup('net-1', async args => { calls.push(args); return '' })
+    expect(failure).toBeUndefined()
+    expect(calls).toEqual([['network', 'rm', 'net-1']])
+  })
+
+  it('treats an already-removed network as gone', async () => {
+    const failure = await removePreviewNetworkWithCleanup('net-1', async () => { throw new CandidatePreviewError('Error: No such network: net-1') })
+    expect(failure).toBeUndefined()
+  })
+
+  it('removes Ripple-owned containers attached to an in-use network and retries', async () => {
+    const calls: string[][] = []
+    let rmAttempts = 0
+    const failure = await removePreviewNetworkWithCleanup('net-1', async args => {
+      calls.push(args)
+      if (args[0] === 'network' && args[1] === 'rm') {
+        rmAttempts += 1
+        if (rmAttempts === 1) throw inUseError
+        return ''
+      }
+      if (args[0] === 'ps') return 'c1\nc2\n'
+      if (args[0] === 'rm') return 'c1\nc2'
+      throw new Error('unexpected docker call: ' + args.join(' '))
+    })
+    expect(failure).toBeUndefined()
+    expect(rmAttempts).toBe(2)
+    expect(calls).toEqual([
+      ['network', 'rm', 'net-1'],
+      ['ps', '-aq', '--filter', 'network=net-1', '--filter', 'label=com.ripple.preview=true'],
+      ['rm', '-f', 'c1', 'c2'],
+      ['network', 'rm', 'net-1'],
+    ])
+  })
+
+  it('reports an in-use network that only foreign containers are attached to, without throwing', async () => {
+    const failure = await removePreviewNetworkWithCleanup('net-1', async args => {
+      if (args[0] === 'network') throw inUseError
+      if (args[0] === 'ps') return ''
+      throw new Error('unexpected docker call: ' + args.join(' '))
+    })
+    expect(failure).toBe('network is still in use by containers Ripple does not own')
+  })
+
+  it('reports the retry error when cleanup did not free the network', async () => {
+    const failure = await removePreviewNetworkWithCleanup('net-1', async args => {
+      if (args[0] === 'network') throw inUseError
+      if (args[0] === 'ps') return 'c1'
+      if (args[0] === 'rm') return 'c1'
+      throw new Error('unexpected docker call: ' + args.join(' '))
+    })
+    expect(failure).toContain('active endpoints')
+  })
+
+  it('still throws for removal errors that are neither not-found nor in-use', async () => {
+    await expect(removePreviewNetworkWithCleanup('net-1', async () => { throw new CandidatePreviewError('permission denied') }))
+      .rejects.toThrow('permission denied')
   })
 })

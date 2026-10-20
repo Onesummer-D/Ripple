@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { analyzeProject } from './project'
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type BrowserErrorDetails, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
 import { expectedTextForPage, sourceProvenPageImpact } from './scope'
@@ -132,6 +132,7 @@ interface ExecutionManifest {
   unavailableResources: Array<{ url: string; reason: string }>
   loadedExternalResourceUrls: string[]
   blockedExternalResourceUrls: string[]
+  browserErrorDetails?: BrowserErrorDetails
 }
 
 function evidenceFile(runRoot: string, relativePath: string): string {
@@ -302,6 +303,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     startedAt: evidence.length ? evidence[0].capturedAt : new Date().toISOString(),
     completedAt: evidence.length ? evidence[evidence.length - 1].capturedAt : new Date().toISOString(),
     checks, assertions: manifest.assertions, evidence, baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
+    ...(manifest.browserErrorDetails ? { browserErrorDetails: manifest.browserErrorDetails } : {}),
   }
   return attestBrowserExecution(run, recordPath)
 }
