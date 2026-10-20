@@ -4,6 +4,8 @@
 
 **请优先阅读本节；后面的“前次独立审查记录”保留历史证据，涉及旧 SHA 的状态以本节为准。** 本次审查以 GitHub 远端代码、PR、Actions 和前任 Codex 留下的工作区说明为基础；**并没有直接读取前任本地未提交 Diff**。本文写入后分支 HEAD 会再前进一次，旧 SHA 是业务/文档对照点，不是写入后的 HEAD。
 
+> **⚡ 最新一轮更新（2026-10-20 22:00，第六轮）**：A 分支 HEAD 已到 **`3901dc6`**（[CI run 39483986458 全绿](https://github.com/Onesummer-D/Ripple/actions/runs/39483986458)），真实 Bolt 最近为 [Run #9 失败](https://github.com/Onesummer-D/Ripple/actions/runs/39477538481)，根因（Node lookup 回调形状）已闭环定位并修复，详见下方新增 **§00.10**；下一动作是手动触发 **Run #10 @ `3901dc6`**。下表为其之前的状态快照。
+
 ### 远端精确状态
 
 | 事项 | 已核查结论 |
@@ -206,7 +208,35 @@ Linux CI（[run #39425031601](https://github.com/Onesummer-D/Ripple/actions/runs
 
 验证等级：以上全部为**单测/合成层面**改动；真实 Bolt 验收仍待 Run #8。`browserErrorDetails` 是否完整回答 Run #7 的归因问题，以 Run #8 artifact 中的 `bolt-workbench-execution.json` 为准。
 
+### 00.10 Run #9 归因与修复链（2026-10-20 晚第六轮，基线 `3901dc6`，交接给下一位）
+
+本节是**最新一轮**（晚于 00.1–00.9）。当前远端 HEAD 为 `3901dc6`，真实 Bolt 最近一次为 Run #9（失败，根因已闭环定位）。
+
+**提交链路**（均为 `feat/project-first-core-20261018`，PR #2）：
+
+`00b3308`（Run #7 收尾+诊断增强，见 00.9）→ `64fc308`（CI 冲突解决，保留 Bolt 专项+隔离冒烟）→ `bc0d53e`（Run #8 输入）→ `4758f05`（Run #9 输入）→ `ea64c67`（诊断基建）→ `79de4b1`（根因修复）→ `3901dc6`（门禁回退，当前远端 HEAD）。
+
+**Run #8（`bc0d53e`，失败）→ 当时的归因与修复**：FAILED TO RUN，容器烧满 180s。当时归因 Google Fonts CSS 把 202 个 CJK 字体 base64 内联成 ~24MiB 单文件、每视口解析成本爆炸。修复 `4758f05`：字体改为逐字体独立快照（删除 `replaceFontWithData` 内联）、runner 写 `progress.jsonl`、E2E 终态钉死。
+
+**Run #9（`4758f05`，run 39477538481，失败）→ 真实根因闭环**：19/19 快照资源全部 `unavailable`，每个 62ms 返回；4 视口各 50–70s 阻断风暴、675 条浏览器错误、180s 烧满、无验证记录。按 B 侧指令先诊断不改代码，证据链：
+
+1. `ea64c67` 加结构化诊断（`ResourceFetchDiagnostic`：阶段/code/message/耗时/状态）+ `resource-fetch-log.json` + `snapshot-timing.json` + runner 逐阶段计时 + CI 真实网络探针（live probe，env `RIPPLE_LIVE_RESOURCE_TEST=1`）。CI run 39481169142 的探针直接复现：`Invalid IP address: undefined`，22ms——全失败与 SSRF/网络策略无关，发生在连接建立之前。
+2. 最小复现 `_scratch/probe-lookup-variants.mjs`：Node 连接层调用自定义 `lookup` 时**恒带 `{all: true}`**，回调必须返回 `[{address, family}]` 数组；旧代码用经典 `(address, family)` 签名 ⇒ Node 读 `[0].address` 得 `undefined`。**该 bug 自快照器诞生即存在**——Run #7 时 CSS 未入快照故未暴露；Run #8 的「24MiB CSS」是真实症状但非根因（教训：推断≠证据）。
+3. `79de4b1`：抽出 `pinnedPublicLookup(selected)` 返回数组形状。CI 探针转绿（run 39482487372 单测通过）。
+4. **E2E 否决零覆盖门禁**：`spec.ts:122` 用故意不可解析主机钉死「声明式降级——资源全挂仍验证并给诚实结论」。`ea64c67` 引入的 `snapshotCoverageFailure` 零覆盖硬门禁把它变成 FAILED TO RUN，破坏失败语义。`3901dc6` 回退该门禁（连同其单测），保留诊断/计时/探针。资源缺失不变 PASS 的保证走既有机制：阻断请求 → browser-errors → RISKS（不可能 PASS），receipt 持久化 `unavailableResources`。
+
+**验证**：CI run 39483986458（`3901dc6`）**全绿**——live 探针、29 测试文件、全量浏览器（含 Linux Docker/Playwright 回归）。PR #2 正文已同步。
+
+**判读口径（交接重点）**：
+
+- **每视口 50–70s 实际耗时**：阶段计时（导航/root 就绪/DOM 对比/fonts.ready/截图/每 scope/每 interaction/关闭）已就位但尚无根因修复后的真实数据——Run #10 的 `diagnostics/<runId>/` 下 `snapshot-timing.json` + 逐阶段 `progress.jsonl` 是回答此问题的第一手数据。
+- Run #10 请手动 `workflow_dispatch` @ HEAD `3901dc6`。若再失败，先看 `resource-fetch-log.json`（每资源阶段/code/耗时）与 relay 台账 `client-aborted`。
+- PR #2 **mergeable=false**（main 已到 `73a4edc`）：按与负责人的约定**不合并 main、不 rebase**，已在正文标注。
+- 边界不变：未修 B 的 MEDIA、未放松任何 SSRF/安全门控、未做正式 UI/UX、A 技术路线（运行时实例关联、TOKEN 执行器、AI 意图校准、视觉 Evidence）未启动。
+
 ### 00.6 下一动作
+
+> ⚠️ 本节是 Run #7 时代的遗留清单；**当前实际下一动作以 §00.10 为准**（触发 Run #10 @ `3901dc6`）。以下仅作历史记录。
 
 1. ✅ 提交本轮改动（业务代码 + 交接文档），排除 `tsconfig.node.tsbuildinfo`（`ccc7dfc` → `4bc58f9` → `1ea7230`）。
 2. ✅ 推送 `refs/heads/feat/project-first-core-20261018` 并取得 CI 通过（`4bc58f9` / `1ea7230` 两次运行全绿，见 00.4）。
