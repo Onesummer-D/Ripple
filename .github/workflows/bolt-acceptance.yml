@@ -40,6 +40,8 @@ jobs:
         run: docker info --format '{{.ServerVersion}}'
       - name: Warm the supported preview runtime image
         run: docker pull node:22-bookworm-slim
+      - name: Prepare and smoke-test the isolated browser runtime
+        run: bash scripts/prepare-browser-verification.sh
       - name: Verify Tailwind dependency resolution across preview mounts
         env:
           BOLT_DEPENDENCIES: ${{ github.workspace }}/bolt-source/node_modules

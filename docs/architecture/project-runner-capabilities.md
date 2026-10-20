@@ -12,6 +12,8 @@ TypeScript and JavaScript path aliases are read as data, not executed. One share
 
 External resources used by verification remain explicitly authorized and content-snapshotted; the candidate container does not receive general internet access.
 
+The isolated browser image must be prepared by the trusted host before candidate verification. The Linux CI and real-project workflow pull the Playwright version pinned by Ripple, then smoke-test Chromium under the verifier's network, filesystem, user and resource restrictions. A normal verification checks the local image and uses `--pull=never`; a missing image is `FAILED TO RUN`, not a candidate failure or passing Evidence. Image acquisition is outside the bounded candidate run and never grants the candidate network access.
+
 The selected application's parsed TypeScript options remain available to SourceGraph, including valid path mappings that the bounded Vite adapter cannot represent. Preview ambiguity does not erase static compiler resolution or promote it into browser evidence. Both consumers use the same selected config; their execution capabilities differ explicitly.
 
 ## Explicitly unsupported

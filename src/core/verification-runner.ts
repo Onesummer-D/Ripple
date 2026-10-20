@@ -18,15 +18,16 @@ export class VerificationRunnerError extends Error {
   constructor(message: string) { super(message); this.name = 'VerificationRunnerError' }
 }
 
-const playwrightImage = 'mcr.microsoft.com/playwright:v1.64.0-noble'
+export const playwrightImage = 'mcr.microsoft.com/playwright:v1.64.0-noble'
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 function docker(args: string[], timeoutMs = 180_000): Promise<void> {
   return new Promise((resolve, reject) => {
     let stdout = ''
     let stderr = ''
+    let timedOut = false
     const child = spawn('docker', args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
+    const timer = setTimeout(() => { timedOut = true; child.kill() }, timeoutMs)
     child.stdout.setEncoding('utf8').on('data', chunk => { stdout += chunk })
     child.stderr.setEncoding('utf8').on('data', chunk => { stderr += chunk })
     child.once('error', error => {
@@ -35,6 +36,7 @@ function docker(args: string[], timeoutMs = 180_000): Promise<void> {
     })
     child.once('close', code => {
       clearTimeout(timer)
+      if (timedOut) return reject(new VerificationRunnerError(`隔离 Playwright 执行超过 ${timeoutMs}ms；本次验证未产生可信证据`))
       if (code === 0) return resolve()
       const detail = (stderr || stdout).trim().slice(-4000)
       reject(new VerificationRunnerError(detail || `Playwright 执行器失败（exit ${String(code)}）`))
@@ -178,6 +180,11 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   if (candidateGraph.revision.sourceDigest !== candidate.candidateTreeDigest) throw new VerificationRunnerError('浏览器验证源码图与当前候选补丁摘要不一致')
   const playwrightPackage = JSON.parse(fs.readFileSync(path.join(rippleRoot, 'node_modules', 'playwright', 'package.json'), 'utf8')) as { version?: string }
   if (playwrightPackage.version !== '1.64.0') throw new VerificationRunnerError(`Playwright 容器版本 1.64.0 与本机执行器 ${playwrightPackage.version ?? 'unknown'} 不一致`)
+  try {
+    await docker(['image', 'inspect', playwrightImage], 10_000)
+  } catch (error) {
+    throw new VerificationRunnerError(`隔离 Playwright 镜像 ${playwrightImage} 尚未就绪；请先在受信任的运行环境中预拉取并检查镜像。${error instanceof Error ? ` ${error.message}` : ''}`)
+  }
 
   const runId = `verification-${randomUUID()}`
   const artifactParent = fs.realpathSync(path.dirname(candidate.artifactPath))
@@ -225,12 +232,12 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       unavailableResources: resourceSnapshotResult.unavailable,
     }), { flag: 'wx' })
     await docker([
-      'run', '--rm', '--init', '--name', containerName,
+      'run', '--rm', '--pull=never', '--init', '--name', containerName,
       '--label', 'com.ripple.verification=true', '--label', `com.ripple.candidate=${candidate.id}`,
       '--network', preview.networkName,
       '--read-only', '--user', `${browserUid}:${browserGid}`, '--env', 'HOME=/tmp', '--env', 'XDG_CACHE_HOME=/tmp/.cache', '--memory', '1g', '--cpus', '2', '--pids-limit', '128',
       '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true', '--shm-size', '256m',
-      '--tmpfs', '/tmp:rw,nosuid,nodev,size=1073741824,uid=1000,gid=1000',
+      '--tmpfs', `/tmp:rw,nosuid,nodev,size=1073741824,uid=${browserUid},gid=${browserGid}`,
       '--mount', mount(scriptRoot, '/ripple/core'), '--mount', mount(dependencies, '/ripple/node_modules'),
       '--mount', mount(artifactRoot, '/evidence', false),
       '--workdir', '/ripple', playwrightImage,
