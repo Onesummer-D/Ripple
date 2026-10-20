@@ -114,16 +114,20 @@
 
 ### 00.4 本轮验证结果（区分证据等级）
 
-| 项目 | 结果 |
+Linux CI（[run #39425031601](https://github.com/Onesummer-D/Ripple/actions/runs/39425031601)，提交 `4bc58f9`）**全绿**：
+
+| 步骤 | 结果 |
 | --- | --- |
 | `npm run typecheck`（app + node，含 e2e） | **通过** |
-| `npm run build`（tsc -b + vite build，38 modules） | **通过** |
-| `candidate-preview.test.ts` | **19 passed**（含新增 6 个就绪门用例、4 个台账/连接复用例） |
-| `ProjectWorkbench.test.tsx` / `bolt-workflow.test.ts` / `preview-resource-*.test.ts` | **通过**，合计聚焦 43 passed |
-| Linux/Docker 回归、真实 Bolt 验收 | **尚未运行**（本机无 Docker，WSL 被安全策略拦截） |
-| Playwright 全量、CI、独立交叉审查 | **尚未运行**，待推送后由 CI 与负责人复核 |
+| `npm test -- --run` | **29 文件 / 174 passed**（基线 162，本轮新增 12） |
+| `npm run build`（tsc -b + vite build） | **通过** |
+| Docker 运行时准备、受限浏览器烟测 | **通过** |
+| `npm run test:browser` | **10 passed / 1 skipped**（skipped 的是需要私有 Secret 的 Bolt 专项） |
+| 其中回归项 `page-override-lifecycle.spec.ts:350` | **通过（1.1m）** |
 
-Windows 本机 `local-project-api.test.ts` 有 4 个 30s 超时（`analyze` 路径），与上一轮记载的本机环境性超时一致；**本轮未改动 `analyze` 路径**，需用 Linux CI 复核，不能由本机结果推断。
+本机（Windows）`local-project-api.test.ts` 有 4 个 30s 超时（`analyze` 路径），与上一轮记载的本机环境性超时一致；**Linux CI 全量 174 passed 已排除本轮引入问题**，本机结果不作为依据。
+
+**仍然没有的证据**：真实 Bolt 验收（Run #7 及以后）、多视口 Evidence → Approval → Apply → Rollback 的真实工程闭环、独立交叉审查。这三项都还没做，不能由 CI 全绿推断。
 
 ### 00.5 本轮环境事故（必须记录，影响后续操作）
 
