@@ -1,6 +1,6 @@
 # Ripple 跨 Agent 开发交接（A 主线）
 
-> **核查快照：2026-10-20 10:26（UTC+8）**。本文以 GitHub 远端为准；**编写前** A 分支 HEAD 为 `6b63f9455164e157b28269f75ef072c298fac69e`。本文件的提交会使 HEAD 前进，故下述 SHA 特指**被审查的业务代码基线**，不应理解为交接文档提交后的 HEAD。接班人必须重新执行 `git fetch` 并核对最新远端 SHA、PR 和 CI。
+> **核查快照：2026-10-20（UTC+8）**。GitHub PR #2 的交接前 HEAD 为 `9af557c42a8c9298ac0fe63fefed88b47cc79b1d`（只新增本文件），被审查的**业务代码基线**仍为 `6b63f9455164e157b28269f75ef072c298fac69e`。本次文档提交还会使分支 HEAD 前进；最终 SHA 以 PR 的最新提交为准。接班人须重新核对远端分支、CI 与工作区。
 
 ## 1. 任务、分支与协作入口
 
@@ -9,11 +9,12 @@
 | 主仓库 | https://github.com/Onesummer-D/Ripple |
 | A 负责内容 | Project-first 统一核心、TEXT 真实 Bolt 闭环、DOM/运行时来源与精确授权、TOKEN 执行器、AI 意图校准、通用浏览器 Evidence、公共运行适配 |
 | A 开发分支 | `feat/project-first-core-20261018`，PR [#2](https://github.com/Onesummer-D/Ripple/pull/2)（Draft，**未合并**） |
-| A 业务基线 | `6b63f9455164e157b28269f75ef072c298fac69e` |
-| A 常规 CI | [#244 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39358087997)：29 测试文件、162 单测通过、build/typecheck 通过；Playwright 10 passed、1 skipped（该 skipped 是需私有源码的真实 Bolt 专项） |
+| A 业务基线 | `6b63f9455164e157b28269f75ef072c298fac69e`；交接前 PR HEAD `9af557c42a8c9298ac0fe63fefed88b47cc79b1d`（仅文档） |
+| A 常规 CI | 业务基线 [#244 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39358087997)；交接前文档 HEAD 的 [#245 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39359710518)：29 测试文件、162 单测通过、typecheck/build 通过，Playwright 10 passed / 1 skipped / 0 failed（跳过的是真实 Bolt 专项） |
 | 真实 Bolt | [Run #6 失败](https://github.com/Onesummer-D/Ripple/actions/runs/39358539574)，同一 A SHA，失败诊断见第 4 节 |
+| B 契约对齐 | [PR #3](https://github.com/Onesummer-D/Ripple/pull/3) open，`8696612cf76d7b29fa19118af40efb8bf0d4ca37`；冻结最小 `ripple-edit-operation-session/v1`，不等于 MEDIA 执行器完成 |
 | B 来源分析 | [PR #4](https://github.com/Onesummer-D/Ripple/pull/4) Draft，`feat/b-media-provenance-20261018` @ `137ff5444895a4ec906c13e25d2168581afab7a5`；[CI #232 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39249092355) |
-| B MEDIA 执行器 | [PR #7](https://github.com/Onesummer-D/Ripple/pull/7) Draft，`feat/b-media-executor-20261019` @ `3588da948fa31cebcbfb4c94be6257ba21c16c57`；[CI #243 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39357508573)：30 测试文件、177 单测通过、Playwright 10 passed / 1 skipped。此前 PR #7 CI 编译失败已修正，不要沿用旧阻塞描述 |
+| B MEDIA 执行器 | [PR #7](https://github.com/Onesummer-D/Ripple/pull/7) Draft，`feat/b-media-executor-20261019` @ `b7a0306aec78b71a1146f3922b96d2ffca306d0b`；同一 SHA 的 [CI #251 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39364483748)。该 PR 与 A 当前 HEAD 的联合集成/真实 Bolt MEDIA 尚未验收 |
 | 第三方适配 | [Issue #6](https://github.com/Onesummer-D/Ripple/issues/6)：**B 牵头**真实第三方接入/泛化，A 提供通用 ProjectRunner / Candidate / DOM→Source 核心；Issue 评论为最新分工参考 |
 | 主干 | `main` 仍与 A/B Draft 开发分支不同；不得把 main 当作最新开发基线 |
 
@@ -32,9 +33,7 @@
 - [Issue #6 A/B 接口回复](https://github.com/Onesummer-D/Ripple/issues/6#issuecomment-6267170299)
 - 仓库现有 [README.md](README.md) 及相关竞品调研 [docs/research/competitors](docs/research/competitors)。
 
-**检查发现**：在上述 A 业务基线的仓库根目录**没有** `AGENTS.md`，本文件编写前也**没有** `DEV_HANDOFF.md`。不要谎称已读 AGENTS.md；若后续确有其他位置的 Agent 指令，应先定位再使用。README 部分仍描述早期 Fixture/案例工作台，不能仅凭 README 宣称 Project-first 真实工程已完全验收。
-
-产品技术目标：**真实 Project → 编辑意图校准 → SourceGraph + 实际 DOM/运行时来源 → Scope 授权 → 统一 CandidatePatch → 隔离预演 → 多视口真实 Evidence → 审批 → 同补丁应用与回滚**。TEXT、MEDIA、TOKEN 是同一次 CandidateEdit 的资源类型，不得建立三套生命周期。可参考成熟技术/开源实现，但复用代码或资产前核对许可证、来源和兼容性。
+**检查发现**：当前 A 仓库扫描未发现 `AGENTS.md`；不要谎称已读。`DEV_HANDOFF.md` 首版由 `9af557c` 加入；本文是在该文件上校正现状。README 部分仍描述早期 Fixture/案例工作台，不能仅凭 README 宣称真实项目完全验收。产品技术目标：**真实 Project → 编辑意图校准 → SourceGraph + 实际 DOM/运行时来源 → Scope 授权 → 统一 CandidatePatch → 隔离预演 → 多视口真实 Evidence → 审批 → 同补丁应用与回滚**。TEXT、MEDIA、TOKEN 是同一次 CandidateEdit 的资源类型，不得建立三套生命周期。可参考成熟技术/开源实现，但复用代码或资产前核对许可证、来源和兼容性。
 
 ## 3. 已有实现 vs 未完成能力
 
@@ -104,6 +103,12 @@ Preview container logs: Vite server configured; preview server ready
 4. 完成 `typecheck`、`test`、`build`、相关 Playwright/Docker 回归与独立代码审查；提交新 SHA 后再请求负责人**一次**手动触发下一轮需要私有仓库的 workflow。无需让负责人重复创建 Token。
 5. 真正通过原始 Bolt 的分析 → 目标/Scope → Candidate → Evidence → Approval → **同补丁应用** → Rollback 后，才能宣称 TEXT 真实闭环完成。
 
+### 最近已提交的公共运行时修复（业务基线 `6b63f94`）
+
+- `src/core/verification-runner.ts`：先检查匹配的 Playwright 镜像，验证时禁止隐式拉取，并明确区分镜像缺失/超时；避免首次拉取占尽验证窗口。
+- `scripts/prepare-browser-verification.sh`：预拉镜像并在隔离容器中运行 Chromium 烟测；`.github/workflows/ci.yml` 与 `.github/workflows/bolt-acceptance.yml` 均在浏览器验收前调用。
+- `src/core/bolt-workflow.test.ts`：锁定工作流准备步骤；`docs/architecture/project-runner-capabilities.md`：记录运行能力和限制。本次交接更新**不修改业务代码**。
+
 ## 5. 之后的 A 技术路线（不含正式 UI/UX）
 
 依赖优先次序：
@@ -125,7 +130,7 @@ Preview container logs: Vite server configured; preview server ready
 - B 专项：`src/core/project.ts` 中 B 负责的 MEDIA/TOKEN 来源逻辑、`src/core/media-asset-staging.ts`、`media-asset-swap.ts`、媒体测试与 Evidence、第三方真实泛化报告。A 不无协调改 B 模块；B 不自行另建 Session/Candidate/Approval/Rollback。
 - 结构化 handler 必须显式注册；`plan` **同步、无副作用**返回 `sourceEdits` 与 **只允许创建新文件**的 `fileWrites`，实际写入由核心负责。未知 action、无注册、畸形操作、protected/excluded、源码位置漂移均 fail-closed；页面级 MEDIA override 当前不得默认放行。
 - `srcSet` 新增 JSX 属性可能超出已证明的属性文字区间；未经新 AST 授权不可放宽 Scope。先支持确切的 src/已有 srcSet 字面量，其他返回 unsupported 并提供最小真实复现供双方协商。
-- B PR #7 **最新 CI 已绿**但 PR 说明里仍有旧“需要 A 放行 action/payload”的表述。正式整合前重新比对现有 A registry seam 与 B 函数是否仍有“直接暂存文件”的副作用；不能把 CI 通过自动解释成已经集成。
+- B PR #7 在当前 `b7a0306` 的 CI #251 已绿；其 PR 正文部分仍引用旧交付 HEAD。正式整合前须在最新 A 基线上复验 handler 与公共 registry seam、文件写入及补丁完整性，不能把 B 分支 CI 通过自动解释成联合集成已完成。
 - PR #4/#7 都基于 A 较早分支基线；合并/联合复验前须明确 base HEAD 并解决演进冲突。任何人都不得自行合并 Draft PR 到 main。
 
 ## 7. 代码入口与复现命令
@@ -155,31 +160,13 @@ Linux/Docker 下需运行 `bash scripts/prepare-browser-verification.sh`。参�
 
 核心位置：`src/core/project.ts`、`project-capabilities.ts`、`project-config-resolver.mjs`、`scope.ts`、`session.ts`、`candidate.ts`、`candidate-operation-executors.ts`、`candidate-preview.ts`、`candidate-verification-runner.mjs`、`verification.ts`、`local-project-api.ts`；工作台与路由在 `src/app/`；真实 E2E 在 `e2e/project-workbench.spec.ts`。
 
-## 8. 未提交、未推送、本地资产与交接前检查
+## 8. 本地工作区与不可迁移资产（2026-10-20 实查）
 
-**GitHub 可确认的只有上述远端分支、commit、PR、Issue、CI 和已入库文件。** 此次审查**没有权限读取 A Codex 私有云电脑/本地工作区、B 本机目录、个人密钥或暂存区**，所以：
+本次可读的 A 本地 checkout：`D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\ripple-app-pr2-6c6e-previewfix`。当前检出 `codex/core-runtime-pr2` @ `e16e78696f98edf4c099544d89cadbd9dbda2e81`（同一运行时修复的本地提交），**不是** GitHub PR #2 最新分支 HEAD。由于本环境 `git fetch origin feat/project-first-core-20261018` 两次均失败（先是 `getaddrinfo() thread failed to start`，提升网络权限后是 `Recv failure: Connection was reset`），本次文档通过 GitHub 已授权接口更新远端 PR 分支，未改变本地 checkout 指针；下一 Agent 切勿把该本地分支名误认成远端开发分支。GitHub 的当前分支 SHA 应以 PR #2 再核对。
 
-- **不能确认**原 Agent 是否存在未提交/未推送/未追踪修改，不能声称所有工作区干净。
-- **不能确认**本地生成图片、下载资源、未追踪二进制和测试报告是否完整推送；交接时应逐项核对。
-- 不应自动执行 `git reset --hard`、`git clean -fd`、强推、覆盖未保存素材或合并 PR 来制造“干净状态”。
-- 受限验证产生的日期化证据、Docker 缓存、私有 Bolt 仓库、GitHub Secrets 不属于可自动随分支迁移的资产。
+本地 `git status --porcelain=v1` 与 `git ls-files --others --exclude-standard` 均为空：**没有已发现的未提交或未追踪文件**。但 `node_modules/.tmp/` 下有被 `.gitignore` 排除的 Run #4/#5 下载 artifact、trace、临时工程与 UI 截图；它们**只在本机，不在 PR 分支**，不能作为 Run #6 的证据。另有本地 `codex/ui-selection-card-paused` ref @ `35b6955417d0c76228a7696ae78e22871d247807`，GitHub 当前 API 查不到该提交；属暂停的 UI 实验，不得因交接而丢弃或误并入 PR #2。仓库外父目录的 `.planning/` 也不是本 PR 的交接来源。其他机器或 B 的工作区状态未查，不能推断其干净。
 
-原 Agent 尚可访问工作区时，依次核查：
-
-~~~bash
-git status --short
-git branch --show-current
-git rev-parse HEAD
-git remote -v
-git log -5 --oneline
-git diff --stat
-git diff --cached --stat
-git ls-files --others --exclude-standard
-git fetch origin
-git status -sb
-~~~
-
-在检查未追踪文件有无密钥后，选择性提交应交接的代码/文档/资源；不能无检查地 `git add .`。接班 Agent 首次访问也需核对上述状态和远端 PR SHA，遇到漂移先说明，不要悄悄改变基线。
+远端提交后，本地 checkout 虽无未提交文件，但会**落后于** PR #2；待网络恢复，先 `git fetch` 并检查分支/工作树，再在适当的工作树续开发。不得 `reset --hard`、`clean -fd`、强推或自动删除上述本地资产。私有 Bolt 源码、GitHub Secret、Docker 缓存与日期化运行记录也不会随交接文档自动迁移。
 
 ## 9. 交接执行协议与完成定义
 
