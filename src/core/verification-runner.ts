@@ -201,21 +201,6 @@ function readRunnerProgressTail(artifactRoot: string, maxLines = 24): string {
   return fs.readFileSync(progressFile, 'utf8').trim().split('\n').filter(Boolean).slice(-maxLines).join('\n')
 }
 
-// Run #9: the snapshotter failed all 19 authorized resources in ~62 ms and the
-// run still burned the full 180 s executor budget, finishing with no trusted
-// record and no persisted reasons. When verification explicitly depends on
-// authorized resources and not one could be captured, continuing is strictly
-// worse than stopping: every external request would be blocked, viewport
-// checks would "pass" without their declared resources, and the failure would
-// surface only as a timeout. A project with no authorized resources (an empty
-// or fully optional list that snapshots cleanly) is unaffected.
-export function snapshotCoverageFailure(result: { snapshots: unknown[]; unavailable: Array<{ url: string; reason: string }> }): string | undefined {
-  if (result.snapshots.length > 0 || result.unavailable.length === 0) return undefined
-  const lines = result.unavailable.slice(0, 8).map(entry => `${entry.url} — ${entry.reason}`)
-  const more = result.unavailable.length > 8 ? [`…以及另外 ${result.unavailable.length - 8} 条（见 resource-fetch-log.json）`] : []
-  return `全部 ${result.unavailable.length} 个授权外部资源快照失败，本次验证未启动。原因：\n${[...lines, ...more].join('\n')}`
-}
-
 export async function runCandidateVerification(candidate: CandidateRecord, session: EditSession, baseGraph: SourceGraph, preview: CandidatePreview): Promise<VerificationRun> {
   assertCandidateCurrent(candidate)
   if (!candidate.artifactPath || !candidate.candidateRoot || session.candidate?.id !== candidate.id || !session.scope) throw new VerificationRunnerError('候选、Scope 和补丁工件必须在当前 EditSession 中')
@@ -267,8 +252,13 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       unavailable: resourceSnapshotResult.unavailable,
       diagnostics: resourceSnapshotResult.diagnostics,
     }, null, 2))
-    const coverageFailure = snapshotCoverageFailure(resourceSnapshotResult)
-    if (coverageFailure) throw new VerificationRunnerError(coverageFailure)
+    // Declared-degradation semantics stay in force: a fully-unavailable
+    // snapshot set does NOT hard-fail here. The verification runs, every
+    // blocked request is recorded by the runner as a browser error (so the
+    // browser-errors assertion keeps the verdict at RISKS — never PASS), and
+    // the full reasons above now survive into the artifact. e2e/project-
+    // workbench.spec.ts:122 pins this contract with an intentionally
+    // unresolvable authorized host.
     exportResourceSnapshots(artifactRoot, runId, resourceSnapshotResult.snapshots)
     baseline = await startCandidateBaseline(candidate, preview)
     fs.writeFileSync(inputPath, JSON.stringify({
