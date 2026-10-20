@@ -1,4 +1,4 @@
-import { analyzeProject, readProjectSnapshot } from '../src/core/project'
+import { analyzeProject } from '../src/core/project'
 import { sourceProvenPageImpact } from '../src/core/scope'
 
 const root = process.argv[2]

@@ -36,6 +36,7 @@ import { attestBrowserExecution } from '../src/core/verification-receipt'
 import { verificationContractHash } from '../src/core/verification-contract'
 import {
   assetUrlMatches,
+  mediaDualEndpointSha256,
   mediaEvidenceSummary,
   type MediaDualEndpointCollection,
   type MediaDualEndpointViewport,
@@ -423,6 +424,9 @@ async function main(): Promise<void> {
     if (!fs.existsSync(path.join(dist, assetRef.replace(/^\//, '')))) throw new AcceptanceError('构建产物缺少新资产（public 目录未拷贝）')
 
     // 4b. 原工程基线构建（真实双端对照的前提；worktree 隔离，不污染原工程）
+    // 独立审查 P2-2：进程被强杀时 finally 不执行会残留 baseline-src 目录并阻断
+    // 下次 worktree add，这里先强制清空实现自愈。
+    fs.rmSync(baselineSrc, { recursive: true, force: true })
     run('git', ['-C', qingyeRoot, 'worktree', 'add', '--detach', baselineSrc, qingyeCommit])
     try {
       run(npmCommand, ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: baselineSrc, timeoutMs: 900_000 })
@@ -468,6 +472,8 @@ async function main(): Promise<void> {
       steps.mediaEvidence = { sha256: evidenceFile.sha256, dir: evidenceDir, summary: evidenceSummary }
       evidenceSha = evidenceFile.sha256
       const dualFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'dual.json'), 'utf8')) as { collection: MediaDualEndpointCollection; sha256: string }
+      // 独立审查 P2-3：哈希回验，防止篡改 dual.json 操纵断言输入
+      if (mediaDualEndpointSha256(dualFile.collection) !== dualFile.sha256) throw new AcceptanceError('dual.json 内容哈希不匹配，采集数据可能被篡改，拒绝继续')
       dualSha = dualFile.sha256
       steps.dualEndpoint = {
         sha256: dualFile.sha256,

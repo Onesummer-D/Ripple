@@ -346,7 +346,7 @@ async function collectDualViewport(browser: import('playwright').Browser, input:
       baseline.markerMatchCount = baselineNav.markerMatchCount
     } else {
       baselineErrors.push(`baseline works-page marker「${input.markerText}」未出现`)
-      baseline.errors.push(...baselineErrors)
+      baseline = { ...baseline, errors: [...baselineErrors] }
     }
   } catch (error) {
     baselineErrors.push(error instanceof Error ? error.message : String(error))
