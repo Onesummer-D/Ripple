@@ -204,6 +204,39 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     addEdge(component.id, `file:${component.file}`, 'imports', `source:${component.id}`)
   }
 
+  const annotationNamesType = (annotation: ts.TypeNode, typeName: string): boolean => {
+    if (ts.isArrayTypeNode(annotation)) return annotationNamesType(annotation.elementType, typeName)
+    if (ts.isTypeReferenceNode(annotation)) return annotation.typeName.getText() === typeName
+    if (ts.isUnionTypeNode(annotation)) return annotation.types.some(entry => annotationNamesType(entry, typeName))
+    return false
+  }
+  // 接收方类型定向收窄：product.image 这类成员访问在无法解析到字面量声明时，
+  // 旧逻辑按属性名链接到全项目同名媒体（会把 categories[].image 误挂到 ProductCard）。
+  // 若接收方类型可解析到本工程内的 interface/type alias，则只保留声明为该类型的
+  // 绑定初始化区间内的媒体节点；解析不到任何匹配绑定时退回原名级候选（fail-closed 不变）。
+  const narrowMediaByReceiverType = (node: ts.PropertyAccessExpression, pool: SourceNode[]): SourceNode[] | undefined => {
+    if (pool.length <= 1) return pool
+    const symbol = checker.getTypeAtLocation(node.expression).getSymbol()
+    const declaration = symbol?.declarations?.[0]
+    if (!declaration || (!ts.isInterfaceDeclaration(declaration) && !ts.isTypeAliasDeclaration(declaration))) return undefined
+    const typeName = declaration.name.text
+    const ranges: Array<{ path: string; start: number; end: number }> = []
+    for (const [absolute, source] of sourceFiles) {
+      const file = relativeTo(snapshot.root, absolute)
+      const visitDecl = (candidate: ts.Node): void => {
+        if (ts.isVariableDeclaration(candidate) && candidate.type && candidate.initializer && annotationNamesType(candidate.type, typeName)) {
+          ranges.push({ path: file, start: candidate.initializer.getStart(source), end: candidate.initializer.getEnd() })
+        }
+        ts.forEachChild(candidate, visitDecl)
+      }
+      visitDecl(source)
+    }
+    if (!ranges.length) return undefined
+    return pool.filter(media => {
+      const location = media.location
+      return location !== undefined && ranges.some(range => range.path === location.path && location.start !== undefined && location.end !== undefined && location.start >= range.start && location.end <= range.end)
+    })
+  }
   const tokenNodes = new Map<string, SourceNode[]>()
   const mediaNodes = new Map<string, SourceNode[]>()
   const mediaBySource = new Map<string, SourceNode>()
@@ -346,7 +379,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           }
         }
         if (!linked) {
-          for (const media of mediaNodes.get(node.name.text) ?? []) {
+          const pool = mediaNodes.get(node.name.text) ?? []
+          for (const media of narrowMediaByReceiverType(node, pool) ?? pool) {
             addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset-candidate:${ownerComponent.id}:${media.id}:${node.getStart(source)}`, 'semantic-candidate')
           }
         }

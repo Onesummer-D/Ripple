@@ -276,6 +276,75 @@ describe('real project graph and candidate executor', () => {
     })
   })
 
+  it('narrows member-access media candidates by the receiver declared type and keeps the name-level fallback for untyped receivers', () => {
+    const { root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'catalog.ts'), `export interface Product { image: string }
+export const products: Product[] = [
+  { image: '/images/p1.webp' },
+  { image: '/images/p2.webp' },
+]
+export const categories = [
+  { image: '/images/cat.webp' },
+]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/catalog'
+export function ProductCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'LooseCard.tsx'), `export function LooseCard({ item }: { item: never }) {
+  return <img src={(item as { image: string }).image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { products, categories } from '../data/catalog'
+import { ProductCard } from '../components/ProductCard'
+import { LooseCard } from '../components/LooseCard'
+export function HomePage() {
+  return (
+    <main>
+      <h1 className="text-ink-900">Home title</h1>
+      {products.map((product) => <ProductCard key={product.image} product={product} />)}
+      {categories.map((cat) => <img key={cat.image} src={cat.image} />)}
+      <LooseCard item={undefined as never} />
+    </main>
+  )
+}`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add typed and untyped media member consumers')
+
+    const graph = analyzeProject(root)
+    const mediaByValue = new Map(graph.nodes.filter(node => node.kind === 'media' && node.location?.path === 'src/data/catalog.ts').map(node => [node.value, node.id]))
+    const productOne = mediaByValue.get('/images/p1.webp')!
+    const productTwo = mediaByValue.get('/images/p2.webp')!
+    const categoryImage = mediaByValue.get('/images/cat.webp')!
+
+    const card = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!
+    const cardCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === card.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    // 接收方声明为 Product：候选只保留 Product[] 绑定内的媒体，categories 图片不再被误挂
+    expect(cardCandidateTargets.sort()).toEqual([productOne, productTwo].sort())
+    expect(cardCandidateTargets).not.toContain(categoryImage)
+
+    // 未标注/无法解析接收方类型的回退路径保持原名级候选（fail-closed 不降级）
+    const loose = graph.nodes.find(node => node.kind === 'component' && node.label === 'LooseCard')!
+    const looseCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === loose.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    expect(looseCandidateTargets.length).toBeGreaterThanOrEqual(3)
+
+    // 分类图经 categories.map 直接消费可证明到首页；
+    // 唯一未解析关系来自 LooseCard 回退候选（fail-closed 如实保留，不误升级）
+    const categoryImpact = sourceProvenPageImpact(graph, categoryImage)
+    expect(categoryImpact.pageRefs).toEqual(['page:home'])
+    expect(categoryImpact.certainty).toBe('partial')
+    expect(categoryImpact.unresolved).toHaveLength(1)
+    expect(categoryImpact.unresolved[0]).toContain('LooseCard')
+    // 商品图因共享组件/页面级 map 保持 candidate/unknown（页面归属不被误提升）
+    expect(sourceProvenPageImpact(graph, productOne).certainty).toBe('unknown')
+  })
+
   it('does not execute a structured action through the literal candidate replacement path', () => {
     const { container, root } = sampleProject()
     const graph = analyzeProject(root)

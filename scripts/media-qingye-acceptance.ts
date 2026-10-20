@@ -35,8 +35,9 @@ import { verificationContractHash } from '../src/core/verification-contract'
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const run = (command: string, args: string[], options: { cwd?: string; timeoutMs?: number } = {}) =>
-  execFileSync(command, args, { cwd: options.cwd, stdio: 'pipe', timeout: options.timeoutMs ?? 600_000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' }) as string
+  execFileSync(command, args, { cwd: options.cwd, stdio: 'pipe', timeout: options.timeoutMs ?? 600_000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', ...(path.basename(command).endsWith('.cmd') ? { shell: true } : {}) }) as string
 
 class AcceptanceError extends Error {
   constructor(message: string) { super(message); this.name = 'AcceptanceError' }
@@ -211,8 +212,8 @@ async function main(): Promise<void> {
     steps.candidate = { candidateId: candidate.id, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest }
 
     // 4. 候选构建 + 静态服务（无 Docker 路径）
-    run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: candidate.candidateRoot!, timeoutMs: 900_000 })
-    run('npm', ['run', 'build'], { cwd: candidate.candidateRoot!, timeoutMs: 900_000 })
+    run(npmCommand, ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: candidate.candidateRoot!, timeoutMs: 900_000 })
+    run(npmCommand, ['run', 'build'], { cwd: candidate.candidateRoot!, timeoutMs: 900_000 })
     const dist = path.join(candidate.candidateRoot!, 'dist')
     if (!fs.existsSync(path.join(dist, assetRef.replace(/^\//, '')))) throw new AcceptanceError('构建产物缺少新资产（public 目录未拷贝）')
     const server = await serveStatic(dist, 4619)
