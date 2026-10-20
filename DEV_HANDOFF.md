@@ -4,7 +4,7 @@
 
 **请优先阅读本节；后面的“前次独立审查记录”保留历史证据，涉及旧 SHA 的状态以本节为准。** 本次审查以 GitHub 远端代码、PR、Actions 和前任 Codex 留下的工作区说明为基础；**并没有直接读取前任本地未提交 Diff**。本文写入后分支 HEAD 会再前进一次，旧 SHA 是业务/文档对照点，不是写入后的 HEAD。
 
-> **⚡ 最新一轮更新（2026-10-21 03:45，第七轮）**：A 分支 HEAD 为 `9a509c0`（[CI run 39486913772 全绿](https://github.com/Onesummer-D/Ripple/actions/runs/39486913772)，仅追加本文档）。真实 Bolt **Run #10 已跑（run 39484983941，@`3901dc6`）并失败**：19 资源问题**已闭环**（221/221 快照成功），新阻塞是**每视口 ~48–65s × 4 视口 ≈215s > 180s 执行器预算**，详见 **§00.11**（含阶段计时数据）。
+> **⚡ 最新一轮更新（2026-10-21 04:10，第七轮）**：A 分支 HEAD 为 `cf9cedd`（[CI run 39487699627 全绿](https://github.com/Onesummer-D/Ripple/actions/runs/39487699627)——注意其**首次 attempt 的 test:browser 曾 flaky 失败**（`page-override-lifecycle.spec.ts:350` 候选预览渲染 5s 超时），`gh run rerun --failed` 重跑即全绿；**这是已知的浏览器预览 flaky，不是回归**，看 PR 时勿误判）。真实 Bolt **Run #10 已跑（run 39484983941，@`3901dc6`）并失败**：19 资源问题**已闭环**（221/221 快照成功），新阻塞是**每视口 ~48–65s × 4 视口 ≈215s > 180s 执行器预算**，详见 **§00.11**（含阶段计时数据）。
 >
 > 上一轮更新（2026-10-20 22:00，第六轮）：HEAD 曾到 `3901dc6`（[CI run 39483986458 全绿](https://github.com/Onesummer-D/Ripple/actions/runs/39483986458)），Run #9 失败根因（Node lookup 回调形状）已闭环定位修复，详见 §00.10。下表为更早的状态快照。
 
@@ -258,6 +258,8 @@ Linux CI（[run #39425031601](https://github.com/Onesummer-D/Ripple/actions/runs
 **④ browserErrors ~150–200 条/秒**（9,702/61s；+9,702/47.6s）——总量真实但**样本不可得**：记录在 manifest `browserErrorDetails`（前 25 条样例）中，而 manifest 在预算到期前未持久化。Run #10 截图（workbench 终端视图）无法提取。**下一轮的样本要靠 runner 在预算到期/异常时也落盘 manifest**，或从降本后的完整 run 拿。
 
 **⑤ 下一动作（给接班人）**：B 侧明确**不得拉长 180s 预算、不得跳过 Scope/interaction/对照**。方向是压低单视口成本：scope-probe 每页 ~8.5–11.7s 的探针是否有 candidate/baseline 重复导航、等待策略是否可合并、4 页 × 双实例是否可共享上下文；同时按 ④ 让执行器在失败路径也持久化 manifest（错误样本），保证 FAILED TO RUN 时仍带走诊断。修完先跑 typecheck/单测/build/E2E，再请负责人手动触发 Run #11，判读仍以 `resource-fetch-log.json` + 逐阶段 `progress.jsonl` 为准。
+
+**⑥ CI flaky 记录（交接时已知，勿误判为回归）**：本轮的纯文档提交 `cf9cedd` 对应的 CI run 39487699627 **首次 attempt** 在 `test:browser` 失败于 `e2e/page-override-lifecycle.spec.ts:350`（`verifyPreview` 中候选预览 `goto` 后 5s 内 `Home page` heading 未出现；代码与上一个全绿提交完全相同）。`gh run rerun 39487699627 --failed` 重跑**全绿**（4m40s，9 passed / 1 skipped）。属已知浏览器预览渲染 flaky；若 run #11 后再现同类渲染超时，先 rerun 再归因。
 
 ### 00.6 下一动作
 
