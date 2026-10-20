@@ -1,6 +1,8 @@
 # Ripple 跨 Agent 开发交接（A 主线）
 
-## 0. 最新增量核查（2026-10-20 14:51，UTC+8）
+## 0. 前次独立审查记录（2026-10-20 14:51，UTC+8）
+
+> 以下审查针对当时 A `d8d8b18` / B `b7a0306`。当前 A 文档基线已到 `d2a429a`（CI #254 成功），B 已到 `caeeb22`（CI #256 成功）；下列 B 问题是否在新提交修复，尚未逐项复审，不能直接沿用为最新代码结论。
 
 > 此节是接班人优先读取的最新核查。A 分支最新 *文档* HEAD 为 `d8d8b185f65da6eaefa7e0c9e9b70b0df80ef311`；**最近真正变更的 A 业务代码仍是 `6b63f9455164e157b28269f75ef072c298fac69e`**。本节提交将再次推动 PR #2 HEAD 前进，请以 GitHub 远端为准。本文保留此前交接记录中另一 Codex 工作区观察，但本次只直接核实 GitHub 远端，不独立确认本地 Windows 工作区状态。
 
@@ -11,7 +13,7 @@
 - **A/B 集成风险：** A 当前核心是 `6b63f94`；B PR #7 以较旧 A 基线开发，未证明和 A 最新 HEAD 共同构建、统一 Verification/Approval 通过。先在独立集成分支安全复验再合并；不要直接合并 Draft PR，也不要让 A 替 B 重做 MEDIA。
 - **当前 A 接班第一动作不变：** 核对 [Bolt Run #6](https://github.com/Onesummer-D/Ripple/actions/runs/39358539574) 的 trace/日志，定位 `ERR_NETWORK_CHANGED` 的可复现根因。A 完成真实 TEXT 后继续运行时关联、TOKEN 执行、AI 意图校准与视觉 Evidence 等技术主线；**暂缓正式 UI/UX 重构**。A 可向 B 通报上述证据门控 P1，但不必因此等待 MEDIA 才能修 Bolt。
 
-> **核查快照：2026-10-20（UTC+8）**。GitHub PR #2 的交接前 HEAD 为 `9af557c42a8c9298ac0fe63fefed88b47cc79b1d`（只新增本文件），被审查的**业务代码基线**仍为 `6b63f9455164e157b28269f75ef072c298fac69e`。本次文档提交还会使分支 HEAD 前进；最终 SHA 以 PR 的最新提交为准。接班人须重新核对远端分支、CI 与工作区。
+> **核查快照：2026-10-20（UTC+8）**。交接更新前 GitHub PR #2 HEAD 为 `d2a429a33bbeda4702e194eb4d3ab67b402dd88e`；从 `6b63f94` 至该 HEAD 仅更新本文，被 CI 验证的**业务代码基线**仍为 `6b63f9455164e157b28269f75ef072c298fac69e`。本次文档提交会使 HEAD 再次前进，最终 SHA 以 PR 最新提交为准。另有**未提交**的本地预演恢复实验，见第 8 节，不能算作远端能力。
 
 ## 1. 任务、分支与协作入口
 
@@ -20,12 +22,12 @@
 | 主仓库 | https://github.com/Onesummer-D/Ripple |
 | A 负责内容 | Project-first 统一核心、TEXT 真实 Bolt 闭环、DOM/运行时来源与精确授权、TOKEN 执行器、AI 意图校准、通用浏览器 Evidence、公共运行适配 |
 | A 开发分支 | `feat/project-first-core-20261018`，PR [#2](https://github.com/Onesummer-D/Ripple/pull/2)（Draft，**未合并**） |
-| A 业务基线 | `6b63f9455164e157b28269f75ef072c298fac69e`；交接前 PR HEAD `9af557c42a8c9298ac0fe63fefed88b47cc79b1d`（仅文档） |
-| A 常规 CI | 业务基线 [#244 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39358087997)；交接前文档 HEAD 的 [#245 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39359710518)：29 测试文件、162 单测通过、typecheck/build 通过，Playwright 10 passed / 1 skipped / 0 failed（跳过的是真实 Bolt 专项） |
+| A 业务基线 | `6b63f9455164e157b28269f75ef072c298fac69e`；交接前 PR HEAD `d2a429a33bbeda4702e194eb4d3ab67b402dd88e`（业务基线之后仅文档） |
+| A 常规 CI | [最新 CI #254 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39383267875)，对应 `d2a429a`。此前已逐项读取 [#253 日志](https://github.com/Onesummer-D/Ripple/actions/runs/39378653088)：29 测试文件、162 单测通过、typecheck/build 通过，Playwright 10 passed / 1 skipped / 0 failed（跳过的是真实 Bolt 专项）。新交接提交的 CI 须另核对，不能预先算通过 |
 | 真实 Bolt | [Run #6 失败](https://github.com/Onesummer-D/Ripple/actions/runs/39358539574)，同一 A SHA，失败诊断见第 4 节 |
 | B 契约对齐 | [PR #3](https://github.com/Onesummer-D/Ripple/pull/3) open，`8696612cf76d7b29fa19118af40efb8bf0d4ca37`；冻结最小 `ripple-edit-operation-session/v1`，不等于 MEDIA 执行器完成 |
 | B 来源分析 | [PR #4](https://github.com/Onesummer-D/Ripple/pull/4) Draft，`feat/b-media-provenance-20261018` @ `137ff5444895a4ec906c13e25d2168581afab7a5`；[CI #232 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39249092355) |
-| B MEDIA 执行器 | [PR #7](https://github.com/Onesummer-D/Ripple/pull/7) Draft，`feat/b-media-executor-20261019` @ `b7a0306aec78b71a1146f3922b96d2ffca306d0b`；[CI #251 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39364483748)。新增四视口 Evidence、真实青野验收脚本与独立工作流；**无已证实的真实青野专项通过，验证记录集成存在 P1，详见第 0 节** |
+| B MEDIA 执行器 | [PR #7](https://github.com/Onesummer-D/Ripple/pull/7) Draft，`feat/b-media-executor-20261019` @ `caeeb2224e83ce7a0545a70737367ed76138b218`；同一 SHA 的 [CI #256 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39409500518)。第 0 节为旧 `b7a0306` 审查；新提交的 Receipt 集成及与 A 当前 HEAD 的联合/真实 Bolt MEDIA 验收仍待复审 |
 | 第三方适配 | [Issue #6](https://github.com/Onesummer-D/Ripple/issues/6)：**B 牵头**真实第三方接入/泛化，A 提供通用 ProjectRunner / Candidate / DOM→Source 核心；Issue 评论为最新分工参考 |
 | 主干 | `main` 仍与 A/B Draft 开发分支不同；不得把 main 当作最新开发基线 |
 
@@ -101,6 +103,8 @@ Preview container logs: Vite server configured; preview server ready
 
 **目前只能确认浏览器 iframe 资源请求因网络状态改变失败，不能证明是 PostCSS、Docker 网络路由、代理、预览重建、浏览器上下文还是服务生命周期的单一根因。** 该 run 未到 Candidate 四视口 Evidence/Approval/Apply/Rollback；本轮失败不能当成产品修改算法错误，也不能冒称通过。
 
+本次会话重新下载并解析 Run #6 trace：iframe `GET /`、`/src/main.tsx`、`/src/App.tsx`、`/src/index.css` 均为 200；随后 `/src/pages/AutumnPage.tsx`、`ProductsPage.tsx`、`StoryPage.tsx` 和 `/@vite/client` 记录 `net::ERR_NETWORK_CHANGED`，失败资源在余下等待期未重试。失败截图显示空白预演。Vite ready/这些 200 只能证明服务曾可用，不能证明浏览器最终渲染成功。下载的 trace/截图仅在本机忽略目录中另有副本（第 8 节）。
+
 **前几轮已尝试与结论：**
 
 - Run #3：`/deps` 挂载导致 Tailwind 依赖 `@alloc/quick-lru` 解析失败；之后采用标准 `/work/node_modules`，Run #4 首屏/资源已能够加载。
@@ -110,9 +114,9 @@ Preview container logs: Vite server configured; preview server ready
 
 **接班 Agent 的第一任务：**
 
-1. 在不改业务文件的前提下核对上述 Run #6 job log、trace、error-context、截图和准确的 previewId/sourceDigest；确认真实 iframe 导航时序、模块请求时间线、容器进程/端口存活、浏览器网络上下文、网络中断是否可重现。
-2. 重点审查 `e2e/project-workbench.spec.ts`、`src/core/candidate-preview.ts`、`src/core/candidate-preview-runner.mjs`、`src/core/candidate-preview-vite.config.mjs`、`src/core/local-project-api.ts`、`.github/workflows/bolt-acceptance.yml`；添加能区分启动成功但资源网络中断的诊断及最小复现。
-3. 找到证据支持的根因后才作最小通用修复，不能靠放宽 `footer` 断言、无限延时、关闭隔离、忽略请求失败或 Bolt 仓库名特判来换绿色。
+1. 先核对本地**未提交**的 `src/app/ProjectWorkbench.tsx` 与 `e2e/project-workbench.spec.ts`（第 8 节）：它们增加用户可见的 iframe 重新加载和仅在 `ERR_NETWORK_CHANGED` 且原 relay 对失败路径返回 200 时的一次恢复尝试。检查旧 iframe 异步点选响应不能在重载后恢复过期 selection，补确定性回归；不要把“恢复可用”写成已证明底层根因消失。
+2. 重点审查 `e2e/project-workbench.spec.ts`、`src/core/candidate-preview.ts`、`src/core/candidate-preview-runner.mjs`、`src/core/candidate-preview-vite.config.mjs`、`src/core/local-project-api.ts`、`.github/workflows/bolt-acceptance.yml`；依据 trace/容器/浏览器时序给出最小通用修复或明确剩余未知。
+3. 不得放宽 `footer`、跳过页面资源、无限延时、关闭隔离、忽略失败请求或按 Bolt 仓库名特判来换绿色。完成 Linux/Docker CI 后，固定新 SHA 请求一次真实 Bolt 运行；Run #6 本身不提供四视口闭环结果。
 4. 完成 `typecheck`、`test`、`build`、相关 Playwright/Docker 回归与独立代码审查；提交新 SHA 后再请求负责人**一次**手动触发下一轮需要私有仓库的 workflow。无需让负责人重复创建 Token。
 5. 真正通过原始 Bolt 的分析 → 目标/Scope → Candidate → Evidence → Approval → **同补丁应用** → Rollback 后，才能宣称 TEXT 真实闭环完成。
 
@@ -143,7 +147,7 @@ Preview container logs: Vite server configured; preview server ready
 - B 专项：`src/core/project.ts` 中 B 负责的 MEDIA/TOKEN 来源逻辑、`src/core/media-asset-staging.ts`、`media-asset-swap.ts`、媒体测试与 Evidence、第三方真实泛化报告。A 不无协调改 B 模块；B 不自行另建 Session/Candidate/Approval/Rollback。
 - 结构化 handler 必须显式注册；`plan` **同步、无副作用**返回 `sourceEdits` 与 **只允许创建新文件**的 `fileWrites`，实际写入由核心负责。未知 action、无注册、畸形操作、protected/excluded、源码位置漂移均 fail-closed；页面级 MEDIA override 当前不得默认放行。
 - `srcSet` 新增 JSX 属性可能超出已证明的属性文字区间；未经新 AST 授权不可放宽 Scope。先支持确切的 src/已有 srcSet 字面量，其他返回 unsupported 并提供最小真实复现供双方协商。
-- B PR #7 在当前 `b7a0306` 的 CI #251 已绿；其 PR 正文部分仍引用旧交付 HEAD。正式整合前须在最新 A 基线上复验 handler 与公共 registry seam、文件写入及补丁完整性，不能把 B 分支 CI 通过自动解释成联合集成已完成。
+- B PR #7 当前 `caeeb22` 的 CI #256 已绿；其 PR 正文部分仍引用旧交付 HEAD。正式整合前须复审第 0 节 Receipt 风险，在最新 A 基线上复验 handler、公共 registry seam、文件写入及补丁完整性；分支 CI 不代表联合集成或真实青野验收完成。
 - PR #4/#7 都基于 A 较早分支基线；合并/联合复验前须明确 base HEAD 并解决演进冲突。任何人都不得自行合并 Draft PR 到 main。
 
 ## 7. 代码入口与复现命令
@@ -175,11 +179,19 @@ Linux/Docker 下需运行 `bash scripts/prepare-browser-verification.sh`。参�
 
 ## 8. 本地工作区与不可迁移资产（2026-10-20 实查）
 
-本次可读的 A 本地 checkout：`D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\ripple-app-pr2-6c6e-previewfix`。当前检出 `codex/core-runtime-pr2` @ `e16e78696f98edf4c099544d89cadbd9dbda2e81`（同一运行时修复的本地提交），**不是** GitHub PR #2 最新分支 HEAD。由于本环境 `git fetch origin feat/project-first-core-20261018` 两次均失败（先是 `getaddrinfo() thread failed to start`，提升网络权限后是 `Recv failure: Connection was reset`），本次文档通过 GitHub 已授权接口更新远端 PR 分支，未改变本地 checkout 指针；下一 Agent 切勿把该本地分支名误认成远端开发分支。GitHub 的当前分支 SHA 应以 PR #2 再核对。
+当前任务 checkout 是 `D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\ripple-pr2-bolt-run6`，本地分支 `feat/project-first-core-20261018` 从远端 `d8d8b18` 独立克隆。**除本交接文件外，`git status` 还显示三项未提交改动；此次只提交/推送本文件，不得误带业务实验：**
 
-本地 `git status --porcelain=v1` 与 `git ls-files --others --exclude-standard` 均为空：**没有已发现的未提交或未追踪文件**。但 `node_modules/.tmp/` 下有被 `.gitignore` 排除的 Run #4/#5 下载 artifact、trace、临时工程与 UI 截图；它们**只在本机，不在 PR 分支**，不能作为 Run #6 的证据。另有本地 `codex/ui-selection-card-paused` ref @ `35b6955417d0c76228a7696ae78e22871d247807`，GitHub 当前 API 查不到该提交；属暂停的 UI 实验，不得因交接而丢弃或误并入 PR #2。仓库外父目录的 `.planning/` 也不是本 PR 的交接来源。其他机器或 B 的工作区状态未查，不能推断其干净。
+本地文档提交 `41299c4` 未能经 Git 推送（`Failed to connect to github.com port 443`）；期间远端由其他文档提交前进到 `d2a429a`。本文已保留该远端新增审查，并通过 GitHub Contents API 发布合并后的文档；**本地 Git 历史尚未与该远端提交同步**。下一 Agent 应先 fetch/比较祖先关系，保留未提交实验后安全同步，不能强推本地文档历史覆盖远端。
 
-远端提交后，本地 checkout 虽无未提交文件，但会**落后于** PR #2；待网络恢复，先 `git fetch` 并检查分支/工作树，再在适当的工作树续开发。不得 `reset --hard`、`clean -fd`、强推或自动删除上述本地资产。私有 Bolt 源码、GitHub Secret、Docker 缓存与日期化运行记录也不会随交接文档自动迁移。
+| 仅本地文件 | 当前内容与状态 |
+| --- | --- |
+| `src/app/ProjectWorkbench.tsx` | 为原工程/候选 iframe 添加“重新加载预演”按钮，并在重载时清空点选；近期又加了异步来源响应的 iframe 身份检查。**未提交，未运行 Docker/Bolt 复验**。 |
+| `e2e/project-workbench.spec.ts` | 合成场景检查 iframe 重建；私有 Bolt 场景仅在 `net::ERR_NETWORK_CHANGED` 且 relay 逐项返回 200 时尝试一次重载，仍要求 Footer、后续资源/Scope/Evidence 完整通过，并留资源审计。**未提交，未运行真实 Bolt；旧 iframe 异步点选的确定性回归尚欠**。 |
+| `tsconfig.node.tsbuildinfo` | 本机 `npm run build` 生成的已跟踪增量编译记录；不是有意代码修改，不要纳入文档提交。 |
+
+此 clone 已完成本地 `npm run typecheck`、聚焦 `ProjectWorkbench.test.tsx` 1/1 和 `npm run build`，但这些运行早于最后一处 iframe 身份检查；不能据此称未提交实验已验收。全量 Windows `npm test -- --run` **失败**：29 文件中 26 passed/3 failed，153 passed/8 failed/1 skipped，另有 1 个 Vitest worker timeout；主要出现 `connect EACCES 127.0.0.1:10454` 和临时 Git `.git/config: Permission denied`。这些是本机受限环境结果，不能替代 Linux CI；不能写成全绿。`git ls-files --others --exclude-standard` 无未追踪文件，`node_modules` 是忽略文件。
+
+旧 checkout `...\ripple-app-pr2-6c6e-previewfix` 仍在 `codex/core-runtime-pr2` @ `e16e786`；其忽略目录 `node_modules/.tmp/bolt-run6-artifact.zip`、解包 trace/截图是**仅本机副本**，不在 GitHub。旧工作树另有未推送的暂停 UI ref `codex/ui-selection-card-paused` @ `35b6955`；不要清理、重置、误并入。仓库外 `.planning/`、私有 Bolt 源码、Secrets、Docker 缓存都不随本文迁移。其他机器/B 的本地状态未查。**交接提交推送后此新 clone 仍不干净，原因是上述三项有意保留的改动。**
 
 ## 9. 交接执行协议与完成定义
 
