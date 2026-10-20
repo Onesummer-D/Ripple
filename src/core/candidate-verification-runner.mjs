@@ -31,6 +31,7 @@ const resourceSnapshots = input.resourceSnapshots ?? []
 const resourceByUrl = new Map(resourceSnapshots.map(snapshot => [snapshot.url, snapshot]))
 const loadedExternalResourceUrls = new Set()
 const blockedExternalResourceUrls = new Set()
+const unavailableSnapshotCount = (input.unavailableResources ?? []).length
 let overflowObserved = false
 let loadedViewports = 0
 // Run #8 died to a host-side 180 s budget kill with no surviving trace of
@@ -425,7 +426,7 @@ const assertions = [
     result: input.targetBindings.length === 0 || loadedViewports !== viewportPlan.length ? 'unknown' : all(mappedResults, Boolean) ? 'pass' : 'unknown',
     detail: input.targetBindings.length === 0 ? 'No unique source binding was available for the changed targets.' : loadedViewports !== viewportPlan.length ? 'Not all planned viewports rendered, so source mapping is incomplete.' : all(mappedResults, Boolean) ? 'Each changed target source reference matched a rendered annotated element with a runtime instance identity.' : 'At least one changed source target could not be mapped to a rendered annotated element with a runtime instance identity.',
   },
-  { id: 'browser-errors', result: browserErrors.length ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: browserErrors.length ? `${browserErrors.length} browser or page error(s) were observed.` : loadedViewports === viewportPlan.length ? 'No uncaught page or console errors were observed at the tested viewports.' : 'Not all planned viewports rendered, so browser error coverage is incomplete.' },
+  { id: 'browser-errors', result: browserErrors.length || unavailableSnapshotCount ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: browserErrors.length || unavailableSnapshotCount ? `${browserErrors.length} browser or page error(s); ${unavailableSnapshotCount} authorized external resource(s) unavailable in the snapshot.` : loadedViewports === viewportPlan.length ? 'No uncaught page or console errors were observed at the tested viewports.' : 'Not all planned viewports rendered, so browser error coverage is incomplete.' },
 ]
 
 if (assertions.length !== requiredAssertions.length || assertions.some(assertion => !requiredAssertions.includes(assertion.id))) {
@@ -469,4 +470,4 @@ const manifest = {
   })(),
 }
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2), { flag: 'wx' })
-console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.length ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))
+console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.length || unavailableSnapshotCount ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))
