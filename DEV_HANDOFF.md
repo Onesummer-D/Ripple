@@ -4,7 +4,9 @@
 
 **请优先阅读本节；后面的“前次独立审查记录”保留历史证据，涉及旧 SHA 的状态以本节为准。** 本次审查以 GitHub 远端代码、PR、Actions 和前任 Codex 留下的工作区说明为基础；**并没有直接读取前任本地未提交 Diff**。本文写入后分支 HEAD 会再前进一次，旧 SHA 是业务/文档对照点，不是写入后的 HEAD。
 
-> **⚡ 最新一轮更新（2026-10-20 22:00，第六轮）**：A 分支 HEAD 已到 **`3901dc6`**（[CI run 39483986458 全绿](https://github.com/Onesummer-D/Ripple/actions/runs/39483986458)），真实 Bolt 最近为 [Run #9 失败](https://github.com/Onesummer-D/Ripple/actions/runs/39477538481)，根因（Node lookup 回调形状）已闭环定位并修复，详见下方新增 **§00.10**；下一动作是手动触发 **Run #10 @ `3901dc6`**。下表为其之前的状态快照。
+> **⚡ 最新一轮更新（2026-10-21 03:45，第七轮）**：A 分支 HEAD 为 `9a509c0`（[CI run 39486913772 全绿](https://github.com/Onesummer-D/Ripple/actions/runs/39486913772)，仅追加本文档）。真实 Bolt **Run #10 已跑（run 39484983941，@`3901dc6`）并失败**：19 资源问题**已闭环**（221/221 快照成功），新阻塞是**每视口 ~48–65s × 4 视口 ≈215s > 180s 执行器预算**，详见 **§00.11**（含阶段计时数据）。
+>
+> 上一轮更新（2026-10-20 22:00，第六轮）：HEAD 曾到 `3901dc6`（[CI run 39483986458 全绿](https://github.com/Onesummer-D/Ripple/actions/runs/39483986458)），Run #9 失败根因（Node lookup 回调形状）已闭环定位修复，详见 §00.10。下表为更早的状态快照。
 
 ### 远端精确状态
 
@@ -234,9 +236,32 @@ Linux CI（[run #39425031601](https://github.com/Onesummer-D/Ripple/actions/runs
 - PR #2 **mergeable=false**（main 已到 `73a4edc`）：按与负责人的约定**不合并 main、不 rebase**，已在正文标注。
 - 边界不变：未修 B 的 MEDIA、未放松任何 SSRF/安全门控、未做正式 UI/UX、A 技术路线（运行时实例关联、TOKEN 执行器、AI 意图校准、视觉 Evidence）未启动。
 
+### 00.11 Run #10 结果：资源闭环，新阻塞=每视口成本 ×4 > 180s 预算（2026-10-21 03:45）
+
+**Run #10**：[run 39484983941](https://github.com/Onesummer-D/Ripple/actions/runs/39484983941)，`workflow_dispatch` @ `3901dc6`，失败于 `e2e/project-workbench.spec.ts:971`（无可信执行记录）。Artifact 已解析（`evidence-bolt-workbench/diagnostics/verification-ac2a771f…/`）。**先看结论**：
+
+**① 资源问题闭环（Run #9 根因验收通过）**：`resource-fetch-log.json` **`unavailable: []`**——221 个资源全部 ok（1 个 Google Fonts CSS 900KB + 约 200 个 Noto SC woff2 + 19 张 Pexels 图，含 avif 协商内容），总耗时 13.985s、12.37MB；每个视口 `loadedExternalResources: 10`、`blockedExternalResources: 0`。`pinnedPublicLookup` 数组修复在真实网络上验收。
+
+**② 新阻塞 = 预算算术**：runner 19:39:06 启动，180s 预算 19:42:06 到期。四个视口实际耗时（progress.jsonl，`check-complete.durationMs`）：
+
+| 视口 | 耗时 | 结果 | browserErrors（累计） |
+| --- | --- | --- | --- |
+| desktop-1440 | 64.8s | pass | 9,702 |
+| tablet | 58.4s | pass | 19,404 |
+| mobile-375 | 51.3s | pass | 29,106 |
+| mobile-390 | 5.2s | **failed-to-run**（预算到期点启动即被切断，baseline 未完成） | 29,915 |
+
+三个完成的视口全部 **pass**；第 4 个视口在预算到期同一秒启动、执行到 baseline-nav 即被杀 → 无 receipt → E2E 抛错。**根因不是资源、不是阻断、不是 Scope/interaction 失败，而是 4 × ~58s ≈ 215s > 180s。**
+
+**③ 成本结构**（mobile-375，阶段计时）：scope-probe 四页共 **34.8s（68%）**（home 9.2s / autumn 8.4s / products 8.7s / story 8.5s）；candidate-nav + baseline-nav 7.3s；其余（root 就绪/dom-compare/fonts-ready/screenshot/interaction/close）合计 <2s。**优化对象明确是 scope-probe 的每页探针耗时**，不是导航主链路。
+
+**④ browserErrors ~150–200 条/秒**（9,702/61s；+9,702/47.6s）——总量真实但**样本不可得**：记录在 manifest `browserErrorDetails`（前 25 条样例）中，而 manifest 在预算到期前未持久化。Run #10 截图（workbench 终端视图）无法提取。**下一轮的样本要靠 runner 在预算到期/异常时也落盘 manifest**，或从降本后的完整 run 拿。
+
+**⑤ 下一动作（给接班人）**：B 侧明确**不得拉长 180s 预算、不得跳过 Scope/interaction/对照**。方向是压低单视口成本：scope-probe 每页 ~8.5–11.7s 的探针是否有 candidate/baseline 重复导航、等待策略是否可合并、4 页 × 双实例是否可共享上下文；同时按 ④ 让执行器在失败路径也持久化 manifest（错误样本），保证 FAILED TO RUN 时仍带走诊断。修完先跑 typecheck/单测/build/E2E，再请负责人手动触发 Run #11，判读仍以 `resource-fetch-log.json` + 逐阶段 `progress.jsonl` 为准。
+
 ### 00.6 下一动作
 
-> ⚠️ 本节是 Run #7 时代的遗留清单；**当前实际下一动作以 §00.10 为准**（触发 Run #10 @ `3901dc6`）。以下仅作历史记录。
+> ⚠️ 本节是 Run #7 时代的遗留清单；**当前实际下一动作以 §00.11 为准**（压低每视口成本后再触发 Run #11）。以下仅作历史记录。
 
 1. ✅ 提交本轮改动（业务代码 + 交接文档），排除 `tsconfig.node.tsbuildinfo`（`ccc7dfc` → `4bc58f9` → `1ea7230`）。
 2. ✅ 推送 `refs/heads/feat/project-first-core-20261018` 并取得 CI 通过（`4bc58f9` / `1ea7230` 两次运行全绿，见 00.4）。
