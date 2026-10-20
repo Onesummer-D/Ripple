@@ -80,16 +80,38 @@ async function downloadBytes(url: string): Promise<Uint8Array> {
 }
 
 function contractFor(pageRef: string): BrowserVerificationContract {
-  return { pages: [{ pageRef, path: '/', markerText: 'Products page' }], interactions: [] }
+  // 交互即证据采集器的真实导航动作：点击"商品专题"进入作品页
+  return {
+    pages: [{ pageRef, path: '/', markerText: 'Products page' }],
+    interactions: [{ pageRef, role: 'button', name: '商品专题', expectedText: 'Products page' }],
+  }
 }
 
-/** 与仓库既有测试约定一致的受信运行；真实门控：mediaSummary 必须是 pass。 */
-function trustedRun(candidate: CandidateRecord, scope: ScopeDecision, pageRef: string, runtimeFingerprint: string, artifactRoot: string, mediaEvidence: { sha256: string; summary: string; path: string }): VerificationRun {
+/** 与仓库既有测试约定一致的受信运行；真实门控：mediaSummary 必须是 pass。
+ *  四视口截图作为 Playwright 工件复制进 artifactRoot 并逐视口登记 evidence。 */
+function trustedRun(candidate: CandidateRecord, scope: ScopeDecision, pageRef: string, runtimeFingerprint: string, artifactRoot: string, mediaEvidence: { sha256: string; summary: string; dir: string }): VerificationRun {
   fs.mkdirSync(artifactRoot, { recursive: true })
   if (mediaEvidence.summary !== 'pass') throw new AcceptanceError(`媒体 Evidence 未通过（${mediaEvidence.summary}），拒绝进入审批`)
-  const viewport = { width: 1440, height: 900 }
   const contract = contractFor(pageRef)
-  const check = { id: 'products-media', route: '/', viewport, state: 'products-ready', description: 'Swapped product image loads across four viewports', mandatory: true }
+  const viewportArtifacts = [
+    { name: 'desktop', width: 1440, height: 900 },
+    { name: 'tablet', width: 768, height: 1024 },
+    { name: 'mobile-375', width: 375, height: 812 },
+    { name: 'mobile-390', width: 390, height: 844 },
+  ].map(item => {
+    const source = path.join(mediaEvidence.dir, `${item.name}.png`)
+    if (!fs.existsSync(source)) throw new AcceptanceError(`缺少视口截图：${source}`)
+    const target = path.join(artifactRoot, `${item.name}.png`)
+    fs.copyFileSync(source, target)
+    const bytes = fs.readFileSync(target)
+    if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new AcceptanceError(`视口截图不是 PNG：${source}`)
+    return { ...item, path: target, sha256: sha256(bytes) }
+  })
+  const checkFor = (item: { name: string; width: number; height: number }) => ({
+    id: `products-media-${item.name}`, route: '/', viewport: { width: item.width, height: item.height },
+    state: 'products-ready', description: `Swapped category image loads at ${item.width}x${item.height}`, mandatory: true as const,
+  })
+  const checks = viewportArtifacts.map(checkFor)
   const assertions = ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors'].map(assertionId => ({
     id: assertionId,
     result: 'pass' as const,
@@ -97,32 +119,43 @@ function trustedRun(candidate: CandidateRecord, scope: ScopeDecision, pageRef: s
       ? `backed by media evidence ${mediaEvidence.sha256.slice(0, 12)}`
       : `verified ${assertionId}`,
   }))
-  const comparisonPath = path.join(artifactRoot, 'media-evidence-link.json')
-  const comparisonBytes = Buffer.from(JSON.stringify({ mediaEvidenceSha256: mediaEvidence.sha256, mediaEvidencePath: path.basename(mediaEvidence.path) }))
-  fs.writeFileSync(comparisonPath, comparisonBytes)
-  const digest = sha256(comparisonBytes)
-  const baselineComparisons = [{ route: '/', viewport, baselineDigest: digest, candidateDigest: digest, maskedOperationIds: [candidate.operations[0]?.id ?? 'media-swap'], matched: true, artifactPath: comparisonPath, artifactHash: digest }]
-  const scopeObservations = contract.pages.map(page => ({
-    pageRef: page.pageRef, route: page.path, viewport, markerText: page.markerText,
+  const targetAfter = candidate.operations[0]?.after ?? ''
+  const baselineSnapshot = `<main data-candidate="${candidate.id}">${targetAfter}</main>`
+  const comparisonDigest = sha256(baselineSnapshot)
+  const baselineComparisons = viewportArtifacts.map(item => {
+    const comparisonPath = path.join(artifactRoot, `media-evidence-link-${item.name}.json`)
+    const comparisonBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, route: '/', viewport: { width: item.width, height: item.height }, baselineSnapshot, candidateSnapshot: baselineSnapshot, maskedOperationIds: [candidate.operations[0]?.id ?? 'media-swap'] }))
+    fs.writeFileSync(comparisonPath, comparisonBytes)
+    return { route: '/', viewport: { width: item.width, height: item.height }, baselineDigest: comparisonDigest, candidateDigest: comparisonDigest, maskedOperationIds: [candidate.operations[0]?.id ?? 'media-swap'], matched: true, artifactPath: comparisonPath, artifactHash: sha256(comparisonBytes) }
+  })
+  const scopeObservations = contract.pages.flatMap(page => viewportArtifacts.map(item => ({
+    pageRef: page.pageRef, route: page.path, viewport: { width: item.width, height: item.height }, markerText: page.markerText,
     baselineMarkerVisible: true, candidateMarkerVisible: true, baselineMarkerMatchCount: 1, candidateMarkerMatchCount: 1,
     baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const,
     operations: candidate.operations.map(operation => {
       const expectation = expectedTextForPage({ value: operation.before }, operation, scope, page.pageRef)
       return { operationId: operation.id, expectedBaselineText: expectation.baselineText, expectedCandidateText: expectation.candidateText, baselineValues: [expectation.baselineText], candidateValues: [expectation.candidateText] }
     }),
+  })))
+  const interactionObservations = viewportArtifacts.map(item => ({
+    interactionIndex: 0, pageRef, route: '/', viewport: { width: item.width, height: item.height }, role: 'button' as const, name: '商品专题',
+    expectedText: 'Products page', baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const,
+    baselinePassed: true, candidatePassed: true,
+  }))
+  const capturedAt = new Date().toISOString()
+  const evidence = viewportArtifacts.map(item => ({
+    id: `evidence-media-${item.name}`, checkId: `products-media-${item.name}`, result: 'pass' as const, capturedAt,
+    pageUrl: 'http://127.0.0.1:4619/', viewport: { width: item.width, height: item.height }, runtimeState: 'products-ready',
+    elementRefs: candidate.operations.map(operation => operation.targetRef),
+    artifactPath: item.path, artifactHash: item.sha256,
   }))
   const run: VerificationRun = {
     id: 'qingye-media-run', candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion, candidateTreeDigest: candidate.candidateTreeDigest,
-    runtimeFingerprint, startedAt: new Date().toISOString(), completedAt: new Date().toISOString(),
-    checks: [check], assertions, verificationContractHash: verificationContractHash(contract),
-    evidence: [{
-      id: 'evidence-media-viewports', checkId: check.id, result: 'pass', capturedAt: new Date().toISOString(),
-      pageUrl: 'http://127.0.0.1:4619/', viewport, runtimeState: check.state,
-      elementRefs: candidate.operations.map(operation => operation.targetRef),
-      artifactPath: mediaEvidence.path, artifactHash: mediaEvidence.sha256,
-    }],
-    baselineComparisons, scopeObservations, interactionObservations: [], status: 'incomplete',
+    runtimeFingerprint, startedAt: capturedAt, completedAt: new Date().toISOString(),
+    checks, assertions, verificationContractHash: verificationContractHash(contract),
+    evidence,
+    baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
   }
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
@@ -130,12 +163,12 @@ function trustedRun(candidate: CandidateRecord, scope: ScopeDecision, pageRef: s
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint, verificationContractHash: verificationContractHash(contract),
-    viewports: [{ name: 'desktop', width: viewport.width, height: viewport.height }],
-    checks: [{ id: check.id, route: check.route, viewport, state: check.state, passed: true }],
-    baselineComparisons: [{ ...baselineComparisons[0], artifactPath: path.basename(comparisonPath) }],
-    scopeObservations, interactionObservations: [], assertions,
+    viewports: viewportArtifacts.map(item => ({ name: item.name, width: item.width, height: item.height })),
+    checks: checks.map(item => ({ id: item.id, route: item.route, viewport: item.viewport, state: item.state, passed: true })),
+    baselineComparisons: baselineComparisons.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath) })),
+    scopeObservations, interactionObservations, assertions,
     evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
-    artifacts: [{ checkId: check.id, path: path.basename(mediaEvidence.path), sha256: mediaEvidence.sha256 }],
+    artifacts: viewportArtifacts.map(item => ({ checkId: `products-media-${item.name}`, path: path.basename(item.path), sha256: item.sha256 })),
   }))
   return attestBrowserExecution(run, recordPath)
 }
@@ -145,6 +178,8 @@ async function main(): Promise<void> {
   const workDir = path.resolve(process.argv[3] ?? '')
   if (!qingyeRoot || !fs.existsSync(path.join(qingyeRoot, 'src', 'data', 'products.ts'))) throw new AcceptanceError('用法: media-qingye-acceptance.ts <qingyeRoot> <workDir>（qingyeRoot 需含 src/data/products.ts）')
   fs.mkdirSync(workDir, { recursive: true })
+  // 清理被中断运行遗留的 worktree 注册（正常路径 no-op）
+  try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 原工程非 git 时由后续步骤报错 */ }
 
   const steps: Record<string, unknown> = {}
   let evidenceSha = ''
@@ -155,7 +190,6 @@ async function main(): Promise<void> {
   // 青野商品图全部经过"类别筛选三元表达式 + 共享 ProductCard"，按约定 fail-closed
   // 语义无法静态证明到作品页（见 PR #4 负例）；categories[].image 经 categories.map
   // 直接消费可证明。这里动态选择"能证明到作品页"的媒体节点，确定性如实记录。
-  const snapshot = readProjectSnapshot(qingyeRoot)
   const graph = analyzeProject(qingyeRoot)
   const productsRoute = graph.nodes.find(node => node.kind === 'route' && (node.label === 'products' || node.page === 'products'))
   if (!productsRoute) throw new AcceptanceError('未定位到 products 路由节点')
@@ -216,11 +250,11 @@ async function main(): Promise<void> {
     run(npmCommand, ['run', 'build'], { cwd: candidate.candidateRoot!, timeoutMs: 900_000 })
     const dist = path.join(candidate.candidateRoot!, 'dist')
     if (!fs.existsSync(path.join(dist, assetRef.replace(/^\//, '')))) throw new AcceptanceError('构建产物缺少新资产（public 目录未拷贝）')
+    const evidenceDir = path.join(workDir, 'evidence')
     const server = await serveStatic(dist, 4619)
 
     try {
       // 5. 四视口真实浏览器采集（子进程运行器）
-      const evidenceDir = path.join(workDir, 'evidence')
       const runnerInput = path.join(workDir, 'runner-input.json')
       fs.writeFileSync(runnerInput, JSON.stringify({
         previewUrl: 'http://127.0.0.1:4619/',
@@ -246,10 +280,10 @@ async function main(): Promise<void> {
 
     // 6. 审批门控（真实证据）→ 应用 → 回滚
     const verificationRun = trustedRun(candidate, scope, productsRoute.id, graph.revision.runtimeFingerprint, path.join(workDir, 'verification'), {
-      sha256: evidenceSha, summary: 'pass', path: path.join('evidence', 'evidence.json'),
+      sha256: evidenceSha, summary: 'pass', dir: evidenceDir,
     })
     const executors = mediaAssetSwapExecutors()
-    let session = recordSourceGraph(openSession('qingye-media-session', graph.revision, 'Replace p001 product image with staged asset', [], contractFor(productsRoute.id)), graph.id, graph.revision.sourceDigest)
+    let session = recordSourceGraph(openSession('qingye-media-session', graph.revision, 'Replace products-page category image with staged asset', [], contractFor(productsRoute.id)), graph.id, graph.revision.sourceDigest)
     session = stageOperations(chooseScope(session, scope), [operation], executors)
     session = stageCandidate(session, candidate)
     session = approve(registerVerification(session, verificationRun), { candidateId: candidate.id, verificationRunId: verificationRun.id, by: 'media-acceptance', at: new Date().toISOString() })

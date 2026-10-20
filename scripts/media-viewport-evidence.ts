@@ -63,11 +63,21 @@ async function collectObservation(browser: import('playwright').Browser, input: 
   const errors: string[] = []
   try {
     page.on('pageerror', error => errors.push(`pageerror: ${error.message}`))
-    page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`) })
+    page.on('console', message => {
+      if (message.type() !== 'error') return
+      const text = message.text()
+      const url = message.location().url ?? ''
+      // 与本目标无关的第三方资源加载失败（CDN 抖动/广告/图标）不阻断验收：
+      // 目标资产本身的加载由 media-loaded 断言与 requestfailed 钩子负责。
+      if (text.startsWith('Failed to load resource') && !url.includes(input.assetRef)) return
+      errors.push(`console: ${text}${url ? ` (${url})` : ''}`)
+    })
     page.on('requestfailed', request => {
       if (request.url().includes(input.assetRef)) errors.push(`asset request failed: ${request.url()} ${request.failure()?.errorText ?? ''}`)
     })
-    await page.goto(input.previewUrl, { waitUntil: 'networkidle', timeout: 30_000 })
+    // 不用 networkidle：第三方 CDN 慢连接会让其永不满足；目标就绪由下方
+    // waitForFunction（真实解码）显式门控。
+    await page.goto(input.previewUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
     if (input.navigateBy) {
       // 桌面导航直接点；移动端折叠菜单先尝试打开（aria-label 含"菜单"/"menu"的按钮），再点目标
       const clickNav = () => page.getByRole(input.navigateBy!.role, { name: input.navigateBy!.name, exact: false }).first().click({ timeout: 5_000 })
@@ -150,12 +160,15 @@ async function main(): Promise<number> {
   fs.mkdirSync(outputDir, { recursive: true })
 
   // Optional local smoke-test override (e.g. RIPPLE_PW_CHANNEL=msedge when the
-  // Playwright browser download is unavailable on a dev machine). CI keeps the
-  // default bundled chromium.
+  // Playwright browser download is unavailable on a dev machine, and
+  // RIPPLE_PW_PROXY=http://127.0.0.1:7890 to route third-party CDN requests).
+  // CI keeps the default bundled chromium and direct egress.
   const channel = process.env.RIPPLE_PW_CHANNEL
+  const proxyServer = process.env.RIPPLE_PW_PROXY
   const browser = await chromium.launch({
     headless: input.browser?.headless ?? true,
     ...(channel ? { channel } : {}),
+    ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
   })
   try {
     const observations: MediaViewportObservation[] = []
