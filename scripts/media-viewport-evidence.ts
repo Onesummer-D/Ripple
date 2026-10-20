@@ -14,6 +14,7 @@
  *   "selector": "main img[alt=\"hero\"]",        // 缺省时按 assetRef 推导
  *   "focalPoint": { "x": 0.5, "y": 0.5 },        // 可选
  *   "containerHint": { "selector", "aspect" },   // 可选
+ *   "navigateBy": { "role": "button", "name": "商品专题" }, // 多页应用先点导航
  *   "browser": { "headless": true }
  * }
  *
@@ -43,6 +44,8 @@ interface RunnerInput {
   selector?: string
   focalPoint?: { x: number; y: number }
   containerHint?: { selector: string; aspect: number }
+  /** 多页应用先点击导航再采集（如青野点"商品专题"进入作品页） */
+  navigateBy?: { role: 'button' | 'link'; name: string }
   browser?: { headless?: boolean }
 }
 
@@ -68,6 +71,23 @@ async function collectObservation(browser: import('playwright').Browser, input: 
       if (request.url().includes(input.assetRef)) errors.push(`asset request failed: ${request.url()} ${request.failure()?.errorText ?? ''}`)
     })
     await page.goto(input.previewUrl, { waitUntil: 'networkidle', timeout: 30_000 })
+    if (input.navigateBy) {
+      // 桌面导航直接点；移动端折叠菜单先尝试打开（aria-label 含"菜单"/"menu"的按钮），再点目标
+      const clickNav = () => page.getByRole(input.navigateBy!.role, { name: input.navigateBy!.name, exact: false }).first().click({ timeout: 5_000 })
+      try {
+        await clickNav()
+      } catch {
+        const opened = await page.locator('button[aria-label]').evaluateAll((buttons) => {
+          const trigger = (buttons as HTMLButtonElement[]).find(button => /菜单|menu/i.test(button.getAttribute('aria-label') ?? '') && button.offsetParent !== null)
+          if (!trigger) return false
+          trigger.click()
+          return true
+        })
+        if (!opened) throw new MediaViewportEvidenceError(`视口 ${viewport.name} 找不到导航入口「${input.navigateBy.name}」`)
+        await clickNav()
+      }
+      await page.waitForLoadState('networkidle').catch(() => undefined)
+    }
 
     const selector = input.selector ?? input.containerHint?.selector ?? `img[src="${input.assetRef}"]`
     const locator = page.locator(selector).first()
