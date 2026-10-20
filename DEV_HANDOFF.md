@@ -33,7 +33,9 @@
 - [Issue #6 A/B 接口回复](https://github.com/Onesummer-D/Ripple/issues/6#issuecomment-6267170299)
 - 仓库现有 [README.md](README.md) 及相关竞品调研 [docs/research/competitors](docs/research/competitors)。
 
-**检查发现**：当前 A 仓库扫描未发现 `AGENTS.md`；不要谎称已读。`DEV_HANDOFF.md` 首版由 `9af557c` 加入；本文是在该文件上校正现状。README 部分仍描述早期 Fixture/案例工作台，不能仅凭 README 宣称真实项目完全验收。产品技术目标：**真实 Project → 编辑意图校准 → SourceGraph + 实际 DOM/运行时来源 → Scope 授权 → 统一 CandidatePatch → 隔离预演 → 多视口真实 Evidence → 审批 → 同补丁应用与回滚**。TEXT、MEDIA、TOKEN 是同一次 CandidateEdit 的资源类型，不得建立三套生命周期。可参考成熟技术/开源实现，但复用代码或资产前核对许可证、来源和兼容性。
+**检查发现**：当前 A 仓库扫描未发现 `AGENTS.md`；不要谎称已读。`DEV_HANDOFF.md` 首版由 `9af557c` 加入；本文是在该文件上校正现状。README 部分仍描述早期 Fixture/案例工作台，不能仅凭 README 宣称真实项目完全验收。
+
+产品技术目标：**真实 Project → 编辑意图校准 → SourceGraph + 实际 DOM/运行时来源 → Scope 授权 → 统一 CandidatePatch → 隔离预演 → 多视口真实 Evidence → 审批 → 同补丁应用与回滚**。TEXT、MEDIA、TOKEN 是同一次 CandidateEdit 的资源类型，不得建立三套生命周期。可参考成熟技术/开源实现，但复用代码或资产前核对许可证、来源和兼容性。
 
 ## 3. 已有实现 vs 未完成能力
 
@@ -162,7 +164,7 @@ Linux/Docker 下需运行 `bash scripts/prepare-browser-verification.sh`。参�
 
 ## 8. 本地工作区与不可迁移资产（2026-10-20 实查）
 
-本次可读的 A 本地 checkout：`D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\ripple-app-pr2-6c6e-previewfix`。当前检出 `codex/core-runtime-pr2` @ `e16e78696f98edf4c099544d89cadbd9dbda2e81`（同一运行时修复的本地提交），**不是** GitHub PR #2 最新分支 HEAD。由于本环境 `git fetch origin feat/project-first-core-20261018` 两次均失败（先是 `getaddrinfo() thread failed to start`，提升网络权限后是 `Recv failure: Connection was reset`），本次文档通过 GitHub 已授权接口更新远端 PR 分支，未改变本地 checkout 指针；下一 Agent 切勿把该本地分支名误认成远端开发分支。GitHub 的当前分支 SHA 应以 PR #2 再核对。
+本次可读的 A 本地 checkout：`D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\ripple-app-pr2-6c6e-previewfix`。当前检出 `codex/core-runtime-pr2` @ `e16e78696f98edf4c099544d89cadbd9dbda2e81`（同一运行时修复的本地提交），**不是** GitHub PR #2 最新分支 HEAD。由于本环境 `git fetch origin feat/project-first-core-20261018` 两次均失败（先是 `getaddrinfo() thread failed to start`，提升网络权限后是 `Recv failure: Connection was reset`），本次文档通过 GitHub 已授权接口更新远端 PR 分支，未改变本地 checkout 指针；下一 Agent 切勿把该本地分支名误认成远端开发分支。GitHub 的当前分支 SHA 应以 PR #2 再核对。
 
 本地 `git status --porcelain=v1` 与 `git ls-files --others --exclude-standard` 均为空：**没有已发现的未提交或未追踪文件**。但 `node_modules/.tmp/` 下有被 `.gitignore` 排除的 Run #4/#5 下载 artifact、trace、临时工程与 UI 截图；它们**只在本机，不在 PR 分支**，不能作为 Run #6 的证据。另有本地 `codex/ui-selection-card-paused` ref @ `35b6955417d0c76228a7696ae78e22871d247807`，GitHub 当前 API 查不到该提交；属暂停的 UI 实验，不得因交接而丢弃或误并入 PR #2。仓库外父目录的 `.planning/` 也不是本 PR 的交接来源。其他机器或 B 的工作区状态未查，不能推断其干净。
 
