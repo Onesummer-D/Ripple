@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { analyzeProject } from './project'
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type BrowserErrorDetails, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
 import { expectedTextForPage, sourceProvenPageImpact } from './scope'
@@ -18,15 +18,16 @@ export class VerificationRunnerError extends Error {
   constructor(message: string) { super(message); this.name = 'VerificationRunnerError' }
 }
 
-const playwrightImage = 'mcr.microsoft.com/playwright:v1.64.0-noble'
+export const playwrightImage = 'mcr.microsoft.com/playwright:v1.64.0-noble'
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 function docker(args: string[], timeoutMs = 180_000): Promise<void> {
   return new Promise((resolve, reject) => {
     let stdout = ''
     let stderr = ''
+    let timedOut = false
     const child = spawn('docker', args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    const timer = setTimeout(() => child.kill(), timeoutMs)
+    const timer = setTimeout(() => { timedOut = true; child.kill() }, timeoutMs)
     child.stdout.setEncoding('utf8').on('data', chunk => { stdout += chunk })
     child.stderr.setEncoding('utf8').on('data', chunk => { stderr += chunk })
     child.once('error', error => {
@@ -35,6 +36,7 @@ function docker(args: string[], timeoutMs = 180_000): Promise<void> {
     })
     child.once('close', code => {
       clearTimeout(timer)
+      if (timedOut) return reject(new VerificationRunnerError(`隔离 Playwright 执行超过 ${timeoutMs}ms；本次验证未产生可信证据`))
       if (code === 0) return resolve()
       const detail = (stderr || stdout).trim().slice(-4000)
       reject(new VerificationRunnerError(detail || `Playwright 执行器失败（exit ${String(code)}）`))
@@ -130,6 +132,7 @@ interface ExecutionManifest {
   unavailableResources: Array<{ url: string; reason: string }>
   loadedExternalResourceUrls: string[]
   blockedExternalResourceUrls: string[]
+  browserErrorDetails?: BrowserErrorDetails
 }
 
 function evidenceFile(runRoot: string, relativePath: string): string {
@@ -139,21 +142,27 @@ function evidenceFile(runRoot: string, relativePath: string): string {
   return absolute
 }
 
-function exportResourceSnapshots(runDirectory: string, runId: string, snapshots: PreviewResourceSnapshot[]): void {
+function resolveEvidenceExportRoot(): string | undefined {
   const configuredRoot = process.env.RIPPLE_BROWSER_ARTIFACT_DIR
-  if (!configuredRoot || snapshots.length === 0) return
+  if (!configuredRoot) return undefined
   const exportRoot = path.resolve(process.cwd(), configuredRoot)
   const relativeRoot = path.relative(process.cwd(), exportRoot)
   if (!relativeRoot || relativeRoot === '..' || relativeRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeRoot)) {
     throw new VerificationRunnerError('资源快照导出目录必须位于当前测试工作区内')
   }
-  const destination = path.join(exportRoot, 'resource-snapshots', runId)
-  fs.mkdirSync(exportRoot, { recursive: true, mode: 0o700 })
   const realExportRoot = fs.realpathSync(exportRoot)
   const relativeExportRoot = path.relative(process.cwd(), realExportRoot)
   if (!relativeExportRoot || relativeExportRoot === '..' || relativeExportRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeExportRoot)) {
     throw new VerificationRunnerError('资源快照导出目录不能解析到测试工作区之外')
   }
+  return exportRoot
+}
+
+function exportResourceSnapshots(runDirectory: string, runId: string, snapshots: PreviewResourceSnapshot[]): void {
+  const exportRoot = resolveEvidenceExportRoot()
+  if (!exportRoot || snapshots.length === 0) return
+  const destination = path.join(exportRoot, 'resource-snapshots', runId)
+  fs.mkdirSync(exportRoot, { recursive: true, mode: 0o700 })
   fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
   const stat = fs.lstatSync(destination)
   if (stat.isSymbolicLink() || !stat.isDirectory()) throw new VerificationRunnerError('资源快照导出目录无效')
@@ -171,6 +180,27 @@ function exportResourceSnapshots(runDirectory: string, runId: string, snapshots:
   }
 }
 
+// Timing and per-check progress survive a FAILED TO RUN: the docker budget
+// kills the container, so the runner streams progress.jsonl into the mounted
+// evidence dir and the snapshot phase writes its own timing here. Both are
+// copied into the exported evidence root even when verification throws.
+function exportRunDiagnostics(artifactRoot: string, runId: string): void {
+  const exportRoot = resolveEvidenceExportRoot()
+  if (!exportRoot) return
+  const destination = path.join(exportRoot, 'diagnostics', runId)
+  fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
+  for (const name of ['progress.jsonl', 'snapshot-timing.json', 'resource-fetch-log.json']) {
+    const source = path.join(artifactRoot, name)
+    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(destination, name))
+  }
+}
+
+function readRunnerProgressTail(artifactRoot: string, maxLines = 24): string {
+  const progressFile = path.join(artifactRoot, 'progress.jsonl')
+  if (!fs.existsSync(progressFile)) return ''
+  return fs.readFileSync(progressFile, 'utf8').trim().split('\n').filter(Boolean).slice(-maxLines).join('\n')
+}
+
 export async function runCandidateVerification(candidate: CandidateRecord, session: EditSession, baseGraph: SourceGraph, preview: CandidatePreview): Promise<VerificationRun> {
   assertCandidateCurrent(candidate)
   if (!candidate.artifactPath || !candidate.candidateRoot || session.candidate?.id !== candidate.id || !session.scope) throw new VerificationRunnerError('候选、Scope 和补丁工件必须在当前 EditSession 中')
@@ -178,6 +208,11 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   if (candidateGraph.revision.sourceDigest !== candidate.candidateTreeDigest) throw new VerificationRunnerError('浏览器验证源码图与当前候选补丁摘要不一致')
   const playwrightPackage = JSON.parse(fs.readFileSync(path.join(rippleRoot, 'node_modules', 'playwright', 'package.json'), 'utf8')) as { version?: string }
   if (playwrightPackage.version !== '1.64.0') throw new VerificationRunnerError(`Playwright 容器版本 1.64.0 与本机执行器 ${playwrightPackage.version ?? 'unknown'} 不一致`)
+  try {
+    await docker(['image', 'inspect', playwrightImage], 10_000)
+  } catch (error) {
+    throw new VerificationRunnerError(`隔离 Playwright 镜像 ${playwrightImage} 尚未就绪；请先在受信任的运行环境中预拉取并检查镜像。${error instanceof Error ? ` ${error.message}` : ''}`)
+  }
 
   const runId = `verification-${randomUUID()}`
   const artifactParent = fs.realpathSync(path.dirname(candidate.artifactPath))
@@ -202,7 +237,28 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   let baseline: Awaited<ReturnType<typeof startCandidateBaseline>> | undefined
   let resourceSnapshotResult: Awaited<ReturnType<typeof snapshotAuthorizedPreviewResources>>
   try {
+    const snapshotStarted = Date.now()
     resourceSnapshotResult = await snapshotAuthorizedPreviewResources(preview.authorizedResourceUrls, artifactRoot)
+    fs.writeFileSync(path.join(artifactRoot, 'snapshot-timing.json'), JSON.stringify({
+      totalMs: Date.now() - snapshotStarted,
+      snapshotCount: resourceSnapshotResult.snapshots.length,
+      unavailableCount: resourceSnapshotResult.unavailable.length,
+      totalBytes: resourceSnapshotResult.snapshots.reduce((sum, snapshot) => sum + snapshot.sizeBytes, 0),
+    }, null, 2))
+    // Run #9's reasons never reached the artifact: they lived only in this
+    // in-memory result and input.json is deleted in the finally block. Persist
+    // the full staged fetch log so any failure mode is attributable offline.
+    fs.writeFileSync(path.join(artifactRoot, 'resource-fetch-log.json'), JSON.stringify({
+      unavailable: resourceSnapshotResult.unavailable,
+      diagnostics: resourceSnapshotResult.diagnostics,
+    }, null, 2))
+    // Declared-degradation semantics stay in force: a fully-unavailable
+    // snapshot set does NOT hard-fail here. The verification runs, every
+    // blocked request is recorded by the runner as a browser error (so the
+    // browser-errors assertion keeps the verdict at RISKS — never PASS), and
+    // the full reasons above now survive into the artifact. e2e/project-
+    // workbench.spec.ts:122 pins this contract with an intentionally
+    // unresolvable authorized host.
     exportResourceSnapshots(artifactRoot, runId, resourceSnapshotResult.snapshots)
     baseline = await startCandidateBaseline(candidate, preview)
     fs.writeFileSync(inputPath, JSON.stringify({
@@ -225,20 +281,24 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       unavailableResources: resourceSnapshotResult.unavailable,
     }), { flag: 'wx' })
     await docker([
-      'run', '--rm', '--init', '--name', containerName,
+      'run', '--rm', '--pull=never', '--init', '--name', containerName,
       '--label', 'com.ripple.verification=true', '--label', `com.ripple.candidate=${candidate.id}`,
       '--network', preview.networkName,
       '--read-only', '--user', `${browserUid}:${browserGid}`, '--env', 'HOME=/tmp', '--env', 'XDG_CACHE_HOME=/tmp/.cache', '--memory', '1g', '--cpus', '2', '--pids-limit', '128',
       '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true', '--shm-size', '256m',
-      '--tmpfs', '/tmp:rw,nosuid,nodev,size=1073741824,uid=1000,gid=1000',
+      '--tmpfs', `/tmp:rw,nosuid,nodev,size=1073741824,uid=${browserUid},gid=${browserGid}`,
       '--mount', mount(scriptRoot, '/ripple/core'), '--mount', mount(dependencies, '/ripple/node_modules'),
       '--mount', mount(artifactRoot, '/evidence', false),
       '--workdir', '/ripple', playwrightImage,
       'node', '/ripple/core/candidate-verification-runner.mjs', '/evidence/input.json',
     ])
   } catch (error) {
-    throw error instanceof VerificationRunnerError ? error : new VerificationRunnerError(error instanceof Error ? error.message : 'Playwright 执行失败')
+    const wrapped = error instanceof VerificationRunnerError ? error : new VerificationRunnerError(error instanceof Error ? error.message : 'Playwright 执行失败')
+    const progressTail = readRunnerProgressTail(artifactRoot)
+    if (progressTail) throw new VerificationRunnerError(`${wrapped.message}\n隔离执行器进度（最后事件）：\n${progressTail}`)
+    throw wrapped
   } finally {
+    try { exportRunDiagnostics(artifactRoot, runId) } catch { /* diagnostics must never mask the original failure */ }
     await removeExecutor(containerName)
     if (baseline) await stopCandidateBaseline(baseline)
     if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
@@ -295,6 +355,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     startedAt: evidence.length ? evidence[0].capturedAt : new Date().toISOString(),
     completedAt: evidence.length ? evidence[evidence.length - 1].capturedAt : new Date().toISOString(),
     checks, assertions: manifest.assertions, evidence, baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
+    ...(manifest.browserErrorDetails ? { browserErrorDetails: manifest.browserErrorDetails } : {}),
   }
   return attestBrowserExecution(run, recordPath)
 }

@@ -32,6 +32,7 @@ interface BrowserExecutionManifest {
   unavailableResources?: Array<{ url: string; reason: string }>
   loadedExternalResourceUrls?: string[]
   blockedExternalResourceUrls?: string[]
+  browserErrorDetails?: { total: number; byCategory: Record<string, number>; samples: string[]; truncated: boolean }
 }
 
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
@@ -95,6 +96,14 @@ function validateRunRecord(run: VerificationRun, recordPath: string): string {
   })) throw new VerificationEvidenceError('Playwright execution checks do not match the registered run')
   if (manifest.resourceSnapshots !== undefined && !Array.isArray(manifest.resourceSnapshots)) throw new VerificationEvidenceError('Playwright execution record has invalid resource snapshots')
   if (manifest.unavailableResources !== undefined && (!Array.isArray(manifest.unavailableResources) || manifest.unavailableResources.some(item => !item || typeof item.url !== 'string' || typeof item.reason !== 'string'))) throw new VerificationEvidenceError('Playwright execution record has invalid unavailable-resource entries')
+  if (manifest.browserErrorDetails !== undefined && (
+    typeof manifest.browserErrorDetails.total !== 'number' || manifest.browserErrorDetails.total < 0 ||
+    !manifest.browserErrorDetails.byCategory || typeof manifest.browserErrorDetails.byCategory !== 'object' || Array.isArray(manifest.browserErrorDetails.byCategory) ||
+    Object.values(manifest.browserErrorDetails.byCategory).some(count => typeof count !== 'number' || count < 0) ||
+    !Array.isArray(manifest.browserErrorDetails.samples) || manifest.browserErrorDetails.samples.some(sample => typeof sample !== 'string') ||
+    typeof manifest.browserErrorDetails.truncated !== 'boolean')) {
+    throw new VerificationEvidenceError('Playwright execution record has invalid browser-error details')
+  }
   const resourceSnapshots = manifest.resourceSnapshots ?? []
   const resourceUrls = new Set<string>()
   for (const resource of resourceSnapshots) {

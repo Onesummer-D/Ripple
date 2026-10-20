@@ -208,6 +208,7 @@ export interface VerificationRun {
   baselineComparisons?: BaselineComparison[]
   scopeObservations?: ScopePropagationObservation[]
   interactionObservations?: InteractionObservation[]
+  browserErrorDetails?: BrowserErrorDetails
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }
@@ -216,6 +217,13 @@ export interface Approval {
   verificationRunId: Id
   by: Id
   at: string
+}
+/** Categorized browser-error evidence carried with a verification run. */
+export interface BrowserErrorDetails {
+  total: number
+  byCategory: Record<string, number>
+  samples: string[]
+  truncated: boolean
 }
 export interface AppliedRevision {
   candidateId: Id

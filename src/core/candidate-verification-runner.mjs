@@ -21,12 +21,36 @@ const targetResults = []
 const mappedResults = []
 const nonTargetResults = []
 const browserErrors = []
+// Run #7 taught us that a bare error count ("872 browser or page error(s)")
+// cannot be attributed after the fact: the runner container is gone by the
+// time anyone looks. Record a category and keep bounded samples + per-category
+// totals in the manifest so the record itself explains what was observed.
+const recordBrowserError = (category, message) => { browserErrors.push({ category, message: String(message).slice(0, 500) }) }
+const browserErrorSampleLimit = 25
 const resourceSnapshots = input.resourceSnapshots ?? []
 const resourceByUrl = new Map(resourceSnapshots.map(snapshot => [snapshot.url, snapshot]))
 const loadedExternalResourceUrls = new Set()
 const blockedExternalResourceUrls = new Set()
 let overflowObserved = false
 let loadedViewports = 0
+// Run #8 died to a host-side 180 s budget kill with no surviving trace of
+// which check was running. Append one JSON line per completed check (and one
+// at start) so a timed-out run still leaves an attributable timeline the
+// host can attach to the failure.
+const progressPath = '/evidence/progress.jsonl'
+const progress = entry => {
+  try { fs.appendFileSync(progressPath, JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n') } catch { /* bookkeeping must never fail the run */ }
+}
+progress({ event: 'runner-start', resourceSnapshots: resourceSnapshots.length, unavailableResources: (input.unavailableResources ?? []).length, viewports: viewportPlan.length })
+// Per-phase timings: Run #9 showed 50-70 s per viewport with no way to tell
+// whether the cost was navigation, rendering, font waits, DOM comparison, or
+// scope probes. timed() emits one progress line per phase so the next budget
+// kill attributes itself.
+let currentCheckId = ''
+const timed = async (phase, fn, extra) => {
+  const started = Date.now()
+  try { return await fn() } finally { progress({ event: 'phase', checkId: currentCheckId, phase, durationMs: Date.now() - started, ...(extra ?? {}) }) }
+}
 
 async function installResourceSnapshots(page) {
   await page.route('**/*', async route => {
@@ -38,7 +62,7 @@ async function installResourceSnapshots(page) {
     if (localOrigins.has(parsed.origin)) return route.continue()
     if (route.request().method() !== 'GET' && route.request().method() !== 'HEAD') {
       blockedExternalResourceUrls.add(requestedUrl)
-      browserErrors.push('Non-static external resource method was blocked: ' + route.request().method())
+      recordBrowserError('blocked-method', 'Non-static external resource method was blocked: ' + route.request().method())
       await route.abort()
       return
     }
@@ -47,7 +71,7 @@ async function installResourceSnapshots(page) {
       const filePath = path.resolve('/evidence', snapshot.artifactPath)
       if (!filePath.startsWith('/evidence/resources/') || sha256(fs.readFileSync(filePath)) !== snapshot.sha256) {
         blockedExternalResourceUrls.add(requestedUrl)
-        browserErrors.push('Resource snapshot integrity check failed: ' + requestedUrl)
+        recordBrowserError('blocked-integrity', 'Resource snapshot integrity check failed: ' + requestedUrl)
         await route.abort()
         return
       }
@@ -56,7 +80,7 @@ async function installResourceSnapshots(page) {
       return
     }
     blockedExternalResourceUrls.add(requestedUrl)
-    browserErrors.push('External resource request was not in the approved snapshot: ' + requestedUrl)
+    recordBrowserError('blocked-not-in-snapshot', 'External resource request was not in the approved snapshot: ' + requestedUrl)
     await route.abort()
   })
 }
@@ -132,12 +156,12 @@ async function mappedValues(page, sourceRef) {
 async function visitWithErrors(spec, host, viewport, contractPages) {
   const page = await browser.newPage({ viewport })
   await installResourceSnapshots(page)
-  page.on('pageerror', error => browserErrors.push(error.message))
-  page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()) })
+  page.on('pageerror', error => recordBrowserError('pageerror', error.message))
+  page.on('console', message => { if (message.type() === 'error') recordBrowserError('console-error', message.text()) })
   try {
     return { page, ...await visitContractPage(page, host, spec, contractPages) }
   } catch (error) {
-    browserErrors.push(error instanceof Error ? error.message : String(error))
+    recordBrowserError('page-visit-failed', error instanceof Error ? error.message : String(error))
     return { page, markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing' }
   }
 }
@@ -147,15 +171,17 @@ const contractPages = input.verificationContract?.pages ?? []
 try {
   for (const viewport of viewportPlan) {
     const checkId = `${input.runId}-${viewport.name}`
+    currentCheckId = checkId
+    const checkStart = Date.now()
     const page = await browser.newPage({ viewport })
     const baselinePage = await browser.newPage({ viewport })
     await installResourceSnapshots(page)
     await installResourceSnapshots(baselinePage)
     const localErrors = []
-    page.on('pageerror', error => localErrors.push(error.message))
-    page.on('console', message => { if (message.type() === 'error') localErrors.push(message.text()) })
-    baselinePage.on('pageerror', error => localErrors.push(`Baseline: ${error.message}`))
-    baselinePage.on('console', message => { if (message.type() === 'error') localErrors.push(`Baseline: ${message.text()}`) })
+    page.on('pageerror', error => localErrors.push({ category: 'pageerror', message: error.message }))
+    page.on('console', message => { if (message.type() === 'error') localErrors.push({ category: 'console-error', message: message.text() }) })
+    baselinePage.on('pageerror', error => localErrors.push({ category: 'pageerror', message: `Baseline: ${error.message}` }))
+    baselinePage.on('console', message => { if (message.type() === 'error') localErrors.push({ category: 'console-error', message: `Baseline: ${message.text()}` }) })
     let response
     let baselineResponse
     let loaded = false
@@ -168,18 +194,22 @@ try {
     let failure
     const pageUrl = `http://${input.previewHost}:5173/`
     try {
-      response = await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-      baselineResponse = await baselinePage.goto(`http://${input.baselineHost}:5173/`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-      await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
-      await baselinePage.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
-      await page.waitForFunction(() => {
-        const root = document.querySelector('#root')
-        return !!root && !!root.textContent?.trim()
-      }, undefined, { timeout: 15_000 })
-      await baselinePage.waitForFunction(() => {
-        const root = document.querySelector('#root')
-        return !!root && !!root.textContent?.trim()
-      }, undefined, { timeout: 15_000 })
+      response = await timed('candidate-nav', () => page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 }))
+      baselineResponse = await timed('baseline-nav', () => baselinePage.goto(`http://${input.baselineHost}:5173/`, { waitUntil: 'domcontentloaded', timeout: 30_000 }))
+      await timed('candidate-root', async () => {
+        await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
+        await page.waitForFunction(() => {
+          const root = document.querySelector('#root')
+          return !!root && !!root.textContent?.trim()
+        }, undefined, { timeout: 15_000 })
+      })
+      await timed('baseline-root', async () => {
+        await baselinePage.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
+        await baselinePage.waitForFunction(() => {
+          const root = document.querySelector('#root')
+          return !!root && !!root.textContent?.trim()
+        }, undefined, { timeout: 15_000 })
+      })
       loaded = response?.ok() === true
       baselineLoaded = baselineResponse?.ok() === true
       runtimeState = loaded ? 'rendered' : `http-${response?.status() ?? 'no-response'}`
@@ -199,10 +229,10 @@ try {
       targetResults.push(input.targetBindings.length > 0 && input.targetBindings.every(binding =>
         binding.sourceRefs.length === 1 && matches.some(element => element.sourceRef === binding.sourceRefs[0] && element.text.includes(binding.expectedText))))
       if (loaded && baselineLoaded) {
-        const [baselineSnapshot, candidateSnapshot] = await Promise.all([
+        const [baselineSnapshot, candidateSnapshot] = await timed('dom-compare', () => Promise.all([
           snapshotOutsideTargets(baselinePage, input.targetBindings, true, input.baselineComparisonPageRef),
           snapshotOutsideTargets(page, input.targetBindings, false, input.baselineComparisonPageRef),
-        ])
+        ]))
         if (baselineSnapshot.ok && candidateSnapshot.ok) {
           const baselineBytes = Buffer.byteLength(baselineSnapshot.snapshot)
           const candidateBytes = Buffer.byteLength(candidateSnapshot.snapshot)
@@ -240,19 +270,19 @@ try {
           nonTargetResults.push(null)
         }
       } else nonTargetResults.push(null)
-      await page.evaluate(() => document.fonts.ready.then(() => true))
+      await timed('fonts-ready', () => page.evaluate(() => document.fonts.ready.then(() => true)))
       screenshotPath = `${checkId}.png`
       const absoluteScreenshot = path.join('/evidence', screenshotPath)
-      await page.screenshot({ path: absoluteScreenshot, fullPage: true, animations: 'disabled' })
+      await timed('screenshot', () => page.screenshot({ path: absoluteScreenshot, fullPage: true, animations: 'disabled' }))
       screenshotHash = sha256(fs.readFileSync(absoluteScreenshot))
       artifacts.push({ checkId, path: screenshotPath, sha256: screenshotHash })
       if (!noOverflow) runtimeState = 'horizontal-overflow'
 
       for (const spec of input.verificationContract?.pages ?? []) {
-        const [baselineProbe, candidateProbe] = await Promise.all([
+        const [baselineProbe, candidateProbe] = await timed('scope-probe', () => Promise.all([
           visitWithErrors(spec, input.baselineHost, viewport, contractPages),
           visitWithErrors(spec, input.previewHost, viewport, contractPages),
-        ])
+        ]), { pageRef: spec.pageRef })
         const operations = []
         for (const binding of input.targetBindings) {
           const [baselineValues, candidateValues] = await Promise.all([
@@ -286,14 +316,14 @@ try {
             const result = page.getByText(interaction.expectedText, { exact: true })
             return await result.count() === 1 && await result.first().isVisible()
           } catch (error) {
-            browserErrors.push(error instanceof Error ? error.message : String(error))
+            recordBrowserError('interaction-failed', error instanceof Error ? error.message : String(error))
             return false
           }
         }
-        const [baselinePassed, candidatePassed] = await Promise.all([
+        const [baselinePassed, candidatePassed] = await timed('interaction', () => Promise.all([
           activate(baselineProbe.page, baselineProbe.routeIdentity),
           activate(candidateProbe.page, candidateProbe.routeIdentity),
-        ])
+        ]), { interactionIndex })
         interactionObservations.push({
           interactionIndex, pageRef: interaction.pageRef, route: spec.path,
           viewport: { width: viewport.width, height: viewport.height }, role: interaction.role,
@@ -305,7 +335,7 @@ try {
       }
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error)
-      localErrors.push(failure)
+      localErrors.push({ category: 'viewport-failed', message: failure })
       loaded = false
     } finally {
       browserErrors.push(...localErrors)
@@ -320,8 +350,15 @@ try {
         runtimeState, elementRefs, ...(screenshotPath ? { artifactPath: screenshotPath, artifactHash: screenshotHash } : {}),
         ...(failure ? { reason: failure } : {}),
       })
-      await page.close()
-      await baselinePage.close()
+      await timed('close', async () => {
+        await page.close()
+        await baselinePage.close()
+      })
+      progress({
+        event: 'check-complete', checkId, durationMs: Date.now() - checkStart, result,
+        loadedExternalResources: loadedExternalResourceUrls.size, blockedExternalResources: blockedExternalResourceUrls.size,
+        browserErrors: browserErrors.length,
+      })
     }
   }
 } finally {
@@ -420,6 +457,16 @@ const manifest = {
   unavailableResources: input.unavailableResources ?? [],
   loadedExternalResourceUrls: [...loadedExternalResourceUrls].sort(),
   blockedExternalResourceUrls: [...blockedExternalResourceUrls].sort(),
+  browserErrorDetails: (() => {
+    const byCategory = {}
+    for (const entry of browserErrors) byCategory[entry.category] = (byCategory[entry.category] ?? 0) + 1
+    return {
+      total: browserErrors.length,
+      byCategory,
+      samples: browserErrors.slice(0, browserErrorSampleLimit).map(entry => `[${entry.category}] ${entry.message}`),
+      truncated: browserErrors.length > browserErrorSampleLimit,
+    }
+  })(),
 }
 fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2), { flag: 'wx' })
 console.log(JSON.stringify({ runId: input.runId, status: overflowObserved || browserErrors.length ? 'risks' : 'incomplete', checks: checks.length, artifacts: artifacts.length }))

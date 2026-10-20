@@ -161,6 +161,11 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
     const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
     await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
+    const firstFrameElement = await page.getByTestId('project-preview').elementHandle()
+    await page.getByTestId('project-preview-reload').click()
+    await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
+    expect(await firstFrameElement!.evaluate(element => element.isConnected)).toBe(false)
+    expect(await page.getByTestId('project-preview').getAttribute('src')).toBe(sourcePreview.url)
     await projectFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'workbench-source-preview-1440.png') })
     await page.getByTestId('project-preview-viewport-375').click()
     const projectFrameHandle = page.frames().find(frame => frame.url() === sourcePreview.url)
@@ -816,6 +821,8 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     })())
   })
   const sourcePreviewResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/preview') && response.status() === 200)
+  const sourcePreviewRequestFailures: Array<{ url: string; error: string }> = []
+  page.on('requestfailed', request => sourcePreviewRequestFailures.push({ url: request.url(), error: request.failure()?.errorText ?? 'unknown' }))
   const sourcePreviewTransformErrors = new Map<string, { status: number; contentType: string; contentLength: string; body: Promise<string> }>()
   page.on('response', response => {
     const url = new URL(response.url())
@@ -834,7 +841,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   sourcePreviewId = sourcePreview.previewId
   expect(sourcePreview.sourceDigest).toMatch(/^[a-f0-9]{64}$/)
   expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
-    const sourcePreviewOrigin = new URL(sourcePreview.url).origin
+  const sourcePreviewOrigin = new URL(sourcePreview.url).origin
   const sourcePreviewBrowserErrors: string[] = []
   page.on('console', message => {
     const location = message.location()
@@ -849,14 +856,39 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   })
   
   const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
+  let sourcePreviewRecovery: { failure: string; paths: string[]; relayProbes: Array<{ path: string; status: number }> } | undefined
   try {
-    await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
+    let initialLoad = 'loading'
+    await expect.poll(async () => {
+      if (await projectFrame.locator('footer').isVisible()) return initialLoad = 'rendered'
+      if (sourcePreviewRequestFailures.some(failure => new URL(failure.url).origin === sourcePreviewOrigin && failure.error === 'net::ERR_NETWORK_CHANGED')) return initialLoad = 'network-changed'
+      return 'loading'
+    }, { timeout: 90_000 }).not.toBe('loading')
+    if (initialLoad === 'network-changed') {
+      const failedPaths = [...new Set(sourcePreviewRequestFailures.filter(failure => new URL(failure.url).origin === sourcePreviewOrigin && failure.error === 'net::ERR_NETWORK_CHANGED').map(failure => new URL(failure.url).pathname))]
+      const relayProbes = await Promise.all(failedPaths.map(async failedPath => {
+        const response = await fetch(new URL(failedPath, sourcePreview.url), { signal: AbortSignal.timeout(10_000) })
+        return { path: failedPath, status: response.status }
+      }))
+      expect(relayProbes.every(probe => probe.status === 200), 'reload is allowed only when the same preview relay can serve each failed module').toBe(true)
+      const failureCount = sourcePreviewRequestFailures.length
+      await page.getByTestId('project-preview-reload').click()
+      await expect(projectFrame.locator('footer')).toBeVisible({ timeout: 90_000 })
+      expect(sourcePreviewRequestFailures.slice(failureCount).filter(failure => new URL(failure.url).origin === sourcePreviewOrigin), 'the recovered page must not retain failed source-preview requests').toEqual([])
+      sourcePreviewRecovery = { failure: 'net::ERR_NETWORK_CHANGED', paths: failedPaths, relayProbes }
+    }
   } catch (error) {
     const diagnostics = await Promise.all([...sourcePreviewTransformErrors].map(async ([url, failure]) =>
       url + ' [HTTP ' + failure.status + ', content-type=' + (failure.contentType || 'none') + ', content-length=' + (failure.contentLength || 'unspecified') + ']: ' + await failure.body))
     const browserErrors = sourcePreviewBrowserErrors.length ? sourcePreviewBrowserErrors.join('\n') : 'none recorded'
     const containerLogs = readPreviewContainerLogs(sourcePreviewId)
-    throw new Error((error instanceof Error ? error.message : String(error)) + '\nVite preview transform responses:\n' + (diagnostics.length ? diagnostics.join('\n\n') : 'none recorded') + '\nPreview browser errors:\n' + browserErrors + '\nPreview container logs:\n' + containerLogs)
+    // The relay ledger is what separates "the browser abandoned the request" from
+    // "the preview answered", so it is attached before any conclusion is drawn.
+    const relayReport = await page.request
+      .get(`http://127.0.0.1:4173/__ripple/api/project/preview/report?projectId=${encodeURIComponent(sourcePreviewProjectId)}&previewId=${encodeURIComponent(sourcePreviewId)}`)
+      .then(async report => (report.ok() ? await report.text() : `preview report HTTP ${report.status()}: ${await report.text()}`))
+      .catch(failure => `preview report unavailable: ${failure instanceof Error ? failure.message : String(failure)}`)
+    throw new Error((error instanceof Error ? error.message : String(error)) + '\nVite preview transform responses:\n' + (diagnostics.length ? diagnostics.join('\n\n') : 'none recorded') + '\nPreview browser errors:\n' + browserErrors + '\nPreview request failures:\n' + JSON.stringify(sourcePreviewRequestFailures.filter(failure => new URL(failure.url).origin === sourcePreviewOrigin)) + '\nPreview relay report:\n' + relayReport + '\nPreview container logs:\n' + containerLogs)
   }
   const heroImage = projectFrame.locator('img[alt="山野器物"]')
   await expect.poll(() => heroImage.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
@@ -874,6 +906,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     sourceCommit: originalHead,
     authorizedUrls: approvedResourceUrls,
     loadedImages: sourceResourceAudit,
+    sourcePreviewRecovery: sourcePreviewRecovery ?? null,
   }, null, 2))
   await page.getByTestId('toggle-project-element-selection').click()
   const footerBrand = projectFrame.locator('footer span').filter({ hasText: '山野器物' }).first()
@@ -917,16 +950,33 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   await page.screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-candidate.png'), fullPage: true })
 
   await page.getByTestId('verify-candidate').click()
-  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 480_000 })
-  const assertions = page.getByTestId('verification-assertions')
-  for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
-    await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
+  // Wait for a terminal verification state, then capture the full execution
+  // record into evidence BEFORE asserting PASSED. Run #7 ended with a RISKS
+  // verdict whose record was never persisted to the artifact, leaving its 872
+  // browser errors unattributable; the record must survive a failing run.
+  // The wait is class-based: the failed-to-run label ("FAILED TO RUN") contains
+  // the substring "NOT RUN", so a text-based wait would never resolve there.
+  await expect(page.getByTestId('verification-state')).not.toHaveClass(/verification-not-run/, { timeout: 480_000 })
+  // The state class only leaves not-run at a terminal state (the workbench has
+  // no running class); pin that contract explicitly so a future intermediate
+  // state cannot race the record lookup below.
+  await expect(page.getByTestId('verification-state')).toHaveClass(/verification-(passed|risks|incomplete|stale|failed-to-run)/)
+  // FAILED TO RUN produces no trusted record; fail fast with the server's
+  // reason (which now carries the runner progress tail) instead of hanging on
+  // the missing record link until the test timeout. Run #8 burned the full
+  // 15 minute budget this way and still had no diagnosis in the log.
+  const recordLink = page.locator('.verification-record a')
+  if (await recordLink.count() === 0) {
+    const stateText = (await page.getByTestId('verification-state').innerText()).replace(/\s+/g, ' ').trim()
+    throw new Error(`Verification ended without a trusted execution record. Workbench state: ${stateText}`)
   }
-  const recordHref = await page.locator('.verification-record a').getAttribute('href')
+  const recordHref = await recordLink.getAttribute('href')
   expect(recordHref).toBeTruthy()
   const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
   expect(recordResponse.ok()).toBe(true)
   const execution = await recordResponse.json() as {
+    browserErrorDetails?: { total: number; byCategory: Record<string, number>; samples: string[]; truncated: boolean }
+    unavailableResources?: Array<{ url: string; reason: string }>
     runId: string; candidateId: string; patchHash: string; candidateTreeDigest: string; scopeVersion: number
     viewports: Array<{ name: string; width: number; height: number }>
     scopeObservations: Array<{ pageRef: string; viewport: { width: number; height: number }; operations: Array<{ baselineValues: string[]; candidateValues: string[] }> }>
@@ -934,7 +984,12 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     resourceSnapshots: Array<{ url: string; contentType: string; sha256: string; artifactPath: string; sizeBytes: number; source: string; upstreamSha256?: string }>
     loadedExternalResourceUrls: string[]
     blockedExternalResourceUrls: string[]
-    unavailableResources: Array<{ url: string; reason: string }>
+  }
+  fs.writeFileSync(path.join(evidenceRoot, 'bolt-workbench-execution.json'), JSON.stringify(execution, null, 2))
+  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 480_000 })
+  const assertions = page.getByTestId('verification-assertions')
+  for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
+    await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
   }
   expect(execution).toMatchObject({ candidateId, patchHash, scopeVersion: 1, candidateTreeDigest: expect.stringMatching(/^[a-f0-9]{64}$/) })
   expect(execution.viewports).toEqual(expectedProjectViewports)
@@ -959,7 +1014,6 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   expect(execution.scopeObservations.every(observation => observation.operations.length === 1 &&
     observation.operations[0].baselineValues.length === 1 && observation.operations[0].candidateValues.length === 1 &&
     observation.operations[0].candidateValues[0] === '山野器物 · Ripple UI验收')).toBe(true)
-  fs.writeFileSync(path.join(evidenceRoot, 'bolt-workbench-execution.json'), JSON.stringify(execution, null, 2))
   const evidenceImages = page.getByTestId('verification-evidence').locator('img')
   await expect(evidenceImages).toHaveCount(projectPreviewViewports.length)
   const evidenceUrls = await evidenceImages.evaluateAll(elements => elements.map(element => (element as HTMLImageElement).src))

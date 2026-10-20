@@ -71,6 +71,13 @@ interface VerificationView {
   evidence?: Array<{ id: string; checkId: string; result: EvidenceResult; pageUrl: string; viewport: { width: number; height: number }; runtimeState: string; elementRefs: string[]; reason?: string; artifactUrl?: string }>
   recordUrl?: string
   recordHash?: string
+  browserErrorDetails?: { total: number; byCategory: Record<string, number>; samples: string[]; truncated: boolean }
+}
+
+const browserErrorSummary = (details: NonNullable<VerificationView['browserErrorDetails']>): string => {
+  const categories = Object.entries(details.byCategory).map(([category, count]) => `${category}×${count}`).join('，')
+  const suffix = details.truncated ? `（仅保留前 ${details.samples.length} 条样例）` : ''
+  return `浏览器错误构成：${categories}${suffix}`
 }
 interface SourceSelection {
   candidateId?: string
@@ -116,12 +123,14 @@ interface CandidatePreviewPaneProps {
   frameRef: { current: HTMLIFrameElement | null }
   onFrameLoad: (event: { currentTarget: HTMLIFrameElement }) => void
   onToggleSelection: () => void
+  onReload: () => void
 }
 
-function CandidatePreviewPane({ url, previewTestId, viewportTestIdPrefix, selectionTestId, previewTitle, selectionNonce, frameRef, onFrameLoad, onToggleSelection }: CandidatePreviewPaneProps) {
+function CandidatePreviewPane({ url, previewTestId, viewportTestIdPrefix, selectionTestId, previewTitle, selectionNonce, frameRef, onFrameLoad, onToggleSelection, onReload }: CandidatePreviewPaneProps) {
   const host = useRef<HTMLDivElement>(null)
   const [hostWidth, setHostWidth] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(1440)
+  const [reloadVersion, setReloadVersion] = useState(0)
   const viewport = previewSizes.find(size => size.width === viewportWidth)!
   const scale = hostWidth ? Math.min(1, hostWidth / viewport.width) : 1
 
@@ -134,10 +143,10 @@ function CandidatePreviewPane({ url, previewTestId, viewportTestIdPrefix, select
   }, [])
 
   return <>
-    <div className="preview-toolbar"><div><strong>{previewTitle}</strong><small>Linux 容器只读挂载源码与依赖，再复制到临时文件系统运行固定 Ripple Vite 配置；不会执行目标工程的 npm 脚本。浏览器外链与表单导航受限。它不是 VM 级沙箱，请只预演可信项目。</small></div><div className="preview-actions"><div className="preview-size-controls" role="group" aria-label="页面预演视口">{previewSizes.map(size => <button type="button" key={size.width} data-testid={`${viewportTestIdPrefix}-viewport-${size.width}`} aria-pressed={viewportWidth === size.width} onClick={() => setViewportWidth(size.width)}>{size.label}</button>)}</div><button type="button" data-testid={selectionTestId} className="quiet-button" aria-pressed={!!selectionNonce} onClick={onToggleSelection}>{selectionNonce ? '取消点选' : '点选页面元素'}</button></div></div>
+    <div className="preview-toolbar"><div><strong>{previewTitle}</strong><small>Linux 容器只读挂载源码与依赖，再复制到临时文件系统运行固定 Ripple Vite 配置；不会执行目标工程的 npm 脚本。浏览器外链与表单导航受限。它不是 VM 级沙箱，请只预演可信项目。</small></div><div className="preview-actions"><div className="preview-size-controls" role="group" aria-label="页面预演视口">{previewSizes.map(size => <button type="button" key={size.width} data-testid={`${viewportTestIdPrefix}-viewport-${size.width}`} aria-pressed={viewportWidth === size.width} onClick={() => setViewportWidth(size.width)}>{size.label}</button>)}</div><button type="button" data-testid={`${previewTestId}-reload`} className="quiet-button" onClick={() => { onReload(); setReloadVersion(version => version + 1) }}>重新加载预演</button><button type="button" data-testid={selectionTestId} className="quiet-button" aria-pressed={!!selectionNonce} onClick={onToggleSelection}>{selectionNonce ? '取消点选' : '点选页面元素'}</button></div></div>
     <div className="preview-viewport-shell" ref={host} data-testid="preview-viewport-shell" style={{ height: `${Math.ceil(viewport.height * scale)}px` }}>
       <div className="preview-viewport-surface" style={{ width: `${viewport.width}px`, height: `${viewport.height}px`, left: `${Math.max(0, (hostWidth - viewport.width * scale) / 2)}px`, transform: `scale(${scale})` }}>
-        <iframe ref={frameRef} onLoad={onFrameLoad} data-testid={previewTestId} title={`${previewTitle} · ${viewport.label}`} src={url} width={viewport.width} height={viewport.height} sandbox="allow-scripts" referrerPolicy="no-referrer" loading="eager" />
+        <iframe key={`${url}:${reloadVersion}`} ref={frameRef} onLoad={onFrameLoad} data-testid={previewTestId} title={`${previewTitle} · ${viewport.label}`} src={url} width={viewport.width} height={viewport.height} sandbox="allow-scripts" referrerPolicy="no-referrer" loading="eager" />
       </div>
     </div>
   </>
@@ -179,6 +188,11 @@ export default function ProjectWorkbench() {
   const [selection, setSelection] = useState<SourceSelection>()
   const previewFrame = useRef<HTMLIFrameElement>(null)
   const sourcePreviewFrame = useRef<HTMLIFrameElement>(null)
+  // Bumped synchronously whenever a preview iframe is discarded, so an
+  // in-flight source-selection response can never land on the new frame. The
+  // ref is updated during the click handler, which runs before React commits
+  // the remount - comparing `frameRef.current` alone leaves that window open.
+  const previewGeneration = useRef(0)
   const [selectionKind, setSelectionKind] = useState<'project' | 'candidate'>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -293,6 +307,7 @@ export default function ProjectWorkbench() {
     if (!kind || !previewId || !selectionNonce) return
     const onMessage = (event: MessageEvent) => {
       const frame = frameRef.current
+      const generation = previewGeneration.current
       const data = event.data as Record<string, unknown> | null
       const certainties = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
       if (!frame?.contentWindow || event.source !== frame.contentWindow || !data || data.type !== 'ripple:element-selected' ||
@@ -305,7 +320,9 @@ export default function ProjectWorkbench() {
           projectId: sourcePreview?.projectId, previewId, sourceDigest: sourcePreview?.sourceDigest, sourceRef: data.sourceRef,
         })
       void request.then(mapped => {
-        if (selectionNonce !== data.token || (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
+        if (previewGeneration.current !== generation || frameRef.current?.contentWindow !== event.source ||
+          selectionNonce !== data.token ||
+          (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
         setSelection({
           ...mapped,
           runtimeInstanceId: typeof data.runtimeInstanceId === 'string' ? data.runtimeInstanceId : undefined,
@@ -319,6 +336,12 @@ export default function ProjectWorkbench() {
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
   }, [candidate?.id, previewUrl, sourcePreview?.projectId, sourcePreview?.previewId, sourcePreview?.sourceDigest, selectionNonce])
+
+  // Replacing a preview invalidates every selection response still in flight
+  // against the frame that is being torn down.
+  useEffect(() => {
+    previewGeneration.current += 1
+  }, [previewUrl, sourcePreview?.previewId, candidate?.id])
 
   function toggleElementSelection(previewId: string, frame: { current: HTMLIFrameElement | null }) {
     if (selectionNonce) {
@@ -637,7 +660,7 @@ export default function ProjectWorkbench() {
 
       <section className="panel project-source-preview" data-testid="project-source-preview">
         <div className="section-title compact"><span className="step-badge">↗</span><div><h2>先看真实页面，再选源码目标</h2><p>只读预演当前分析版本；页面点选后由 Ripple 服务端重新核实 JSX 来源。</p></div><button type="button" data-testid="toggle-project-preview" className="quiet-button" onClick={() => void toggleProjectSourcePreview()} disabled={busy || sourcePreviewBusy || previewBusy || verificationBusy || !!candidate}>{sourcePreviewBusy ? '准备只读预演…' : sourcePreview ? '关闭项目预演' : '启动真实页面预演'}</button></div>
-        {sourcePreview && <CandidatePreviewPane url={sourcePreview.url} previewTestId="project-preview" viewportTestIdPrefix="project-preview" selectionTestId="toggle-project-element-selection" previewTitle="真实项目 · 只读预演" selectionNonce={selectionNonce} frameRef={sourcePreviewFrame} onFrameLoad={event => syncElementSelection(event, sourcePreview.previewId)} onToggleSelection={() => toggleElementSelection(sourcePreview.previewId, sourcePreviewFrame)} />}
+        {sourcePreview && <CandidatePreviewPane url={sourcePreview.url} previewTestId="project-preview" viewportTestIdPrefix="project-preview" selectionTestId="toggle-project-element-selection" previewTitle="真实项目 · 只读预演" selectionNonce={selectionNonce} frameRef={sourcePreviewFrame} onFrameLoad={event => syncElementSelection(event, sourcePreview.previewId)} onToggleSelection={() => toggleElementSelection(sourcePreview.previewId, sourcePreviewFrame)} onReload={() => { previewGeneration.current += 1; setSelection(undefined); setSelectionKind(undefined) }} />}
         {selection && selectionKind === 'project' && <SourceSelectionDetails selection={selection} kind="project" onUseText={useSelectedSourceText} />}
         {!sourcePreview && <p className="empty-note">启动后可在四种项目视口中切换并点选页面元素。预演不会写入原项目，也不会运行其 npm scripts；资源仅加载你已明确授权的 URL。</p>}
       </section>
@@ -692,9 +715,9 @@ export default function ProjectWorkbench() {
         <div className="candidate-files"><span>修改文件</span>{candidate.modifiedPaths.map(file => <code key={file}>{file}</code>)}</div>
         <pre className="diff-view" data-testid="candidate-diff" aria-label="真实候选补丁差异">{candidate.diff}</pre>
         <div className="preview-toolbar"><div><strong>隔离浏览器预演</strong><small>候选运行于 Docker internal network；iframe 的外部资源默认受限，外链与表单导航会拦截。它不是用于对抗刻意恶意脚本的浏览器沙箱，请只预演可信项目。</small></div><div className="preview-actions"><button type="button" data-testid="verify-candidate" className="quiet-button" onClick={() => void verifyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{verificationBusy ? '浏览器验证中…' : `运行 ${projectPreviewViewports.length} 个视口验证`}</button><button type="button" data-testid="toggle-candidate-preview" className="quiet-button" onClick={() => void togglePreview()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{previewBusy ? '启动中…' : previewUrl ? '关闭预演' : '启动真实预演'}</button></div></div>
-        {previewUrl && candidate && <CandidatePreviewPane url={previewUrl} previewTestId="candidate-preview" viewportTestIdPrefix="preview" selectionTestId="toggle-element-selection" previewTitle="隔离候选 · 真实预演" selectionNonce={selectionNonce} frameRef={previewFrame} onFrameLoad={event => syncElementSelection(event, candidate.id)} onToggleSelection={() => toggleElementSelection(candidate.id, previewFrame)} />}
+        {previewUrl && candidate && <CandidatePreviewPane url={previewUrl} previewTestId="candidate-preview" viewportTestIdPrefix="preview" selectionTestId="toggle-element-selection" previewTitle="隔离候选 · 真实预演" selectionNonce={selectionNonce} frameRef={previewFrame} onFrameLoad={event => syncElementSelection(event, candidate.id)} onToggleSelection={() => toggleElementSelection(candidate.id, previewFrame)} onReload={() => { previewGeneration.current += 1; setSelection(undefined); setSelectionKind(undefined) }} />}
         {selection && selectionKind === 'candidate' && <SourceSelectionDetails selection={selection} kind="candidate" />}
-        <div className={`verification-state verification-${verification.state}`} data-testid="verification-state"><span>{verificationLabel(verification.state)}</span><p>{verification.reason ?? (verification.state === 'passed' ? '本次必需检查和断言均通过。候选审批严格绑定此验证运行与补丁哈希。' : verification.state === 'risks' ? '浏览器观察到明确风险；此候选不可批准。' : verification.state === 'incomplete' ? '浏览器执行已留存，但有断言未知或未运行；此候选不可批准。' : verification.state === 'stale' ? '证据对应的候选或源码已过期。' : '预演不等于验证；请运行受限浏览器检查。')}</p><button type="button" data-testid="run-verification" onClick={() => void verifyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{verificationBusy ? '执行中…' : verification.state === 'not-run' || verification.state === 'failed-to-run' ? '运行验证' : '重新验证'}</button></div>
+        <div className={`verification-state verification-${verification.state}`} data-testid="verification-state"><span>{verificationLabel(verification.state)}</span><p>{verification.reason ?? (verification.state === 'passed' ? '本次必需检查和断言均通过。候选审批严格绑定此验证运行与补丁哈希。' : verification.state === 'risks' ? '浏览器观察到明确风险；此候选不可批准。' : verification.state === 'incomplete' ? '浏览器执行已留存，但有断言未知或未运行；此候选不可批准。' : verification.state === 'stale' ? '证据对应的候选或源码已过期。' : '预演不等于验证；请运行受限浏览器检查。')}{verification.state === 'risks' && verification.browserErrorDetails && ` ${browserErrorSummary(verification.browserErrorDetails)}`}</p><button type="button" data-testid="run-verification" onClick={() => void verifyCandidate()} disabled={busy || workflow?.lifecycle !== 'active' || previewBusy || verificationBusy}>{verificationBusy ? '执行中…' : verification.state === 'not-run' || verification.state === 'failed-to-run' ? '运行验证' : '重新验证'}</button></div>
         {verification.assertions && <div className="verification-assertions" data-testid="verification-assertions">{verification.assertions.map(assertion => <div key={assertion.id}><span>{assertion.result.toUpperCase()}</span><strong>{assertion.id}</strong><p>{assertion.detail}</p></div>)}</div>}
         {verification.evidence?.length ? <div className="verification-evidence" data-testid="verification-evidence">{verification.evidence.map(evidence => <article key={evidence.id}><div><strong>{evidence.viewport.width} × {evidence.viewport.height}</strong><span>{evidence.result.toUpperCase()} · {evidence.runtimeState}</span></div>{evidence.artifactUrl ? <img src={evidence.artifactUrl} alt={`候选浏览器截图 ${evidence.viewport.width}×${evidence.viewport.height}`} /> : <p>{evidence.reason ?? '本次没有生成可验证截图。'}</p>}</article>)}</div> : null}
         {verification.recordUrl && <p className="verification-record">受信任执行记录 <a href={verification.recordUrl} target="_blank" rel="noreferrer">JSON · SHA-256 {verification.recordHash?.slice(0, 16)}</a></p>}

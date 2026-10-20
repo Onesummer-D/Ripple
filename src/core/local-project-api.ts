@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { assertCandidateCurrent, assertCandidateIntegrity, CandidateError, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
 import { applyApprovedCandidate, isAppliedCandidateRollbackable, PatchApplyError, rollbackAppliedCandidate } from './apply'
-import { isCurrentProjectSourcePreview, startCandidatePreview, startProjectSourcePreview, stopCandidatePreview, stopProjectSourcePreview } from './candidate-preview'
+import { isCurrentProjectSourcePreview, preparePreviewNetworkPool, readProjectSourcePreviewDiagnostics, startCandidatePreview, startProjectSourcePreview, stopCandidatePreview, stopPreviewNetworkPool, stopProjectSourcePreview } from './candidate-preview'
 import { referencedPreviewResourceUrls, saveTrustedPreviewResourceUrls, trustedPreviewResourceUrls } from './preview-resource-policy'
 import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
 import { sourceProvenPageImpact } from './scope'
@@ -113,6 +113,7 @@ function verificationView(run: VerificationRun | undefined, candidateId: string,
     })),
     recordUrl: run.execution ? `/__ripple/api/candidate/${encodeURIComponent(candidateId)}/runs/${encodeURIComponent(run.id)}` : undefined,
     recordHash: run.execution?.recordHash,
+    ...(run.browserErrorDetails ? { browserErrorDetails: run.browserErrorDetails } : {}),
   }
 }
 
@@ -252,6 +253,13 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
     response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': bytes.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' })
     response.end(bytes)
     return
+  }
+  if (url.pathname === '/__ripple/api/project/preview/report') {
+    if (request.method !== 'GET') return reject(response, 405, '预演诊断仅支持读取')
+    const projectId = url.searchParams.get('projectId')
+    const previewId = url.searchParams.get('previewId')
+    if (!projectId || !previewId) return reject(response, 400, '预演诊断需要 projectId 与 previewId')
+    return json(response, 200, await readProjectSourcePreviewDiagnostics(projectId, previewId))
   }
   if (url.pathname === '/__ripple/api/history') {
     if (request.method !== 'GET') return reject(response, 405, '候选历史仅支持读取')
@@ -585,7 +593,8 @@ export function localProjectApiPlugin(options: LocalProjectApiOptions = {}): Plu
   return {
     name: 'ripple-local-project-api',
     apply: 'serve',
-    configureServer(server) {
+    async configureServer(server) {
+      await preparePreviewNetworkPool()
       server.middlewares.use((request, response, next) => {
         if (!request.url?.startsWith('/__ripple/api/')) return next()
         void handle(request, response, options).catch(error => {
@@ -597,9 +606,12 @@ export function localProjectApiPlugin(options: LocalProjectApiOptions = {}): Plu
         })
       })
       server.httpServer?.once('close', () => {
-        void stopRuntime().catch(error => server.config.logger.error(String(error)))
+        void stopRuntime().then(() => stopPreviewNetworkPool()).catch(error => server.config.logger.error(String(error)))
       })
     },
-    closeBundle: stopRuntime,
+    closeBundle: async () => {
+      await stopRuntime()
+      await stopPreviewNetworkPool()
+    },
   }
 }

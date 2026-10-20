@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { assertNoCheckoutCredentials } from '../../scripts/assert-no-checkout-credentials'
+import { playwrightImage } from './verification-runner'
 
 const workflow = readFileSync(resolve(process.cwd(), '.github', 'workflows', 'bolt-acceptance.yml'), 'utf8')
+const ciWorkflow = readFileSync(resolve(process.cwd(), '.github', 'workflows', 'ci.yml'), 'utf8')
+const browserPreparation = readFileSync(resolve(process.cwd(), 'scripts', 'prepare-browser-verification.sh'), 'utf8')
 
 describe('manual Bolt workflow credential boundary', () => {
   it('limits the workflow token to read access and never persists checkout credentials before project code runs', () => {
@@ -81,5 +84,22 @@ describe('manual Bolt workflow credential boundary', () => {
     expect(workflow).toContain('npm run test:browser')
     expect(workflow).not.toContain('acceptance:bolt')
     expect(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')).not.toContain('"acceptance:bolt"')
+  })
+
+  it('prepares the exact isolated browser image before either browser suite and forbids an implicit pull during verification', () => {
+    const playwright = JSON.parse(readFileSync(resolve(process.cwd(), 'node_modules', 'playwright', 'package.json'), 'utf8')) as { version: string }
+    expect(playwrightImage).toBe(`mcr.microsoft.com/playwright:v${playwright.version}-noble`)
+    expect(browserPreparation).toContain(`image='${playwrightImage}'`)
+    expect(browserPreparation).toContain('docker pull "$image"')
+    expect(browserPreparation).toContain('--pull=never')
+    expect(browserPreparation).toContain('await browser.newPage(')
+    for (const text of [workflow, ciWorkflow]) {
+      expect(text).toContain('bash scripts/prepare-browser-verification.sh')
+      expect(text.indexOf('bash scripts/prepare-browser-verification.sh')).toBeLessThan(text.indexOf('npm run test:browser'))
+    }
+    const runner = readFileSync(resolve(process.cwd(), 'src', 'core', 'verification-runner.ts'), 'utf8')
+    expect(runner).toContain("docker(['image', 'inspect', playwrightImage], 10_000)")
+    expect(runner).toContain("'run', '--rm', '--pull=never'")
+    expect(runner).toContain('uid=${browserUid},gid=${browserGid}')
   })
 })
