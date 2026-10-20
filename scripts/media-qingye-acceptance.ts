@@ -32,6 +32,7 @@ import { expectedTextForPage, sourceProvenPageImpact } from '../src/core/scope'
 import type { BrowserVerificationContract, ScopeDecision, VerificationRun } from '../src/core/model'
 import { attestBrowserExecution } from '../src/core/verification-receipt'
 import { verificationContractHash } from '../src/core/verification-contract'
+import { mediaEvidenceSummary } from '../src/core/media-viewport-evidence'
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -52,6 +53,7 @@ function serveStatic(rootDir: string, port: number): Promise<http.Server> {
   const server = http.createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1')
     let relative = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+    if (relative.split(/[\\/]/).includes('..')) { response.writeHead(404); response.end('not found'); return }
     if (!relative) relative = 'index.html'
     let absolute = path.join(rootDir, relative)
     if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) absolute = path.join(rootDir, 'index.html')
@@ -68,6 +70,7 @@ function serveStatic(rootDir: string, port: number): Promise<http.Server> {
 async function downloadBytes(url: string): Promise<Uint8Array> {
   // 本机冒烟支持 file:// 离线字节（CI 默认仍走真实 HTTP 下载）
   if (url.startsWith('file://')) {
+    console.error('提示：使用 file:// 本地字节（非 CI 验收路径）')
     const bytes = new Uint8Array(fs.readFileSync(new URL(url)))
     if (!bytes.byteLength) throw new AcceptanceError('替换图片为空')
     return bytes
@@ -183,6 +186,7 @@ async function main(): Promise<void> {
 
   const steps: Record<string, unknown> = {}
   let evidenceSha = ''
+  let evidenceSummaryState: 'pass' | 'risks' | 'failed' = 'failed'
   const qingyeCommit = run('git', ['-C', qingyeRoot, 'rev-parse', 'HEAD']).trim()
   const rippleHead = run('git', ['-C', rippleRoot, 'rev-parse', 'HEAD']).trim()
 
@@ -271,8 +275,11 @@ async function main(): Promise<void> {
         runner.once('close', code => resolve(code ?? 1))
       })
       if (exitCode !== 0) throw new AcceptanceError(`四视口 Evidence 采集未通过（exit ${exitCode}）`)
-      const evidenceFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: unknown; sha256: string }
-      steps.mediaEvidence = { sha256: evidenceFile.sha256, dir: evidenceDir }
+      const evidenceFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: Parameters<typeof mediaEvidenceSummary>[0]; sha256: string }
+      const evidenceSummary = mediaEvidenceSummary(evidenceFile.report)
+      if (evidenceSummary !== 'pass') throw new AcceptanceError(`媒体 Evidence 汇总为 ${evidenceSummary}，拒绝进入审批`)
+      evidenceSummaryState = evidenceSummary
+      steps.mediaEvidence = { sha256: evidenceFile.sha256, dir: evidenceDir, summary: evidenceSummary }
       evidenceSha = evidenceFile.sha256
     } finally {
       await new Promise(resolve => server.close(resolve))
@@ -280,7 +287,7 @@ async function main(): Promise<void> {
 
     // 6. 审批门控（真实证据）→ 应用 → 回滚
     const verificationRun = trustedRun(candidate, scope, productsRoute.id, graph.revision.runtimeFingerprint, path.join(workDir, 'verification'), {
-      sha256: evidenceSha, summary: 'pass', dir: evidenceDir,
+      sha256: evidenceSha, summary: evidenceSummaryState, dir: evidenceDir,
     })
     const executors = mediaAssetSwapExecutors()
     let session = recordSourceGraph(openSession('qingye-media-session', graph.revision, 'Replace products-page category image with staged asset', [], contractFor(productsRoute.id)), graph.id, graph.revision.sourceDigest)

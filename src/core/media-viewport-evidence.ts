@@ -52,7 +52,7 @@ export interface MediaCropGeometry {
   scaleMode: MediaFitScaleMode
   /** 渲染倍率（源图单位 → CSS 像素） */
   scale: number
-  /** 可见源图窗口（源图像素坐标系，可能超出 [0,natural] 时按 unsupported 处理） */
+  /** 可见源图窗口（源图像素坐标系；cover 负溢出时可能超出 [0,natural]，为 CSS 定位的真实推导值，调用方按需判界） */
   visibleSourceRect: { x: number; y: number; width: number; height: number }
   /** 焦点（payload focalPoint，0..1 源图比例坐标）是否落在可见窗口内 */
   focalVisible: boolean | 'not-applied'

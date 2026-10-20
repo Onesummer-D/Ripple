@@ -287,6 +287,10 @@ export const products: Product[] = [
 export const categories = [
   { image: '/images/cat.webp' },
 ]
+// 未标注（类型推断）绑定：接收方类型解析存在时也不能被静默排除
+export const seasonal = [
+  { image: '/images/seasonal.webp' },
+]
 `)
     fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/catalog'
 export function ProductCard({ product }: { product: Product }) {
@@ -318,14 +322,21 @@ export function HomePage() {
     const productOne = mediaByValue.get('/images/p1.webp')!
     const productTwo = mediaByValue.get('/images/p2.webp')!
     const categoryImage = mediaByValue.get('/images/cat.webp')!
+    const seasonalImage = mediaByValue.get('/images/seasonal.webp')!
 
     const card = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!
     const cardCandidateTargets = graph.edges
       .filter(edge => edge.kind === 'asset-consumer' && edge.from === card.id && edge.certainty === 'semantic-candidate')
       .map(edge => edge.to)
-    // 接收方声明为 Product：候选只保留 Product[] 绑定内的媒体，categories 图片不再被误挂
+    // 接收方声明为 Product：候选只保留 Product[] 绑定内的媒体，categories 图片不再被误挂。
+    // 混合标注边界（已记录）：未标注绑定（seasonal）在类型化消费路径上不生成候选边，
+    // 方向 fail-closed——其媒体的影响保持 unknown/被候选门拒绝，不会被误放。
     expect(cardCandidateTargets.sort()).toEqual([productOne, productTwo].sort())
     expect(cardCandidateTargets).not.toContain(categoryImage)
+    expect(cardCandidateTargets).not.toContain(seasonalImage)
+    const seasonalImpact = sourceProvenPageImpact(graph, seasonalImage)
+    expect(seasonalImpact.certainty).toBe('unknown')
+    expect(seasonalImpact.unresolved.some(item => item.includes('没有可证明的页面消费者'))).toBe(true)
 
     // 未标注/无法解析接收方类型的回退路径保持原名级候选（fail-closed 不降级）
     const loose = graph.nodes.find(node => node.kind === 'component' && node.label === 'LooseCard')!

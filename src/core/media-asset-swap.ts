@@ -30,8 +30,10 @@ function isSafeAssetRef(assetRef: unknown): assetRef is string {
   if (typeof assetRef !== 'string' || !assetRef) return false
   if (!assetRef.startsWith('/') && !assetRef.startsWith('./') && !assetRef.startsWith('../')) return false
   const segments = assetRef.split('/').filter(segment => segment && segment !== '.')
-  // '..' 段必须显式拒绝：过滤掉会让 '/../x' 被判为安全
-  if (assetRef.split('/').includes('..')) return false
+  // '..' 段必须显式拒绝：过滤掉会让 '/../x' 被判为安全。
+  // '%2e' 编码点段同样拒绝：经 URL 解码的静态服务器可能将其折叠为 '..'
+  const rawSegments = assetRef.split('/')
+  if (rawSegments.includes('..') || rawSegments.some(segment => /%2e/i.test(segment))) return false
   return segments.length > 0 && segments.every(segment => ASSET_REF_SEGMENT.test(segment))
 }
 
