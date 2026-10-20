@@ -15,8 +15,21 @@
  *   → 双静态服务 → 四视口 Playwright 双端真实采集（候选端：加载/几何/截图；
  *      基线端：同一导航/marker/原图 currentSrc；双端：DOM 快照对照、真实点击交互）
  *   → VerificationRun 由双端真实观测构建（assertion 逐条真实计算，禁止硬编码 PASS）
- *   → 审批（真实证据门控）→ applyApprovedCandidate 应用同一补丁 → 校验树摘要 → rollback 恢复
+ *   → 审批（真实证据门控）→ 在**可丢弃副本**上应用同一补丁 → 校验树摘要 → 回滚恢复
+ *      （应用/回滚绝不触碰传入的私有原工程；原工程全程只读，结尾做摘要自比对证明未被触碰）
  * 输出：<workDir>/acceptance.json（含双方 SHA、候选身份、证据哈希、每步结果）。
+ *
+ * 恢复语义（三类场景，src/core/media-acceptance-apply.ts 有注入测试覆盖）：
+ * 1. 正常成功：应用 → 校验 → 显式回滚 → 恢复原基线摘要。
+ * 2. 运行失败（应用后校验不过）：自动回滚；回滚成功则抛错退出（绝不写 PASS），
+ *    回滚也失败则抛错并**保留可丢弃副本现场**（在 workDir 内，不影响原工程）。
+ * 3. 进程中断（SIGKILL 等）：finally 尽力清理 worktree；残留副本由下次运行的
+ *    启动自愈（worktree prune + 强制清空）覆盖；原工程始终未受影响。
+ *
+ * 故障注入（仅测试/演练，正常验收勿设）：
+ *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=post-apply          应用成功后立即故障
+ *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=tree-digest-mismatch 应用后摘要校验失败
+ *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=rollback-failure     回滚本身失败（双故障现场保留）
  */
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -27,8 +40,8 @@ import { analyzeProject, digestTrackedTree, readProjectSnapshot, trackedProjectF
 import { assertCandidateCurrent, createCandidate, removeCandidate, type CandidateRecord } from '../src/core/candidate'
 import { createStagedAssetStore } from '../src/core/media-asset-staging'
 import { mediaAssetSwapExecutors } from '../src/core/media-asset-swap'
-import { applyApprovedCandidate, rollbackAppliedCandidate } from '../src/core/apply'
-import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from '../src/core/session'
+import { rollbackAppliedCandidate } from '../src/core/apply'
+import { approve, chooseScope, openSession, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from '../src/core/session'
 import { expectedTextForPage, sourceProvenPageImpact } from '../src/core/scope'
 import type { BrowserVerificationContract, EvidenceResult, ScopeDecision, VerificationAssertion, VerificationRun } from '../src/core/model'
 import { attestBrowserExecution } from '../src/core/verification-receipt'
@@ -37,11 +50,13 @@ import {
   assetUrlMatches,
   mediaDualEndpointSha256,
   mediaEvidenceSummary,
+  resolveSourceMappingAssertion,
   type MediaDualEndpointCollection,
   type MediaDualEndpointViewport,
   type MediaViewportEvidenceReport,
 } from '../src/core/media-viewport-evidence'
 import { serveStatic } from '../src/core/media-acceptance-server'
+import { applyApprovedCandidateWithRecovery, MediaAcceptanceRecoveryError } from '../src/core/media-acceptance-apply'
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -259,10 +274,7 @@ function trustedRun(
     },
     {
       id: 'source-mapping',
-      result: allRendered && everyViewportPassed && candidateSwaps.every(Boolean) ? 'pass' : 'unknown',
-      detail: allRendered && candidateSwaps.every(Boolean)
-        ? '来源分析定位的媒体节点在每个视口唯一映射到真实渲染的替换图（SourceGraph 定位 + 候选源码 + 浏览器渲染三者一致）。'
-        : '并非所有视口完成渲染或替换图未加载，source-mapping 覆盖不完整。',
+      ...resolveSourceMappingAssertion(report.observations, dual),
     },
     {
       id: 'browser-errors',
@@ -333,12 +345,24 @@ async function main(): Promise<void> {
   let dualSha = ''
   const qingyeCommit = run('git', ['-C', qingyeRoot, 'rev-parse', 'HEAD']).trim()
   const rippleHead = run('git', ['-C', rippleRoot, 'rev-parse', 'HEAD']).trim()
+  // 故障注入（仅测试/演练）：RIPPLE_MEDIA_ACCEPTANCE_FAULT=post-apply,tree-digest-mismatch,rollback-failure
+  const faults = new Set((process.env.RIPPLE_MEDIA_ACCEPTANCE_FAULT ?? '').split(',').map(item => item.trim()).filter(Boolean))
+  const fault = (name: string) => { if (faults.has(name)) throw new AcceptanceError(`故障注入：${name}`) }
+
+  // 应用/回滚目标：独立、可丢弃的工程副本（独立审查 P1：应用失败也不会污染私有原工程）。
+  // 私有原工程全程只读；结束时用摘要自比对证明未被触碰。
+  const projectSrc = path.join(workDir, 'project-src')
+  fs.rmSync(projectSrc, { recursive: true, force: true })
+  // 与候选核心同一约定：autocrlf=false 保证与隔离候选的 digest 口径一致（Windows 兼容）
+  run('git', ['-c', 'core.autocrlf=false', '-C', qingyeRoot, 'worktree', 'add', '--detach', projectSrc, qingyeCommit])
+  const originalSourceDigest = readProjectSnapshot(qingyeRoot).revision.sourceDigest
+  let preserveScene = false
 
   // 1. 真实来源定位
   // 青野商品图全部经过"类别筛选三元表达式 + 共享 ProductCard"，按约定 fail-closed
   // 语义无法静态证明到作品页（见 PR #4 负例）；categories[].image 经 categories.map
   // 直接消费可证明。这里动态选择"能证明到作品页"的媒体节点，确定性如实记录。
-  const graph = analyzeProject(qingyeRoot)
+  const graph = analyzeProject(projectSrc)
   const productsRoute = graph.nodes.find(node => node.kind === 'route' && (node.label === 'products' || node.page === 'products'))
   if (!productsRoute) throw new AcceptanceError('未定位到 products 路由节点')
   const certaintyRank = { 'source-proven': 0, partial: 1, unknown: 2 } as const
@@ -387,7 +411,7 @@ async function main(): Promise<void> {
     payload: { assetRef, assetHash, focalPoint: { x: 0.5, y: 0.45 }, containerHint: { selector: `img[src="${assetRef}"]`, aspect: 3 / 4 } },
   }
   const candidate = createCandidate({
-    projectRoot: qingyeRoot, candidateRoot: path.join(workDir, 'candidate'), artifactRoot: path.join(workDir, 'artifacts'),
+    projectRoot: projectSrc, candidateRoot: path.join(workDir, 'candidate'), artifactRoot: path.join(workDir, 'artifacts'),
     graph, scope, operations: [operation],
     executors: mediaAssetSwapExecutors(), readStagedAsset: store.readStagedAsset,
   })
@@ -399,7 +423,8 @@ async function main(): Promise<void> {
     if (!candidateSource.includes('pexels-photo-8952094')) throw new AcceptanceError('候选源码丢失了其他商品图引用（消费者被误改）')
     const stagedPath = path.join(candidate.candidateRoot!, 'public', assetRef.replace(/^\//, ''))
     if (sha256(fs.readFileSync(stagedPath)) !== assetHash) throw new AcceptanceError('候选内暂存资产字节与 SHA-256 不符')
-    if (fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('原工程被修改，隔离失效')
+    if (fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('私有原工程被修改，隔离失效')
+    if (fs.readFileSync(path.join(projectSrc, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('可丢弃副本在应用前已被修改，隔离失效')
     steps.candidate = { candidateId: candidate.id, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest }
 
     // 4a. 候选构建（vite build）+ 静态服务
@@ -488,22 +513,51 @@ async function main(): Promise<void> {
     session = stageOperations(chooseScope(session, scope), [operation], executors)
     session = stageCandidate(session, candidate)
     session = approve(registerVerification(session, verificationRun), { candidateId: candidate.id, verificationRunId: verificationRun.id, by: 'media-acceptance', at: new Date().toISOString() })
-    session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
-    const appliedDigest = digestTrackedTree(qingyeRoot, [...trackedProjectFiles(qingyeRoot), `public${assetRef}`])
-    if (appliedDigest !== candidate.candidateTreeDigest) throw new AcceptanceError(`应用后树摘要不匹配：${appliedDigest} != ${candidate.candidateTreeDigest}`)
-    const appliedSource = fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8')
-    if (!appliedSource.includes(assetRef)) throw new AcceptanceError('应用后原工程未包含新引用')
-    steps.apply = { appliedPatchHash: session.applied!.appliedPatchHash, treeDigestMatch: true }
+    // 应用 + 应用后校验 +（失败时）自动回滚，全部发生在可丢弃副本 projectSrc 上。
+    // 恢复语义见 src/core/media-acceptance-apply.ts：任何失败都向外抛错，绝不写成 PASS。
+    let appliedSession: typeof session
+    try {
+      ;({ session: appliedSession } = applyApprovedCandidateWithRecovery(session, candidate, {
+        afterApply: () => fault('post-apply'),
+        verifyApplied: () => {
+          if (faults.has('tree-digest-mismatch')) throw new AcceptanceError('故障注入：tree-digest-mismatch')
+          const appliedDigest = digestTrackedTree(projectSrc, [...trackedProjectFiles(projectSrc), `public${assetRef}`])
+          if (appliedDigest !== candidate.candidateTreeDigest) throw new AcceptanceError(`应用后树摘要不匹配：${appliedDigest} != ${candidate.candidateTreeDigest}`)
+          const appliedSource = fs.readFileSync(path.join(projectSrc, targetLocation.path), 'utf8')
+          if (!appliedSource.includes(assetRef)) throw new AcceptanceError('应用后可丢弃副本未包含新引用')
+        },
+        beforeRollback: () => fault('rollback-failure'),
+      }))
+      steps.apply = { appliedPatchHash: appliedSession.applied!.appliedPatchHash, treeDigestMatch: true, target: 'disposable project-src' }
 
-    rollbackAppliedCandidate(session, candidate)
-    const restored = readProjectSnapshot(qingyeRoot).revision.sourceDigest
-    if (restored !== graph.revision.sourceDigest) throw new AcceptanceError('回滚后未恢复基线摘要')
-    if (fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('回滚后原工程仍含新引用')
-    steps.rollback = { restoredSourceDigest: restored, restored: true }
+      rollbackAppliedCandidate(appliedSession, candidate)
+      const restored = readProjectSnapshot(projectSrc).revision.sourceDigest
+      if (restored !== graph.revision.sourceDigest) throw new AcceptanceError('回滚后可丢弃副本未恢复基线摘要')
+      if (fs.readFileSync(path.join(projectSrc, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('回滚后可丢弃副本仍含新引用')
+      steps.rollback = { restoredSourceDigest: restored, restored: true }
+    } catch (error) {
+      const doubleFault = error instanceof MediaAcceptanceRecoveryError && error.rollbackError !== undefined
+      if (doubleFault) preserveScene = true // 回滚也失败：保留可丢弃副本现场供人工处理（副本在 workDir 内，不影响原工程）
+      steps.applyRecovery = {
+        recovered: !doubleFault,
+        doubleFault,
+        note: '应用目标为可丢弃副本（workDir/project-src），私有原工程全程只读；失败不会被写成验收 PASS',
+      }
+      throw error
+    }
+    // 私有原工程未被触碰的证据：应用/回滚都只发生在可丢弃副本上，对原工程做只读自比对
+    const untouchedDigest = readProjectSnapshot(qingyeRoot).revision.sourceDigest
+    if (untouchedDigest !== originalSourceDigest) throw new AcceptanceError('私有原工程在验收期间发生变化，只读隔离失效')
+    steps.originalUntouched = { sourceDigest: untouchedDigest, note: '应用/回滚均发生在可丢弃副本上，原工程只读且未被触碰' }
   } finally {
     removeCandidate(candidate)
     // 清理基线 worktree（含 node_modules/dist，--force 允许脏树移除）
     try { run('git', ['-C', qingyeRoot, 'worktree', 'remove', '--force', baselineSrc]) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
+    if (preserveScene) {
+      console.error(`现场保留（应用后故障且回滚失败）：${projectSrc}`)
+    } else {
+      try { run('git', ['-C', qingyeRoot, 'worktree', 'remove', '--force', projectSrc]) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
+    }
   }
 
   const acceptance = {

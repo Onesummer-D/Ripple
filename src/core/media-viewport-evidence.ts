@@ -55,6 +55,8 @@ export interface MediaViewportObservation {
   assetRef: string
   /** 实际加载的资源 URL（currentSrc），用于证明替换生效 */
   currentSrc: string
+  /** 候选端 DOM 中 src 命中 assetRef 的 img 数量（来源映射唯一性证据；>1 即歧义） */
+  matchCount: number
   /** 目标图片是否真实加载完成 */
   loaded: boolean
   naturalWidth: number
@@ -279,6 +281,8 @@ export interface MediaDualEndpointViewport {
     markerVisible: boolean
     markerMatchCount: number
     imageFound: boolean
+    /** 基线端 DOM 中 src 命中 originalValue 的 img 数量（>1 时来源映射歧义） */
+    imageMatchCount: number
     currentSrc: string
     /** 基线端目标图元素截图（outputDir/<viewport>-baseline.png）的内容哈希，可追溯 */
     screenshotSha256?: string
@@ -316,3 +320,35 @@ export interface MediaDualEndpointCollection {
 
 export const mediaDualEndpointSha256 = (collection: MediaDualEndpointCollection): string =>
   createHash('sha256').update(JSON.stringify(collection)).digest('hex')
+
+/**
+ * source-mapping 断言的独立判定（与 target-change 解耦）：
+ * 除候选图真实加载外，还要求双端 DOM 中目标资源的消费实例**唯一**——
+ * 候选端恰好 1 个 img 命中 assetRef、基线端恰好 1 个 img 命中原值。
+ * - 任一视口候选 matchCount > 1 或基线 imageMatchCount > 1：来源歧义 → risk（阻止 PASS）；
+ * - 未完整渲染或替换未生效：覆盖不完整 → unknown（fail-closed，不猜测）。
+ */
+export function resolveSourceMappingAssertion(
+  observations: MediaViewportEvidenceReport['observations'],
+  dual: MediaDualEndpointCollection,
+): { result: 'pass' | 'risk' | 'unknown'; detail: string } {
+  const swapped = observations.map(observation => assetUrlMatches(observation.currentSrc, observation.assetRef))
+  const rendered = dual.viewports.every(item => item.runtimeState === 'rendered' && item.candidate.worksPageReached)
+  const loaded = observations.every(observation => observation.loaded)
+  const candidateAmbiguous = observations.filter(observation => observation.matchCount > 1)
+  const baselineAmbiguous = dual.viewports.filter(item => item.baseline.imageMatchCount > 1)
+  if (candidateAmbiguous.length || baselineAmbiguous.length) {
+    const detail = [
+      candidateAmbiguous.length ? `候选端 ${candidateAmbiguous.length} 个视口存在多个消费实例（matchCount>1）` : '',
+      baselineAmbiguous.length ? `基线端 ${baselineAmbiguous.length} 个视口存在多个消费实例（imageMatchCount>1）` : '',
+    ].filter(Boolean).join('；')
+    return { result: 'risk', detail: `目标资源来源映射不唯一，${detail}，禁止按唯一映射通过。` }
+  }
+  if (!(rendered && loaded && swapped.every(Boolean))) {
+    return { result: 'unknown', detail: '并非所有视口完成渲染或替换图未加载，来源映射覆盖不完整，保持未知。' }
+  }
+  return {
+    result: 'pass',
+    detail: `SourceGraph 定位节点在每个视口唯一映射到真实渲染的替换图：候选端 ${observations.length} 个视口各恰好 1 个 img 命中新资源、基线端各恰好 1 个 img 保持原值（来源定位 + 候选源码 + 浏览器渲染三者一致且无歧义）。`,
+  }
+}

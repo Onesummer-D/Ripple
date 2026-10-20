@@ -211,6 +211,9 @@ async function collectCandidateObservation(page: import('playwright').Page, inpu
     const element = image as HTMLImageElement
     return { naturalWidth: element.naturalWidth, naturalHeight: element.naturalHeight, complete: element.complete }
   })
+  // 来源映射唯一性：DOM 中 src 命中 assetRef 的 img 总数（>1 即歧义，进入 source-mapping 判定）
+  const matchCount = await page.locator('img').evaluateAll((all, ref) =>
+    (all as HTMLImageElement[]).filter(image => image.getAttribute('src') === ref).length, input.assetRef)
   const artifactPath = path.join(outputDir, `${viewport.name}.png`)
   await locator.screenshot({ path: artifactPath }).catch(() => {
     errors.push(`screenshot failed for ${selector}`)
@@ -221,6 +224,7 @@ async function collectCandidateObservation(page: import('playwright').Page, inpu
     selector,
     assetRef: input.assetRef,
     currentSrc: info.currentSrc,
+    matchCount,
     loaded: decoded.complete && decoded.naturalWidth > 0,
     naturalWidth: decoded.naturalWidth,
     naturalHeight: decoded.naturalHeight,
@@ -236,16 +240,18 @@ async function collectBaselineObservation(page: import('playwright').Page, input
   const errors: string[] = []
   const images = page.locator('img')
   const match = await images.evaluateAll((all, original) => {
-    const element = (all as HTMLImageElement[]).find(image => image.getAttribute('src') === original)
+    const matches = (all as HTMLImageElement[]).filter(image => image.getAttribute('src') === original)
+    const element = matches[0]
     if (!element) return undefined
     return {
+      matchCount: matches.length,
       currentSrc: element.currentSrc,
       complete: element.complete,
       naturalWidth: element.naturalWidth,
       naturalHeight: element.naturalHeight,
     }
   }, input.originalValue)
-  if (!match) return { pageUrl: input.baselineUrl, worksPageReached: false, markerVisible: false, markerMatchCount: 0, imageFound: false, currentSrc: '', errors: [`基线端未渲染 src=${input.originalValue.slice(0, 64)} 的目标图`] }
+  if (!match) return { pageUrl: input.baselineUrl, worksPageReached: false, markerVisible: false, markerMatchCount: 0, imageFound: false, imageMatchCount: 0, currentSrc: '', errors: [`基线端未渲染 src=${input.originalValue.slice(0, 64)} 的目标图`] }
   try {
     await page.waitForFunction((original) => {
       const element = Array.from(document.querySelectorAll('img')).find(image => image.getAttribute('src') === original)
@@ -272,6 +278,7 @@ async function collectBaselineObservation(page: import('playwright').Page, input
     worksPageReached: true,
     markerVisible: false, markerMatchCount: 0, // 由调用方 gotoWorksPage 结果回填
     imageFound: true,
+    imageMatchCount: match.matchCount,
     currentSrc: decoded?.currentSrc ?? match.currentSrc,
     screenshotSha256,
     errors,
@@ -335,7 +342,7 @@ async function collectDualViewport(browser: import('playwright').Browser, input:
     baselineErrors.push(`console: ${text}${message.location().url ? ` (${message.location().url})` : ''}`)
   })
   let baselineNav = { worksPageReached: false, markerVisible: false, markerMatchCount: 0 }
-  let baseline: MediaDualEndpointViewport['baseline'] = { pageUrl: input.baselineUrl, worksPageReached: false, markerVisible: false, markerMatchCount: 0, imageFound: false, currentSrc: '', errors: ['baseline page was not visited'] }
+  let baseline: MediaDualEndpointViewport['baseline'] = { pageUrl: input.baselineUrl, worksPageReached: false, markerVisible: false, markerMatchCount: 0, imageFound: false, imageMatchCount: 0, currentSrc: '', errors: ['baseline page was not visited'] }
   let baselineMasked: { ok: boolean; snapshot?: string; reason?: string } = { ok: false, reason: 'baseline page was not visited' }
   try {
     baselineNav = await gotoWorksPage(baselinePage, input, input.baselineUrl)

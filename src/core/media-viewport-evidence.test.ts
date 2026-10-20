@@ -8,6 +8,7 @@ import {
   mediaEvidenceSummary,
   mediaViewportEvidenceSha256,
   MediaViewportEvidenceError,
+  resolveSourceMappingAssertion,
   type MediaDualEndpointCollection,
   type MediaViewportObservation,
 } from './media-viewport-evidence'
@@ -19,6 +20,7 @@ function observation(overrides: Partial<MediaViewportObservation> = {}): MediaVi
     selector: 'main img[alt="hero"]',
     assetRef: '/media/hero-new.webp',
     currentSrc: 'http://preview:5173/media/hero-new.webp',
+    matchCount: 1,
     loaded: true,
     naturalWidth: 1600,
     naturalHeight: 900,
@@ -217,7 +219,7 @@ describe('mediaDualEndpointSha256（dual.json 篡改回验门）', () => {
     candidate: { worksPageReached: true, markerVisible: true, markerMatchCount: 1 },
     baseline: {
       pageUrl: 'http://127.0.0.1:4620/', worksPageReached: true, markerVisible: true, markerMatchCount: 1,
-      imageFound: true, currentSrc: 'https://cdn.example.com/old.jpeg', errors: [],
+      imageFound: true, imageMatchCount: 1, currentSrc: 'https://cdn.example.com/old.jpeg', errors: [],
     },
     maskedComparison: {
       matched: true, baselineDigest: 'b'.repeat(64), candidateDigest: 'b'.repeat(64),
@@ -246,5 +248,55 @@ describe('mediaDualEndpointSha256（dual.json 篡改回验门）', () => {
     expect(mediaDualEndpointSha256(serialized.collection)).toBe(serialized.sha256)
     serialized.collection.viewports[0]!.interaction.candidatePassed = false
     expect(mediaDualEndpointSha256(serialized.collection)).not.toBe(serialized.sha256)
+  })
+})
+
+describe('resolveSourceMappingAssertion（source-mapping 独立来源证明）', () => {
+  const dual = (overrides: Partial<MediaDualEndpointCollection['viewports'][number]> = {}): MediaDualEndpointCollection => ({
+    capturedAt: '2026-10-21T00:00:00.000Z',
+    viewports: FOUR.map(viewport => ({
+      viewport,
+      candidate: { worksPageReached: true, markerVisible: true, markerMatchCount: 1 },
+      baseline: {
+        pageUrl: 'http://127.0.0.1:4620/', worksPageReached: true, markerVisible: true, markerMatchCount: 1,
+        imageFound: true, imageMatchCount: 1, currentSrc: 'https://cdn.example.com/old.jpeg', errors: [],
+      },
+      maskedComparison: {
+        matched: true, baselineDigest: 'b'.repeat(64), candidateDigest: 'b'.repeat(64),
+        baselineSnapshot: '<main>x</main>', candidateSnapshot: '<main>x</main>', maskedOperationIds: ['op-1'],
+      },
+      interaction: { baselinePassed: true, candidatePassed: true, baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified' },
+      layout: { horizontalOverflow: false },
+      runtimeState: 'rendered',
+      errors: [],
+      warnings: [],
+      ...overrides,
+    })),
+  })
+  const reportOf = (set: Partial<MediaViewportObservation> = {}) =>
+    buildMediaViewportEvidenceReport({ browser: { name: 'chromium' }, candidate: { candidateId: 'c-1', baseSourceDigest: 'b'.repeat(64), patchHash: 'p'.repeat(64), candidateTreeDigest: 't'.repeat(64) }, targetRef: 'media:hero', observations: observationsAcross(set) })
+
+  it('双端各视口消费实例唯一且替换生效 → pass', () => {
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, dual())
+    expect(verdict.result).toBe('pass')
+    expect(verdict.detail).toMatch(/恰好 1 个 img/)
+  })
+
+  it('负例：候选端多个 img 引用同一替换资源（来源歧义）→ risk，禁止按唯一映射通过', () => {
+    const verdict = resolveSourceMappingAssertion(reportOf({ matchCount: 2 }).observations, dual())
+    expect(verdict.result).toBe('risk')
+    expect(verdict.detail).toMatch(/不唯一/)
+  })
+
+  it('负例：基线端多个 img 引用原资源（歧义）→ risk', () => {
+    const tampered = dual()
+    tampered.viewports[0]!.baseline.imageMatchCount = 2
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, tampered)
+    expect(verdict.result).toBe('risk')
+  })
+
+  it('覆盖不完整（未加载/未渲染）→ unknown（fail-closed，不猜测）', () => {
+    const notLoaded = reportOf({ loaded: false, naturalWidth: 0, naturalHeight: 0, renderedBox: { x: 0, y: 0, width: 10, height: 10 }, errors: ['boom'] })
+    expect(resolveSourceMappingAssertion(notLoaded.observations, dual()).result).toBe('unknown')
   })
 })
