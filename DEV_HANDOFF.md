@@ -1,5 +1,16 @@
 # Ripple 跨 Agent 开发交接（A 主线）
 
+## 0. 最新增量核查（2026-10-20 14:51，UTC+8）
+
+> 此节是接班人优先读取的最新核查。A 分支最新 *文档* HEAD 为 `d8d8b185f65da6eaefa7e0c9e9b70b0df80ef311`；**最近真正变更的 A 业务代码仍是 `6b63f9455164e157b28269f75ef072c298fac69e`**。本节提交将再次推动 PR #2 HEAD 前进，请以 GitHub 远端为准。本文保留此前交接记录中另一 Codex 工作区观察，但本次只直接核实 GitHub 远端，不独立确认本地 Windows 工作区状态。
+
+- **A PR #2**：[最新文档提交 `d8d8b18`](https://github.com/Onesummer-D/Ripple/pull/2) 是在 `9af557c` 后两次 `DEV_HANDOFF.md` 的文档修订，**没有新业务代码**；[CI #253 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39378653088)。原业务代码 `6b63f94` 的 [CI #244 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39358087997)：162 单测、Playwright 10 通过/1 跳过。**Bolt Run #6 仍是最近一次真实 Bolt 工作流，失败**；不存在后续真实 Bolt 成功记录。
+- **B PR #7** 最新 `b7a0306aec78b71a1146f3922b96d2ffca306d0b`，[CI #251 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39364483748)。B 已提交 `mediaAssetSwapExecutor` 无副作用 `plan`、内容寻址资产暂存、`media-viewport-evidence.ts`、`scripts/media-viewport-evidence.ts`、`scripts/media-qingye-acceptance.ts` 和 `.github/workflows/media-acceptance.yml`。来源分析 PR #4 仍 `137ff54`。**B 的工作流目前只在 Draft PR #7，未发现真实青野 MEDIA 的 Actions 成功运行；CI #251 不是这条私有项目专项验收。**
+- **B 验证脚本 P1（静态源码审查，尚未实机运行新专项）：** `scripts/media-qingye-acceptance.ts` 的 `trustedRun()`（约第 78–133 行）把七个必需断言全部写为 `pass`，但 `interactionObservations: []`；其 `baselineComparisons` 以同一摘要填写基线和候选、对应工件只是 `media-evidence-link.json`，不是真正的前后快照。A 的 `verification-receipt.ts` 会要求交互 PASS 必须有实际观测，以及快照工件包含 `baselineSnapshot`/`candidateSnapshot` 和一致摘要；这些记录**按当前形态无法满足受信验收**。另外 Evidence 真实文件位于 `<workDir>/evidence/evidence.json`，当前声明相对验证运行目录的工件路径，需核对是否能被 receipt 正确定位。**禁止通过降低 A 的门控、手工伪造 manifest 或自动填 PASS 解决。** B 应将 Playwright 的真实原站/候选浏览器观测映射为合同允许的逐项结果，无法检查的保持 UNKNOWN/NOT_RUN；若 MEDIA 必须新增独立 assertion 类型，应与 A 提交最小明确接口和负例。
+- **B 媒体证据其他待核查项（P2）：** `currentSrc.includes(assetRef)` 仅是子串命中，可能产生错误资源匹配；`computeCropGeometry` 的 CSS `object-position: 100px` 处理采用不符合实际 CSS 对齐语义的裁剪限制；四视口截图文件目前未逐一作为带 SHA 的来源证据登记。应补真实浏览器负例、资源 URL 规范化匹配、截图哈希与版本绑定后再宣称完整视觉证据。
+- **A/B 集成风险：** A 当前核心是 `6b63f94`；B PR #7 以较旧 A 基线开发，未证明和 A 最新 HEAD 共同构建、统一 Verification/Approval 通过。先在独立集成分支安全复验再合并；不要直接合并 Draft PR，也不要让 A 替 B 重做 MEDIA。
+- **当前 A 接班第一动作不变：** 核对 [Bolt Run #6](https://github.com/Onesummer-D/Ripple/actions/runs/39358539574) 的 trace/日志，定位 `ERR_NETWORK_CHANGED` 的可复现根因。A 完成真实 TEXT 后继续运行时关联、TOKEN 执行、AI 意图校准与视觉 Evidence 等技术主线；**暂缓正式 UI/UX 重构**。A 可向 B 通报上述证据门控 P1，但不必因此等待 MEDIA 才能修 Bolt。
+
 > **核查快照：2026-10-20（UTC+8）**。GitHub PR #2 的交接前 HEAD 为 `9af557c42a8c9298ac0fe63fefed88b47cc79b1d`（只新增本文件），被审查的**业务代码基线**仍为 `6b63f9455164e157b28269f75ef072c298fac69e`。本次文档提交还会使分支 HEAD 前进；最终 SHA 以 PR 的最新提交为准。接班人须重新核对远端分支、CI 与工作区。
 
 ## 1. 任务、分支与协作入口
@@ -14,7 +25,7 @@
 | 真实 Bolt | [Run #6 失败](https://github.com/Onesummer-D/Ripple/actions/runs/39358539574)，同一 A SHA，失败诊断见第 4 节 |
 | B 契约对齐 | [PR #3](https://github.com/Onesummer-D/Ripple/pull/3) open，`8696612cf76d7b29fa19118af40efb8bf0d4ca37`；冻结最小 `ripple-edit-operation-session/v1`，不等于 MEDIA 执行器完成 |
 | B 来源分析 | [PR #4](https://github.com/Onesummer-D/Ripple/pull/4) Draft，`feat/b-media-provenance-20261018` @ `137ff5444895a4ec906c13e25d2168581afab7a5`；[CI #232 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39249092355) |
-| B MEDIA 执行器 | [PR #7](https://github.com/Onesummer-D/Ripple/pull/7) Draft，`feat/b-media-executor-20261019` @ `b7a0306aec78b71a1146f3922b96d2ffca306d0b`；同一 SHA 的 [CI #251 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39364483748)。该 PR 与 A 当前 HEAD 的联合集成/真实 Bolt MEDIA 尚未验收 |
+| B MEDIA 执行器 | [PR #7](https://github.com/Onesummer-D/Ripple/pull/7) Draft，`feat/b-media-executor-20261019` @ `b7a0306aec78b71a1146f3922b96d2ffca306d0b`；[CI #251 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39364483748)。新增四视口 Evidence、真实青野验收脚本与独立工作流；**无已证实的真实青野专项通过，验证记录集成存在 P1，详见第 0 节** |
 | 第三方适配 | [Issue #6](https://github.com/Onesummer-D/Ripple/issues/6)：**B 牵头**真实第三方接入/泛化，A 提供通用 ProjectRunner / Candidate / DOM→Source 核心；Issue 评论为最新分工参考 |
 | 主干 | `main` 仍与 A/B Draft 开发分支不同；不得把 main 当作最新开发基线 |
 
