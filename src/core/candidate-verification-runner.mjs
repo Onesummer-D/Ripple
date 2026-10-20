@@ -33,6 +33,15 @@ const loadedExternalResourceUrls = new Set()
 const blockedExternalResourceUrls = new Set()
 let overflowObserved = false
 let loadedViewports = 0
+// Run #8 died to a host-side 180 s budget kill with no surviving trace of
+// which check was running. Append one JSON line per completed check (and one
+// at start) so a timed-out run still leaves an attributable timeline the
+// host can attach to the failure.
+const progressPath = '/evidence/progress.jsonl'
+const progress = entry => {
+  try { fs.appendFileSync(progressPath, JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n') } catch { /* bookkeeping must never fail the run */ }
+}
+progress({ event: 'runner-start', resourceSnapshots: resourceSnapshots.length, unavailableResources: (input.unavailableResources ?? []).length, viewports: viewportPlan.length })
 
 async function installResourceSnapshots(page) {
   await page.route('**/*', async route => {
@@ -153,6 +162,7 @@ const contractPages = input.verificationContract?.pages ?? []
 try {
   for (const viewport of viewportPlan) {
     const checkId = `${input.runId}-${viewport.name}`
+    const checkStart = Date.now()
     const page = await browser.newPage({ viewport })
     const baselinePage = await browser.newPage({ viewport })
     await installResourceSnapshots(page)
@@ -328,6 +338,11 @@ try {
       })
       await page.close()
       await baselinePage.close()
+      progress({
+        event: 'check-complete', checkId, durationMs: Date.now() - checkStart, result,
+        loadedExternalResources: loadedExternalResourceUrls.size, blockedExternalResources: blockedExternalResourceUrls.size,
+        browserErrors: browserErrors.length,
+      })
     }
   }
 } finally {

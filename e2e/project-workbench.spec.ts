@@ -957,7 +957,20 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   // The wait is class-based: the failed-to-run label ("FAILED TO RUN") contains
   // the substring "NOT RUN", so a text-based wait would never resolve there.
   await expect(page.getByTestId('verification-state')).not.toHaveClass(/verification-not-run/, { timeout: 480_000 })
-  const recordHref = await page.locator('.verification-record a').getAttribute('href')
+  // The state class only leaves not-run at a terminal state (the workbench has
+  // no running class); pin that contract explicitly so a future intermediate
+  // state cannot race the record lookup below.
+  await expect(page.getByTestId('verification-state')).toHaveClass(/verification-(passed|risks|incomplete|stale|failed-to-run)/)
+  // FAILED TO RUN produces no trusted record; fail fast with the server's
+  // reason (which now carries the runner progress tail) instead of hanging on
+  // the missing record link until the test timeout. Run #8 burned the full
+  // 15 minute budget this way and still had no diagnosis in the log.
+  const recordLink = page.locator('.verification-record a')
+  if (await recordLink.count() === 0) {
+    const stateText = (await page.getByTestId('verification-state').innerText()).replace(/\s+/g, ' ').trim()
+    throw new Error(`Verification ended without a trusted execution record. Workbench state: ${stateText}`)
+  }
+  const recordHref = await recordLink.getAttribute('href')
   expect(recordHref).toBeTruthy()
   const recordResponse = await page.request.get(new URL(recordHref!, 'http://127.0.0.1:4173').toString())
   expect(recordResponse.ok()).toBe(true)

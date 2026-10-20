@@ -133,12 +133,6 @@ function fontUrls(css: string): string[] {
   return [...urls]
 }
 
-export function replaceFontWithData(css: string, url: string, contentType: string, body: Buffer): string {
-  const escapedUrl = url.split('').map(char => '\\^$.*+?()|[]{}'.includes(char) ? '\\' + char : char).join('')
-  const pattern = new RegExp('url\\(\\s*([\\x22\\x27]?)' + escapedUrl + '\\1\\s*\\)', 'gi')
-  return css.replace(pattern, 'url(data:' + contentType + ';base64,' + body.toString('base64') + ')')
-}
-
 export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirectory: string, fetchResource: (input: string) => Promise<DownloadedResource> = downloadHttps): Promise<PreviewResourceSnapshotResult> {
   const authorized = validatePreviewResourceUrls(urls)
   const snapshots: PreviewResourceSnapshot[] = []
@@ -170,9 +164,6 @@ export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirec
         continue
       }
       const originalCss = resource.body.toString('utf8')
-      let rewrittenCss = originalCss
-      const dependencies: Array<{ url: string; body: Buffer; contentType: string; snapshot: PreviewResourceSnapshot }> = []
-      let dependenciesAvailable = true
       // An over-wide stylesheet degrades this one resource to "unavailable"
       // instead of aborting the whole snapshot phase: the verification still
       // runs, blocks the stylesheet at runtime, and records a diagnosable risk.
@@ -183,6 +174,15 @@ export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirec
         unavailable.push({ url, reason: error instanceof Error ? error.message : String(error) })
         continue
       }
+      // Snapshot each font as its own content-addressed artifact; do NOT
+      // rewrite the stylesheet into base64 data URLs. A full CJK stack
+      // measures ~10 MiB across ~200 files (measured against the pinned Bolt
+      // revision), which inflates the stylesheet to ~24 MiB and every
+      // verification page load must parse it — Run #8 exceeded the 180 s
+      // executor budget this way. The verification runner intercepts each
+      // fonts.gstatic.com request and fulfills it from these snapshots, so
+      // rendering keeps the real fonts at a fraction of the per-page cost.
+      let dependenciesAvailable = true
       for (const dependencyUrl of fontList) {
         const dependency = await fetchAndStore(dependencyUrl, 'authorized-stylesheet-dependency')
         if (!dependency || !fontContentTypes.has(dependency.contentType)) {
@@ -190,26 +190,13 @@ export async function snapshotAuthorizedPreviewResources(urls: unknown, runDirec
           if (dependency) unavailable.push({ url: dependencyUrl, reason: 'Unexpected font content type: ' + dependency.contentType })
           break
         }
-        dependencies.push({ url: dependencyUrl, body: dependency.body, contentType: dependency.contentType, snapshot: dependency.snapshot })
+        addSnapshot(dependency.snapshot)
       }
       if (!dependenciesAvailable) {
         unavailable.push({ url, reason: 'A font dependency of the approved stylesheet could not be snapshotted.' })
         continue
       }
-      for (const dependency of dependencies) {
-        addSnapshot(dependency.snapshot)
-        rewrittenCss = replaceFontWithData(rewrittenCss, dependency.url, dependency.contentType, dependency.body)
-      }
-      if (rewrittenCss !== originalCss) {
-        const rewrittenBytes = Buffer.from(rewrittenCss)
-        totalBytes += rewrittenBytes.length
-        if (totalBytes > maxTotalBytes) {
-          unavailable.push({ url, reason: 'Authorized resources exceed the 48 MiB per-run snapshot limit.' })
-          continue
-        }
-        const rewritten = writeSnapshot(runDirectory, url, resource.contentType, rewrittenBytes, 'authorized-url')
-        addSnapshot({ ...rewritten, upstreamSha256: createHash('sha256').update(resource.body).digest('hex') })
-      } else addSnapshot(resource.snapshot)
+      addSnapshot(resource.snapshot)
     } else addSnapshot(resource.snapshot)
   }
 

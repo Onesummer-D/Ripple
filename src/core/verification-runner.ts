@@ -142,21 +142,27 @@ function evidenceFile(runRoot: string, relativePath: string): string {
   return absolute
 }
 
-function exportResourceSnapshots(runDirectory: string, runId: string, snapshots: PreviewResourceSnapshot[]): void {
+function resolveEvidenceExportRoot(): string | undefined {
   const configuredRoot = process.env.RIPPLE_BROWSER_ARTIFACT_DIR
-  if (!configuredRoot || snapshots.length === 0) return
+  if (!configuredRoot) return undefined
   const exportRoot = path.resolve(process.cwd(), configuredRoot)
   const relativeRoot = path.relative(process.cwd(), exportRoot)
   if (!relativeRoot || relativeRoot === '..' || relativeRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeRoot)) {
     throw new VerificationRunnerError('资源快照导出目录必须位于当前测试工作区内')
   }
-  const destination = path.join(exportRoot, 'resource-snapshots', runId)
-  fs.mkdirSync(exportRoot, { recursive: true, mode: 0o700 })
   const realExportRoot = fs.realpathSync(exportRoot)
   const relativeExportRoot = path.relative(process.cwd(), realExportRoot)
   if (!relativeExportRoot || relativeExportRoot === '..' || relativeExportRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeExportRoot)) {
     throw new VerificationRunnerError('资源快照导出目录不能解析到测试工作区之外')
   }
+  return exportRoot
+}
+
+function exportResourceSnapshots(runDirectory: string, runId: string, snapshots: PreviewResourceSnapshot[]): void {
+  const exportRoot = resolveEvidenceExportRoot()
+  if (!exportRoot || snapshots.length === 0) return
+  const destination = path.join(exportRoot, 'resource-snapshots', runId)
+  fs.mkdirSync(exportRoot, { recursive: true, mode: 0o700 })
   fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
   const stat = fs.lstatSync(destination)
   if (stat.isSymbolicLink() || !stat.isDirectory()) throw new VerificationRunnerError('资源快照导出目录无效')
@@ -172,6 +178,27 @@ function exportResourceSnapshots(runDirectory: string, runId: string, snapshots:
     }
     fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL)
   }
+}
+
+// Timing and per-check progress survive a FAILED TO RUN: the docker budget
+// kills the container, so the runner streams progress.jsonl into the mounted
+// evidence dir and the snapshot phase writes its own timing here. Both are
+// copied into the exported evidence root even when verification throws.
+function exportRunDiagnostics(artifactRoot: string, runId: string): void {
+  const exportRoot = resolveEvidenceExportRoot()
+  if (!exportRoot) return
+  const destination = path.join(exportRoot, 'diagnostics', runId)
+  fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
+  for (const name of ['progress.jsonl', 'snapshot-timing.json']) {
+    const source = path.join(artifactRoot, name)
+    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(destination, name))
+  }
+}
+
+function readRunnerProgressTail(artifactRoot: string, maxLines = 24): string {
+  const progressFile = path.join(artifactRoot, 'progress.jsonl')
+  if (!fs.existsSync(progressFile)) return ''
+  return fs.readFileSync(progressFile, 'utf8').trim().split('\n').filter(Boolean).slice(-maxLines).join('\n')
 }
 
 export async function runCandidateVerification(candidate: CandidateRecord, session: EditSession, baseGraph: SourceGraph, preview: CandidatePreview): Promise<VerificationRun> {
@@ -210,7 +237,14 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   let baseline: Awaited<ReturnType<typeof startCandidateBaseline>> | undefined
   let resourceSnapshotResult: Awaited<ReturnType<typeof snapshotAuthorizedPreviewResources>>
   try {
+    const snapshotStarted = Date.now()
     resourceSnapshotResult = await snapshotAuthorizedPreviewResources(preview.authorizedResourceUrls, artifactRoot)
+    fs.writeFileSync(path.join(artifactRoot, 'snapshot-timing.json'), JSON.stringify({
+      totalMs: Date.now() - snapshotStarted,
+      snapshotCount: resourceSnapshotResult.snapshots.length,
+      unavailableCount: resourceSnapshotResult.unavailable.length,
+      totalBytes: resourceSnapshotResult.snapshots.reduce((sum, snapshot) => sum + snapshot.sizeBytes, 0),
+    }, null, 2))
     exportResourceSnapshots(artifactRoot, runId, resourceSnapshotResult.snapshots)
     baseline = await startCandidateBaseline(candidate, preview)
     fs.writeFileSync(inputPath, JSON.stringify({
@@ -245,8 +279,12 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       'node', '/ripple/core/candidate-verification-runner.mjs', '/evidence/input.json',
     ])
   } catch (error) {
-    throw error instanceof VerificationRunnerError ? error : new VerificationRunnerError(error instanceof Error ? error.message : 'Playwright 执行失败')
+    const wrapped = error instanceof VerificationRunnerError ? error : new VerificationRunnerError(error instanceof Error ? error.message : 'Playwright 执行失败')
+    const progressTail = readRunnerProgressTail(artifactRoot)
+    if (progressTail) throw new VerificationRunnerError(`${wrapped.message}\n隔离执行器进度（最后事件）：\n${progressTail}`)
+    throw wrapped
   } finally {
+    try { exportRunDiagnostics(artifactRoot, runId) } catch { /* diagnostics must never mask the original failure */ }
     await removeExecutor(containerName)
     if (baseline) await stopCandidateBaseline(baseline)
     if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)

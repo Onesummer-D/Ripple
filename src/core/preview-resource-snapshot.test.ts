@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { isPublicPreviewResourceAddress, replaceFontWithData, snapshotAuthorizedPreviewResources, type DownloadedResource } from './preview-resource-snapshot'
+import { isPublicPreviewResourceAddress, snapshotAuthorizedPreviewResources, type DownloadedResource } from './preview-resource-snapshot'
 
 const tempDirs: string[] = []
 afterEach(() => { for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
@@ -30,20 +30,12 @@ describe('isolated preview resource snapshots', () => {
     expect(isPublicPreviewResourceAddress(address)).toBe(true)
   })
 
-  it('inlines only the exact approved stylesheet font dependency into a data URI', () => {
-    const fontUrl = 'https://fonts.gstatic.com/s/ripple/v1/font.woff2'
-    const otherUrl = 'https://fonts.gstatic.com/s/ripple/v1/other.woff2'
-    const css = '@font-face{src:url("' + fontUrl + '")} @font-face{src:url(' + otherUrl + ')}'
-    const rewritten = replaceFontWithData(css, fontUrl, 'font/woff2', Buffer.from('font-bytes'))
-    expect(rewritten).toContain('url(data:font/woff2;base64,Zm9udC1ieXRlcw==)')
-    expect(rewritten).toContain(otherUrl)
-    expect(rewritten).not.toContain(fontUrl)
-  })
-
-  // Regression for the Run #7 failure class: the pinned Bolt revision's Google
-  // Fonts CSS references 202 font files (measured). The snapshot must inline
-  // every one of them, not choke on a limit sized for Latin fonts.
-  it('snapshots a CJK-scale stylesheet by inlining every font dependency', async () => {
+  // Run #8 regression: inlining the whole CJK stack as base64 data URLs turns
+  // the stylesheet into ~24 MiB that every verification page load must parse,
+  // which exceeded the 180 s executor budget. Fonts must instead be snapshotted
+  // as individual artifacts that the runner fulfills per request, keeping the
+  // served stylesheet at its original ~900 KiB.
+  it('snapshots a CJK-scale stylesheet as original CSS plus per-font artifacts', async () => {
     const cssUrl = 'https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&display=swap'
     const fetcher = async (input: string): Promise<DownloadedResource> => {
       if (input === cssUrl) return ok(fontCss(202), 'text/css')
@@ -54,12 +46,18 @@ describe('isolated preview resource snapshots', () => {
     expect(out.unavailable).toEqual([])
     const fonts = out.snapshots.filter(s => s.source === 'authorized-stylesheet-dependency')
     expect(fonts).toHaveLength(202)
-    const rewritten = out.snapshots.find(s => s.url === cssUrl && s.source === 'authorized-url')
-    expect(rewritten).toBeDefined()
-    expect(rewritten!.upstreamSha256).toMatch(/^[a-f0-9]{64}$/)
-    const rewrittenCss = fs.readFileSync(path.join(dir, rewritten!.artifactPath), 'utf8')
-    expect(rewrittenCss).not.toContain('fonts.gstatic.com')
-    expect((rewrittenCss.match(/url\(data:font\/woff2;base64,/g) ?? []).length).toBe(202)
+    const stylesheet = out.snapshots.find(s => s.url === cssUrl && s.source === 'authorized-url')
+    expect(stylesheet).toBeDefined()
+    expect(stylesheet!.upstreamSha256).toBeUndefined()
+    const servedCss = fs.readFileSync(path.join(dir, stylesheet!.artifactPath), 'utf8')
+    expect(servedCss).toContain('fonts.gstatic.com')
+    expect(servedCss).not.toContain('url(data:font/')
+    expect(stylesheet!.sizeBytes).toBe(Buffer.byteLength(fontCss(202)))
+    // Every font URL the served CSS references resolves to a snapshot the
+    // verification runner can fulfill.
+    const fontUrls = [...servedCss.matchAll(/url\("?(https:\/\/fonts\.gstatic\.com\/[^")\s]+)"?\)/g)].map(match => match[1])
+    const snapshottedUrls = new Set(out.snapshots.map(s => s.url))
+    expect(fontUrls.every(url => snapshottedUrls.has(url))).toBe(true)
   })
 
   // Negative case: an absurdly wide stylesheet degrades THIS resource to
