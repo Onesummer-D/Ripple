@@ -9,8 +9,8 @@
 | 仓库 | https://github.com/Onesummer-D/Ripple |
 | A 负责分支 | feat/project-first-core-20261018 |
 | PR | PR #2，https://github.com/Onesummer-D/Ripple/pull/2，Draft、未合并 |
-| 远端 PR HEAD（本次交接提交） | 508821dc035e15a7d85b855b7df6811bd06b3231 |
-| 最近业务代码基线 | 73bb9bd0be392d5e04ba3ad55b408da2f294c638；508821d 只更新本文件 |
+| 最近已核查的业务代码基线 | 73bb9bd0be392d5e04ba3ad55b408da2f294c638 |
+| 文档提交链 | 508821d → 10fe63c；均只更新本文件，最终文档提交 SHA 以 PR #2 页面为准 |
 | PR #2 目标 | main；当前 PR 元数据标记 mergeable=false；不得自行合并或 rebase main |
 | A/B 协作 Issue | Issue #6，https://github.com/Onesummer-D/Ripple/issues/6，open |
 | B 文档契约 PR | PR #3，8696612cf76d7b29fa19118af40efb8bf0d4ca37 |
@@ -39,7 +39,7 @@ M  tsconfig.node.tsbuildinfo
 ?? src/core/verification-runner-failure.test.ts
 ~~~
 
-其中 tsconfig.node.tsbuildinfo、_scratch/ 和 staged 删除/修改不能由接班 Agent 擅自清理；它们可能是前一轮本地实验或诊断资产。远端 73bb9bd 已包含本轮正式推送的浏览器错误聚合器、失败诊断和验证器变更，508821d 只更新本文件；本地分支没有快进到远端。不要执行 git reset --hard、git clean 或 git stash。
+其中 tsconfig.node.tsbuildinfo、_scratch/ 和 staged 删除/修改不能由接班 Agent 擅自清理；它们可能是前一轮本地实验或诊断资产。远端 73bb9bd 已包含本轮正式推送的浏览器错误聚合器、失败诊断和验证器变更，508821d 与 10fe63c 只更新本文件；本地分支没有快进到远端。不要执行 git reset --hard、git clean 或 git stash。
 
 当前仓库没有发现 AGENTS.md；长期规则以正式架构文档和仓库现有实现为准。
 
@@ -110,7 +110,7 @@ TEXT、MEDIA、TOKEN 属于同一 EditSession/Candidate 生命周期，不得各
 
 这证明合成 React/Vite 工程、隔离运行时和通用回归通过，不证明真实 Bolt 完整闭环。
 
-交接文档提交 508821d 触发的 [CI #294 / run 39501643202](https://github.com/Onesummer-D/Ripple/actions/runs/39501643202) 在本文更新时仍为 in_progress，不能预先计为通过。
+交接文档提交 508821d 触发的 [CI #294 / run 39501643202](https://github.com/Onesummer-D/Ripple/actions/runs/39501643202) 在上一轮核查时为 in_progress；该工作流仅含文档变更，不能用来替代 73bb9bd 的业务 CI 证据。
 
 ### 本机 Windows 结果
 
