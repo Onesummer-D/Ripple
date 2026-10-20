@@ -1,61 +1,64 @@
-# MEDIA asset-swap 执行器最小契约需求（B → A，2026-10-19）
+# MEDIA asset-swap 执行器集成说明（B，2026-10-20）
 
-状态：待 A 确认。确认前 B 不修改 `candidate.ts` / `model.ts` / `session.ts`。
+状态：**已按 A 的 CandidateOperationExecutor seam 完成适配，无需修改 A 共享核心**。
+集成基线：PR #2 `5225fe3`（双方确认；`7b9981f` 起引入 seam）。
 
-## 背景
+## 架构（与 structured-candidate-executors.md 一致）
 
-冻结契约 `ripple-edit-operation-session/v1` 已定义 `MediaAssetSwapPayload`（model.ts），
-但 `createCandidate` 目前对一切带 `action`/`payload` 的操作直接拒绝
-（candidate.ts:372「结构化操作尚无候选执行器，拒绝按字面量替换降级执行」）。
-B 已实现 MEDIA asset-swap 执行器（B 侧模块，不改共享核心）：
+```
+受信任资产服务（B: createStagedAssetStore，内容寻址暂存区）
+    │ store(bytes) → sha256；readStagedAsset(sha256) → 字节副本
+    ▼
+B 执行器 mediaAssetSwapExecutor（kind MEDIA / action asset-swap）
+    │ plan() 同步返回数据，零写盘：
+    │   sourceEdits: [{ path, start, end, before, after }]   —— 严格落在 target.location 授权区间
+    │   fileWrites:  [{ path: public/... , bytes: readStagedAsset(assetHash) }]  —— create-only 新资产
+    ▼
+A 候选核心（createCandidate({ executors, readStagedAsset })）
+    统一执行写入、授权区间/漂移/重叠/语法校验、Git binary patch、
+    patchHash / candidateTreeDigest、完整性校验、审批/应用/回滚。
+```
 
-- `src/core/media-asset-staging.ts` — 资产字节暂存 + SHA-256 校验（哈希不符 fail-closed，拒绝覆盖，符号链接防线）。
-- `src/core/media-asset-swap.ts` — `applyMediaAssetSwapOperations(context, operations)`：校验 payload、核对 `operation.before`、计算替换、暂存字节、应用编辑并做 TSX 语法检查，返回修改的项目相对路径（源码 + 暂存资产）。
-- `src/core/media-asset-swap.test.ts` — 12 项单测全部通过；`tsc --noEmit` 通过。
+- B 代码：`src/core/media-asset-staging.ts`（暂存服务 + assetRef 布局解析）、
+  `src/core/media-asset-swap.ts`（执行器）。不改 candidate.ts / model.ts / session.ts。
+- 应用接入：`localProjectApiPlugin({ candidateOperationExecutors: mediaAssetSwapExecutors(), readStagedAsset: store.readStagedAsset })`。
 
-## 需要 A 确认的最小核心改动（4 处，含 scope 门控）
+## 授权边界（遵守 A 在 Issue #6 的裁定）
 
-1. **路由而非拒绝**。`createCandidate` 的拒绝分支改为：
-   `kind: 'MEDIA'` 且 `action: 'asset-swap'` 的操作放行给 B 的执行器；
-   其余带 `action`/`payload` 的操作维持拒绝（未知/畸形/未实现不得降级为字符串替换，与 A 既有防线一致）。
+- 只替换**已存在、SourceGraph 可定位、Scope 已证明传播范围**的 src / srcSet 属性值：
+  sourceEdit 的 [start,end) 就是 target.location 区间，核心复核原始字节与语法。
+- **新增 JSX 属性（如原本没有 srcSet）v1 显式 unsupported**：plan 抛出带用例指引的错误，
+  不扩大授权、不字符串插入。如真实青野用例必须新增 srcSet，按 A 要求提交固定源码片段、
+  targetRef、预期属性位置、页面消费关系与后置 spread/重复属性负例，协商"同一 JSX 元素内、
+  指定属性"的最小授权扩展。
+- payload.variants（任何 mechanism）同样显式 unsupported（v1）；
+  focalPoint / containerHint 为 Evidence 阶段输入，plan 不消费但不拒绝。
 
-2. **执行器接入点**。`applyOperations`（shared 分支）在字面量替换前先把 MEDIA asset-swap
-   操作交给 `applyMediaAssetSwapOperations`，其返回的暂存资产路径连同源码文件一起进入
-   `modifiedPaths`。
+## 语义约定
 
-3. **字节进入哈希链**。暂存资产是 worktree 内的新文件（untracked），需要：
-   - 对暂存资产路径执行 `git add --intent-to-add`（与 page-overrides 既有做法一致），
-     使其进入 `git diff --binary` 产物，从而纳入 `patchHash`；
-   - 纳入 `candidateFiles` 参与 `candidateTreeDigest`（executor 已将其放入 modifiedPaths，
-     candidate.ts 现有 `candidateFiles` 合并逻辑可直接复用）；
-   - `assertCandidateIntegrity` 的 `git status --porcelain` 白名单基于 modifiedPaths，
-     无需改动。
+- `operation.before` = 目标节点源码区间切片（= 原引用值，如 `/images/hero.webp`）；
+  `operation.after` = `payload.assetRef`（执行器强制一致，保证候选记录真实）。
+- `assetHash` 必须是小写 SHA-256；核心与暂存服务双重复核字节身份。
+- assetRef 布局规则（无项目名特判）：`/` 开头 → `public/`（可配 publicDir）；
+  `./`/`../` 相对消费文件解析；外部 URL、`..` 段、引号/空格等不安全字符显式拒绝。
 
-4. **scope 门控（与第 1 条配套，防降级执行回归）**。第 1 条的放行仅适用于
-   `scope.strategy === 'shared'`。`applyPageOverrideOperations` 不检查 action/payload，
-   若不做门控，page-override 下的 MEDIA 操作会穿过校验后被静默降级为字符串替换——
-   这正是 candidate.ts:372 防线所禁止的行为。请在 `applyPageOverrideOperations` 入口
-   （或分发处）对带 `action`/`payload` 的操作维持拒绝。
+## 验证状态（`media-asset-swap.test.ts`，9 项）
 
-## 语义约定（请 A 一并确认）
+- 暂存服务：存取一致、缺失/篡改 fail-closed、身份格式校验、跨 realm 字节判定。
+- 执行器 validate：14 组畸形输入（kind/action/before/after/payload/哈希/不安全 assetRef/
+  focalPoint/variants/containerHint）全部拒绝。
+- 执行器 plan：sourceEdit 落授权区间、fileWrites 路径与受控字节、**无副作用断言**
+  （plan 前后工程字节与 git status 完全一致）、variants/after 不一致/目标缺位置显式拒绝。
+- 候选核心集成（真实 Git fixture + analyzeProject）：二进制补丁含资产与新引用、
+  assertCandidateCurrent 通过、原工程与未授权页面（AutumnPage）不变；
+  fail-closed：未注册执行器 / 畸形 payload / 受保护目标 / page-override 结构化操作 /
+  调包 readStagedAsset 字节不符。
+- 应用/回滚：stageOperations→approve→applyApprovedCandidate→rollbackAppliedCandidate
+  复用 A 公共生命周期，应用后树摘要 = candidateTreeDigest，回滚后恢复原基线摘要。
 
-- `operation.before` = 目标媒体节点 AST 位置的源码切片（带引号的字符串字面量，如
-  `"/images/hero.jpg"`），与 TEXT 操作的 before 校验同策略；执行器核对切片一致后才动手。
-- `operation.after` = 执行器计算的替换后切片（如 `"/images/hero-v2.jpg"`）；
-  执行器校验 `operation.after` 与计算结果一致，不一致即拒绝，保证 CandidatePatch 记录真实。
-- 支持边界（如实记录）：
-  - JSX/TSX `src` 属性字符串字面量替换，引号保留；
-  - `variants` 中 mechanism `srcset`：在同一 JSX 开始标签设置/替换 `srcSet`；
-  - mechanism `picture` / `css` / `container-rule` 与非 JSX 消费（CSS url() 等）显式拒绝；
-  - 仅 shared scope；page-override 下 MEDIA 维持 A 既有拒绝。
-- `focalPoint` / `containerHint` 暂存期不消费，留给四视口 Evidence 模块使用。
+## 已知边界与后续
 
-## 验证状态
-
-- `media-asset-swap.test.ts`：16/16（src 替换、before 错位拒绝、缺字节源/哈希不符拒绝、
-  srcset 追加与替换、unsupported mechanism 拒绝、after 不一致拒绝、语法检查防落盘、
-  覆盖拒绝、篡改复核失败、路径越界拒绝；独立审查后新增：assetRef 引号注入拒绝、
-  `/../` 折叠前拒绝、非 JSX 消费带 variant 拒绝且零暂存、批次失败暂存残留契约固化）。
-- 全量 `vitest run`：本机 21 个失败均为已知 Windows EPERM 临时目录清理错误（零断言失败），
-  与基线一致；Linux CI 为准。
-- 四视口图片加载与裁切几何 Evidence 模块随后以独立提交加入本分支。
+- 本机 Windows 全量测试存在已知 EPERM 临时目录清理失败（与基线相同，零断言失败）；
+  以 Linux CI 为准。
+- 四视口图片加载与裁切几何 Evidence 模块（focalPoint/containerHint 消费方）随后续提交
+  加入本分支，用于青野真实 MEDIA 纵向闭环的浏览器验证。

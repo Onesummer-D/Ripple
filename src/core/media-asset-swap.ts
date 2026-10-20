@@ -1,215 +1,128 @@
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import ts from 'typescript'
-import type { EditOperation, MediaAssetSwapPayload, SourceGraph, SourceNode } from './model'
-import { resolveAssetRefToRelativePath, stageMediaAsset, type StagedMediaAsset } from './media-asset-staging'
+import type { EditOperation, MediaAssetSwapPayload } from './model'
+import type { CandidateOperationContext, CandidateOperationExecutor, CandidateOperationPlan } from './candidate-operation-executors'
+import { resolveAssetRefToRelativePath } from './media-asset-staging'
 
 /**
- * MEDIA asset-swap 执行器（B 侧模块）。
+ * MEDIA asset-swap 执行器（B 侧，接入 A 的 CandidateOperationExecutor seam）。
  *
- * 输入：候选 worktree 根、结构化 MEDIA 操作（action: 'asset-swap'）、资产字节源。
- * 输出：修改的项目相对路径列表（源码文件 + 暂存资产），供候选完整性校验纳入
- * patchHash / candidateTreeDigest。
- *
- * 支持边界（如实记录，不为覆盖任意写法无限扩充）：
- * - JSX/TSX 中 src 属性的字符串字面量替换（含引号保留）。
- * - variants 中 mechanism 'srcset'：在同一 JSX 开始标签上设置/替换 srcSet 属性。
- * - mechanism 'picture' / 'css' / 'container-rule'：暂不支持，显式拒绝。
- * - 非 JSX 消费（CSS url() 等）：暂不支持，显式拒绝。
+ * 职责边界（与 A 的 structured-candidate-executors.md 一致）：
+ * - plan 同步返回数据，不做任何写盘；候选核心统一执行写入、Git binary patch、
+ *   patchHash / candidateTreeDigest 与完整性校验。
+ * - 只覆盖已存在、可由 SourceGraph 定位且 Scope 已证明传播范围的 src / srcSet
+ *   属性值替换：sourceEdit 严格落在 target.location 区间内（核心再校验）。
+ * - 新增不可变资产字节通过 fileWrites（create-only）+ readStagedAsset(sha256) 进入候选；
+ *   不支持替换既有共享二进制。
+ * - variants（任何 mechanism）需要新增 JSX 属性或生成 srcSet 值，超出当前授权区间，
+ *   显式拒绝；如真实青野用例需要，按 A 在 Issue #6 的要求提交用例后协商最小授权扩展。
+ * - focalPoint / containerHint 为 Evidence 阶段的输入，plan 不消费但不拒绝。
  */
 
 export class MediaAssetSwapError extends Error {
   constructor(message: string) { super(message); this.name = 'MediaAssetSwapError' }
 }
 
-export interface MediaAssetSwapContext {
-  candidateRoot: string
-  graph: SourceGraph
-  nodes: Map<string, SourceNode>
-  /** assetRef → 新资产字节的绝对源路径（上传暂存区） */
-  assetBytes: Record<string, string>
-  publicDir?: string
-}
+export type MediaAssetSwapOperation = Extract<EditOperation, { kind: 'MEDIA'; action: 'asset-swap' }>
 
-export interface MediaSwapFileResult {
-  /** 源码编辑（按文件归并后一次性应用） */
-  edits: Array<{ start: number; end: number; replacement: string; operationId: string }>
-  /** 暂存成功的资产（含 SHA-256） */
-  staged: StagedMediaAsset[]
-}
-
-const isAssetSwap = (operation: EditOperation): operation is EditOperation & { kind: 'MEDIA'; action: 'asset-swap'; payload: MediaAssetSwapPayload } =>
-  operation.kind === 'MEDIA' && (operation as { action?: string }).action === 'asset-swap'
-
-/** URL 引用安全段：拒绝引号、空格、反斜杠等可注入或跨平台分歧的字符（纵深防御，防止经引号注入 JSX 属性） */
+/** URL 引用安全段：拒绝引号、空格、反斜杠等可注入或跨平台分歧的字符 */
 const ASSET_REF_SEGMENT = /^[A-Za-z0-9._~%+-]+$/
 
-function assertAssetRef(assetRef: string, operationId: string): void {
-  if (!assetRef.startsWith('/') && !assetRef.startsWith('./') && !assetRef.startsWith('../')) {
-    throw new MediaAssetSwapError(`assetRef 形式不支持：${assetRef}（操作 ${operationId}）`)
-  }
-  const segments = assetRef.split('/').filter(segment => segment && segment !== '.' && segment !== '..')
-  if (!segments.length || segments.some(segment => !ASSET_REF_SEGMENT.test(segment))) {
-    throw new MediaAssetSwapError(`assetRef 含不安全字符：${assetRef}（操作 ${operationId}）`)
-  }
+function isSafeAssetRef(assetRef: unknown): assetRef is string {
+  if (typeof assetRef !== 'string' || !assetRef) return false
+  if (!assetRef.startsWith('/') && !assetRef.startsWith('./') && !assetRef.startsWith('../')) return false
+  const segments = assetRef.split('/').filter(segment => segment && segment !== '.')
+  // '..' 段必须显式拒绝：过滤掉会让 '/../x' 被判为安全
+  if (assetRef.split('/').includes('..')) return false
+  return segments.length > 0 && segments.every(segment => ASSET_REF_SEGMENT.test(segment))
 }
 
-function assertSwapOperation(operation: EditOperation): asserts operation is EditOperation & { kind: 'MEDIA'; action: 'asset-swap'; payload: MediaAssetSwapPayload } {
-  if (!isAssetSwap(operation)) throw new MediaAssetSwapError(`不是 MEDIA asset-swap 操作：${operation.id}`)
-  const payload = operation.payload
-  if (!payload || typeof payload !== 'object') throw new MediaAssetSwapError(`缺少 asset-swap payload：${operation.id}`)
-  if (!payload.assetRef || !/^[0-9a-f]{64}$/.test(payload.assetHash)) throw new MediaAssetSwapError(`asset-swap payload 缺少合法 assetRef/assetHash：${operation.id}`)
-  assertAssetRef(payload.assetRef, operation.id)
-  for (const variant of payload.variants ?? []) {
-    if (!variant.assetRef || !/^[0-9a-f]{64}$/.test(variant.assetHash)) throw new MediaAssetSwapError(`variant 缺少合法 assetRef/assetHash：${operation.id}`)
-    assertAssetRef(variant.assetRef, operation.id)
+function isHex64(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
+}
+
+function readPayload(operation: unknown): MediaAssetSwapPayload | undefined {
+  if (!operation || typeof operation !== 'object') return undefined
+  const payload = (operation as { payload?: unknown }).payload
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined
+  return payload as MediaAssetSwapPayload
+}
+
+/**
+ * 校验操作的完整形状（kind/action/before/after/payload 字段）。
+ * variants 在这里不拒绝：让 plan 抛出明确的 unsupported 语义错误，
+ * 使失败信息可区分"畸形输入"与"v1 明确不支持的能力"。
+ */
+function isWellFormedSwapOperation(operation: unknown): operation is MediaAssetSwapOperation {
+  if (!operation || typeof operation !== 'object') return false
+  const candidate = operation as Record<string, unknown>
+  if (candidate.kind !== 'MEDIA' || candidate.action !== 'asset-swap') return false
+  if (typeof candidate.before !== 'string' || typeof candidate.after !== 'string') return false
+  if (!candidate.before || candidate.before === candidate.after) return false
+  const payload = readPayload(operation)
+  if (!payload) return false
+  if (!isSafeAssetRef(payload.assetRef) || !isHex64(payload.assetHash)) return false
+  if (payload.focalPoint !== undefined) {
+    const focal = payload.focalPoint
+    if (typeof focal !== 'object' || focal === null ||
+        typeof (focal as { x?: unknown }).x !== 'number' || typeof (focal as { y?: unknown }).y !== 'number') return false
   }
+  if (payload.variants !== undefined) {
+    if (!Array.isArray(payload.variants)) return false
+    for (const variant of payload.variants) {
+      if (!variant || typeof variant !== 'object') return false
+      const item = variant as Record<string, unknown>
+      if (typeof item.mechanism !== 'string' || typeof item.condition !== 'string') return false
+      if (!isSafeAssetRef(item.assetRef) || !isHex64(item.assetHash)) return false
+    }
+  }
+  if (payload.containerHint !== undefined) {
+    const hint = payload.containerHint
+    if (typeof hint !== 'object' || hint === null ||
+        typeof (hint as { selector?: unknown }).selector !== 'string' || typeof (hint as { aspect?: unknown }).aspect !== 'number') return false
+  }
+  return true
 }
 
-/** 在目标源码切片中替换带引号字符串的内容，返回新切片；找不到唯一字符串字面量则拒绝。 */
-function swapQuotedUrl(sourceSlice: string, operationId: string, newUrl: string): string {
-  const match = /^(?<prefix>[^"']*["'])(?<url>[^"']*)(?<suffix>["'].*)$/s.exec(sourceSlice)
-  if (!match?.groups) throw new MediaAssetSwapError(`目标切片不是可替换的带引号字符串：${operationId}`)
-  return `${match.groups.prefix}${newUrl}${match.groups.suffix}`
-}
-
-interface JsxAttributeSpan { name: string; start: number; end: number }
-
-/** 在文件 AST 中找到包含 [start,end) 字符串字面量的 JSX 属性及其所在开始标签的属性区间。 */
-function findJsxAttribute(source: ts.SourceFile, start: number, end: number): { attributes: JsxAttributeSpan[]; selfClosing: boolean; elementStart: number; elementEnd: number } | undefined {
-  let found: { element: ts.JsxOpeningLikeElement; attribute: ts.JsxAttribute } | undefined
-  const visit = (node: ts.Node) => {
-    if (found) return
-    if (ts.isJsxAttribute(node) && node.initializer && ts.isStringLiteral(node.initializer)) {
-      const lit = node.initializer
-      if (lit.getStart(source) <= start && lit.getEnd() >= end) {
-        const parent = node.parent.parent
-        if (ts.isJsxOpeningElement(parent) || ts.isJsxSelfClosingElement(parent)) found = { element: parent, attribute: node }
+export function createMediaAssetSwapExecutor(): CandidateOperationExecutor<MediaAssetSwapOperation> {
+  return {
+    kind: 'MEDIA',
+    action: 'asset-swap',
+    validate(operation: unknown): operation is MediaAssetSwapOperation {
+      return isWellFormedSwapOperation(operation)
+    },
+    plan(input: CandidateOperationContext<MediaAssetSwapOperation>): CandidateOperationPlan {
+      const { operation, target, readStagedAsset } = input
+      if (target.kind !== 'media' || !target.location?.path || target.location.start === undefined || target.location.end === undefined) {
+        throw new MediaAssetSwapError(`asset-swap 目标缺少媒体 AST 源位置：${operation.targetRef}`)
       }
-    }
-    node.forEachChild(visit)
+      const payload = operation.payload
+      if (payload.variants !== undefined && payload.variants.length > 0) {
+        throw new MediaAssetSwapError(
+          `MEDIA asset-swap v1 不支持 variants（需要新增 JSX 属性或生成 srcSet 值，超出当前授权源码区间）：` +
+          `${operation.id}。请先使用不带 variants 的 src/srcSet 值替换；如真实项目必须新增属性，请提交固定源码片段、targetRef、预期属性位置与负例，与 A 协商最小授权扩展。`,
+        )
+      }
+      if (operation.after !== payload.assetRef) {
+        throw new MediaAssetSwapError(`operation.after 必须与 payload.assetRef 一致（保持候选记录真实）：${operation.id}`)
+      }
+      // 核心会再次核对源码区间内的原始字节等于 edit.before；这里只规划，不读文件、不写文件
+      const relativePath = resolveAssetRefToRelativePath(payload.assetRef, target.location.path)
+      return {
+        sourceEdits: [{
+          path: target.location.path,
+          start: target.location.start,
+          end: target.location.end,
+          before: operation.before,
+          after: payload.assetRef,
+        }],
+        fileWrites: [{ path: relativePath, bytes: readStagedAsset(payload.assetHash) }],
+      }
+    },
   }
-  visit(source)
-  if (!found) return undefined
-  const attributes: JsxAttributeSpan[] = found.element.attributes.properties
-    .filter((item): item is ts.JsxAttribute => ts.isJsxAttribute(item))
-    .map(attribute => ({ name: attribute.name.getText(source), start: attribute.getStart(source), end: attribute.end }))
-  return { attributes, selfClosing: ts.isJsxSelfClosingElement(found.element), elementStart: found.element.getStart(source), elementEnd: found.element.end }
 }
 
-/**
- * 计算并执行单个 asset-swap 操作：源码编辑返回给调用方归并应用，
- * 资产字节立即暂存落盘（stageMediaAsset 内部有哈希校验）。
- * 注意：调用方在批次中任一操作失败时必须丢弃整个候选 worktree
- * （候选核心 createCandidate 的回滚即如此），已暂存字节不单独清理。
- */
-export function planMediaAssetSwap(operation: EditOperation, node: SourceNode, context: MediaAssetSwapContext): MediaSwapFileResult {
-  assertSwapOperation(operation)
-  if (node.kind !== 'media' || !node.location?.path || node.location.start === undefined || node.location.end === undefined) {
-    throw new MediaAssetSwapError(`asset-swap 目标缺少媒体 AST 源位置：${operation.targetRef}`)
-  }
-  const file = node.location.path
-  if (path.isAbsolute(file) || file.split('/').includes('..')) throw new MediaAssetSwapError(`目标文件路径越界：${file}`)
-  const absolute = path.resolve(context.candidateRoot, file)
-  if (path.relative(context.candidateRoot, absolute).startsWith('..')) throw new MediaAssetSwapError(`目标文件路径越界：${file}`)
-  if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) throw new MediaAssetSwapError(`目标文件不存在：${file}`)
-  const sourceText = fs.readFileSync(absolute, 'utf8')
-  const slice = sourceText.slice(node.location.start, node.location.end)
-  if (slice !== operation.before) throw new MediaAssetSwapError(`源内容已变化，拒绝应用操作：${operation.id}`)
+export const mediaAssetSwapExecutor = createMediaAssetSwapExecutor()
 
-  const payload = operation.payload
-  for (const variant of payload.variants ?? []) {
-    if (variant.mechanism !== 'srcset') throw new MediaAssetSwapError(`暂不支持的 variant mechanism：${variant.mechanism}（操作 ${operation.id}）`)
-  }
-
-  const replacement = swapQuotedUrl(slice, operation.id, payload.assetRef)
-  if (replacement === operation.before) throw new MediaAssetSwapError(`操作没有修改内容：${operation.id}`)
-  if (operation.after !== replacement) {
-    throw new MediaAssetSwapError(`operation.after 与执行器计算结果不一致：${operation.id}`)
-  }
-  const edits: MediaSwapFileResult['edits'] = [{ start: node.location.start, end: node.location.end, replacement, operationId: operation.id }]
-  const staged: StagedMediaAsset[] = []
-
-  const stageOne = (assetRef: string, assetHash: string): StagedMediaAsset => {
-    const sourceBytes = context.assetBytes[assetRef]
-    if (!sourceBytes) throw new MediaAssetSwapError(`缺少资产字节源：${assetRef}（操作 ${operation.id}）`)
-    const relativePath = resolveAssetRefToRelativePath(assetRef, file, { publicDir: context.publicDir })
-    const result = stageMediaAsset(context.candidateRoot, relativePath, sourceBytes, assetHash)
-    return { ...result, assetRef }
-  }
-  const srcsetVariants = payload.variants ?? []
-  let located: ReturnType<typeof findJsxAttribute>
-  if (srcsetVariants.length) {
-    // 先定位 JSX 元素再暂存任何字节，把不可执行的 variant 尽早挡在落盘之前
-    const kind = /\.(tsx|jsx)$/i.test(file) ? ts.ScriptKind.TSX : /\.ts$/i.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JSX
-    const source = ts.createSourceFile(file, sourceText, ts.ScriptTarget.Latest, true, kind)
-    located = findJsxAttribute(source, node.location.start, node.location.end)
-    if (!located) throw new MediaAssetSwapError(`找不到 src 属性所在的 JSX 元素，无法设置 srcSet：${operation.id}`)
-  }
-
-  staged.push(stageOne(payload.assetRef, payload.assetHash))
-  for (const variant of srcsetVariants) staged.push(stageOne(variant.assetRef, variant.assetHash))
-
-  if (srcsetVariants.length) {
-    const srcsetValue = srcsetVariants.map(variant => `${variant.assetRef} ${variant.condition}`).join(', ')
-    const existing = located!.attributes.find(attribute => attribute.name === 'srcSet')
-    if (existing) {
-      edits.push({ start: existing.start, end: existing.end, replacement: `srcSet=${JSON.stringify(srcsetValue)}`, operationId: `${operation.id}:srcset` })
-    } else {
-      // 在开始标签 name 之后插入，保持自闭合标签合法
-      const tagEnd = sourceText.lastIndexOf(located!.selfClosing ? '/>' : '>', located!.elementEnd)
-      if (tagEnd < 0 || tagEnd < node.location.end) throw new MediaAssetSwapError(`无法定位 JSX 开始标签结尾：${operation.id}`)
-      edits.push({ start: tagEnd, end: tagEnd, replacement: ` srcSet=${JSON.stringify(srcsetValue)}`, operationId: `${operation.id}:srcset` })
-    }
-  }
-  return { edits, staged }
-}
-
-/** 将同一文件上的编辑倒序应用（与候选核心同一策略），并做语法检查。 */
-export function applyEditsToFile(absolutePath: string, file: string, edits: Array<{ start: number; end: number; replacement: string }>): void {
-  const sourceText = fs.readFileSync(absolutePath, 'utf8')
-  const ordered = [...edits].sort((a, b) => b.start - a.start)
-  let priorStart = sourceText.length + 1
-  let next = sourceText
-  for (const edit of ordered) {
-    if (edit.end > priorStart || edit.start < 0 || edit.end < edit.start || edit.end > sourceText.length) {
-      throw new MediaAssetSwapError(`同一文件的操作区间重叠或无效：${file}`)
-    }
-    next = next.slice(0, edit.start) + edit.replacement + next.slice(edit.end)
-    priorStart = edit.start
-  }
-  if (/\.(tsx?|jsx?)$/i.test(file)) {
-    const kind = /\.(tsx|jsx)$/i.test(file) ? ts.ScriptKind.TSX : /\.ts$/i.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JSX
-    const parsed = ts.createSourceFile(file, next, ts.ScriptTarget.Latest, true, kind)
-    if ((parsed as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length) {
-      throw new MediaAssetSwapError(`源码编辑产生语法错误：${file}`)
-    }
-  }
-  fs.writeFileSync(absolutePath, next, 'utf8')
-}
-
-/**
- * 在候选 worktree 上执行全部 MEDIA asset-swap 操作。
- * 返回修改/新增的项目相对路径（源码文件 + 暂存资产），供候选核心纳入 patch 与树摘要。
- */
-export function applyMediaAssetSwapOperations(context: MediaAssetSwapContext, operations: EditOperation[]): string[] {
-  const byFile = new Map<string, MediaSwapFileResult>()
-  for (const operation of operations) {
-    assertSwapOperation(operation)
-    const node = context.nodes.get(operation.targetRef)
-    if (!node) throw new MediaAssetSwapError(`目标不在当前源码图中：${operation.targetRef}`)
-    const result = planMediaAssetSwap(operation, node, context)
-    const file = node.location!.path
-    const merged = byFile.get(file) ?? { edits: [], staged: [] }
-    merged.edits.push(...result.edits)
-    merged.staged.push(...result.staged)
-    byFile.set(file, merged)
-  }
-  const modified = new Set<string>()
-  for (const [file, result] of byFile) {
-    applyEditsToFile(path.resolve(context.candidateRoot, file), file, result.edits)
-    modified.add(file)
-    for (const staged of result.staged) modified.add(staged.relativePath)
-  }
-  return [...modified].sort()
+/** 供应用侧组装注册表使用。 */
+export function mediaAssetSwapExecutors(): readonly CandidateOperationExecutor[] {
+  return [mediaAssetSwapExecutor]
 }
