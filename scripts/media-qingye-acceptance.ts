@@ -17,14 +17,18 @@
  *   → VerificationRun 由双端真实观测构建（assertion 逐条真实计算，禁止硬编码 PASS）
  *   → 审批（真实证据门控）→ 在**可丢弃副本**上应用同一补丁 → 校验树摘要 → 回滚恢复
  *      （应用/回滚绝不触碰传入的私有原工程；原工程全程只读，结尾做摘要自比对证明未被触碰）
- * 输出：<workDir>/acceptance.json（含双方 SHA、候选身份、证据哈希、每步结果）。
+ * 输出：<workRoot>/run-<时间戳>-<随机>/acceptance.json（含双方 SHA、候选身份、证据哈希、
+ * 每步结果）。每次验收独占一个运行目录；历史目录（含保留现场）永不被后续运行触碰（P1-2）。
  *
  * 恢复语义（三类场景，src/core/media-acceptance-apply.ts 有注入测试覆盖）：
  * 1. 正常成功：应用 → 校验 → 显式回滚 → 恢复原基线摘要。
- * 2. 运行失败（应用后校验不过）：自动回滚；回滚成功则抛错退出（绝不写 PASS），
- *    回滚也失败则抛错并**保留可丢弃副本现场**（在 workDir 内，不影响原工程）。
- * 3. 进程中断（SIGKILL 等）：finally 尽力清理 worktree；残留副本由下次运行的
- *    启动自愈（worktree prune + 强制清空）覆盖；原工程始终未受影响。
+ * 2. 运行失败（应用后校验不过）：自动回滚；恢复状态如实三态记录
+ *    （restored / recovery-failed / unknown，classifyRecoveryOutcome 按摘要复核判定，
+ *    绝不按异常类型推导 recovered）；需要保留现场时写 SCENE-PRESERVED.json 清单
+ *    （Candidate ID / patchHash / 基线摘要 / 操作 / 失败状态），候选审计工件一并保留
+ *    （removeCandidate preserveAudit），现场副本留待人工处置。
+ * 3. 进程中断（SIGKILL 等）：finally 尽力清理 worktree；残留副本由下次运行在
+ *    新目录中进行而不触碰；原工程始终未受影响。
  *
  * 故障注入（仅测试/演练，正常验收勿设）：
  *   RIPPLE_MEDIA_ACCEPTANCE_FAULT=post-apply          应用成功后立即故障
@@ -56,7 +60,8 @@ import {
   type MediaViewportEvidenceReport,
 } from '../src/core/media-viewport-evidence'
 import { serveStatic } from '../src/core/media-acceptance-server'
-import { applyApprovedCandidateWithRecovery, MediaAcceptanceRecoveryError } from '../src/core/media-acceptance-apply'
+import { applyApprovedCandidateWithRecovery, classifyRecoveryOutcome } from '../src/core/media-acceptance-apply'
+import { allocateRunDir } from '../src/core/media-acceptance-run-dir'
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -333,9 +338,17 @@ function trustedRun(
 
 async function main(): Promise<void> {
   const qingyeRoot = path.resolve(process.argv[2] ?? '')
-  const workDir = path.resolve(process.argv[3] ?? '')
-  if (!qingyeRoot || !fs.existsSync(path.join(qingyeRoot, 'src', 'data', 'products.ts'))) throw new AcceptanceError('用法: media-qingye-acceptance.ts <qingyeRoot> <workDir>（qingyeRoot 需含 src/data/products.ts）')
-  fs.mkdirSync(workDir, { recursive: true })
+  const workRoot = path.resolve(process.argv[3] ?? '')
+  if (!qingyeRoot || !fs.existsSync(path.join(qingyeRoot, 'src', 'data', 'products.ts'))) throw new AcceptanceError('用法: media-qingye-acceptance.ts <qingyeRoot> <workRoot>（qingyeRoot 需含 src/data/products.ts）')
+  // 每次验收独占运行目录（P1-2）：历史保留现场只警告、绝不自动覆盖
+  const { workDir, preservedScenes } = allocateRunDir(workRoot)
+  console.error(`本次运行目录：${workDir}`)
+  if (preservedScenes.length) {
+    console.error(`警告：检测到 ${preservedScenes.length} 处历史保留现场，本次运行不会触碰；处置完毕后请人工清理：`)
+    for (const scene of preservedScenes) {
+      console.error(`  - ${scene.location}${scene.recoveryState ? `（${scene.recoveryState}${scene.candidateId ? `，候选 ${scene.candidateId}` : ''}）` : ''}`)
+    }
+  }
   // 清理被中断运行遗留的 worktree 注册（正常路径 no-op）
   try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 原工程非 git 时由后续步骤报错 */ }
 
@@ -351,6 +364,7 @@ async function main(): Promise<void> {
 
   // 应用/回滚目标：独立、可丢弃的工程副本（独立审查 P1：应用失败也不会污染私有原工程）。
   // 私有原工程全程只读；结束时用摘要自比对证明未被触碰。
+  // 本运行独占 workDir（见 allocateRunDir），同名残留只可能来自中断的本次运行，可安全清空。
   const projectSrc = path.join(workDir, 'project-src')
   fs.rmSync(projectSrc, { recursive: true, force: true })
   // 与候选核心同一约定：autocrlf=false 保证与隔离候选的 digest 口径一致（Windows 兼容）
@@ -543,12 +557,37 @@ async function main(): Promise<void> {
       if (fs.readFileSync(path.join(projectSrc, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('回滚后可丢弃副本仍含新引用')
       steps.rollback = { restoredSourceDigest: restored, restored: true }
     } catch (error) {
-      const doubleFault = error instanceof MediaAcceptanceRecoveryError && error.rollbackError !== undefined
-      if (doubleFault) preserveScene = true // 回滚也失败：保留可丢弃副本现场供人工处理（副本在 workDir 内，不影响原工程）
+      // 恢复状态如实三态记录（P1-1）：classify 按摘要复核判定，绝不按异常类型推导 recovered
+      const classified = classifyRecoveryOutcome(error, () =>
+        readProjectSnapshot(projectSrc).revision.sourceDigest === graph.revision.sourceDigest)
+      if (classified.preserveScene) preserveScene = true // 保留可丢弃副本现场供人工处理（副本在本运行目录内，不影响原工程）
       steps.applyRecovery = {
-        recovered: !doubleFault,
-        doubleFault,
-        note: '应用目标为可丢弃副本（workDir/project-src），私有原工程全程只读；失败不会被写成验收 PASS',
+        recoveryState: classified.state,
+        preserveScene,
+        failure: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+        note: `${classified.note} 应用目标为可丢弃副本（${projectSrc}），私有原工程全程只读；失败不会被写成验收 PASS。`,
+      }
+      if (preserveScene) {
+        // 现场清单（P1-2）：足以追溯 Candidate ID / patchHash / 基线摘要 / 操作描述 / 失败状态
+        fs.writeFileSync(path.join(workDir, 'SCENE-PRESERVED.json'), JSON.stringify({
+          schemaVersion: 'ripple-media-scene-preserved/v1',
+          preservedAt: new Date().toISOString(),
+          recoveryState: classified.state,
+          failure: error instanceof Error ? { name: error.name, message: error.message } : { message: String(error) },
+          rippleHead, qingyeCommit,
+          projectSrc,
+          sceneState: '副本处于应用后状态（回滚未完成）；处置完毕后手动清理：git -C <qingyeRoot> worktree remove --force <projectSrc>',
+          candidate: {
+            id: candidate.id, patchHash: candidate.patchHash,
+            baseSourceDigest: candidate.baseSourceDigest, candidateTreeDigest: candidate.candidateTreeDigest,
+            artifactPath: candidate.artifactPath,
+          },
+          operation: {
+            id: operation.id, kind: operation.kind, action: operation.action,
+            targetRef: operation.targetRef, before: operation.before, after: operation.after,
+          },
+          baselineSourceDigest: graph.revision.sourceDigest,
+        }, null, 2))
       }
       throw error
     }
@@ -557,13 +596,18 @@ async function main(): Promise<void> {
     if (untouchedDigest !== originalSourceDigest) throw new AcceptanceError('私有原工程在验收期间发生变化，只读隔离失效')
     steps.originalUntouched = { sourceDigest: untouchedDigest, note: '应用/回滚均发生在可丢弃副本上，原工程只读且未被触碰' }
   } finally {
-    removeCandidate(candidate)
+    // 候选清理：保留现场时保留审计工件（候选身份/补丁/验证证据可追溯，P1-2），否则全清
+    try { removeCandidate(candidate, preserveScene ? { preserveAudit: true } : {}) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
     // 清理基线 worktree（含 node_modules/dist，--force 允许脏树移除）
     try { run('git', ['-C', qingyeRoot, 'worktree', 'remove', '--force', baselineSrc]) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
     if (preserveScene) {
-      console.error(`现场保留（回滚失败，副本处于应用后状态）：${projectSrc}`)
+      const state = (steps.applyRecovery as { recoveryState?: string } | undefined)?.recoveryState ?? 'unknown'
+      console.error(`现场保留（${state}，副本处于应用后状态）：${projectSrc}`)
+      console.error(`现场清单：${path.join(workDir, 'SCENE-PRESERVED.json')}（含 Candidate ID / patchHash / 基线摘要 / 操作 / 失败状态）`)
     } else {
       try { run('git', ['-C', qingyeRoot, 'worktree', 'remove', '--force', projectSrc]) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
+      // 成功/已恢复路径正常清理重工件：暂存字节可由哈希重建，副本可由 qingyeCommit 重建
+      try { fs.rmSync(path.join(workDir, 'staged-assets'), { recursive: true, force: true }) } catch { /* 尽力清理 */ }
     }
   }
 
@@ -571,9 +615,11 @@ async function main(): Promise<void> {
     schemaVersion: 'ripple-media-qingye-acceptance/v1',
     completedAt: new Date().toISOString(),
     rippleHead, qingyeCommit,
+    runDir: workDir,
     steps,
   }
   fs.writeFileSync(path.join(workDir, 'acceptance.json'), JSON.stringify(acceptance, null, 2))
+  console.log(`acceptance artifact: ${path.join(workDir, 'acceptance.json')}`)
   console.log(`QINGYE MEDIA ACCEPTANCE PASS ripple=${rippleHead.slice(0, 8)} qingye=${qingyeCommit.slice(0, 8)} patch=${(steps.candidate as { patchHash: string }).patchHash.slice(0, 12)} evidence=${(steps.mediaEvidence as { sha256: string }).sha256.slice(0, 12)} dual=${dualSha.slice(0, 12)}`)
 }
 
