@@ -9,7 +9,7 @@ import { assertCandidateCurrent, createCandidate, removeCandidate } from './cand
 import { createStagedAssetStore } from './media-asset-staging'
 import { mediaAssetSwapExecutor } from './media-asset-swap'
 import type { MediaAssetSwapOperation } from './media-asset-swap'
-import { applyApprovedCandidateWithRecovery, MediaAcceptanceRecoveryError } from './media-acceptance-apply'
+import { applyApprovedCandidateWithRecovery, classifyRecoveryOutcome, MediaAcceptanceRecoveryError } from './media-acceptance-apply'
 import { rollbackAppliedCandidate } from './apply'
 import { approve, chooseScope, openSession, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
 import type { BrowserVerificationContract, ScopeDecision } from './model'
@@ -211,6 +211,102 @@ describe('applyApprovedCandidateWithRecovery（MEDIA 验收恢复保证）', () 
       expect((thrown as Error).message).toMatch(/自动回滚也失败/)
       // 现场保留：补丁仍在可丢弃目标上，由调用方决定处置；本模块不做强制重置
       expect(fs.existsSync(path.join(fx.root, fx.stagedRelativePath))).toBe(true)
+    } finally { removeCandidate(fx.candidate) }
+  }, 90_000)
+})
+
+describe('classifyRecoveryOutcome（恢复状态如实记录，独立审查 P1-1）', () => {
+  it('回滚成功且摘要复核一致 → restored，不保留现场', () => {
+    const classified = classifyRecoveryOutcome(
+      new MediaAcceptanceRecoveryError('应用后校验失败，已自动回滚恢复原基线（abc…）。原始错误：x'),
+      () => true,
+    )
+    expect(classified.state).toBe('restored')
+    expect(classified.preserveScene).toBe(false)
+  })
+
+  it('回滚成功但摘要复核不一致 → recovery-failed（绝不记 recovered），现场保留', () => {
+    const classified = classifyRecoveryOutcome(
+      new MediaAcceptanceRecoveryError('应用后校验失败，已自动回滚恢复原基线（abc…）。原始错误：x'),
+      () => false,
+    )
+    expect(classified.state).toBe('recovery-failed')
+    expect(classified.preserveScene).toBe(true)
+  })
+
+  it('回滚结果无法复核（磁盘异常）→ unknown，按未恢复保守处理并保留现场', () => {
+    const classified = classifyRecoveryOutcome(
+      new MediaAcceptanceRecoveryError('应用后校验失败，已自动回滚恢复原基线（abc…）。原始错误：x'),
+      () => { throw new Error('磁盘读取失败') },
+    )
+    expect(classified.state).toBe('unknown')
+    expect(classified.preserveScene).toBe(true)
+  })
+
+  it('双故障（rollbackError 存在）→ recovery-failed，现场保留', () => {
+    const classified = classifyRecoveryOutcome(
+      new MediaAcceptanceRecoveryError('自动回滚也失败', new Error('回滚故障')),
+      () => true,
+    )
+    expect(classified.state).toBe('recovery-failed')
+    expect(classified.preserveScene).toBe(true)
+  })
+
+  it('显式 rollback-failure 注入（AcceptanceError，非恢复封装类型）→ recovery-failed，绝不 recovered，现场保留', () => {
+    const classified = classifyRecoveryOutcome(new Error('故障注入：rollback-failure'), () => true)
+    expect(classified.state).toBe('recovery-failed')
+    expect(classified.preserveScene).toBe(true)
+    expect(classified.note).toMatch(/显式回滚抛错/)
+  })
+
+  it('应用阶段抛错且工程未发生写入 → 无需回滚（rollbackError 为空）', () => {
+    const fx = approvedFixture()
+    try {
+      // 删除补丁工件使 readPatch 抛错：此时 assertCandidateCurrent 已通过（树干净）、补丁尚未写入
+      if (!fx.candidate.artifactPath) throw new Error('fixture 缺少补丁工件')
+      fs.rmSync(fx.candidate.artifactPath)
+      let thrown: unknown
+      try {
+        applyApprovedCandidateWithRecovery(fx.session, fx.candidate, {})
+      } catch (error) { thrown = error }
+      expect(thrown).toBeInstanceOf(MediaAcceptanceRecoveryError)
+      expect((thrown as MediaAcceptanceRecoveryError).rollbackError).toBeUndefined()
+      expect((thrown as Error).message).toMatch(/未发生写入/)
+      const classified = classifyRecoveryOutcome(thrown, () => readProjectSnapshot(fx.root).revision.sourceDigest === fx.candidate.baseSourceDigest)
+      expect(classified.state).toBe('restored')
+      expect(classified.preserveScene).toBe(false)
+    } finally { removeCandidate(fx.candidate) }
+  }, 90_000)
+
+  it('应用阶段抛错且工程已偏离基线（无法确认未写入）→ 保守按可能写入处理，现场保留', () => {
+    const fx = approvedFixture()
+    try {
+      // 破坏原工程（与补丁无关的改动），使 apply 在 assertCandidateCurrent 处抛错且摘要偏离——
+      // treePossiblyWritten 无法区分"补丁写入"与"其他改动"，必须保守按可能写入处理
+      fs.writeFileSync(path.join(fx.root, 'src', 'pages', 'AutumnPage.tsx'), `export function AutumnPage() { return <main><h1>Tampered</h1></main> }`)
+      let thrown: unknown
+      try {
+        applyApprovedCandidateWithRecovery(fx.session, fx.candidate, {})
+      } catch (error) { thrown = error }
+      expect(thrown).toBeInstanceOf(MediaAcceptanceRecoveryError)
+      expect((thrown as MediaAcceptanceRecoveryError).rollbackError).toBeDefined()
+      expect((thrown as Error).message).toMatch(/已偏离基线/)
+      const classified = classifyRecoveryOutcome(thrown, () => readProjectSnapshot(fx.root).revision.sourceDigest === fx.candidate.baseSourceDigest)
+      expect(classified.state).toBe('recovery-failed')
+      expect(classified.preserveScene).toBe(true)
+    } finally { removeCandidate(fx.candidate) }
+  }, 90_000)
+
+  it('应用阶段抛错且未写入时，分类如实反映"无需回滚即处基线"（摘要一致 → restored）', () => {
+    const fx = approvedFixture()
+    try {
+      // 不触碰磁盘，直接验证分类语义：未写入时摘要复核为真 → restored，不保留现场
+      const classified = classifyRecoveryOutcome(
+        new MediaAcceptanceRecoveryError('应用阶段抛错，工程未偏离基线（未发生写入），无需回滚。原始错误：x'),
+        () => true,
+      )
+      expect(classified.state).toBe('restored')
+      expect(classified.preserveScene).toBe(false)
     } finally { removeCandidate(fx.candidate) }
   }, 90_000)
 })
