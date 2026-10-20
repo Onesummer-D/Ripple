@@ -65,21 +65,24 @@ describe('serveStatic 安全边界', () => {
     }
   })
 
-  it('指向 rootDir 外部的符号链接被拒绝，内部链接允许', async () => {
-    const base = await start()
-    let symlinkSupported = true
+  // 链接创建必须发生在测试体内（beforeEach 之后）：describe 求值期 root/outside 尚未赋值，
+  // Windows 无开发者模式时创建失败 → 测试内显式 skip，而不是 collection 期静态跳过。
+  function linkOrSkip(ctx: { skip: () => never }): void {
     try {
       fs.symlinkSync(path.join(outside, 'secret.txt'), path.join(root, 'media', 'leak.txt'), 'file')
       fs.symlinkSync(path.join(root, 'media', 'a.jpeg'), path.join(root, 'media', 'internal.jpeg'), 'file')
     } catch {
-      symlinkSupported = false // Windows 无开发者模式时无法建链接，跳过符号链接断言
+      ctx.skip() // Windows 无开发者模式时无法建链接
     }
-    if (symlinkSupported) {
-      const leak = await fetch(`${base}/media/leak.txt`)
-      expect(leak.status).toBe(404)
-      const internal = await fetch(`${base}/media/internal.jpeg`)
-      expect(internal.status).toBe(200)
-    }
+  }
+
+  it('指向 rootDir 外部的符号链接被拒绝，内部链接允许', async (ctx) => {
+    linkOrSkip(ctx)
+    const base = await start()
+    const leak = await fetch(`${base}/media/leak.txt`)
+    expect(leak.status).toBe(404)
+    const internal = await fetch(`${base}/media/internal.jpeg`)
+    expect(internal.status).toBe(200)
   })
 
   it('SPA 回退到 index.html，且回退目标仍受越界约束', async () => {
@@ -87,5 +90,19 @@ describe('serveStatic 安全边界', () => {
     const fallback = await fetch(`${base}/some/spa/route`)
     expect(fallback.status).toBe(200)
     expect(await fallback.text()).toContain('app')
+  })
+
+  it('回退目标 index.html 若被替换为外部符号链接，回退一律 404', async (ctx) => {
+    fs.rmSync(path.join(root, 'index.html'))
+    try {
+      fs.symlinkSync(path.join(outside, 'secret.txt'), path.join(root, 'index.html'), 'file')
+    } catch {
+      ctx.skip() // Windows 无开发者模式时无法建链接
+    }
+    const base = await start()
+    const response = await fetch(`${base}/any/spa/route`)
+    expect(response.status).toBe(404)
+    const rootResponse = await fetch(`${base}/`)
+    expect(rootResponse.status).toBe(404)
   })
 })

@@ -37,13 +37,15 @@ export function serveStatic(rootDir: string, port: number): Promise<http.Server>
     }
     if (relative.split(/[\\/]/).includes('..')) { response.writeHead(404); response.end('not found'); return }
     if (!relative) relative = 'index.html'
-    let absolute = path.join(rootDir, relative)
-    let real = withinRoot(absolute)
-    if (!real || !fs.statSync(real).isFile()) {
+    let real = withinRoot(path.join(rootDir, relative))
+    let isFile = false
+    if (real) {
+      try { isFile = fs.statSync(real).isFile() } catch { isFile = false }
+    }
+    if (!real || !isFile) {
       // SPA 回退：index.html 同样必须经过符号链接/越界校验
       real = withinRoot(path.join(rootDir, 'index.html'))
       if (!real) { response.writeHead(404); response.end('not found'); return }
-      absolute = path.join(rootDir, 'index.html')
     }
     response.writeHead(200, { 'content-type': types[path.extname(real).toLowerCase()] ?? 'application/octet-stream' })
     fs.createReadStream(real).pipe(response)
