@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: Onesummer-D/ripple-qingye-bolt
+          # 固定验收源码版本，与 acceptance.json 的 qingyeCommit 绑定，可复现
+          ref: f7e4998a5c77ab4aeb3232dbc31e61196e9051a6
           token: ${{ secrets.BOLT_REPO_TOKEN }}
           path: qingye-source
           persist-credentials: false
