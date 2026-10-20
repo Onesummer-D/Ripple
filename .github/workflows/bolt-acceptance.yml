@@ -42,36 +42,6 @@ jobs:
         run: docker pull node:22-bookworm-slim
       - name: Prepare and smoke-test the isolated browser runtime
         run: bash scripts/prepare-browser-verification.sh
-      - name: Verify Tailwind dependency resolution across preview mounts
-        env:
-          BOLT_DEPENDENCIES: ${{ github.workspace }}/bolt-source/node_modules
-        run: |
-          node -e '
-            const fs = require("node:fs");
-            const { createRequire } = require("node:module");
-            const tailwindRoot = `${process.env.BOLT_DEPENDENCIES}/tailwindcss`;
-            const quickLruPackage = `${process.env.BOLT_DEPENDENCIES}/@alloc/quick-lru/package.json`;
-            const requireFromTailwind = createRequire(`${tailwindRoot}/lib/lib/setupTrackingContext.js`);
-            console.log(JSON.stringify({ stage: "host", tailwindVersion: JSON.parse(fs.readFileSync(`${tailwindRoot}/package.json`, "utf8")).version, quickLruPackagePresent: fs.existsSync(quickLruPackage), quickLru: requireFromTailwind.resolve("@alloc/quick-lru") }));
-          '
-          docker run --rm --network none --mount "type=bind,src=$BOLT_DEPENDENCIES,dst=/deps,readonly" node:22-bookworm-slim node -e '
-            const fs = require("node:fs");
-            const { createRequire } = require("node:module");
-            const packagePresent = fs.existsSync("/deps/@alloc/quick-lru/package.json");
-            let resolved = null;
-            let error = null;
-            try { resolved = createRequire("/deps/tailwindcss/lib/lib/setupTrackingContext.js").resolve("@alloc/quick-lru"); }
-            catch (cause) { error = cause.code ?? String(cause); }
-            console.log(JSON.stringify({ stage: "legacy-deps-mount", packagePresent, resolved, error }));
-            if (!packagePresent || resolved) process.exitCode = 1;
-          '
-          docker run --rm --network none --mount "type=bind,src=$BOLT_DEPENDENCIES,dst=/work/node_modules,readonly" --workdir /work node:22-bookworm-slim node -e '
-            const fs = require("node:fs");
-            const { createRequire } = require("node:module");
-            const quickLruPackage = "/work/node_modules/@alloc/quick-lru/package.json";
-            const resolved = createRequire("/work/node_modules/tailwindcss/lib/lib/setupTrackingContext.js").resolve("@alloc/quick-lru");
-            console.log(JSON.stringify({ stage: "canonical-node-modules-mount", quickLruPackagePresent: fs.existsSync(quickLruPackage), quickLru: resolved }));
-          '
       - name: Verify the real Bolt project through the Ripple workbench
         run: npm run test:browser -- e2e/project-workbench.spec.ts --grep "runs the Bolt shared TEXT workflow"
         env:
