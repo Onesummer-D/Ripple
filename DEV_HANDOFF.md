@@ -107,6 +107,8 @@
 
    > **本轮自查出的回归（已修）**：初版把惰性兜底整个删掉，导致直接 import 本模块的 `e2e/page-override-lifecycle.spec.ts` 拿不到网络池而失败（CI #39424007567 `test:browser` 1 failed）。已修正并重新验证。
 4. **`src/core/candidate-preview.ts` — relay 台账**（移植自 `44c396b`）：`PreviewRelayAccounting` 区分 `completed / denied / client-aborted / upstream-failed`，并单独报告 **unsettled**。这是下一轮判定「浏览器放弃请求」还是「预演侧失败」的决定性依据；新增 `readProjectSourcePreviewDiagnostics` 与只读端点 `GET /__ripple/api/project/preview/report`。
+
+   > **判读口径更正（本轮独立审查发现，已修）**：初版把 `unsettled` 描述成「浏览器从没拿到响应」的那一类，这是**错的**。台账把 `client-aborted` 计入已结算，而浏览器中止时 relay 的 socket 依然会关闭并落入 `client-aborted`——也就是说 `ERR_NETWORK_CHANGED` 那批排队请求记的是 `client-aborted`，**不会**出现在 `unsettled` 里。`unsettled = started − 已结算` 衡量的是「接受了请求但从未产生任何终止事件」，非 0 反而指向缺了记账钩子或快照是在请求仍在途中取的。因此 Run #7 的**主判读字段是 `client-aborted`**，`unsettled` 只作为记账完整性的旁证。相关 docstring 已按此更正。
 5. **`src/app/ProjectWorkbench.tsx` — 补上前任守卫的空窗**：前任用 `frameRef.current` 比对，但「点击重载 → React 提交重挂载」之间 ref 仍指向旧帧，此窗口内的返回会被误接受。新增 `previewGeneration` 计数器，在点击处理器里**同步递增**，并在预演被替换时递增，任一代次变化即在异步返回处丢弃。
 6. **`e2e/project-workbench.spec.ts`**：失败信息附加 relay report；保留前任的受条件约束恢复逻辑，恢复事实写入 `sourcePreviewRecovery` 证据字段。
 
@@ -127,7 +129,7 @@ Linux CI（[run #39425031601](https://github.com/Onesummer-D/Ripple/actions/runs
 
 本机（Windows）`local-project-api.test.ts` 有 4 个 30s 超时（`analyze` 路径），与上一轮记载的本机环境性超时一致；**Linux CI 全量 174 passed 已排除本轮引入问题**，本机结果不作为依据。
 
-**仍然没有的证据**：真实 Bolt 验收（Run #7 及以后）、多视口 Evidence → Approval → Apply → Rollback 的真实工程闭环、独立交叉审查。这三项都还没做，不能由 CI 全绿推断。
+**仍然没有的证据**：真实 Bolt 验收（Run #7 及以后）、多视口 Evidence → Approval → Apply → Rollback 的真实工程闭环。这两项还没做，不能由 CI 全绿推断。
 
 ### 00.5 本轮环境事故（必须记录，影响后续操作）
 
@@ -138,12 +140,44 @@ Linux CI（[run #39425031601](https://github.com/Onesummer-D/Ripple/actions/runs
 - 本地提交 `41299c4` / `533ef06` 的**对象**已丢失，但两者**文件内容**都在工作区与快照中：`533ef06` 的网络池修复已在工作区，`41299c4`/`14f256a` 只改本文档。
 - **结论：本环境禁止使用 `git stash`；带斜杠的分支名（`refs/heads/feat/...`）写入会被阻断**，分支 ref 现由 `.git/packed-refs` 承载，提交前需确认 HEAD 可解析。
 
+### 00.7 独立交叉审查（两个视角，各自独立执行）
+
+审查者未参与本轮改动，只拿到 diff 与仓库上下文。分「代码正确性」与「反模式红线合规」两个视角进行。
+
+#### 视角一：代码正确性
+
+| 等级 | 问题 | 处置 |
+| --- | --- | --- |
+| P1 | **非 Linux 主机收到误导性报错**：`preparePreviewNetworkPool` 在非 linux 静默 return，`acquirePreviewNetwork` 随后抛「网络池为空，请确认 Docker 可用」，而真实原因是主机平台不受支持（真正的平台守卫在 `launchProjectContainer` 里，但它在 acquire 之后才执行）。**CI 跑在 Linux 上抓不到这条**，直接影响 Windows/macOS 本地开发。 | **已修**：抽出 `assertPreviewPlatform()`，在 `acquirePreviewNetwork` 与 `launchProjectContainer` 两处复用，非 Linux 现在直接给出正确的平台提示。 |
+| P1 | **`unsettled` 语义误导**：台账把 `client-aborted` 计入已结算，而浏览器中止时 socket 仍会关闭并落进 `client-aborted`，故 `ERR_NETWORK_CHANGED` 那批请求**不会**出现在 `unsettled` 中；它非 0 反而指向缺记账钩子。 | **已修**：更正 `summarizePreviewRelayAccounting` docstring 与 00.3 第 4 条、00.6 第 3 条的判读口径，Run #7 主判读字段改为 `client-aborted`。 |
+| P1 | **就绪门过度承诺**：`PreviewReadiness.settled: true` 的字面类型易被读成「已确认安全」，而它实际只观测容器侧 IP 稳定性，宿主侧网络变更事件与它的相关性仍是**未证实的假设**。 | **已修**：为该类型补显式说明——`settled` 意为「观测到稳定」而非「已证明安全」，说明它缩小暴露窗口、但不证明不会再有变更事件。 |
+| P2 | `stopPreviewNetworkPool` 在网络仍有容器附着时 `network rm` 会抛非 not-found 错误，可能打断关闭流程。 | **未修（已记录）**：属关闭期健壮性，不影响本轮根因；列为下一轮待办，不在本轮扩大改动面。 |
+| P2 | 两个新断言过松：「地址附着前的检查不计入」只断言 `inspections > 3`；「永不 settle」只匹配错误正则、不校验计数。 | **已修**：前者改为断言 `probeFailures=2 / stableInspections=3 / inspections=5`；后者捕获错误对象并断言消息携带「地址变更 N 次」「需要连续 3 次」等证据字段。 |
+| P2 | events 环形缓冲上限 64，长会话可能丢失早期 `client-aborted` 明细。 | **未修（已记录）**：64 条对单次预演足够；若 Run #7 需要更长归因再调整。 |
+
+**审查者确认无问题的部分**：错误路径（`launchProjectSourcePreview` 的 catch）确实调用 `closeHostRelay` 并销毁 agent，无泄漏；relay 用 per-relay keep-alive agent + `request.once('aborted') → upstream.destroy()` 避免半截连接还池；`settled` 守卫防 finish/close 双记，账目一致；就绪门有 `timeoutMs` 上界，探测重试有界，循环体抛错在前不产生悬挂定时器。**惰性兜底未抵消核心意图**——`acquirePreviewNetwork` 在容器启动前完整 await 建池，网络仍早于 URL 下发创建。
+
+#### 视角二：反模式红线合规（负责人下达的四条禁令）
+
+| 红线 | 结论 | 依据 |
+| --- | --- | --- |
+| 禁止**增大超时**换绿 | **合规** | e2e 的 `footer`/heading 断言维持 90s 未动；新增的 `waitForPreviewReadiness` 默认 `timeoutMs=30s`，是 URL 下发**之前**的 fail-fast 门槛，不是给页面加载更多时间。 |
+| 禁止**忽略错误** | **合规** | relay 上游 `error` 由原先静默 502 改为 `settle('upstream-failed', 502, cause)` 并透出原因头；`probeEndpoint().catch(() => false)` 的作用是**重置稳定性计数**，属主动判定不稳定而非忽略。 |
+| 禁止**降低验证强度** | **合规（实为加强）** | e2e 新增断言：旧帧 `isConnected === false`、重载后 src 一致、失败请求切片 `toEqual([])`；原 `footer.toBeVisible` 未被放宽。relay report 仅**附加**进失败信息，未替换断言。 |
+| 禁止**为 Bolt 写特判** | **合规** | 本轮 diff 未引入任何 `BOLT`/`isCI`/`GITHUB_ACTIONS` 分支。检索到的 `process.env.CI` 分支均为既有逻辑，作用是「CI 下强制走 Docker-backed 路径否则 throw」，方向与开后门相反。`test.skip(!boltProjectRoot)` 是缺私有 Secret 时的合理跳过。 |
+| **证据分级**是否诚实 | **合规** | 文档明确区分「已由 trace 证明」与「尚未证明的触发来源」，并写明「真实 Bolt 验收不能由 CI 全绿推断」。 |
+
+**审查者提的唯一存疑（非违规）**：`requiredStableInspections=3` 与 `timeoutMs=30_000` 是工程经验值，注释给了方向性理由但无定量依据。这正是 Run #7 要回答的问题之一——若门槛过严会拖慢每次预演，过松则拦不住故障。
+
 ### 00.6 下一动作
 
-1. 提交本轮改动（业务代码 + 交接文档），排除 `tsconfig.node.tsbuildinfo`。
-2. 推送 `refs/heads/feat/project-first-core-20261018`，取得 CI 通过。
-3. 请负责人**一次**手动 `workflow_dispatch` 触发 Bolt acceptance；按 00.2 的时序假设与 relay report 的 `unsettled` / `client-aborted` 计数字段判读 Run #7，再决定是确认根因还是否决假设。
-4. Docker/Playwright 回归与独立交叉审查需在 Linux CI 完成后补记。
+1. ✅ 提交本轮改动（业务代码 + 交接文档），排除 `tsconfig.node.tsbuildinfo`（`ccc7dfc` → `4bc58f9` → `1ea7230`）。
+2. ✅ 推送 `refs/heads/feat/project-first-core-20261018` 并取得 CI 通过（`4bc58f9` / `1ea7230` 两次运行全绿，见 00.4）。
+3. **待负责人决策**：请**一次**手动 `workflow_dispatch` 触发 Bolt acceptance。Run #7 判读以 relay report 的 **`client-aborted`** 为主字段（理由见 00.3 第 4 条更正）：
+   - `client-aborted > 0` 且失败模块集中在排队中的那批 → 支持「容器网络未稳定触发 Chromium 网络变更」假设；
+   - `client-aborted = 0` 且 `upstream-failed > 0` → 假设不成立，问题在预演侧，需重新归因；
+   - `client-aborted = 0` 且全部 `completed` 但页面仍未渲染 → 与网络无关，转向 React 挂载路径排查。
+4. ✅ Docker/Playwright 回归（Linux CI 步骤 10–13）与独立交叉审查已完成，结果见 00.4 / 00.7。
 
 ---
 

@@ -97,6 +97,14 @@ export interface PreviewReadinessObservation {
   elapsedMs: number
 }
 
+/**
+ * `settled` means "observed stable", not "proven safe". The gate can only watch what
+ * Docker reports about the container. The host-side network-configuration event it
+ * defends against is hypothesised to coincide with container endpoint attachment, and
+ * that correlation has not been proven on the failing runner. Passing the gate narrows
+ * the window in which a browser is exposed to a network that is still coming up; it
+ * does not prove no further change event can reach the browser.
+ */
 export interface PreviewReadiness extends PreviewReadinessObservation {
   settled: true
 }
@@ -217,10 +225,18 @@ export function recordPreviewRelayEvent(accounting: PreviewRelayAccounting, even
 }
 
 /**
- * Distinguishes "the browser never got a response" from "the preview produced a response".
- * Requests that never settled are the only class a healthy upstream can lose silently, so
- * they are reported separately instead of being folded into a generic failure count. That
- * split is what separates a browser-side transport abort from a preview-side defect.
+ * Surfaces the relay's own view of a network fault.
+ *
+ * `client-aborted` is the signature of a browser-side transport abort, which includes
+ * the Chromium ERR_NETWORK_CHANGED case: the browser abandons requests that are still
+ * queued, so the relay's socket closes before the container ever answers. It is counted
+ * separately from `upstream-failed`, which is a defect on the preview side.
+ *
+ * `unsettled` counts requests that were accepted but never produced a terminal event.
+ * That is an accounting gap, NOT the abort signal: a browser abort still closes the
+ * relay's socket, so it is recorded under `client-aborted`. Expect `unsettled` to be 0
+ * in a network-change incident; a non-zero value instead points at a missing accounting
+ * hook, or at a dump taken while requests were still in flight.
  */
 export function summarizePreviewRelayAccounting(accounting: PreviewRelayAccounting): string {
   const outcomes = accounting.outcomes
@@ -275,6 +291,10 @@ function docker(args: string[], timeoutMs = 20_000, includeStderr = false): Prom
   })
 }
 
+function assertPreviewPlatform(): void {
+  if (process.platform !== 'linux') throw new CandidatePreviewError('隔离预演使用 Linux 容器并挂载原生依赖；请在 Linux 或 WSL2 中运行 Ripple 与目标项目，并将两者放在 Linux 文件系统中')
+}
+
 export async function preparePreviewNetworkPool(size = 4): Promise<void> {
   if (process.platform !== 'linux') return
   if (previewNetworkPoolReady) return previewNetworkPoolReady
@@ -306,6 +326,11 @@ async function acquirePreviewNetwork(): Promise<string> {
   // points that start a preview without that server (the E2E helpers import
   // this module directly). Once the pool exists it is never grown, so a
   // Docker network is never created while a preview page is loading.
+  // Checked here as well as in launchProjectContainer because this runs first:
+  // on a non-Linux host the pool stays empty by design, and without this guard
+  // the caller would see "the pool is empty, check Docker" instead of the real
+  // reason, which is the unsupported host platform.
+  assertPreviewPlatform()
   await preparePreviewNetworkPool()
   if (!previewNetworkPool.size) throw new CandidatePreviewError('隔离预演网络池为空；请确认本机 Docker 可用后重新启动预演服务')
   const available = [...previewNetworkPool].find(([, state]) => state === 'available')?.[0]
@@ -521,7 +546,7 @@ async function closePreviewResources(candidateId: string, preview: CandidatePrev
 }
 
 async function launchProjectContainer(candidateId: string, projectRoot: string, sourceRoot: string, networkName: string, containerName: string, authorizedResourceUrls: string[], role: 'candidate' | 'baseline' | 'source'): Promise<string> {
-  if (process.platform !== 'linux') throw new CandidatePreviewError('隔离预演使用 Linux 容器并挂载原生依赖；请在 Linux 或 WSL2 中运行 Ripple 与目标项目，并将两者放在 Linux 文件系统中')
+  assertPreviewPlatform()
   const dependencyPath = path.join(projectRoot, 'node_modules')
   if (!fs.existsSync(dependencyPath)) throw new CandidatePreviewError('真实浏览器预演需要已安装的项目 node_modules；请先在受信任环境准备依赖')
   const dependencies = fs.realpathSync(dependencyPath)

@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   addressOnPreviewNetwork,
+  CandidatePreviewError,
   createPreviewRelayAccounting,
   parsePreviewContainerInspection,
   previewRelayRejection,
@@ -93,7 +94,12 @@ describe('preview network readiness gate', () => {
     const readiness = await waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
       async () => inspection(calls++ < 2 ? '' : '172.24.0.3'), async () => true, { intervalMs: 1 })
     expect(readiness.address).toBe('172.24.0.3')
-    expect(readiness.inspections).toBeGreaterThan(3)
+    // Two inspections ran while no address was attached. They must not have fed the
+    // stability count, or a container that takes a while to get an address would be
+    // handed to the browser on the strength of checks that proved nothing.
+    expect(readiness.probeFailures).toBe(2)
+    expect(readiness.stableInspections).toBe(3)
+    expect(readiness.inspections).toBe(5)
   })
 
   it('fails immediately when the container stops instead of waiting for stability', async () => {
@@ -103,9 +109,17 @@ describe('preview network readiness gate', () => {
 
   it('reports the instability it observed when it never settles', async () => {
     let calls = 0
-    await expect(waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
+    const error = await waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
       async () => inspection(calls++ % 2 ? '172.24.0.3' : '172.24.0.4'), async () => true,
-      { intervalMs: 1, timeoutMs: 60 })).rejects.toThrow(/未观测到稳定/)
+      { intervalMs: 1, timeoutMs: 60 }).catch((cause: unknown) => cause)
+    expect(error).toBeInstanceOf(CandidatePreviewError)
+    const message = (error as Error).message
+    expect(message).toMatch(/未观测到稳定/)
+    // The failure text has to carry the evidence. If it only said "not stable", a Run 7
+    // failure would not tell us whether the address was flapping or the probe was
+    // failing, and the two have completely different fixes.
+    expect(message).toMatch(/地址变更 [1-9]/)
+    expect(message).toMatch(/需要连续 3 次/)
   })
 })
 
