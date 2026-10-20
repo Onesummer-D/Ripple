@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { isPublicPreviewResourceAddress, SnapshotFetchError, snapshotAuthorizedPreviewResources, type DownloadedResource } from './preview-resource-snapshot'
+import { isPublicPreviewResourceAddress, pinnedPublicLookup, SnapshotFetchError, snapshotAuthorizedPreviewResources, type DownloadedResource } from './preview-resource-snapshot'
 
 const tempDirs: string[] = []
 afterEach(() => { for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
@@ -22,6 +22,20 @@ function ok(body: Buffer | string, contentType: string): DownloadedResource {
 }
 
 describe('isolated preview resource snapshots', () => {
+  // Run #9 regression: Node's connection layer calls a custom lookup with
+  // { all: true }, so the callback MUST return an array. The classic
+  // (address, family) signature made Node read addresses[0].address from a
+  // string and fail every URL with "Invalid IP address: undefined" — all 19
+  // authorized resources lost in 62 ms. This test pins the callback shape the
+  // connection layer actually consumes.
+  it('pinnedPublicLookup returns an array of address entries to the connection layer', () => {
+    const lookup = pinnedPublicLookup({ address: '142.250.72.46', family: 4 })
+    let received: unknown
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(lookup as any)('example.com', { all: true }, (_error: unknown, addresses: unknown) => { received = addresses })
+    expect(received).toEqual([{ address: '142.250.72.46', family: 4 }])
+  })
+
   it.each(['127.0.0.1', '10.1.2.3', '172.20.0.4', '192.168.1.1', '169.254.169.254', '::1', 'fd00::1', 'fe80::1', '2001:db8::1'])('rejects non-public resource address %s', address => {
     expect(isPublicPreviewResourceAddress(address)).toBe(false)
   })

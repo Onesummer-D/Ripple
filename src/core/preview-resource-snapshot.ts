@@ -82,6 +82,20 @@ export function isPublicPreviewResourceAddress(address: string): boolean {
   ].some(([base, bits]) => inRange(base, bits))
 }
 
+export function pinnedPublicLookup(selected: { address: string; family: number }): NonNullable<RequestOptions['lookup']> {
+  // Node's connection layer ALWAYS invokes the custom lookup with
+  // { all: true } (observed on Node 22; both CI and this dev box), so the
+  // callback must return an array of { address, family }. The classic
+  // (address, family) signature made Node read addresses[0].address from a
+  // string, producing "Invalid IP address: undefined" in ~20 ms per URL —
+  // this is why Run #9 lost all 19 authorized resources in 62 ms while the
+  // SSRF checks themselves were passing. The pinned entry is still the
+  // single pre-validated public IP; only the callback shape changes.
+  return ((_hostname: string, _options: unknown, callback: (error: NodeJS.ErrnoException | null, addresses: Array<{ address: string; family: number }>) => void) => {
+    callback(null, [{ address: selected.address, family: selected.family }])
+  }) as NonNullable<RequestOptions['lookup']>
+}
+
 async function downloadHttps(input: string): Promise<DownloadedResource> {
   const original = new URL(input)
   if (original.protocol !== 'https:' || original.username || original.password || original.hash) throw new SnapshotFetchError('url-policy', 'Resource snapshot URL is not a credential-free HTTPS URL.')
@@ -94,10 +108,7 @@ async function downloadHttps(input: string): Promise<DownloadedResource> {
       throw new SnapshotFetchError('dns', error instanceof Error ? error.message : String(error))
     }
     if (!addresses.length || addresses.some(({ address }) => !isPublicPreviewResourceAddress(address))) throw new SnapshotFetchError('ip-check', 'Resource host does not resolve exclusively to public IP addresses.')
-    const selected = addresses[0]
-    const pinnedLookup = ((_hostname: string, _options: unknown, callback: (error: NodeJS.ErrnoException | null, address: string, family: number) => void) => {
-      callback(null, selected.address, selected.family)
-    }) as RequestOptions['lookup']
+    const pinnedLookup = pinnedPublicLookup(addresses[0])
     const result = await new Promise<DownloadedResource>((resolve, reject) => {
       const request = httpsRequest(current, {
         agent: false,
