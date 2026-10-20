@@ -201,19 +201,17 @@ function readRunnerProgressTail(artifactRoot: string, maxLines = 24): string {
   return fs.readFileSync(progressFile, 'utf8').trim().split('\n').filter(Boolean).slice(-maxLines).join('\n')
 }
 
-// Run #9: the snapshotter failed all 19 authorized resources in ~62 ms and the
-// run still burned the full 180 s executor budget, finishing with no trusted
-// record and no persisted reasons. When verification explicitly depends on
-// authorized resources and not one could be captured, continuing is strictly
-// worse than stopping: every external request would be blocked, viewport
-// checks would "pass" without their declared resources, and the failure would
-// surface only as a timeout. A project with no authorized resources (an empty
-// or fully optional list that snapshots cleanly) is unaffected.
-export function snapshotCoverageFailure(result: { snapshots: unknown[]; unavailable: Array<{ url: string; reason: string }> }): string | undefined {
+// Authorized external URLs are permissions, not a contract that every URL
+// must load. An unreachable but explicitly authorized URL can coexist with a
+// valid local-page verification (the project-workbench E2E proves this).
+// Run #9 nonetheless needs an attributable all-missing summary; preserve it
+// in diagnostics while the browser executor records unavailable resources as
+// RISK rather than manufacturing a FAILED TO RUN outcome.
+export function snapshotCoverageWarning(result: { snapshots: unknown[]; unavailable: Array<{ url: string; reason: string }> }): string | undefined {
   if (result.snapshots.length > 0 || result.unavailable.length === 0) return undefined
   const lines = result.unavailable.slice(0, 8).map(entry => `${entry.url} — ${entry.reason}`)
   const more = result.unavailable.length > 8 ? [`…以及另外 ${result.unavailable.length - 8} 条（见 resource-fetch-log.json）`] : []
-  return `全部 ${result.unavailable.length} 个授权外部资源快照失败，本次验证未启动。原因：\n${[...lines, ...more].join('\n')}`
+  return `全部 ${result.unavailable.length} 个授权外部资源未能快照；浏览器验证继续运行并将资源缺失列为风险。原因：\n${[...lines, ...more].join('\n')}`
 }
 
 export async function runCandidateVerification(candidate: CandidateRecord, session: EditSession, baseGraph: SourceGraph, preview: CandidatePreview): Promise<VerificationRun> {
@@ -266,9 +264,8 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     fs.writeFileSync(path.join(artifactRoot, 'resource-fetch-log.json'), JSON.stringify({
       unavailable: resourceSnapshotResult.unavailable,
       diagnostics: resourceSnapshotResult.diagnostics,
+      coverageWarning: snapshotCoverageWarning(resourceSnapshotResult),
     }, null, 2))
-    const coverageFailure = snapshotCoverageFailure(resourceSnapshotResult)
-    if (coverageFailure) throw new VerificationRunnerError(coverageFailure)
     exportResourceSnapshots(artifactRoot, runId, resourceSnapshotResult.snapshots)
     baseline = await startCandidateBaseline(candidate, preview)
     fs.writeFileSync(inputPath, JSON.stringify({
