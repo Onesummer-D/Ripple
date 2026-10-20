@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { createServer, request as httpRequest, type Server } from 'node:http'
+import { Agent, createServer, request as httpRequest, type Server } from 'node:http'
 import * as fs from 'node:fs'
 import * as net from 'node:net'
 import * as path from 'node:path'
@@ -82,6 +82,96 @@ export async function waitForPreviewNetworkAddress(networkName: string, containe
   throw new CandidatePreviewError(`预演容器 ${containerName} 仍在运行，但没有分配到预期网络 ${networkName} 的 IPv4 地址（attached=${Object.keys(lastNetworks).join(',') || 'none'}；等待 ${timeoutMs} ms）`)
 }
 
+export interface PreviewReadinessOptions {
+  requiredStableInspections?: number
+  intervalMs?: number
+  timeoutMs?: number
+}
+
+export interface PreviewReadinessObservation {
+  address: string
+  stableInspections: number
+  inspections: number
+  addressChanges: number
+  probeFailures: number
+  elapsedMs: number
+}
+
+export interface PreviewReadiness extends PreviewReadinessObservation {
+  settled: true
+}
+
+/**
+ * A single HTTP 200 from the container only proves Vite answered once. It does
+ * not prove the container's network namespace finished settling: `docker run`
+ * returns as soon as the container is created, and the bridge endpoint, veth
+ * pair and IP address are attached asynchronously afterwards. Pointing a
+ * browser at the preview during that window lets a host network-configuration
+ * event abort the browser's in-flight requests.
+ *
+ * This gate therefore requires *observed stability* — the same IPv4 address and
+ * a successful endpoint probe across N consecutive inspections — before the
+ * preview URL may be handed to a browser. A changed address resets the count,
+ * which is exactly the instability being detected.
+ */
+export async function waitForPreviewReadiness(
+  networkName: string,
+  containerName: string,
+  inspectContainer: () => Promise<PreviewContainerInspection>,
+  probeEndpoint: () => Promise<boolean>,
+  options: PreviewReadinessOptions = {},
+): Promise<PreviewReadiness> {
+  const required = Math.max(1, options.requiredStableInspections ?? 3)
+  const intervalMs = options.intervalMs ?? 200
+  const timeoutMs = options.timeoutMs ?? 30_000
+  const startedAt = Date.now()
+  const deadline = startedAt + timeoutMs
+  let inspections = 0
+  let probeFailures = 0
+  let addressChanges = 0
+  let stable = 0
+  let address = ''
+  while (Date.now() < deadline) {
+    const inspection = await inspectContainer()
+    inspections += 1
+    if (inspection.status !== 'running') {
+      throw new CandidatePreviewError(`预演容器 ${containerName} 在网络稳定等待期间停止（status=${inspection.status}, exit=${inspection.exitCode}, oom=${inspection.oomKilled}, error=${inspection.error || 'none'}）`)
+    }
+    let observed = ''
+    try { observed = addressOnPreviewNetwork(JSON.stringify(inspection.networks), networkName) }
+    catch (error) {
+      if (!(error instanceof CandidatePreviewError) || !/未加入预期/.test(error.message)) throw error
+    }
+    if (observed && address && observed !== address) {
+      addressChanges += 1
+      stable = 0
+    }
+    if (observed) address = observed
+    const probed = observed ? await probeEndpoint().catch(() => false) : false
+    if (!probed) {
+      probeFailures += 1
+      stable = 0
+    } else if (observed) {
+      stable += 1
+      if (stable >= required) {
+        return {
+          settled: true,
+          address,
+          stableInspections: stable,
+          inspections,
+          addressChanges,
+          probeFailures,
+          elapsedMs: Date.now() - startedAt,
+        }
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, intervalMs))
+  }
+  throw new CandidatePreviewError(
+    `隔离预演容器 ${containerName} 的网络在 ${timeoutMs} ms 内未观测到稳定（需要连续 ${required} 次一致检查；已检查 ${inspections} 次，地址变更 ${addressChanges} 次，探测失败 ${probeFailures} 次，最后地址=${address || 'none'}）`,
+  )
+}
+
 export async function resolveCandidatePreviewAddress(preview: CandidatePreview): Promise<string> {
   try {
     return await waitForPreviewNetworkAddress(preview.networkName, preview.containerName, async () => parsePreviewContainerInspection(
@@ -95,6 +185,47 @@ export async function resolveCandidatePreviewAddress(preview: CandidatePreview):
     ])
     throw new CandidatePreviewError(`${error instanceof Error ? error.message : '无法取得预演容器网络地址'}（容器状态/端点=${state}；网络端点=${network}）：${logs.slice(-4000)}`)
   }
+}
+
+export type PreviewRelayOutcome = 'completed' | 'denied' | 'client-aborted' | 'upstream-failed'
+
+export interface PreviewRelayEvent {
+  sequence: number
+  path: string
+  outcome: PreviewRelayOutcome
+  status: number
+  detail: string
+  durationMs: number
+}
+
+export interface PreviewRelayAccounting {
+  started: number
+  outcomes: Record<PreviewRelayOutcome, number>
+  events: PreviewRelayEvent[]
+}
+
+const defaultRelayEventLimit = 64
+
+export function createPreviewRelayAccounting(): PreviewRelayAccounting {
+  return { started: 0, outcomes: { completed: 0, denied: 0, 'client-aborted': 0, 'upstream-failed': 0 }, events: [] }
+}
+
+export function recordPreviewRelayEvent(accounting: PreviewRelayAccounting, event: PreviewRelayEvent, limit = defaultRelayEventLimit): void {
+  accounting.outcomes[event.outcome] += 1
+  accounting.events.push(event)
+  if (accounting.events.length > limit) accounting.events.splice(0, accounting.events.length - limit)
+}
+
+/**
+ * Distinguishes "the browser never got a response" from "the preview produced a response".
+ * Requests that never settled are the only class a healthy upstream can lose silently, so
+ * they are reported separately instead of being folded into a generic failure count. That
+ * split is what separates a browser-side transport abort from a preview-side defect.
+ */
+export function summarizePreviewRelayAccounting(accounting: PreviewRelayAccounting): string {
+  const outcomes = accounting.outcomes
+  const settled = outcomes.completed + outcomes.denied + outcomes['client-aborted'] + outcomes['upstream-failed']
+  return `started=${accounting.started} completed=${outcomes.completed} denied=${outcomes.denied} client-aborted=${outcomes['client-aborted']} upstream-failed=${outcomes['upstream-failed']} unsettled=${Math.max(0, accounting.started - settled)}`
 }
 
 export function previewRelayRejection(request: { method?: string; url?: string; host?: string; origin?: string }, expectedHost: string): { status: number; message: string } | undefined {
@@ -114,9 +245,12 @@ export function previewRelayRejection(request: { method?: string; url?: string; 
 
 const previews = new Map<string, CandidatePreview>()
 const relays = new Map<string, Server>()
+const relayAccounting = new Map<string, PreviewRelayAccounting>()
 const starting = new Map<string, Promise<CandidatePreview>>()
 const projectSourcePreviews = new Map<string, { previewId: string; sourceDigest: string; preview: CandidatePreview; ready: boolean }>()
 const projectSourceStarting = new Map<string, Promise<ProjectSourcePreview>>()
+const previewNetworkPool = new Map<string, 'available' | 'leased'>()
+let previewNetworkPoolReady: Promise<void> | undefined
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const image = 'node:22-bookworm-slim'
 
@@ -139,6 +273,56 @@ function docker(args: string[], timeoutMs = 20_000, includeStderr = false): Prom
       reject(new CandidatePreviewError(detail || `Docker 命令失败（exit ${String(code)}）`))
     })
   })
+}
+
+export async function preparePreviewNetworkPool(size = 4): Promise<void> {
+  if (process.platform !== 'linux') return
+  if (previewNetworkPoolReady) return previewNetworkPoolReady
+  previewNetworkPoolReady = (async () => {
+    const created: string[] = []
+    try {
+      await docker(['version', '--format', '{{.Server.Version}}'])
+      for (let index = 0; index < size; index += 1) {
+        const name = `ripple-preview-pool-${randomUUID()}`
+        await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', 'com.ripple.preview.pool=true', name])
+        created.push(name)
+        previewNetworkPool.set(name, 'available')
+      }
+    } catch (error) {
+      await Promise.all(created.map(name => docker(['network', 'rm', name]).catch(() => undefined)))
+      previewNetworkPool.clear()
+      previewNetworkPoolReady = undefined
+      throw new CandidatePreviewError(`无法准备隔离预演网络池：${error instanceof Error ? error.message : String(error)}`)
+    }
+  })()
+  return previewNetworkPoolReady
+}
+
+async function acquirePreviewNetwork(): Promise<string> {
+  // Networks are created once, before any browser session exists. Creating a
+  // Docker bridge network inside a preview request would mutate the host's
+  // network configuration while a browser may be mid-load.
+  if (!previewNetworkPoolReady) {
+    throw new CandidatePreviewError('隔离预演网络池尚未准备；预演网络必须在浏览器会话开始之前一次性创建，不能在预演请求中临时创建')
+  }
+  await previewNetworkPoolReady
+  const available = [...previewNetworkPool].find(([, state]) => state === 'available')?.[0]
+  if (!available) throw new CandidatePreviewError('隔离预演网络池已耗尽，请等待其他预演结束后重试')
+  previewNetworkPool.set(available, 'leased')
+  return available
+}
+
+function releasePreviewNetwork(networkName: string): void {
+  if (previewNetworkPool.has(networkName)) previewNetworkPool.set(networkName, 'available')
+}
+
+export async function stopPreviewNetworkPool(): Promise<void> {
+  const names = [...previewNetworkPool.keys()]
+  previewNetworkPool.clear()
+  previewNetworkPoolReady = undefined
+  await Promise.all(names.map(name => docker(['network', 'rm', name]).catch(error => {
+    if (!(error instanceof CandidatePreviewError) || !/not found|No such network/i.test(error.message)) throw error
+  })))
 }
 
 function mount(source: string, target: string, readonly = true): string {
@@ -176,19 +360,59 @@ async function waitForEndpoint(endpoint: string, preview: CandidatePreview, cont
   throw new CandidatePreviewError(`隔离预演未能在 60 秒内启动（${state}，${lastResponse}，容器 ${containerIp}）：${logs.slice(-4000)}`)
 }
 
-export function startHostRelay(containerIp: string, upstreamPort = 5173): Promise<{ server: Server; url: string }> {
+/**
+ * One keep-alive agent per relay. The upstream used to be opened with
+ * `connection: close`, so every module request paid a fresh TCP handshake
+ * against the container. That kept the browser's six-socket HTTP/1.1 pool
+ * saturated for far longer, which widened the window in which module requests
+ * sat queued instead of connected.
+ */
+const relayUpstreamAgents = new WeakMap<Server, Agent>()
+
+export function startHostRelay(
+  containerIp: string,
+  upstreamPort = 5173,
+  accounting = createPreviewRelayAccounting(),
+): Promise<{ server: Server; url: string; accounting: PreviewRelayAccounting }> {
+  const agent = new Agent({ keepAlive: true, keepAliveMsecs: 5_000, maxSockets: 8, scheduling: 'lifo' })
+  let sequence = 0
   const server = createServer((request, response) => {
+    const startedAt = Date.now()
+    const path = request.url ?? '/'
+    const eventSequence = (sequence += 1)
+    accounting.started = sequence
+    let settled = false
+    let deniedStatus = 0
+    const settle = (outcome: PreviewRelayOutcome, status: number, detail = ''): void => {
+      if (settled) return
+      settled = true
+      recordPreviewRelayEvent(accounting, {
+        sequence: eventSequence,
+        path,
+        outcome,
+        status,
+        detail,
+        durationMs: Date.now() - startedAt,
+      })
+    }
+    request.once('aborted', () => settle('client-aborted', 0, 'the browser closed the connection before a response was produced'))
+    response.once('finish', () => settle(deniedStatus ? 'denied' : 'completed', deniedStatus || response.statusCode, deniedStatus ? 'rejected by the relay boundary' : ''))
+    response.once('close', () => settle(
+      deniedStatus ? 'denied' : response.writableFinished ? 'completed' : 'client-aborted',
+      deniedStatus || response.statusCode,
+      deniedStatus ? 'rejected by the relay boundary' : response.writableFinished ? '' : 'the response never finished',
+    ))
     const address = server.address()
     const expectedHost = address && typeof address !== 'string' ? `127.0.0.1:${address.port}` : ''
     const denied = previewRelayRejection({ method: request.method, url: request.url, host: request.headers.host, origin: request.headers.origin }, expectedHost)
     if (denied) {
+      deniedStatus = denied.status
       response.writeHead(denied.status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
       response.end(denied.message)
       return
     }
     const headers: Record<string, string | string[] | undefined> = {
       host: `${containerIp}:${upstreamPort}`,
-      connection: 'close',
       origin: 'null',
       accept: request.headers.accept,
       'accept-encoding': request.headers['accept-encoding'],
@@ -206,6 +430,7 @@ export function startHostRelay(containerIp: string, upstreamPort = 5173): Promis
       method: request.method,
       path: request.url,
       headers: safeHeaders,
+      agent,
     }, upstreamResponse => {
       const upstreamHeaders = { ...upstreamResponse.headers }
       delete upstreamHeaders['set-cookie']
@@ -216,6 +441,7 @@ export function startHostRelay(containerIp: string, upstreamPort = 5173): Promis
           const destination = new URL(location, `http://${containerIp}:${upstreamPort}`)
           if (destination.origin !== `http://${containerIp}:${upstreamPort}`) {
             upstreamResponse.resume()
+            deniedStatus = 403
             response.writeHead(403, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
             response.end('External preview redirects are blocked')
             return
@@ -223,6 +449,7 @@ export function startHostRelay(containerIp: string, upstreamPort = 5173): Promis
           upstreamHeaders.location = `${destination.pathname}${destination.search}${destination.hash}`
         } catch {
           upstreamResponse.resume()
+          settle('upstream-failed', 502, 'the preview produced an unparseable redirect')
           response.writeHead(502, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
           response.end('Invalid preview redirect')
           return
@@ -231,10 +458,21 @@ export function startHostRelay(containerIp: string, upstreamPort = 5173): Promis
       response.writeHead(upstreamResponse.statusCode ?? 502, upstreamHeaders)
       upstreamResponse.pipe(response)
     })
-    upstream.once('error', () => {
-      if (!response.headersSent) response.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' })
+    upstream.once('error', (error: NodeJS.ErrnoException) => {
+      // A keep-alive socket that broke mid-response must not return to the
+      // pool, otherwise the next module request inherits a dead connection.
+      upstream.destroy()
+      const cause = error?.code ?? (error instanceof Error ? error.message : String(error))
+      settle('upstream-failed', 502, cause)
+      if (request.destroyed || request.aborted) return
+      if (!response.headersSent) response.writeHead(502, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-ripple-relay-error': cause })
       response.end('Candidate preview is unavailable')
     })
+    // The browser abandons in-flight module requests whenever its network
+    // stack signals a change. Tear the upstream down instead of leaving a
+    // half-written response on a pooled socket.
+    request.once('aborted', () => upstream.destroy())
+    response.once('close', () => { if (!response.writableEnded) upstream.destroy() })
     request.pipe(upstream)
   })
   server.requestTimeout = 30_000
@@ -244,16 +482,21 @@ export function startHostRelay(containerIp: string, upstreamPort = 5173): Promis
     server.listen(0, '127.0.0.1', () => {
       const address = server.address()
       if (!address || typeof address === 'string') {
+        agent.destroy()
         server.close()
         return reject(new CandidatePreviewError('无法启动本机预演转发器'))
       }
-      resolve({ server, url: `http://127.0.0.1:${address.port}/` })
+      relayUpstreamAgents.set(server, agent)
+      resolve({ server, url: `http://127.0.0.1:${address.port}/`, accounting })
     })
   })
 }
 
 async function closeHostRelay(server: Server | undefined): Promise<void> {
   if (!server?.listening) return
+  const agent = relayUpstreamAgents.get(server)
+  relayUpstreamAgents.delete(server)
+  agent?.destroy()
   const closed = new Promise<void>(resolve => server.close(() => resolve()))
   server.closeAllConnections()
   await closed
@@ -269,11 +512,9 @@ async function removeContainer(name: string): Promise<void> {
 async function closePreviewResources(candidateId: string, preview: CandidatePreview): Promise<void> {
   await closeHostRelay(relays.get(candidateId))
   relays.delete(candidateId)
+  relayAccounting.delete(candidateId)
   await removeContainer(preview.containerName)
-  try { await docker(['network', 'rm', preview.networkName]) }
-  catch (error) {
-    if (!(error instanceof CandidatePreviewError) || !/not found|No such network/i.test(error.message)) throw error
-  }
+  releasePreviewNetwork(preview.networkName)
   previews.delete(candidateId)
 }
 
@@ -304,7 +545,16 @@ async function launchProjectContainer(candidateId: string, projectRoot: string, 
     'sh', '-lc', 'printf "ripple-preview bootstrap\\n" && find /source -mindepth 1 -maxdepth 1 ! -name .git ! -name node_modules ! -name .ripple-candidate.json -exec cp -R -t /work/ {} + && printf "ripple-preview launching vite\\n" && exec node /ripple/core/candidate-preview-runner.mjs',
   ], 120_000)
   const address = await resolveCandidatePreviewAddress(probe)
-  await waitForEndpoint(`http://${address}:5173/`, probe, address)
+  const endpoint = `http://${address}:5173/`
+  await waitForEndpoint(endpoint, probe, address)
+  await waitForPreviewReadiness(networkName, containerName, async () => parsePreviewContainerInspection(
+    await docker(['inspect', '--format', '{{json .State}}|{{json .NetworkSettings.Networks}}', containerName]),
+  ), async () => {
+    try {
+      const response = await fetch(endpoint, { signal: AbortSignal.timeout(1_500) })
+      return response.ok
+    } catch { return false }
+  })
   return address
 }
 
@@ -349,19 +599,16 @@ async function launchProjectSourcePreview(projectId: string, projectRoot: string
 
   const projectRootReal = fs.realpathSync(projectRoot)
   const previewId = `project-preview-${randomUUID()}`
-  const networkName = `ripple-preview-net-${randomUUID()}`
+  const networkName = await acquirePreviewNetwork()
   const containerName = `ripple-source-preview-${randomUUID().slice(0, 12)}`
   const preview: CandidatePreview = { candidateId: previewId, url: '', containerName, networkName, authorizedResourceUrls: [...authorizedResourceUrls] }
-  let networkCreated = false
   try {
-    await docker(['version', '--format', '{{.Server.Version}}'])
-    await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', `com.ripple.project=${projectId}`, networkName])
-    networkCreated = true
     previews.set(previewId, preview)
     const containerIp = await launchProjectContainer(previewId, projectRootReal, projectRootReal, networkName, containerName, authorizedResourceUrls, 'source')
     const relay = await startHostRelay(containerIp)
     preview.url = relay.url
     relays.set(previewId, relay.server)
+    relayAccounting.set(previewId, relay.accounting)
     await waitForEndpoint(preview.url, preview, containerIp)
     const result = { projectId, previewId, sourceDigest, url: preview.url }
     projectSourcePreviews.set(projectId, { previewId, sourceDigest, preview, ready: true })
@@ -372,17 +619,67 @@ async function launchProjectSourcePreview(projectId: string, projectRoot: string
     catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
     try { await removeContainer(containerName) }
     catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
-    if (networkCreated) {
-      try { await docker(['network', 'rm', networkName]) }
-      catch (cleanupError) {
-        if (!(cleanupError instanceof CandidatePreviewError) || !/not found|No such network/i.test(cleanupError.message)) cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError))
-      }
-    }
+    releasePreviewNetwork(networkName)
     if (!cleanupFailures.length) previews.delete(previewId)
-    else if (networkCreated) projectSourcePreviews.set(projectId, { previewId, sourceDigest, preview, ready: false })
+    else projectSourcePreviews.set(projectId, { previewId, sourceDigest, preview, ready: false })
     const message = error instanceof Error ? error.message : '项目预览启动失败'
     throw new CandidatePreviewError(cleanupFailures.length ? `${message}；清理仍需重试：${cleanupFailures.join('；')}` : message)
   }
+}
+
+export interface ProjectSourcePreviewDiagnostics {
+  projectId: string
+  previewId: string
+  current: boolean
+  url: string
+  relayListening: boolean
+  relaySummary: string
+  relayEvents: PreviewRelayEvent[]
+  container: string
+  upstream: string
+}
+
+/**
+ * Evidence about one source preview after the fact. A browser that reports transport failures
+ * against a preview that never settled those requests is a different defect from one whose
+ * upstream answered, so both sides are recorded instead of collapsing them into "failed".
+ */
+export async function readProjectSourcePreviewDiagnostics(projectId: string, previewId: string): Promise<ProjectSourcePreviewDiagnostics> {
+  const entry = projectSourcePreviews.get(projectId)
+  const accounting = relayAccounting.get(previewId) ?? createPreviewRelayAccounting()
+  const current = entry?.previewId === previewId && previews.get(previewId) === entry?.preview
+  const preview = entry?.preview
+  const base: ProjectSourcePreviewDiagnostics = {
+    projectId,
+    previewId,
+    current,
+    url: preview?.url ?? '',
+    relayListening: relays.get(previewId)?.listening ?? false,
+    relaySummary: summarizePreviewRelayAccounting(accounting),
+    relayEvents: accounting.events.map(event => ({ ...event })),
+    container: 'no preview record for this project',
+    upstream: 'not probed',
+  }
+  if (!preview) return base
+  const inspection = await docker(['inspect', '--format', '{{json .State}}|{{json .NetworkSettings.Networks}}', preview.containerName], 10_000).catch(error => error instanceof Error ? error.message : 'inspect unavailable')
+  if (typeof inspection === 'string' && inspection.includes('|')) {
+    try {
+      const state = parsePreviewContainerInspection(inspection)
+      base.container = `status=${state.status} exit=${state.exitCode} oom=${state.oomKilled} error=${state.error || 'none'} networks=${Object.keys(state.networks).join(',') || 'none'}`
+    } catch {
+      base.container = inspection.slice(-400)
+    }
+  } else base.container = String(inspection).slice(-400)
+  if (!current) return base
+  try {
+    const containerIp = await resolveCandidatePreviewAddress(preview)
+    const probe = await fetch(`http://${containerIp}:5173/`, { signal: AbortSignal.timeout(2_000) })
+    base.upstream = `container ${containerIp}:5173 answered HTTP ${probe.status}`
+    await probe.arrayBuffer().catch(() => undefined)
+  } catch (error) {
+    base.upstream = `container probe failed: ${error instanceof Error ? error.message : String(error)}`
+  }
+  return base
 }
 
 export async function stopProjectSourcePreview(projectId: string, previewId?: string): Promise<void> {
@@ -460,14 +757,10 @@ async function launchCandidatePreview(candidate: CandidateRecord, authorizedReso
       throw new CandidatePreviewError(`候选修改了依赖清单 ${file}；请先在隔离依赖准备流程中安装候选依赖`)
     }
   }
-  const networkName = `ripple-preview-net-${randomUUID()}`
+  const networkName = await acquirePreviewNetwork()
   const containerName = `ripple-preview-${candidate.id.replace(/[^a-zA-Z0-9_.-]/g, '-').slice(-48)}-${randomUUID().slice(0, 8)}`
   const preview: CandidatePreview = { candidateId: candidate.id, url: '', containerName, networkName, authorizedResourceUrls: [...authorizedResourceUrls] }
-  let networkCreated = false
   try {
-    await docker(['version', '--format', '{{.Server.Version}}'])
-    await docker(['network', 'create', '--driver', 'bridge', '--internal', '--label', 'com.ripple.preview=true', '--label', `com.ripple.candidate=${candidate.id}`, networkName])
-    networkCreated = true
     previews.set(candidate.id, preview)
     const containerIp = await launchProjectContainer(candidate.id, projectRoot, candidateRoot, networkName, containerName, authorizedResourceUrls, 'candidate')
     const relay = await startHostRelay(containerIp)
@@ -484,12 +777,7 @@ async function launchCandidatePreview(candidate: CandidateRecord, authorizedReso
     catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
     try { await removeContainer(containerName) }
     catch (cleanupError) { cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError)) }
-    if (networkCreated) {
-      try { await docker(['network', 'rm', networkName]) }
-      catch (cleanupError) {
-        if (!(cleanupError instanceof CandidatePreviewError) || !/not found|No such network/i.test(cleanupError.message)) cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError))
-      }
-    }
+    releasePreviewNetwork(networkName)
     if (!cleanupFailures.length) previews.delete(candidate.id)
     const message = error instanceof Error ? error.message : '候选预演启动失败'
     throw new CandidatePreviewError(cleanupFailures.length ? `${message}；清理仍需重试：${cleanupFailures.join('；')}` : message)

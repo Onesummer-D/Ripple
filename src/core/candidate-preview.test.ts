@@ -2,7 +2,27 @@
 import { createServer, request as httpRequest } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import { addressOnPreviewNetwork, parsePreviewContainerInspection, previewRelayRejection, startHostRelay, waitForPreviewNetworkAddress } from './candidate-preview'
+import {
+  addressOnPreviewNetwork,
+  createPreviewRelayAccounting,
+  parsePreviewContainerInspection,
+  previewRelayRejection,
+  recordPreviewRelayEvent,
+  startHostRelay,
+  summarizePreviewRelayAccounting,
+  waitForPreviewNetworkAddress,
+  waitForPreviewReadiness,
+} from './candidate-preview'
+
+function inspection(address: string, status = 'running') {
+  return {
+    status,
+    exitCode: status === 'running' ? 0 : 137,
+    error: '',
+    oomKilled: false,
+    networks: { 'ripple-preview-net': { IPAddress: address } },
+  }
+}
 
 const relays: Array<{ close: () => Promise<void> }> = []
 afterEach(async () => { await Promise.all(relays.splice(0).map(relay => relay.close())) })
@@ -38,6 +58,54 @@ describe('candidate preview network address', () => {
   it('parses Docker state and attached endpoints as one inspection', () => {
     expect(parsePreviewContainerInspection(JSON.stringify({ Status: 'running', ExitCode: 0, Error: '', OOMKilled: false }) + '|' + JSON.stringify({ preview: { IPAddress: '172.24.0.3' } })))
       .toEqual({ status: 'running', exitCode: 0, error: '', oomKilled: false, networks: { preview: { IPAddress: '172.24.0.3' } } })
+  })
+})
+
+describe('preview network readiness gate', () => {
+  it('hands the preview over only after the address is observed stable across consecutive checks', async () => {
+    const readiness = await waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
+      async () => inspection('172.24.0.3'), async () => true, { intervalMs: 1 })
+    expect(readiness).toMatchObject({ address: '172.24.0.3', stableInspections: 3, addressChanges: 0, probeFailures: 0 })
+  })
+
+  it('restarts the stability count when the container address changes underneath', async () => {
+    const addresses = ['172.24.0.3', '172.24.0.3', '172.24.0.4', '172.24.0.4', '172.24.0.4']
+    let calls = 0
+    const readiness = await waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
+      async () => inspection(addresses[Math.min(calls++, addresses.length - 1)]), async () => true, { intervalMs: 1 })
+    expect(readiness.address).toBe('172.24.0.4')
+    expect(readiness.addressChanges).toBe(1)
+    expect(readiness.stableInspections).toBe(3)
+    // The two checks on the first address must not count toward stability.
+    expect(readiness.inspections).toBeGreaterThan(3)
+  })
+
+  it('restarts the stability count when the endpoint probe fails', async () => {
+    let probes = 0
+    const readiness = await waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
+      async () => inspection('172.24.0.3'), async () => ++probes !== 2, { intervalMs: 1 })
+    expect(readiness.probeFailures).toBe(1)
+    expect(readiness.stableInspections).toBe(3)
+  })
+
+  it('does not count inspections taken before an address is attached', async () => {
+    let calls = 0
+    const readiness = await waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
+      async () => inspection(calls++ < 2 ? '' : '172.24.0.3'), async () => true, { intervalMs: 1 })
+    expect(readiness.address).toBe('172.24.0.3')
+    expect(readiness.inspections).toBeGreaterThan(3)
+  })
+
+  it('fails immediately when the container stops instead of waiting for stability', async () => {
+    await expect(waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
+      async () => inspection('172.24.0.3', 'exited'), async () => true, { intervalMs: 1 })).rejects.toThrow(/网络稳定等待期间停止/)
+  })
+
+  it('reports the instability it observed when it never settles', async () => {
+    let calls = 0
+    await expect(waitForPreviewReadiness('ripple-preview-net', 'ripple-source',
+      async () => inspection(calls++ % 2 ? '172.24.0.3' : '172.24.0.4'), async () => true,
+      { intervalMs: 1, timeoutMs: 60 })).rejects.toThrow(/未观测到稳定/)
   })
 })
 
@@ -95,6 +163,95 @@ describe('candidate preview relay', () => {
     const externalRedirect = await fetch(new URL('external-redirect', relay.url), { redirect: 'manual' })
     expect(externalRedirect.status).toBe(403)
     expect(externalRedirect.headers.get('location')).toBeNull()
+    await new Promise<void>(resolve => upstream.close(() => resolve()))
+  })
+
+  it('keeps one upstream connection across module requests instead of a handshake per module', async () => {
+    let upstreamConnections = 0
+    const upstream = createServer((request, response) => {
+      response.writeHead(200, { 'content-type': 'text/javascript' })
+      response.end(`export const path = ${JSON.stringify(request.url)}`)
+    })
+    upstream.on('connection', () => { upstreamConnections += 1 })
+    await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
+    const upstreamPort = (upstream.address() as AddressInfo).port
+    const relay = await startHostRelay('127.0.0.1', upstreamPort)
+    relays.push({ close: () => new Promise(resolve => { relay.server.closeAllConnections(); relay.server.close(() => resolve()) }) })
+    for (const module of ['/src/main.tsx', '/src/App.tsx', '/src/pages/HomePage.tsx', '/@vite/client']) {
+      const response = await fetch(new URL(module, relay.url))
+      expect(response.status).toBe(200)
+      await response.text()
+    }
+    expect(upstreamConnections).toBe(1)
+    await new Promise<void>(resolve => upstream.close(() => resolve()))
+  })
+
+  it('separates requests the relay never settled from requests the preview answered', () => {
+    const accounting = createPreviewRelayAccounting()
+    accounting.started = 4
+    recordPreviewRelayEvent(accounting, { sequence: 1, path: '/src/main.tsx', outcome: 'completed', status: 200, detail: '', durationMs: 5 })
+    recordPreviewRelayEvent(accounting, { sequence: 2, path: '/src/pages/AutumnPage.tsx', outcome: 'client-aborted', status: 0, detail: 'browser closed the connection', durationMs: 120 })
+    expect(summarizePreviewRelayAccounting(accounting)).toBe(
+      'started=4 completed=1 denied=0 client-aborted=1 upstream-failed=0 unsettled=2',
+    )
+  })
+
+  it('keeps the event history bounded so a long preview cannot grow without limit', () => {
+    const accounting = createPreviewRelayAccounting()
+    for (let index = 0; index < 200; index += 1) {
+      accounting.started += 1
+      recordPreviewRelayEvent(accounting, { sequence: index, path: `/m${index}`, outcome: 'completed', status: 200, detail: '', durationMs: 1 }, 16)
+    }
+    expect(accounting.events).toHaveLength(16)
+    expect(accounting.events[accounting.events.length - 1].path).toBe('/m199')
+  })
+
+  it('records a client abort when the browser abandons an in-flight module request', async () => {
+    const upstream = createServer(() => { /* deliberately never responds */ })
+    await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
+    const upstreamPort = (upstream.address() as AddressInfo).port
+    const relay = await startHostRelay('127.0.0.1', upstreamPort)
+    relays.push({ close: () => new Promise(resolve => { relay.server.closeAllConnections(); relay.server.close(() => resolve()) }) })
+    const controller = new AbortController()
+    const pending = fetch(new URL('/src/pages/AutumnPage.tsx', relay.url), { signal: controller.signal })
+    await new Promise(resolve => setTimeout(resolve, 60))
+    controller.abort()
+    await pending.catch(() => undefined)
+    await new Promise(resolve => setTimeout(resolve, 60))
+    expect(relay.accounting.outcomes['client-aborted']).toBe(1)
+    expect(relay.accounting.events[relay.accounting.events.length - 1].path).toBe('/src/pages/AutumnPage.tsx')
+    await new Promise<void>(resolve => {
+      upstream.closeAllConnections()
+      upstream.close(() => resolve())
+    })
+  }, 15_000)
+
+  it('records relay rejections as denied rather than as preview failures', async () => {
+    const upstream = createServer((_request, response) => { response.writeHead(200); response.end('ok') })
+    await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
+    const upstreamPort = (upstream.address() as AddressInfo).port
+    const relay = await startHostRelay('127.0.0.1', upstreamPort)
+    relays.push({ close: () => new Promise(resolve => { relay.server.closeAllConnections(); relay.server.close(() => resolve()) }) })
+    const rejected = await fetch(relay.url, { method: 'POST', body: 'unexpected' })
+    expect(rejected.status).toBe(405)
+    expect(relay.accounting.outcomes.denied).toBe(1)
+    expect(relay.accounting.outcomes['upstream-failed']).toBe(0)
+    await new Promise<void>(resolve => upstream.close(() => resolve()))
+  })
+
+  it('does not forward a close connection header that would defeat upstream reuse', async () => {
+    const seen: Array<string | undefined> = []
+    const upstream = createServer((request, response) => {
+      seen.push(request.headers.connection)
+      response.writeHead(200, { 'content-type': 'text/plain' })
+      response.end('ok')
+    })
+    await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
+    const upstreamPort = (upstream.address() as AddressInfo).port
+    const relay = await startHostRelay('127.0.0.1', upstreamPort)
+    relays.push({ close: () => new Promise(resolve => { relay.server.closeAllConnections(); relay.server.close(() => resolve()) }) })
+    await (await fetch(relay.url)).text()
+    expect(seen[0]).not.toBe('close')
     await new Promise<void>(resolve => upstream.close(() => resolve()))
   })
 })

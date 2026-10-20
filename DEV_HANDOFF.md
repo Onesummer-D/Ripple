@@ -49,6 +49,98 @@
 
 ---
 
+## 00. 本轮接班（2026-10-20 晚，新 Agent 接管，基线 `8ee5408`）
+
+本节只记录本轮**实际做过的事、实际跑过的证据、以及仍然未证明的部分**。前面的核查与历史审查记录保持不动。
+
+### 00.1 前任未提交资产：已取得、已审查、已并入
+
+`ripple-pr2-bolt-run6` 工作区可访问，前任两项未提交业务修改**已完整取得并安全保存**（仓库外副本：`_handoff_assets/codex-uncommitted/20261020/`，含 `codex-local-uncommitted.diff` 与两份源文件快照）。审查结论：
+
+| 资产 | 审查结论 |
+| --- | --- |
+| `src/app/ProjectWorkbench.tsx` | 「重新加载预演」按钮 + 重载清空 selection + **异步来源响应的 iframe 身份守卫**（`frameRef.current?.contentWindow !== event.source`）。守卫方向正确：它挡住了「旧 iframe 的 post 请求在重载后才返回、把过期 selection 写回新帧」。**已保留并加固**，见 00.3。 |
+| `e2e/project-workbench.spec.ts` | 合成场景的 iframe 重建断言（旧帧 `isConnected === false`）；Bolt 场景在 `ERR_NETWORK_CHANGED` **且** relay 对失败路径逐项返回 200 时才允许一次 reload。条件约束合理，**已保留**。 |
+| `tsconfig.node.tsbuildinfo` | 构建副产物，**不提交**。 |
+
+另发现并取回一份**从未推送**的历史成果：`ripple-app` @ `44c396b`（基于 `9af557c`，非本分支），含 `PreviewRelayAccounting` 台账、`readProjectSourcePreviewDiagnostics` 与 `GET /__ripple/api/project/preview/report`。它不在远端，已移植到当前基线与本轮改动合并。
+
+### 00.2 Run #6 根因：已证明的部分与未证明的部分
+
+解析本机 Run #6 trace（`1-trace.network`，44 条记录）得到**请求级时序**，这是本节所有结论的依据：
+
+~~~text
+02:23:47.643   200  322ms  GET 127:45195/
+02:23:48.008   200  115ms  GET 127:45195/src/main.tsx
+02:23:48.150   200  ...    GET 127:45195/@fs/.../react*.js   （3 个，均 200）
+02:23:48.150   200  195ms  GET 127:45195/src/App.tsx
+02:23:48.150   200  438ms  GET 127:45195/src/index.css
+02:23:48.216   200  473ms  GET 127:45195/@fs/.../chunk-3IBZQ52V.js
+02:23:48.316   200  388ms  GET 127:45195/@fs/.../chunk-ZNGF2DDG.js
+02:23:48.346    -1  338ms  GET 127:45195/src/pages/AutumnPage.tsx    ✗ ERR_NETWORK_CHANGED
+02:23:48.346    -1  339ms  GET 127:45195/src/pages/ProductsPage.tsx  ✗
+02:23:48.346    -1  340ms  GET 127:45195/src/pages/StoryPage.tsx     ✗
+02:23:48.346   200  355ms  GET 127:45195/@id/__x00__ripple:identity  ✓
+02:23:48.346   200  358ms  GET 127:45195/src/components/Navigation.tsx ✓
+02:23:48.346   200  358ms  GET 127:45195/src/components/Footer.tsx    ✓
+02:23:48.346   200  363ms  GET 127:45195/src/pages/HomePage.tsx       ✓
+02:23:48.593    -1   96ms  GET 127:45195/@vite/client                 ✗
+（此后约 88 秒零网络活动）
+~~~
+
+**已由 trace 证明：**
+
+1. 失败是**浏览器侧**错误，不是 Vite/PostCSS/Tailwind 转换失败——容器日志只有 5 行启动信息，无转换错误，且同批 4 个请求正常返回。
+2. `02:23:48.346` 同时发出的 7 个请求**出现干净分裂**：已分到 socket 的 4 个成功（355–363 ms），仍在 Chromium 每主机 socket 池里**排队**的 3 个全部失败（338–340 ms）。这正是 Chromium 网络变更时 `FlushSocketPoolsWithError(ERR_NETWORK_CHANGED)` 的行为特征——只冲掉排队中的 connect job，已建立的连接不受影响。
+3. `/@vite/client` 失败导致 ES module 图整体中断（Vite 会给每个转换后的模块注入对它的 import），React 因此从未挂载，`footer` 不存在；之后 88 秒无重试、无恢复。
+4. 上一节记载的「失败在浏览器 ↔ 宿主转发器传输层」判断与本轮时序一致。
+
+**尚未证明（不得宣称已定位）：** 触发这次网络变更通知的**具体来源**。本机无 Docker、WSL 被安全策略拦截，**无法复现 Docker 预演路径**。最可能的候选是容器/网络生命周期产生的 netlink 接口与地址事件——`docker run --detach` 在创建容器后立即返回，bridge 端点、veth 与 IP 是异步附着的，而旧的就绪判定只证明「Vite 回答过一次 200」，**没有证明容器网络命名空间已稳定**。这一点只能由下一轮真实 Bolt 运行依据 relay 台账判定。
+
+### 00.3 本轮改动（通用修复，非放宽断言）
+
+未增大超时、未忽略浏览器错误、未关闭隔离、未为 Bolt 仓库写特判；Footer 与后续 Scope/Evidence/Approval/Apply/Rollback 检查全部保持原样。
+
+1. **`src/core/candidate-preview.ts` — 就绪判定改为「观测到稳定」**：新增 `waitForPreviewReadiness`。它在首次 200 之后，要求**连续 N 次检查得到同一 IPv4 且端点探测成功**才把预览 URL 交给浏览器；地址变更或探测失败会**重置计数**——这正是要检测的那一类不稳定。原先「一次 200 即放行」无法区分「服务已就绪」与「网络仍在收敛」。
+2. **`src/core/candidate-preview.ts` — 消除上游连接风暴**：relay 过去对上游固定发送 `connection: close`，16 个模块请求就是 16 次 TCP 握手，显著延长浏览器 socket 池被占满、请求排队的时间窗。改为按 relay 生命周期管理的 keep-alive agent（上限 8 socket），并在响应中断时销毁上游，避免半截响应污染连接池。
+3. **`src/core/candidate-preview.ts` — 网络池不得在会话中惰性创建**：`acquirePreviewNetwork()` 不再自行 `preparePreviewNetworkPool()`。创建 Docker bridge 网络会改动宿主网络配置，绝不能在浏览器可能正在加载时发生；池未就绪时直接报明确错误。
+4. **`src/core/candidate-preview.ts` — relay 台账**（移植自 `44c396b`）：`PreviewRelayAccounting` 区分 `completed / denied / client-aborted / upstream-failed`，并单独报告 **unsettled**。这是下一轮判定「浏览器放弃请求」还是「预演侧失败」的决定性依据；新增 `readProjectSourcePreviewDiagnostics` 与只读端点 `GET /__ripple/api/project/preview/report`。
+5. **`src/app/ProjectWorkbench.tsx` — 补上前任守卫的空窗**：前任用 `frameRef.current` 比对，但「点击重载 → React 提交重挂载」之间 ref 仍指向旧帧，此窗口内的返回会被误接受。新增 `previewGeneration` 计数器，在点击处理器里**同步递增**，并在预演被替换时递增，任一代次变化即在异步返回处丢弃。
+6. **`e2e/project-workbench.spec.ts`**：失败信息附加 relay report；保留前任的受条件约束恢复逻辑，恢复事实写入 `sourcePreviewRecovery` 证据字段。
+
+**reload 的定位（明确写入，避免误读）**：重新加载是**受条件约束的恢复手段**，仅在 relay 能逐项证明失败模块仍可服务时允许一次；它**不能替代根因诊断**，出现即记录进证据，下一轮不得因「重载后通过了」就认定根因消失。
+
+### 00.4 本轮验证结果（区分证据等级）
+
+| 项目 | 结果 |
+| --- | --- |
+| `npm run typecheck`（app + node，含 e2e） | **通过** |
+| `npm run build`（tsc -b + vite build，38 modules） | **通过** |
+| `candidate-preview.test.ts` | **19 passed**（含新增 6 个就绪门用例、4 个台账/连接复用例） |
+| `ProjectWorkbench.test.tsx` / `bolt-workflow.test.ts` / `preview-resource-*.test.ts` | **通过**，合计聚焦 43 passed |
+| Linux/Docker 回归、真实 Bolt 验收 | **尚未运行**（本机无 Docker，WSL 被安全策略拦截） |
+| Playwright 全量、CI、独立交叉审查 | **尚未运行**，待推送后由 CI 与负责人复核 |
+
+Windows 本机 `local-project-api.test.ts` 有 4 个 30s 超时（`analyze` 路径），与上一轮记载的本机环境性超时一致；**本轮未改动 `analyze` 路径**，需用 Linux CI 复核，不能由本机结果推断。
+
+### 00.5 本轮环境事故（必须记录，影响后续操作）
+
+执行 `git stash push` 时进程被 SIGTERM，**`.git/refs/` 目录被删除、原 packfile 被销毁**（自动 repack 未完成）。已恢复，无工作成果丢失：
+
+- 工作区源码全量快照：`_handoff_assets/worktree-snapshot-20261020/`（210 文件）。
+- 对象库由 `git fetch` 重建；分支 `feat/project-first-core-20261018` 重建于远端交接提交 **`8ee5408`**，`DEV_HANDOFF.md` 取远端权威版本（本地 533ef06 版为旧版，已弃用）。
+- 本地提交 `41299c4` / `533ef06` 的**对象**已丢失，但两者**文件内容**都在工作区与快照中：`533ef06` 的网络池修复已在工作区，`41299c4`/`14f256a` 只改本文档。
+- **结论：本环境禁止使用 `git stash`；带斜杠的分支名（`refs/heads/feat/...`）写入会被阻断**，分支 ref 现由 `.git/packed-refs` 承载，提交前需确认 HEAD 可解析。
+
+### 00.6 下一动作
+
+1. 提交本轮改动（业务代码 + 交接文档），排除 `tsconfig.node.tsbuildinfo`。
+2. 推送 `refs/heads/feat/project-first-core-20261018`，取得 CI 通过。
+3. 请负责人**一次**手动 `workflow_dispatch` 触发 Bolt acceptance；按 00.2 的时序假设与 relay report 的 `unsettled` / `client-aborted` 计数字段判读 Run #7，再决定是确认根因还是否决假设。
+4. Docker/Playwright 回归与独立交叉审查需在 Linux CI 完成后补记。
+
+---
+
 ## 0. 前次独立审查记录（2026-10-20 14:51，UTC+8）
 
 > 以下审查针对当时 A `d8d8b18` / B `b7a0306`。当前 A 文档基线已到 `d2a429a`（CI #254 成功），B 已到 `caeeb22`（CI #256 成功）；下列 B 问题是否在新提交修复，尚未逐项复审，不能直接沿用为最新代码结论。
