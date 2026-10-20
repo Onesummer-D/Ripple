@@ -21,7 +21,6 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
-import * as http from 'node:http'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from '../src/core/project'
@@ -42,6 +41,7 @@ import {
   type MediaDualEndpointViewport,
   type MediaViewportEvidenceReport,
 } from '../src/core/media-viewport-evidence'
+import { serveStatic } from '../src/core/media-acceptance-server'
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,29 +51,6 @@ const run = (command: string, args: string[], options: { cwd?: string; timeoutMs
 
 class AcceptanceError extends Error {
   constructor(message: string) { super(message); this.name = 'AcceptanceError' }
-}
-
-function serveStatic(rootDir: string, port: number): Promise<http.Server> {
-  const types: Record<string, string> = {
-    '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
-    '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-    '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff': 'font/woff', '.woff2': 'font/woff2',
-  }
-  const server = http.createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://127.0.0.1')
-    let relative = decodeURIComponent(url.pathname).replace(/^\/+/, '')
-    if (relative.split(/[\\/]/).includes('..')) { response.writeHead(404); response.end('not found'); return }
-    if (!relative) relative = 'index.html'
-    let absolute = path.join(rootDir, relative)
-    if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) absolute = path.join(rootDir, 'index.html')
-    if (!fs.existsSync(absolute)) { response.writeHead(404); response.end('not found'); return }
-    response.writeHead(200, { 'content-type': types[path.extname(absolute).toLowerCase()] ?? 'application/octet-stream' })
-    fs.createReadStream(absolute).pipe(response)
-  })
-  return new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(port, '127.0.0.1', () => resolve(server))
-  })
 }
 
 async function downloadBytes(url: string): Promise<Uint8Array> {
@@ -372,6 +349,12 @@ async function main(): Promise<void> {
     .sort((a, b) => certaintyRank[a.impact.certainty] - certaintyRank[b.impact.certainty] || a.node.id.localeCompare(b.node.id))
   const chosen = attributable[0]
   if (!chosen) throw new AcceptanceError('没有任何媒体节点可证明到作品页（来源分析 fail-closed 结果异常）')
+  // 验收目标确定性门（负责人二阶段要求）：只有 source-proven 的目标允许进入替换验收；
+  // partial/unknown 仅说明分类图影响可归属，不代表可安全替换——低于门槛直接拒绝，
+  // 避免把"分类图影响可证明"误写成"商品图片修改能力已完整支持"。
+  if (chosen.impact.certainty !== 'source-proven') {
+    throw new AcceptanceError(`最佳可归因媒体确定性为 ${chosen.impact.certainty}，低于 source-proven 验收门槛，拒绝继续`)
+  }
   const target = chosen.node
   const targetLocation = target.location
   if (!targetLocation) throw new AcceptanceError('目标媒体节点缺少源码位置')
@@ -379,6 +362,8 @@ async function main(): Promise<void> {
   steps.sourceLocation = {
     targetRef: target.id, path: targetLocation.path, value: target.value,
     pageRefs: impact.pageRefs, certainty: impact.certainty, unresolved: impact.unresolved,
+    allowedCertainty: 'source-proven only（partial/unknown 只证明分类图影响归属，不授权替换验收）',
+    scopeBoundary: `Scope 授权：${target.id} + ${productsRoute.id}；未授权页面与媒体由双端 DOM 对照与字节哈希兜底`,
     note: '青野商品图经动态类别筛选，静态不可证明到页面；本目标为直接 map 消费的分类图，未解析关系如实保留',
   }
 
