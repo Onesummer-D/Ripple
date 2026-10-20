@@ -4,9 +4,11 @@ import {
   assetUrlMatches,
   buildMediaViewportEvidenceReport,
   computeCropGeometry,
+  mediaDualEndpointSha256,
   mediaEvidenceSummary,
   mediaViewportEvidenceSha256,
   MediaViewportEvidenceError,
+  type MediaDualEndpointCollection,
   type MediaViewportObservation,
 } from './media-viewport-evidence'
 
@@ -206,5 +208,43 @@ describe('buildMediaViewportEvidenceReport', () => {
     })
     expect(mediaViewportEvidenceSha256(base)).toMatch(/^[0-9a-f]{64}$/)
     expect(mediaViewportEvidenceSha256(base)).not.toBe(mediaViewportEvidenceSha256(other))
+  })
+})
+
+describe('mediaDualEndpointSha256（dual.json 篡改回验门）', () => {
+  const viewport = (): MediaDualEndpointCollection['viewports'][number] => ({
+    viewport: { name: 'desktop', width: 1440, height: 900 },
+    candidate: { worksPageReached: true, markerVisible: true, markerMatchCount: 1 },
+    baseline: {
+      pageUrl: 'http://127.0.0.1:4620/', worksPageReached: true, markerVisible: true, markerMatchCount: 1,
+      imageFound: true, currentSrc: 'https://cdn.example.com/old.jpeg', errors: [],
+    },
+    maskedComparison: {
+      matched: true, baselineDigest: 'b'.repeat(64), candidateDigest: 'b'.repeat(64),
+      baselineSnapshot: '<main>x</main>', candidateSnapshot: '<main>x</main>', maskedOperationIds: ['op-1'],
+    },
+    interaction: { baselinePassed: true, candidatePassed: true, baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified' },
+    layout: { horizontalOverflow: false },
+    runtimeState: 'rendered',
+    errors: [],
+    warnings: [],
+  })
+  const collection = (): MediaDualEndpointCollection => ({ capturedAt: '2026-10-21T00:00:00.000Z', viewports: [viewport()] })
+
+  it('哈希格式合法且对同一集合稳定', () => {
+    expect(mediaDualEndpointSha256(collection())).toMatch(/^[0-9a-f]{64}$/)
+    expect(mediaDualEndpointSha256(collection())).toBe(mediaDualEndpointSha256(collection()))
+  })
+
+  it('负例：篡改任一观测字段（如把未匹配改成匹配）哈希即变化，验收脚本能据此拒绝被操纵的 dual.json', () => {
+    const tampered = collection()
+    tampered.viewports[0]!.maskedComparison.matched = false
+    tampered.viewports[0]!.maskedComparison.candidateDigest = 'c'.repeat(64)
+    expect(mediaDualEndpointSha256(tampered)).not.toBe(mediaDualEndpointSha256(collection()))
+    // 覆盖验收脚本的回验语义：文件记录的 sha256 必须等于内容重算值，否则中止
+    const serialized = JSON.parse(JSON.stringify({ collection: collection(), sha256: mediaDualEndpointSha256(collection()) })) as { collection: MediaDualEndpointCollection; sha256: string }
+    expect(mediaDualEndpointSha256(serialized.collection)).toBe(serialized.sha256)
+    serialized.collection.viewports[0]!.interaction.candidatePassed = false
+    expect(mediaDualEndpointSha256(serialized.collection)).not.toBe(serialized.sha256)
   })
 })
