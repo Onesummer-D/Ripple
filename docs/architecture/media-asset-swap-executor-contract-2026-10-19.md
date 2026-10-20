@@ -60,5 +60,10 @@ A 候选核心（createCandidate({ executors, readStagedAsset })）
 
 - 本机 Windows 全量测试存在已知 EPERM 临时目录清理失败（与基线相同，零断言失败）；
   以 Linux CI 为准。
-- 四视口图片加载与裁切几何 Evidence 模块（focalPoint/containerHint 消费方）随后续提交
-  加入本分支，用于青野真实 MEDIA 纵向闭环的浏览器验证。
+- 四视口 Evidence 已交付：`src/core/media-viewport-evidence.ts`（纯函数：裁切几何推导
+  cover/contain/object-position、焦点可见性、观测断言、报告组装与候选 SHA 绑定、
+  缺视口拒绝生成）+ `scripts/media-viewport-evidence.ts`（Playwright 采集运行器，
+  沿用 A 的 ts-extension-loader 约定）。未加载的观测记 `not-loaded` 几何并判 failed，
+  不静默降级；不支持的 object-fit 如实记 unknown。
+- 下一步：青野真实 MEDIA 纵向闭环（真实商品图、预览服务、本运行器四视口采集、
+  Evidence 与候选版本绑定、审批/应用/回滚复用 A 生命周期）。
