@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { RouteIdentityStatus } from './model'
 import { projectPreviewViewports } from './project-viewports'
 
 /**
@@ -17,6 +18,26 @@ import { projectPreviewViewports } from './project-viewports'
  */
 
 export const MEDIA_VIEWPORT_EVIDENCE_SCHEMA = 'ripple-media-viewport-evidence/v1'
+
+/**
+ * 判断浏览器 currentSrc 是否确为给定 assetRef。
+ * 规范化比较：相对 assetRef 只比 pathname+search（排除 origin 差异），
+ * 绝对 assetRef 额外要求 origin 一致；禁止子串匹配，避免
+ * /media/x.jpeg.bak 被误判为 /media/x.jpeg。
+ */
+export function assetUrlMatches(currentSrc: string, assetRef: string): boolean {
+  const toUrl = (value: string, allowRelative: boolean): URL | undefined => {
+    try { return new URL(value) } catch { /* fall through */ }
+    if (!allowRelative) return undefined
+    try { return new URL(value, 'http://ripple.asset.local') } catch { return undefined }
+  }
+  const src = toUrl(currentSrc, false)
+  const ref = toUrl(assetRef, true)
+  if (!src || !ref) return false
+  if (src.pathname !== ref.pathname || src.search !== ref.search) return false
+  // assetRef 为绝对 URL 时 origin 必须一致；相对 assetRef 已用占位 origin 解析，跳过
+  return /^https?:\/\//i.test(assetRef) ? src.origin === ref.origin : true
+}
 
 export class MediaViewportEvidenceError extends Error {
   constructor(message: string) { super(message); this.name = 'MediaViewportEvidenceError' }
@@ -122,8 +143,11 @@ export function computeCropGeometry(observation: MediaViewportObservation, focal
       const percent = Number(trimmed.slice(0, -1)) / 100
       if (Number.isFinite(percent)) return (overflow - scaled) * percent
     }
+    // CSS object-position 的长度值语义与 background-position 一致：从左上角的绝对
+    // 偏移，允许负值与溢出，不做钳制（CSS Images L3 §5.3）。之前 Math.min(px, overflow-scaled)
+    // 的钳制会把正像素偏移错误地吸附到对侧，已与真实 Chromium 渲染核对修正。
     const px = Number.parseFloat(trimmed)
-    if (Number.isFinite(px)) return Math.min(px, overflow - scaled)
+    if (Number.isFinite(px)) return px
     return (overflow - scaled) / 2
   }
   const [rawX = '50%', rawY = '50%'] = objectPosition.split(' ')
@@ -157,10 +181,10 @@ export function assertMediaViewportObservation(
   assertions.push(observation.loaded
     ? { id: 'media-loaded', result: 'pass', detail: `natural ${observation.naturalWidth}x${observation.naturalHeight}` }
     : { id: 'media-loaded', result: 'failed', detail: `图片未加载：${observation.errors.join('；') || 'complete=false 或 naturalWidth=0'}` })
-  const swapped = observation.currentSrc.includes(observation.assetRef)
+  const swapped = assetUrlMatches(observation.currentSrc, observation.assetRef)
   assertions.push(swapped
-    ? { id: 'media-source-swapped', result: 'pass', detail: `currentSrc 命中 ${observation.assetRef}` }
-    : { id: 'media-source-swapped', result: 'failed', detail: `currentSrc ${observation.currentSrc} 未命中 ${observation.assetRef}` })
+    ? { id: 'media-source-swapped', result: 'pass', detail: `currentSrc ${observation.currentSrc} 规范化匹配 ${observation.assetRef}` }
+    : { id: 'media-source-swapped', result: 'failed', detail: `currentSrc ${observation.currentSrc} 与 ${observation.assetRef} 规范化后不一致` })
   if (geometry.scaleMode === 'not-loaded') {
     assertions.push({ id: 'media-crop-geometry', result: 'failed', detail: '图片未加载或观测无效，无法推导几何' })
   } else if (geometry.scaleMode === 'unsupported-fit') {
@@ -237,3 +261,58 @@ export function buildMediaViewportEvidenceReport(input: {
 
 export const mediaViewportEvidenceSha256 = (report: MediaViewportEvidenceReport): string =>
   createHash('sha256').update(JSON.stringify(report)).digest('hex')
+
+/**
+ * 双端（原工程基线 / 候选）单视口真实浏览器采集结果。
+ * 由 scripts/media-viewport-evidence.ts 在真实 Playwright 会话中填充，
+ * 验收脚本据其构建 VerificationRun —— 每个字段都来自真实浏览器状态，
+ * 禁止用静态预期值回填（对照必须来自真实双端渲染）。
+ */
+export interface MediaDualEndpointViewport {
+  viewport: { name: string; width: number; height: number }
+  /** 候选端：导航后作品页 marker（如青野「器物全集」）真实可见性与匹配数 */
+  candidate: { worksPageReached: boolean; markerVisible: boolean; markerMatchCount: number }
+  /** 基线端：同一导航在原工程构建中的真实结果与目标图当前 src */
+  baseline: {
+    pageUrl: string
+    worksPageReached: boolean
+    markerVisible: boolean
+    markerMatchCount: number
+    imageFound: boolean
+    currentSrc: string
+    /** 基线端目标图元素截图（outputDir/<viewport>-baseline.png）的内容哈希，可追溯 */
+    screenshotSha256?: string
+    errors: string[]
+  }
+  /** 双端 DOM 对照：目标图 src 被遮蔽后的 #root 快照，digest 真实计算 */
+  maskedComparison: {
+    matched: boolean
+    baselineDigest: string
+    candidateDigest: string
+    baselineSnapshot: string
+    candidateSnapshot: string
+    maskedOperationIds: string[]
+    reason?: string
+  }
+  /** 真实交互：双端各自点击声明控件并验证期望文本 */
+  interaction: {
+    baselinePassed: boolean
+    candidatePassed: boolean
+    baselineRouteIdentity: RouteIdentityStatus
+    candidateRouteIdentity: RouteIdentityStatus
+  }
+  layout: { horizontalOverflow: boolean }
+  runtimeState: string
+  /** 致命错误（pageerror / 非资源类控制台错误），进入 browser-errors 断言计算 */
+  errors: string[]
+  /** 环境性警告（第三方资源加载失败等），保留供追溯但不阻断媒体断言 */
+  warnings: string[]
+}
+
+export interface MediaDualEndpointCollection {
+  capturedAt: string
+  viewports: MediaDualEndpointViewport[]
+}
+
+export const mediaDualEndpointSha256 = (collection: MediaDualEndpointCollection): string =>
+  createHash('sha256').update(JSON.stringify(collection)).digest('hex')

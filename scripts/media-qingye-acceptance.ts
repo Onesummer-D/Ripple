@@ -11,8 +11,10 @@
  *   青野源码 analyzeProject 定位媒体节点（动态筛选商品图 fail-closed 不可证明，
  *   选择可证明到作品页的分类图目标，确定性/未解析关系如实记录）
  *   → 新图字节进内容寻址暂存 → B 执行器 plan → A 候选核心 createCandidate
- *   → 候选 worktree 构建（vite build）+ 静态服务 → 四视口 Playwright 采集（真实浏览器）
- *   → Evidence 报告（绑定 patchHash / candidateTreeDigest，summary 必须为 pass 才能继续）
+ *   → 候选 worktree 构建（vite build）+ 原工程基线 worktree 构建（真实双端）
+ *   → 双静态服务 → 四视口 Playwright 双端真实采集（候选端：加载/几何/截图；
+ *      基线端：同一导航/marker/原图 currentSrc；双端：DOM 快照对照、真实点击交互）
+ *   → VerificationRun 由双端真实观测构建（assertion 逐条真实计算，禁止硬编码 PASS）
  *   → 审批（真实证据门控）→ applyApprovedCandidate 应用同一补丁 → 校验树摘要 → rollback 恢复
  * 输出：<workDir>/acceptance.json（含双方 SHA、候选身份、证据哈希、每步结果）。
  */
@@ -29,10 +31,16 @@ import { mediaAssetSwapExecutors } from '../src/core/media-asset-swap'
 import { applyApprovedCandidate, rollbackAppliedCandidate } from '../src/core/apply'
 import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from '../src/core/session'
 import { expectedTextForPage, sourceProvenPageImpact } from '../src/core/scope'
-import type { BrowserVerificationContract, ScopeDecision, VerificationRun } from '../src/core/model'
+import type { BrowserVerificationContract, EvidenceResult, ScopeDecision, VerificationAssertion, VerificationRun } from '../src/core/model'
 import { attestBrowserExecution } from '../src/core/verification-receipt'
 import { verificationContractHash } from '../src/core/verification-contract'
-import { mediaEvidenceSummary } from '../src/core/media-viewport-evidence'
+import {
+  assetUrlMatches,
+  mediaEvidenceSummary,
+  type MediaDualEndpointCollection,
+  type MediaDualEndpointViewport,
+  type MediaViewportEvidenceReport,
+} from '../src/core/media-viewport-evidence'
 
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -82,96 +90,253 @@ async function downloadBytes(url: string): Promise<Uint8Array> {
   return bytes
 }
 
+/** 真实页面契约：作品页唯一 marker「器物全集」，导航控件「商品专题」；
+ *  页内真实交互：点击「茶器」筛选，期望「柴烧茶壶」出现且「素白陶碗」消失。 */
 function contractFor(pageRef: string): BrowserVerificationContract {
-  // 交互即证据采集器的真实导航动作：点击"商品专题"进入作品页
   return {
-    pages: [{ pageRef, path: '/', markerText: 'Products page' }],
-    interactions: [{ pageRef, role: 'button', name: '商品专题', expectedText: 'Products page' }],
+    pages: [{ pageRef, path: '/', markerText: '器物全集', navigateBy: { role: 'button', name: '商品专题' } }],
+    interactions: [{ pageRef, role: 'button', name: '茶器', expectedText: '柴烧茶壶' }],
   }
 }
 
-/** 与仓库既有测试约定一致的受信运行；真实门控：mediaSummary 必须是 pass。
- *  四视口截图作为 Playwright 工件复制进 artifactRoot 并逐视口登记 evidence。 */
-function trustedRun(candidate: CandidateRecord, scope: ScopeDecision, pageRef: string, runtimeFingerprint: string, artifactRoot: string, mediaEvidence: { sha256: string; summary: string; dir: string }): VerificationRun {
+/**
+ * 受信运行：VerificationRun 完全由双端真实采集数据（dual.json）驱动。
+ * - checks/evidence：候选端真实运行态（渲染/溢出/加载），截图工件带 PNG 魔数校验；
+ * - baselineComparisons：双端真实 DOM 快照（各自 digest），不复制同一摘要；
+ * - scopeObservations / interactionObservations：双端真实 marker 与点击结果；
+ * - assertions：七项逐条由真实数据计算，未验证项保持 unknown，禁止硬编码 PASS。
+ */
+function trustedRun(
+  candidate: CandidateRecord,
+  scope: ScopeDecision,
+  pageRef: string,
+  runtimeFingerprint: string,
+  artifactRoot: string,
+  mediaEvidence: { sha256: string; summary: string; dir: string; dualSha256: string },
+  report: MediaViewportEvidenceReport,
+  dual: MediaDualEndpointCollection,
+): VerificationRun {
   fs.mkdirSync(artifactRoot, { recursive: true })
   if (mediaEvidence.summary !== 'pass') throw new AcceptanceError(`媒体 Evidence 未通过（${mediaEvidence.summary}），拒绝进入审批`)
   const contract = contractFor(pageRef)
-  const viewportArtifacts = [
-    { name: 'desktop', width: 1440, height: 900 },
-    { name: 'tablet', width: 768, height: 1024 },
-    { name: 'mobile-375', width: 375, height: 812 },
-    { name: 'mobile-390', width: 390, height: 844 },
-  ].map(item => {
-    const source = path.join(mediaEvidence.dir, `${item.name}.png`)
+  const operation = candidate.operations[0]
+  if (!operation) throw new AcceptanceError('候选缺少操作记录')
+  const checkName = (name: string) => `products-media-${name}`
+
+  // 截图工件：候选端真实 PNG 复制进 artifactRoot 并校验魔数
+  const screenshotArtifacts = report.observations.map(observation => {
+    const source = path.join(mediaEvidence.dir, `${observation.viewport.name}.png`)
     if (!fs.existsSync(source)) throw new AcceptanceError(`缺少视口截图：${source}`)
-    const target = path.join(artifactRoot, `${item.name}.png`)
+    const target = path.join(artifactRoot, `${observation.viewport.name}.png`)
     fs.copyFileSync(source, target)
     const bytes = fs.readFileSync(target)
     if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new AcceptanceError(`视口截图不是 PNG：${source}`)
-    return { ...item, path: target, sha256: sha256(bytes) }
+    return { observation, path: target, sha256: sha256(bytes) }
   })
-  const checkFor = (item: { name: string; width: number; height: number }) => ({
-    id: `products-media-${item.name}`, route: '/', viewport: { width: item.width, height: item.height },
-    state: 'products-ready', description: `Swapped category image loads at ${item.width}x${item.height}`, mandatory: true as const,
-  })
-  const checks = viewportArtifacts.map(checkFor)
-  const assertions = ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors'].map(assertionId => ({
-    id: assertionId,
-    result: 'pass' as const,
-    detail: ['responsive-layout', 'target-change', 'source-mapping'].includes(assertionId)
-      ? `backed by media evidence ${mediaEvidence.sha256.slice(0, 12)}`
-      : `verified ${assertionId}`,
+
+  const dualByName = new Map(dual.viewports.map(item => [item.viewport.name, item]))
+  const viewportResult = (name: string): { result: 'pass' | 'risk' | 'failed-to-run'; state: string; overflow: boolean } => {
+    const item = dualByName.get(name)
+    if (!item) return { result: 'failed-to-run', state: 'navigation-failed', overflow: false }
+    const loaded = item.runtimeState === 'rendered' && item.candidate.worksPageReached
+    if (!loaded) return { result: 'failed-to-run', state: item.runtimeState, overflow: item.layout.horizontalOverflow }
+    return item.layout.horizontalOverflow
+      ? { result: 'risk', state: 'horizontal-overflow', overflow: true }
+      : { result: 'pass', state: 'rendered', overflow: false }
+  }
+
+  const checks = screenshotArtifacts.map(({ observation }) => ({
+    id: checkName(observation.viewport.name), route: '/', viewport: { width: observation.viewport.width, height: observation.viewport.height },
+    state: viewportResult(observation.viewport.name).state,
+    description: `Swapped category image loads at ${observation.viewport.width}x${observation.viewport.height}`,
+    mandatory: true as const,
   }))
-  const targetAfter = candidate.operations[0]?.after ?? ''
-  const baselineSnapshot = `<main data-candidate="${candidate.id}">${targetAfter}</main>`
-  const comparisonDigest = sha256(baselineSnapshot)
-  const baselineComparisons = viewportArtifacts.map(item => {
-    const comparisonPath = path.join(artifactRoot, `media-evidence-link-${item.name}.json`)
-    const comparisonBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, route: '/', viewport: { width: item.width, height: item.height }, baselineSnapshot, candidateSnapshot: baselineSnapshot, maskedOperationIds: [candidate.operations[0]?.id ?? 'media-swap'] }))
+
+  // 双端 DOM 对照：artifact 内快照字符串与 digest 必须对应（attest 强校验）
+  const baselineComparisons = dual.viewports.map(item => {
+    const comparison = item.maskedComparison
+    const viewport = { width: item.viewport.width, height: item.viewport.height }
+    if (!comparison.baselineDigest || !comparison.candidateDigest) {
+      return { route: '/', viewport, maskedOperationIds: comparison.maskedOperationIds, matched: false, reason: comparison.reason }
+    }
+    const comparisonPath = path.join(artifactRoot, `${checkName(item.viewport.name)}-baseline.json`)
+    const comparisonBytes = Buffer.from(JSON.stringify({
+      schemaVersion: 1, route: '/', viewport,
+      baselineSnapshot: comparison.baselineSnapshot, candidateSnapshot: comparison.candidateSnapshot,
+      maskedOperationIds: comparison.maskedOperationIds,
+    }, null, 2))
+    if (comparisonBytes.length > 4 * 1024 * 1024) {
+      return { route: '/', viewport, maskedOperationIds: comparison.maskedOperationIds, matched: false, reason: 'Serialized DOM comparison exceeded the 4 MiB evidence limit.' }
+    }
     fs.writeFileSync(comparisonPath, comparisonBytes)
-    return { route: '/', viewport: { width: item.width, height: item.height }, baselineDigest: comparisonDigest, candidateDigest: comparisonDigest, maskedOperationIds: [candidate.operations[0]?.id ?? 'media-swap'], matched: true, artifactPath: comparisonPath, artifactHash: sha256(comparisonBytes) }
+    return {
+      route: '/', viewport,
+      baselineDigest: comparison.baselineDigest, candidateDigest: comparison.candidateDigest,
+      maskedOperationIds: comparison.maskedOperationIds, matched: comparison.matched,
+      artifactPath: comparisonPath, artifactHash: sha256(comparisonBytes),
+    }
   })
-  const scopeObservations = contract.pages.flatMap(page => viewportArtifacts.map(item => ({
-    pageRef: page.pageRef, route: page.path, viewport: { width: item.width, height: item.height }, markerText: page.markerText,
-    baselineMarkerVisible: true, candidateMarkerVisible: true, baselineMarkerMatchCount: 1, candidateMarkerMatchCount: 1,
-    baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const,
-    operations: candidate.operations.map(operation => {
-      const expectation = expectedTextForPage({ value: operation.before }, operation, scope, page.pageRef)
-      return { operationId: operation.id, expectedBaselineText: expectation.baselineText, expectedCandidateText: expectation.candidateText, baselineValues: [expectation.baselineText], candidateValues: [expectation.candidateText] }
-    }),
-  })))
-  const interactionObservations = viewportArtifacts.map(item => ({
-    interactionIndex: 0, pageRef, route: '/', viewport: { width: item.width, height: item.height }, role: 'button' as const, name: '商品专题',
-    expectedText: 'Products page', baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const,
-    baselinePassed: true, candidatePassed: true,
+
+  const routeIdentity = (visible: boolean, count: number): 'verified' | 'ambiguous' | 'missing' =>
+    count === 0 ? 'missing' : count > 1 || !visible ? 'ambiguous' : 'verified'
+
+  const scopeObservations = contract.pages.flatMap(page =>
+    dual.viewports.map(item => ({
+      pageRef: page.pageRef, route: page.path,
+      viewport: { width: item.viewport.width, height: item.viewport.height }, markerText: page.markerText,
+      baselineMarkerVisible: item.baseline.markerVisible, candidateMarkerVisible: item.candidate.markerVisible,
+      baselineMarkerMatchCount: item.baseline.markerMatchCount, candidateMarkerMatchCount: item.candidate.markerMatchCount,
+      baselineRouteIdentity: routeIdentity(item.baseline.markerVisible, item.baseline.markerMatchCount),
+      candidateRouteIdentity: routeIdentity(item.candidate.markerVisible, item.candidate.markerMatchCount),
+      operations: [{
+        operationId: operation.id,
+        expectedBaselineText: operation.before,
+        expectedCandidateText: expectedTextForPage({ value: operation.before }, operation, scope, page.pageRef).candidateText,
+        baselineValues: item.baseline.imageFound ? [item.baseline.currentSrc] : [],
+        candidateValues: [report.observations.find(o => o.viewport.name === item.viewport.name)?.currentSrc ?? ''],
+      }],
+    })))
+
+  const interactionObservations = dual.viewports.map(item => ({
+    interactionIndex: 0, pageRef, route: '/',
+    viewport: { width: item.viewport.width, height: item.viewport.height },
+    role: 'button' as const, name: contract.interactions[0]!.name, expectedText: contract.interactions[0]!.expectedText,
+    baselineRouteIdentity: item.interaction.baselineRouteIdentity, candidateRouteIdentity: item.interaction.candidateRouteIdentity,
+    baselinePassed: item.interaction.baselinePassed, candidatePassed: item.interaction.candidatePassed,
   }))
-  const capturedAt = new Date().toISOString()
-  const evidence = viewportArtifacts.map(item => ({
-    id: `evidence-media-${item.name}`, checkId: `products-media-${item.name}`, result: 'pass' as const, capturedAt,
-    pageUrl: 'http://127.0.0.1:4619/', viewport: { width: item.width, height: item.height }, runtimeState: 'products-ready',
-    elementRefs: candidate.operations.map(operation => operation.targetRef),
-    artifactPath: item.path, artifactHash: item.sha256,
-  }))
+
+  const allRendered = dual.viewports.every(item => item.runtimeState === 'rendered')
+  const viewportResults = dual.viewports.map(item => viewportResult(item.viewport.name))
+  const everyViewportPassed = viewportResults.every(item => item.result === 'pass')
+  const overflowObserved = dual.viewports.some(item => item.layout.horizontalOverflow)
+  const totalErrors = dual.viewports.reduce((sum, item) => sum + item.errors.length, 0)
+
+  const candidateSwaps = report.observations.map(observation => assetUrlMatches(observation.currentSrc, observation.assetRef))
+  const comparisonsWithDigest = baselineComparisons.filter(comparison => comparison.baselineDigest && comparison.candidateDigest)
+  const allComparisonsMatched = comparisonsWithDigest.length === dual.viewports.length && comparisonsWithDigest.every(comparison => comparison.matched)
+  const someComparisonDiffered = comparisonsWithDigest.some(comparison => !comparison.matched)
+
+  const scopeVerified = (item: MediaDualEndpointViewport) =>
+    item.baseline.markerVisible && item.candidate.markerVisible &&
+    item.baseline.markerMatchCount === 1 && item.candidate.markerMatchCount === 1 &&
+    item.baseline.imageFound && assetUrlMatches(item.baseline.currentSrc, operation.before) &&
+    report.observations.some(o => o.viewport.name === item.viewport.name && assetUrlMatches(o.currentSrc, operation.after))
+  const scopeContradicted = (item: MediaDualEndpointViewport) =>
+    (item.baseline.markerVisible && item.baseline.markerMatchCount === 1 && item.baseline.imageFound && !assetUrlMatches(item.baseline.currentSrc, operation.before)) ||
+    (item.candidate.markerVisible && item.candidate.markerMatchCount === 1 && !report.observations.some(o => o.viewport.name === item.viewport.name && assetUrlMatches(o.currentSrc, operation.after)))
+  const scopeAllVerified = dual.viewports.every(scopeVerified)
+  const scopeAnyContradicted = dual.viewports.some(scopeContradicted)
+
+  const interactionsVerified = dual.viewports.every(item =>
+    item.interaction.baselineRouteIdentity === 'verified' && item.interaction.candidateRouteIdentity === 'verified')
+  const interactionsAllPassed = interactionsVerified && dual.viewports.every(item => item.interaction.baselinePassed && item.interaction.candidatePassed)
+  const interactionsAnyFailed = interactionsVerified && dual.viewports.some(item => !item.interaction.baselinePassed || !item.interaction.candidatePassed)
+
+  const assertions: VerificationAssertion[] = [
+    {
+      id: 'target-change',
+      result: allRendered && everyViewportPassed && candidateSwaps.every(Boolean) ? 'pass'
+        : candidateSwaps.some(Boolean) ? 'risk' : 'unknown',
+      detail: allRendered
+        ? candidateSwaps.every(Boolean)
+          ? `替换后的图片在全部 ${dual.viewports.length} 个视口真实加载且 currentSrc 规范化匹配 ${operation.after}。`
+          : '部分视口的 currentSrc 未命中替换资源。'
+        : '并非所有视口完成真实渲染，target-change 覆盖不完整。',
+    },
+    {
+      id: 'non-target-preserved',
+      result: allComparisonsMatched ? 'pass' : someComparisonDiffered ? 'risk' : 'unknown',
+      detail: allComparisonsMatched
+        ? `双端 DOM 快照在遮蔽目标图后于全部 ${comparisonsWithDigest.length} 个视口 digest 一致（对照来自真实双端浏览器状态）。`
+        : someComparisonDiffered
+          ? '至少一个视口双端 DOM 快照（遮蔽目标图后）不一致。'
+          : `双端 DOM 对照不完整：${baselineComparisons.find(c => c.reason)?.reason ?? '未知原因'}。`,
+    },
+    {
+      id: 'scope-propagation',
+      result: scopeAllVerified ? 'pass' : scopeAnyContradicted ? 'risk' : 'unknown',
+      detail: scopeAllVerified
+        ? `作品页 marker「器物全集」双端唯一可见，基线端保持原图、候选端呈现替换图，覆盖 ${dual.viewports.length} 个视口。`
+        : scopeAnyContradicted
+          ? '已验证路由上的基线/候选图观测与 Scope 决策矛盾。'
+          : '部分视口的 marker 或基线/候选图观测未能唯一验证，Scope 传播保持未知。',
+    },
+    {
+      id: 'interaction',
+      result: interactionsAllPassed ? 'pass' : interactionsAnyFailed ? 'risk' : 'unknown',
+      detail: interactionsAllPassed
+        ? `「${contract.interactions[0]!.name}」交互在双端全部视口真实点击成功并到达期望文本。`
+        : interactionsAnyFailed
+          ? '至少一个视口的双端交互未通过。'
+          : '交互路由身份未能唯一验证，交互结果保持未知。',
+    },
+    {
+      id: 'responsive-layout',
+      result: overflowObserved ? 'risk' : allRendered && everyViewportPassed ? 'pass' : 'unknown',
+      detail: overflowObserved
+        ? '至少一个视口出现横向文档溢出。'
+        : allRendered && everyViewportPassed
+          ? `候选在 ${dual.viewports.length} 个视口真实渲染且无横向溢出。`
+          : '并非所有视口完成真实渲染，响应式覆盖不完整。',
+    },
+    {
+      id: 'source-mapping',
+      result: allRendered && everyViewportPassed && candidateSwaps.every(Boolean) ? 'pass' : 'unknown',
+      detail: allRendered && candidateSwaps.every(Boolean)
+        ? '来源分析定位的媒体节点在每个视口唯一映射到真实渲染的替换图（SourceGraph 定位 + 候选源码 + 浏览器渲染三者一致）。'
+        : '并非所有视口完成渲染或替换图未加载，source-mapping 覆盖不完整。',
+    },
+    {
+      id: 'browser-errors',
+      result: totalErrors === 0 ? (allRendered ? 'pass' : 'unknown') : 'risk',
+      detail: (() => {
+        const warningCount = dual.viewports.reduce((sum, item) => sum + (item.warnings?.length ?? 0), 0)
+        const warningNote = warningCount ? `；另有 ${warningCount} 条环境性资源警告（第三方 CDN/字体，见 dual.json warnings，不阻断媒体断言）` : ''
+        return totalErrors === 0
+          ? (allRendered ? `双端 ${dual.viewports.length} 个视口均无未捕获页面/控制台错误${warningNote}。` : `渲染不完整，错误覆盖不完整${warningNote}。`)
+          : `双端共观察到 ${totalErrors} 条页面/控制台错误（见 dual.json 各视口 errors）。`
+      })(),
+    },
+  ]
+
+  const capturedAt = dual.capturedAt
+  const evidence = screenshotArtifacts.map(({ observation, path: artifactPath, sha256: artifactHash }) => {
+    const result = viewportResult(observation.viewport.name).result
+    return {
+      id: `evidence-media-${observation.viewport.name}`, checkId: checkName(observation.viewport.name),
+      result: result as EvidenceResult, capturedAt,
+      pageUrl: observation.pageUrl, viewport: { width: observation.viewport.width, height: observation.viewport.height },
+      runtimeState: viewportResult(observation.viewport.name).state,
+      elementRefs: [operation.targetRef], artifactPath, artifactHash,
+    }
+  })
+
+  const assertionPassed = assertions.every(assertion => assertion.result === 'pass')
   const run: VerificationRun = {
     id: 'qingye-media-run', candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint, startedAt: capturedAt, completedAt: new Date().toISOString(),
     checks, assertions, verificationContractHash: verificationContractHash(contract),
     evidence,
-    baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
+    baselineComparisons, scopeObservations, interactionObservations,
+    status: allRendered ? (assertionPassed ? 'passed' : 'risks') : 'incomplete',
   }
+
   const recordPath = path.join(artifactRoot, 'browser-execution.json')
   fs.writeFileSync(recordPath, JSON.stringify({
     schemaVersion: 4, executor: 'playwright', completed: true, runId: run.id, candidateId: candidate.id,
     scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
     baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
     runtimeFingerprint, verificationContractHash: verificationContractHash(contract),
-    viewports: viewportArtifacts.map(item => ({ name: item.name, width: item.width, height: item.height })),
-    checks: checks.map(item => ({ id: item.id, route: item.route, viewport: item.viewport, state: item.state, passed: true })),
-    baselineComparisons: baselineComparisons.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath) })),
+    viewports: report.observations.map(item => ({ name: item.viewport.name, width: item.viewport.width, height: item.viewport.height })),
+    checks: checks.map(item => {
+      const executed = viewportResult(item.id.replace('products-media-', ''))
+      return { id: item.id, route: item.route, viewport: item.viewport, state: item.state, passed: executed.result === 'pass' }
+    }),
+    baselineComparisons: baselineComparisons.map(item => ({ ...item, artifactPath: item.artifactPath ? path.basename(item.artifactPath) : undefined })),
     scopeObservations, interactionObservations, assertions,
     evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
-    artifacts: viewportArtifacts.map(item => ({ checkId: `products-media-${item.name}`, path: path.basename(item.path), sha256: item.sha256 })),
+    artifacts: screenshotArtifacts.map(({ observation, path: artifactPath, sha256: artifactHash }) => ({ checkId: checkName(observation.viewport.name), path: path.basename(artifactPath), sha256: artifactHash })),
   }))
   return attestBrowserExecution(run, recordPath)
 }
@@ -187,6 +352,7 @@ async function main(): Promise<void> {
   const steps: Record<string, unknown> = {}
   let evidenceSha = ''
   let evidenceSummaryState: 'pass' | 'risks' | 'failed' = 'failed'
+  let dualSha = ''
   const qingyeCommit = run('git', ['-C', qingyeRoot, 'rev-parse', 'HEAD']).trim()
   const rippleHead = run('git', ['-C', rippleRoot, 'rev-parse', 'HEAD']).trim()
 
@@ -239,6 +405,7 @@ async function main(): Promise<void> {
     graph, scope, operations: [operation],
     executors: mediaAssetSwapExecutors(), readStagedAsset: store.readStagedAsset,
   })
+  const baselineSrc = path.join(workDir, 'baseline-src')
   try {
     assertCandidateCurrent(candidate)
     const candidateSource = fs.readFileSync(path.join(candidate.candidateRoot!, targetLocation.path), 'utf8')
@@ -249,23 +416,42 @@ async function main(): Promise<void> {
     if (fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('原工程被修改，隔离失效')
     steps.candidate = { candidateId: candidate.id, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest }
 
-    // 4. 候选构建 + 静态服务（无 Docker 路径）
+    // 4a. 候选构建（vite build）+ 静态服务
     run(npmCommand, ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: candidate.candidateRoot!, timeoutMs: 900_000 })
     run(npmCommand, ['run', 'build'], { cwd: candidate.candidateRoot!, timeoutMs: 900_000 })
     const dist = path.join(candidate.candidateRoot!, 'dist')
     if (!fs.existsSync(path.join(dist, assetRef.replace(/^\//, '')))) throw new AcceptanceError('构建产物缺少新资产（public 目录未拷贝）')
+
+    // 4b. 原工程基线构建（真实双端对照的前提；worktree 隔离，不污染原工程）
+    run('git', ['-C', qingyeRoot, 'worktree', 'add', '--detach', baselineSrc, qingyeCommit])
+    try {
+      run(npmCommand, ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: baselineSrc, timeoutMs: 900_000 })
+      run(npmCommand, ['run', 'build'], { cwd: baselineSrc, timeoutMs: 900_000 })
+    } catch (error) {
+      throw new AcceptanceError(`基线工程构建失败：${error instanceof Error ? error.message : String(error)}`)
+    }
+    const baselineDist = path.join(baselineSrc, 'dist')
+    if (!fs.existsSync(path.join(baselineDist, 'index.html'))) throw new AcceptanceError('基线构建缺少 index.html')
+    steps.baselineBuild = { worktree: baselineSrc, dist: baselineDist, qingyeCommit }
+
     const evidenceDir = path.join(workDir, 'evidence')
-    const server = await serveStatic(dist, 4619)
+    const candidateServer = await serveStatic(dist, 4619)
+    const baselineServer = await serveStatic(baselineDist, 4620)
 
     try {
-      // 5. 四视口真实浏览器采集（子进程运行器）
+      // 5. 四视口双端真实浏览器采集（子进程运行器）
       const runnerInput = path.join(workDir, 'runner-input.json')
       fs.writeFileSync(runnerInput, JSON.stringify({
         previewUrl: 'http://127.0.0.1:4619/',
+        baselineUrl: 'http://127.0.0.1:4620/',
         candidate: { candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest },
-        targetRef: target.id, assetRef,
+        targetRef: target.id, operationId: operation.id, assetRef,
+        originalValue: operation.before,
+        markerText: contractFor(productsRoute.id).pages[0]!.markerText,
         selector: `img[src="${assetRef}"]`,
         navigateBy: { role: 'button', name: '商品专题' },
+        interaction: { role: 'button', name: '茶器', expectedText: '柴烧茶壶' },
+        interactionAbsentText: '素白陶碗',
         focalPoint: operation.payload.focalPoint,
         containerHint: operation.payload.containerHint,
       }, null, 2))
@@ -275,20 +461,37 @@ async function main(): Promise<void> {
         runner.once('close', code => resolve(code ?? 1))
       })
       if (exitCode !== 0) throw new AcceptanceError(`四视口 Evidence 采集未通过（exit ${exitCode}）`)
-      const evidenceFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: Parameters<typeof mediaEvidenceSummary>[0]; sha256: string }
+      const evidenceFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: MediaViewportEvidenceReport; sha256: string }
       const evidenceSummary = mediaEvidenceSummary(evidenceFile.report)
       if (evidenceSummary !== 'pass') throw new AcceptanceError(`媒体 Evidence 汇总为 ${evidenceSummary}，拒绝进入审批`)
       evidenceSummaryState = evidenceSummary
       steps.mediaEvidence = { sha256: evidenceFile.sha256, dir: evidenceDir, summary: evidenceSummary }
       evidenceSha = evidenceFile.sha256
+      const dualFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'dual.json'), 'utf8')) as { collection: MediaDualEndpointCollection; sha256: string }
+      dualSha = dualFile.sha256
+      steps.dualEndpoint = {
+        sha256: dualFile.sha256,
+        viewports: dualFile.collection.viewports.map(item => ({
+          viewport: item.viewport.name,
+          matched: item.maskedComparison.matched,
+          baselinePassed: item.interaction.baselinePassed,
+          candidatePassed: item.interaction.candidatePassed,
+          overflow: item.layout.horizontalOverflow,
+          errors: item.errors.length,
+        })),
+        note: '双端对照全部来自真实浏览器状态（基线构建 ' + qingyeCommit.slice(0, 8) + '），详见 dual.json',
+      }
     } finally {
-      await new Promise(resolve => server.close(resolve))
+      await new Promise(resolve => candidateServer.close(resolve))
+      await new Promise(resolve => baselineServer.close(resolve))
     }
 
-    // 6. 审批门控（真实证据）→ 应用 → 回滚
+    // 6. 审批门控（真实双端证据）→ 应用 → 回滚
     const verificationRun = trustedRun(candidate, scope, productsRoute.id, graph.revision.runtimeFingerprint, path.join(workDir, 'verification'), {
-      sha256: evidenceSha, summary: evidenceSummaryState, dir: evidenceDir,
-    })
+      sha256: evidenceSha, summary: evidenceSummaryState, dir: evidenceDir, dualSha256: dualSha,
+    }, (JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: MediaViewportEvidenceReport }).report,
+       (JSON.parse(fs.readFileSync(path.join(evidenceDir, 'dual.json'), 'utf8')) as { collection: MediaDualEndpointCollection }).collection)
+    if (verificationRun.status !== 'passed') throw new AcceptanceError(`VerificationRun 状态为 ${verificationRun.status}，存在未通过断言，拒绝进入审批（见 verification/browser-execution.json）`)
     const executors = mediaAssetSwapExecutors()
     let session = recordSourceGraph(openSession('qingye-media-session', graph.revision, 'Replace products-page category image with staged asset', [], contractFor(productsRoute.id)), graph.id, graph.revision.sourceDigest)
     session = stageOperations(chooseScope(session, scope), [operation], executors)
@@ -308,6 +511,8 @@ async function main(): Promise<void> {
     steps.rollback = { restoredSourceDigest: restored, restored: true }
   } finally {
     removeCandidate(candidate)
+    // 清理基线 worktree（含 node_modules/dist，--force 允许脏树移除）
+    try { run('git', ['-C', qingyeRoot, 'worktree', 'remove', '--force', baselineSrc]) } catch { try { execFileSync('git', ['-C', qingyeRoot, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* 尽力清理 */ } }
   }
 
   const acceptance = {
@@ -317,7 +522,7 @@ async function main(): Promise<void> {
     steps,
   }
   fs.writeFileSync(path.join(workDir, 'acceptance.json'), JSON.stringify(acceptance, null, 2))
-  console.log(`QINGYE MEDIA ACCEPTANCE PASS ripple=${rippleHead.slice(0, 8)} qingye=${qingyeCommit.slice(0, 8)} patch=${(steps.candidate as { patchHash: string }).patchHash.slice(0, 12)} evidence=${(steps.mediaEvidence as { sha256: string }).sha256.slice(0, 12)}`)
+  console.log(`QINGYE MEDIA ACCEPTANCE PASS ripple=${rippleHead.slice(0, 8)} qingye=${qingyeCommit.slice(0, 8)} patch=${(steps.candidate as { patchHash: string }).patchHash.slice(0, 12)} evidence=${(steps.mediaEvidence as { sha256: string }).sha256.slice(0, 12)} dual=${dualSha.slice(0, 12)}`)
 }
 
 main().then(() => { process.exitCode = 0 }, error => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   assertMediaViewportObservation,
+  assetUrlMatches,
   buildMediaViewportEvidenceReport,
   computeCropGeometry,
   mediaEvidenceSummary,
@@ -38,6 +39,28 @@ function observationsAcross(set: Partial<MediaViewportObservation> = {}): MediaV
   return FOUR.map(viewport => observation({ viewport, ...set }))
 }
 
+describe('assetUrlMatches', () => {
+  it('相对 assetRef：规范化比较 pathname+search，容忍 origin 差异', () => {
+    expect(assetUrlMatches('http://127.0.0.1:4619/media/x.jpeg', '/media/x.jpeg')).toBe(true)
+    expect(assetUrlMatches('https://cdn.example.com/media/x.jpeg?w=100', '/media/x.jpeg?w=100')).toBe(true)
+    expect(assetUrlMatches('http://127.0.0.1:4619/media/x.jpeg?w=100', '/media/x.jpeg')).toBe(false)
+  })
+
+  it('绝对 assetRef：origin 也必须一致', () => {
+    expect(assetUrlMatches('https://images.pexels.com/photos/1/a.jpeg?h=100', 'https://images.pexels.com/photos/1/a.jpeg?h=100')).toBe(true)
+    expect(assetUrlMatches('https://cdn.mirror.com/photos/1/a.jpeg?h=100', 'https://images.pexels.com/photos/1/a.jpeg?h=100')).toBe(false)
+  })
+
+  it('负例：相似前缀/后缀名不得子串误判', () => {
+    expect(assetUrlMatches('http://127.0.0.1:4619/media/x.jpeg.bak', '/media/x.jpeg')).toBe(false)
+    expect(assetUrlMatches('http://127.0.0.1:4619/media/x.jpeg2', '/media/x.jpeg')).toBe(false)
+    expect(assetUrlMatches('http://127.0.0.1:4619/media/x.jpeg/extra', '/media/x.jpeg')).toBe(false)
+    expect(assetUrlMatches('http://127.0.0.1:4619/media/xy.jpeg', '/media/x.jpeg')).toBe(false)
+    expect(assetUrlMatches('', '/media/x.jpeg')).toBe(false)
+    expect(assetUrlMatches('not a url', '/media/x.jpeg')).toBe(false)
+  })
+})
+
 describe('computeCropGeometry', () => {
   it('cover 横向盒：整宽可见、上下裁切，比例与焦点位置正确', () => {
     // natural 1600x900（16:9），盒 800x450（同比例）：无裁切
@@ -65,14 +88,17 @@ describe('computeCropGeometry', () => {
     expect(computeCropGeometry(shifted, { x: 0.25, y: 0.5 }).focalVisible).toBe(true)
   })
 
-  it('object-position 百分比与像素值都能定位窗口', () => {
+  it('object-position 百分比与像素值都能定位窗口（像素为绝对偏移，不钳制）', () => {
     const base = observation({ renderedBox: { x: 0, y: 0, width: 400, height: 900 } })
     const byPercent = computeCropGeometry({ ...base, objectPosition: '25% 50%' })
     // offset = (400-1600)*0.25 = -300 → 窗口 x = 300
     expect(byPercent.visibleSourceRect.x).toBeCloseTo(300)
+    // CSS object-position 长度值 = 从左上角的绝对偏移（同 background-position），
+    // 允许负值与溢出，不做钳制；已与真实 Chromium 渲染核对（offset=+100 → 窗口 x=-100）
     const byPx = computeCropGeometry({ ...base, objectPosition: '100px 0px' })
-    // offset 上限 = overflow - scaled = 400 - 1600 = -1200（clamp 到 -1200），窗口 x = 1200
-    expect(byPx.visibleSourceRect.x).toBeCloseTo(1200)
+    expect(byPx.visibleSourceRect.x).toBeCloseTo(-100)
+    const negativePx = computeCropGeometry({ ...base, objectPosition: '-100px 0px' })
+    expect(negativePx.visibleSourceRect.x).toBeCloseTo(100)
   })
 
   it('contain：整图可见，窗口即完整源图', () => {
