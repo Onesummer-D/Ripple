@@ -299,13 +299,15 @@ export async function preparePreviewNetworkPool(size = 4): Promise<void> {
 }
 
 async function acquirePreviewNetwork(): Promise<string> {
-  // Networks are created once, before any browser session exists. Creating a
-  // Docker bridge network inside a preview request would mutate the host's
-  // network configuration while a browser may be mid-load.
-  if (!previewNetworkPoolReady) {
-    throw new CandidatePreviewError('隔离预演网络池尚未准备；预演网络必须在浏览器会话开始之前一次性创建，不能在预演请求中临时创建')
-  }
-  await previewNetworkPoolReady
+  // The whole pool is created in one go and reused afterwards, so a network is
+  // created before the container it belongs to is launched - which is also
+  // before any browser is handed the preview URL. The Vite plugin warms the
+  // pool while the server starts; preparing it here is the fallback for entry
+  // points that start a preview without that server (the E2E helpers import
+  // this module directly). Once the pool exists it is never grown, so a
+  // Docker network is never created while a preview page is loading.
+  await preparePreviewNetworkPool()
+  if (!previewNetworkPool.size) throw new CandidatePreviewError('隔离预演网络池为空；请确认本机 Docker 可用后重新启动预演服务')
   const available = [...previewNetworkPool].find(([, state]) => state === 'available')?.[0]
   if (!available) throw new CandidatePreviewError('隔离预演网络池已耗尽，请等待其他预演结束后重试')
   previewNetworkPool.set(available, 'leased')

@@ -103,7 +103,9 @@
 
 1. **`src/core/candidate-preview.ts` — 就绪判定改为「观测到稳定」**：新增 `waitForPreviewReadiness`。它在首次 200 之后，要求**连续 N 次检查得到同一 IPv4 且端点探测成功**才把预览 URL 交给浏览器；地址变更或探测失败会**重置计数**——这正是要检测的那一类不稳定。原先「一次 200 即放行」无法区分「服务已就绪」与「网络仍在收敛」。
 2. **`src/core/candidate-preview.ts` — 消除上游连接风暴**：relay 过去对上游固定发送 `connection: close`，16 个模块请求就是 16 次 TCP 握手，显著延长浏览器 socket 池被占满、请求排队的时间窗。改为按 relay 生命周期管理的 keep-alive agent（上限 8 socket），并在响应中断时销毁上游，避免半截响应污染连接池。
-3. **`src/core/candidate-preview.ts` — 网络池不得在会话中惰性创建**：`acquirePreviewNetwork()` 不再自行 `preparePreviewNetworkPool()`。创建 Docker bridge 网络会改动宿主网络配置，绝不能在浏览器可能正在加载时发生；池未就绪时直接报明确错误。
+3. **`src/core/candidate-preview.ts` — 预演网络改为一次性建池复用**：原先每个预演都 `docker network create` / `docker network rm`，容器每次启动与清理都会改动宿主网络配置。现在改为一次性建池、用完归还，池建好后不再扩容——**网络只在容器启动之前创建，绝不会在页面加载期间新建**。Vite 插件在服务启动时预热池；`acquirePreviewNetwork()` 保留惰性兜底，供直接 import 本模块的入口（E2E helper）使用，此时创建同样发生在容器启动与 URL 下发之前。
+
+   > **本轮自查出的回归（已修）**：初版把惰性兜底整个删掉，导致直接 import 本模块的 `e2e/page-override-lifecycle.spec.ts` 拿不到网络池而失败（CI #39424007567 `test:browser` 1 failed）。已修正并重新验证。
 4. **`src/core/candidate-preview.ts` — relay 台账**（移植自 `44c396b`）：`PreviewRelayAccounting` 区分 `completed / denied / client-aborted / upstream-failed`，并单独报告 **unsettled**。这是下一轮判定「浏览器放弃请求」还是「预演侧失败」的决定性依据；新增 `readProjectSourcePreviewDiagnostics` 与只读端点 `GET /__ripple/api/project/preview/report`。
 5. **`src/app/ProjectWorkbench.tsx` — 补上前任守卫的空窗**：前任用 `frameRef.current` 比对，但「点击重载 → React 提交重挂载」之间 ref 仍指向旧帧，此窗口内的返回会被误接受。新增 `previewGeneration` 计数器，在点击处理器里**同步递增**，并在预演被替换时递增，任一代次变化即在异步返回处丢弃。
 6. **`e2e/project-workbench.spec.ts`**：失败信息附加 relay report；保留前任的受条件约束恢复逻辑，恢复事实写入 `sourcePreviewRecovery` 证据字段。
