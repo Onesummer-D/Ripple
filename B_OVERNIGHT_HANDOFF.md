@@ -1,13 +1,67 @@
-# B 侧接力记录 v3（2026-10-21 清晨）
+# B 侧接力记录 v4（2026-10-21 上午）
+
+接力分支：`feat/b-media-overnight-20261021`
+- v4 当前：`d01604c4`（见「〇、v4 增量」；CI run 39510512023 success）
+- 历史：v1 `8492aaf` → v2 `1f5ee58` → v3 `919d40d` → v4 `d01604c`（均基于 PR #7 HEAD `f51719d`）
+- PR #8 分支：`chore/media-acceptance-workflow` `b438096 → 9b618b0`（ff，无强推）
+- PR #9 分支：`d5764e7 → 8c1ae2b`（ff，CI #290 success，本轮无改动）
+- A/B 集成分支：`integration/b-media-x-a-20261021` @ `5fd6e80`（按 A `caa2eaa` 快照；A 已推进至 `44e45887`，Bolt acceptance 在其 `73bb9bd0` 有已知失败，属 A 的 TEXT Run #11 并行 Scope 验证器问题，与 B 无关）
+
+---
+
+## 〇、v4 增量——独立审查 P0/P1 全部修复（以远端实际代码为准）
+
+### 审查结论 → 修复映射
+
+| 审查项 | 结论与修复 | 提交 |
+|---|---|---|
+| P0-1 PR #8 检出前提 | 确认属实：首个 checkout 无 `ref`，main 无 MEDIA 代码，合并后运行必失败。workflow 新增 `ripple_sha` dispatch 输入（默认 = 经审查的 `d01604c4`），检出与触发分支/默认分支无关；检出后校验 HEAD=输入 SHA、验收入口脚本存在；日志显式记录双端 SHA；凭据不持久化断言保留 | PR #8 `9b618b0` |
+| P1-1 恢复状态误记 | 确认属实：外层 catch 按异常类型取反推导 `recovered`，显式回滚失败会被记 `recovered: true`。新增 `classifyRecoveryOutcome`（restored / recovery-failed / unknown 三态，仅摘要复核一致才记 restored），脚本 `steps.applyRecovery.recoveryState` 如实记录 | `ed973ee` |
+| P1-2 现场与重试冲突 | 确认属实：启动时 `rmSync(project-src)` 会删除上轮保留现场；`removeCandidate` 无条件清审计证据。新增 `media-acceptance-run-dir`：每次验收独占 `run-<时间戳>-<随机>/` 目录，历史现场只警告绝不覆盖；保留现场写 `SCENE-PRESERVED.json` 清单（Candidate ID/patchHash/基线摘要/操作/失败状态）；候选清理改用 `preserveAudit`；成功路径清理重工件 | `0fb5873` |
+| P1-3 source-mapping 宽松 | 确认属实：只查 `>1`，计数为 0 可错误 pass；无视口数量/身份校验；detail 夸大证明范围。现严格化：数量不一致→unknown、重复/错位→risk、计数必须恰为 1（0→unknown）、基线 imageFound=false→unknown；pass detail 如实声明"URL 级消费实例唯一性"证明边界 | `e3fb879` |
+| P2-1 应用阶段写入边界 | `applyApprovedCandidateWithRecovery` 现先以树摘要判断真实写入：未写入直接抛错不回滚；无法确认时保守按可能写入处理并保留现场，绝不盲目逆向补丁（含 `919d40d` 之后的 `ed973ee` 内） | `ed973ee` |
+| P2-2 裁切几何 | `computeCropGeometry` 已在真实 Chromium 核对过像素偏移语义（不钳制）；关键字/边缘偏移复合语法仍属已知边界，建议后续按真实 computed style 复核（未改动，如实记录为遗留项） | 无代码改动 |
+
+### v4 新增/修改文件
+
+- 新增 `src/core/media-acceptance-run-dir.ts`（运行目录分配 + 保留现场发现，发现阶段不跟随符号链接）
+- 新增 `src/core/media-acceptance-run-dir.test.ts`（5 负例：唯一目录、保留现场重试不覆盖、成功目录不误报、旧布局避开、符号链接不跟随）
+- 修改 `src/core/media-acceptance-apply.ts`（classifyRecoveryOutcome + 应用阶段写入判断）
+- 修改 `src/core/media-acceptance-apply.test.ts`（+8 负例）
+- 修改 `src/core/media-viewport-evidence.ts`（resolveSourceMappingAssertion 严格化）
+- 修改 `src/core/media-viewport-evidence.test.ts`（+8 负例）
+- 修改 `scripts/media-qingye-acceptance.ts`（run 目录接入、recoveryState 三态、SCENE-PRESERVED.json、preserveAudit、成功路径清理）
+- 修改 `.github/workflows/media-acceptance.yml`（PR #8 分支，`9b618b0`）
+
+### 负例与门结果
+
+- Vitest：35 个文件全过（225 用例；本机 Windows 仅已知 EPERM teardown 噪音，零断言失败；Linux CI run 39510512023 success = typecheck + 33 测试文件 + build + Playwright 10 passed 1 skipped）
+- 端到端真实验收（青野 f7e4998a，本机）：
+  1. `rollback-failure` 注入 → 无 PASS，非零退出，`recoveryState: recovery-failed`，`SCENE-PRESERVED.json` 齐全（含 candidate id `candidate-c3987df7…`、patchHash、双端 SHA），副本处于应用后状态（products.ts M + public/ 未跟踪），审计工件（patch）保留；
+  2. 同 workRoot 正常重试 → 警告检测到历史现场、使用新 `run-…-75c39c` 目录，**旧现场逐字节未被触碰**（P1-2 负例 e2e 成立），`PASS ripple=d01604c4 qingye=f7e4998a`，成功路径仅留 acceptance.json/evidence/runner-input/verification，副本与暂存字节已清；
+  3. source-mapping 断言在真实 browser-execution.json 中输出新证明边界措辞。
+- 事故现场证据位置：本机 `_scratch/media-acceptance/work/run-2026-10-20T22-48-41-7e55c4/`（含 SCENE-PRESERVED.json 与 project-src worktree）；处置后手动 `git -C <青野> worktree remove --force <projectSrc>`。
+
+### 留给 B / 负责人的清单
+
+1. PR #8 已具备安全可复现执行条件（固定双端 SHA + 检出校验 + 入口存在断言），**待负责人审批合并**；合并后 dispatch 默认值即指向 `d01604c4`，也可改输入（改动需重新审查）。
+2. GitHub Actions 真实青野验收**尚未运行**（workflow 为 dispatch 且需 BOLT_REPO_TOKEN；secret 存在性需 admin 核查）。
+3. A/B 最新集成未复验（A 已至 `44e45887`）；阶段 C 需按最新双方 SHA 重来，`5fd6e80` 仅是 `caa2eaa` 快照。
+4. 与 B 原工作区可能冲突的文件：`scripts/media-qingye-acceptance.ts`、`src/core/media-viewport-evidence.ts`（若 B 本地有未提交改动，以本分支为准合并）。
+5. P2-2 关键字 object-position、Issue #6 的 A 侧依赖（react-router 归属/catch-all）维持原结论不变。
+
+---
+
+## 历史版本（v3 及之前）
 
 接力分支：`feat/b-media-overnight-20261021`
 - v1 基线：`8492aaf`（基于 PR #7 HEAD `f51719d`）
 - v2：`1f5ee58`（P1 代码 + 恢复保证/source-mapping）
-- v3 当前：`919d40d`（见下文；推送后以远端为准）
+- v3：`919d40d`（显式回滚注入修复）
 - A/B 集成分支：`integration/b-media-x-a-20261021` @ `5fd6e80`
 - PR #9 分支已更新：`d5764e7 → 8c1ae2b`（ff，无强推）
 
-基线核对（本轮开始时）：PR #7 = `f51719d`、PR #8 = `b438096`（已固定青野 SHA
+基线核对（v3 轮开始时）：PR #7 = `f51719d`、PR #8 = `b438096`（已固定青野 SHA
 f7e4998a）、PR #9 = `d5764e7`、A 文档 HEAD `caa2eaa` / 代码基线 `3901dc6`（PR #2）。
 A 此后仍在推进（CI #291 @ `73bb9bd0`），集成是按 `caa2eaa` 时间点的快照。
 
