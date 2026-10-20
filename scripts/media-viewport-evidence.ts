@@ -21,7 +21,6 @@
  * 输出 outputDir/evidence.json（报告 + sha256）与每视口截图（observation.evidenceArtifact）。
  * 退出码：summary pass=0，risks=2，failed=3，运行错误=1。
  */
-import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { chromium } from 'playwright'
@@ -33,8 +32,6 @@ import {
   type MediaViewportObservation,
 } from '../src/core/media-viewport-evidence'
 import { projectPreviewViewports } from '../src/core/project-viewports'
-
-const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 
 interface RunnerInput {
   previewUrl: string
@@ -152,14 +149,21 @@ async function main(): Promise<number> {
   const outputDir = path.resolve(process.argv[3])
   fs.mkdirSync(outputDir, { recursive: true })
 
-  const browser = await chromium.launch({ headless: input.browser?.headless ?? true })
+  // Optional local smoke-test override (e.g. RIPPLE_PW_CHANNEL=msedge when the
+  // Playwright browser download is unavailable on a dev machine). CI keeps the
+  // default bundled chromium.
+  const channel = process.env.RIPPLE_PW_CHANNEL
+  const browser = await chromium.launch({
+    headless: input.browser?.headless ?? true,
+    ...(channel ? { channel } : {}),
+  })
   try {
     const observations: MediaViewportObservation[] = []
     for (const viewport of projectPreviewViewports) {
       observations.push(await collectObservation(browser, input, viewport, outputDir))
     }
     const report = buildMediaViewportEvidenceReport({
-      browser: { name: 'chromium' },
+      browser: { name: channel ?? 'chromium' },
       candidate: input.candidate,
       targetRef: input.targetRef,
       focalPoint: input.focalPoint,

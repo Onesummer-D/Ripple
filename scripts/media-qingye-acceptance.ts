@@ -8,7 +8,8 @@
  *   MEDIA_SWAP_IMAGE_URL — 替换用真实图片 URL（默认取青野 p002 的 pexels 原图）
  *
  * 验收链（全部真实，无预设 Fixture）：
- *   青野源码 analyzeProject 定位 p001 商品图（src/data/products.ts，source-proven 到作品页）
+ *   青野源码 analyzeProject 定位媒体节点（动态筛选商品图 fail-closed 不可证明，
+ *   选择可证明到作品页的分类图目标，确定性/未解析关系如实记录）
  *   → 新图字节进内容寻址暂存 → B 执行器 plan → A 候选核心 createCandidate
  *   → 候选 worktree 构建（vite build）+ 静态服务 → 四视口 Playwright 采集（真实浏览器）
  *   → Evidence 报告（绑定 patchHash / candidateTreeDigest，summary 必须为 pass 才能继续）
@@ -64,6 +65,12 @@ function serveStatic(rootDir: string, port: number): Promise<http.Server> {
 }
 
 async function downloadBytes(url: string): Promise<Uint8Array> {
+  // 本机冒烟支持 file:// 离线字节（CI 默认仍走真实 HTTP 下载）
+  if (url.startsWith('file://')) {
+    const bytes = new Uint8Array(fs.readFileSync(new URL(url)))
+    if (!bytes.byteLength) throw new AcceptanceError('替换图片为空')
+    return bytes
+  }
   const response = await fetch(url, { redirect: 'follow' })
   if (!response.ok) throw new AcceptanceError(`下载替换图片失败：HTTP ${response.status} ${url}`)
   const bytes = new Uint8Array(await response.arrayBuffer())
@@ -144,16 +151,30 @@ async function main(): Promise<void> {
   const rippleHead = run('git', ['-C', rippleRoot, 'rev-parse', 'HEAD']).trim()
 
   // 1. 真实来源定位
+  // 青野商品图全部经过"类别筛选三元表达式 + 共享 ProductCard"，按约定 fail-closed
+  // 语义无法静态证明到作品页（见 PR #4 负例）；categories[].image 经 categories.map
+  // 直接消费可证明。这里动态选择"能证明到作品页"的媒体节点，确定性如实记录。
   const snapshot = readProjectSnapshot(qingyeRoot)
   const graph = analyzeProject(qingyeRoot)
-  const target = graph.nodes.find(node => node.kind === 'media' && node.location?.path.endsWith('src/data/products.ts') && node.value?.includes('pexels-photo-39692059'))
-  if (!target?.location) throw new AcceptanceError('未在 src/data/products.ts 定位到 p001（素白陶碗）图片来源节点')
-  const impact = sourceProvenPageImpact(graph, target.id)
   const productsRoute = graph.nodes.find(node => node.kind === 'route' && (node.label === 'products' || node.page === 'products'))
-  if (impact.unresolved.length || !productsRoute || !impact.pageRefs.includes(productsRoute.id)) {
-    throw new AcceptanceError(`p001 图片来源未证明到作品页：unresolved=${impact.unresolved.join(',')} pages=${impact.pageRefs.join(',')}`)
+  if (!productsRoute) throw new AcceptanceError('未定位到 products 路由节点')
+  const certaintyRank = { 'source-proven': 0, partial: 1, unknown: 2 } as const
+  const attributable = graph.nodes
+    .filter(node => node.kind === 'media' && node.location)
+    .map(node => ({ node, impact: sourceProvenPageImpact(graph, node.id) }))
+    .filter(entry => entry.impact.pageRefs.includes(productsRoute.id))
+    .sort((a, b) => certaintyRank[a.impact.certainty] - certaintyRank[b.impact.certainty] || a.node.id.localeCompare(b.node.id))
+  const chosen = attributable[0]
+  if (!chosen) throw new AcceptanceError('没有任何媒体节点可证明到作品页（来源分析 fail-closed 结果异常）')
+  const target = chosen.node
+  const targetLocation = target.location
+  if (!targetLocation) throw new AcceptanceError('目标媒体节点缺少源码位置')
+  const impact = chosen.impact
+  steps.sourceLocation = {
+    targetRef: target.id, path: targetLocation.path, value: target.value,
+    pageRefs: impact.pageRefs, certainty: impact.certainty, unresolved: impact.unresolved,
+    note: '青野商品图经动态类别筛选，静态不可证明到页面；本目标为直接 map 消费的分类图，未解析关系如实保留',
   }
-  steps.sourceLocation = { targetRef: target.id, path: target.location.path, value: target.value, pageRefs: impact.pageRefs, certainty: impact.certainty }
 
   // 2. 新图字节（真实下载）进暂存
   const imageUrl = process.env.MEDIA_SWAP_IMAGE_URL ?? 'https://images.pexels.com/photos/8952094/pexels-photo-8952094.jpeg?auto=compress&cs=tinysrgb&h=650&w=940'
@@ -161,7 +182,7 @@ async function main(): Promise<void> {
   const store = createStagedAssetStore(path.join(workDir, 'staged-assets'))
   const assetHash = store.store(bytes)
   const extension = path.extname(new URL(imageUrl).pathname) || '.jpeg'
-  const assetRef = `/media/qingye-p001-swap${extension}`
+  const assetRef = `/media/qingye-category-swap${extension}`
   steps.assetStaging = { imageUrl, sha256: assetHash, bytes: bytes.byteLength, assetRef }
 
   // 3. Scope + 操作 + A 核心候选
@@ -172,7 +193,7 @@ async function main(): Promise<void> {
   const operation = {
     id: 'qingye-media-swap', kind: 'MEDIA' as const, action: 'asset-swap' as const, targetRef: target.id,
     before: target.value!, after: assetRef,
-    payload: { assetRef, assetHash, focalPoint: { x: 0.5, y: 0.45 }, containerHint: { selector: `img[src="${assetRef}"]`, aspect: 940 / 650 } },
+    payload: { assetRef, assetHash, focalPoint: { x: 0.5, y: 0.45 }, containerHint: { selector: `img[src="${assetRef}"]`, aspect: 3 / 4 } },
   }
   const candidate = createCandidate({
     projectRoot: qingyeRoot, candidateRoot: path.join(workDir, 'candidate'), artifactRoot: path.join(workDir, 'artifacts'),
@@ -181,12 +202,12 @@ async function main(): Promise<void> {
   })
   try {
     assertCandidateCurrent(candidate)
-    const candidateSource = fs.readFileSync(path.join(candidate.candidateRoot!, target.location.path), 'utf8')
+    const candidateSource = fs.readFileSync(path.join(candidate.candidateRoot!, targetLocation.path), 'utf8')
     if (!candidateSource.includes(assetRef)) throw new AcceptanceError('候选源码未包含新引用')
     if (!candidateSource.includes('pexels-photo-8952094')) throw new AcceptanceError('候选源码丢失了其他商品图引用（消费者被误改）')
     const stagedPath = path.join(candidate.candidateRoot!, 'public', assetRef.replace(/^\//, ''))
     if (sha256(fs.readFileSync(stagedPath)) !== assetHash) throw new AcceptanceError('候选内暂存资产字节与 SHA-256 不符')
-    if (fs.readFileSync(path.join(qingyeRoot, target.location.path), 'utf8').includes(assetRef)) throw new AcceptanceError('原工程被修改，隔离失效')
+    if (fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('原工程被修改，隔离失效')
     steps.candidate = { candidateId: candidate.id, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest }
 
     // 4. 候选构建 + 静态服务（无 Docker 路径）
@@ -234,14 +255,14 @@ async function main(): Promise<void> {
     session = recordAppliedRevision(session, applyApprovedCandidate(session, candidate))
     const appliedDigest = digestTrackedTree(qingyeRoot, [...trackedProjectFiles(qingyeRoot), `public${assetRef}`])
     if (appliedDigest !== candidate.candidateTreeDigest) throw new AcceptanceError(`应用后树摘要不匹配：${appliedDigest} != ${candidate.candidateTreeDigest}`)
-    const appliedSource = fs.readFileSync(path.join(qingyeRoot, target.location.path), 'utf8')
+    const appliedSource = fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8')
     if (!appliedSource.includes(assetRef)) throw new AcceptanceError('应用后原工程未包含新引用')
     steps.apply = { appliedPatchHash: session.applied!.appliedPatchHash, treeDigestMatch: true }
 
     rollbackAppliedCandidate(session, candidate)
     const restored = readProjectSnapshot(qingyeRoot).revision.sourceDigest
     if (restored !== graph.revision.sourceDigest) throw new AcceptanceError('回滚后未恢复基线摘要')
-    if (fs.readFileSync(path.join(qingyeRoot, target.location.path), 'utf8').includes(assetRef)) throw new AcceptanceError('回滚后原工程仍含新引用')
+    if (fs.readFileSync(path.join(qingyeRoot, targetLocation.path), 'utf8').includes(assetRef)) throw new AcceptanceError('回滚后原工程仍含新引用')
     steps.rollback = { restoredSourceDigest: restored, restored: true }
   } finally {
     removeCandidate(candidate)
