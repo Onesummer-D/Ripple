@@ -76,13 +76,23 @@ describe('serveStatic 安全边界', () => {
     }
   }
 
-  it('指向 rootDir 外部的符号链接被拒绝，内部链接允许', async (ctx) => {
+  it('指向 rootDir 外部的符号链接被拒绝（且不落入 SPA 回退），内部链接允许', async (ctx) => {
     linkOrSkip(ctx)
     const base = await start()
     const leak = await fetch(`${base}/media/leak.txt`)
     expect(leak.status).toBe(404)
+    // 负例加固：即使状态码被改，响应体也绝不能是 SPA index（否则等于泄露 200 通道）
+    expect(await leak.text()).not.toContain('app')
     const internal = await fetch(`${base}/media/internal.jpeg`)
     expect(internal.status).toBe(200)
+    expect(await internal.text()).toBe('fake-image-bytes')
+  })
+
+  it('带扩展名的缺失资产一律 404，不落入 SPA 回退', async () => {
+    const base = await start()
+    const missing = await fetch(`${base}/media/missing.jpeg`)
+    expect(missing.status).toBe(404)
+    expect(await missing.text()).not.toContain('app')
   })
 
   it('SPA 回退到 index.html，且回退目标仍受越界约束', async () => {

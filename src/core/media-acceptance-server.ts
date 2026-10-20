@@ -43,6 +43,9 @@ export function serveStatic(rootDir: string, port: number): Promise<http.Server>
       try { isFile = fs.statSync(real).isFile() } catch { isFile = false }
     }
     if (!real || !isFile) {
+      // 带扩展名的路径按静态资产对待：不存在（含越界/出 root 符号链接）一律 404，
+      // 不允许落入 SPA 回退——否则 /media/leak.txt 这类外部链接会拿到 index.html 的 200。
+      if (path.extname(relative) !== '') { response.writeHead(404); response.end('not found'); return }
       // SPA 回退：index.html 同样必须经过符号链接/越界校验
       real = withinRoot(path.join(rootDir, 'index.html'))
       if (!real) { response.writeHead(404); response.end('not found'); return }
