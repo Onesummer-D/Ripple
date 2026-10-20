@@ -1,0 +1,1155 @@
+{
+  "generatedAt": "2026-10-20T16:13:59.357Z",
+  "rippleHead": "2dc32736284d6a7e45477ce4631c6d746e056eb4",
+  "runtimeFingerprint": {
+    "node": "v24.21.0",
+    "typescript": "5.9.3"
+  },
+  "projects": [
+    {
+      "name": "codescandy-dashui",
+      "rootEnv": "RIPPLE_PROBE_CODECANDY",
+      "frozenSha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+      "nodes": 4924,
+      "edges": 5006,
+      "kinds": {
+        "file": 503,
+        "component": 90,
+        "media": 100,
+        "jsx-element": 1948,
+        "data": 2283
+      },
+      "assetConsumer": {
+        "sourceProven": 61,
+        "semanticCandidate": 0
+      },
+      "mediaClosure": {
+        "total": 100,
+        "consumed": 61,
+        "full": 0,
+        "partial": 0,
+        "unknown": 61,
+        "entries": [
+          {
+            "id": "media:src/bootstrap-components/Cards.tsx#2466",
+            "label": "src",
+            "path": "src/bootstrap-components/Cards.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Cards.tsx#2466"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Cards.tsx#13273",
+            "label": "src",
+            "path": "src/bootstrap-components/Cards.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Cards.tsx#13273"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Cards.tsx#15524",
+            "label": "src",
+            "path": "src/bootstrap-components/Cards.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Cards.tsx#15524"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Cards.tsx#25823",
+            "label": "src",
+            "path": "src/bootstrap-components/Cards.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Cards.tsx#25823"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Cards.tsx#27359",
+            "label": "src",
+            "path": "src/bootstrap-components/Cards.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Cards.tsx#27359"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Cards.tsx#29344",
+            "label": "src",
+            "path": "src/bootstrap-components/Cards.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Cards.tsx#29344"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#2800",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#2800"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#3106",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#3106"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#3413",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#3413"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#5359",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#5359"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#5665",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#5665"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#5972",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#5972"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#8002",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#8002"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#8308",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#8308"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#8615",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#8615"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#10750",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#10750"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#11402",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#11402"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#12054",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#12054"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#14463",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#14463"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#14769",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#14769"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#15076",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#15076"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#17127",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#17127"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#17448",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#17448"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#17755",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#17755"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#19833",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#19833"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#20462",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#20462"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Carousels.tsx#21091",
+            "label": "src",
+            "path": "src/bootstrap-components/Carousels.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Carousels.tsx#21091"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/ListGroup.tsx#33809",
+            "label": "src",
+            "path": "src/bootstrap-components/ListGroup.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/ListGroup.tsx#33809"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Navbars.tsx#2119",
+            "label": "src",
+            "path": "src/bootstrap-components/Navbars.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Navbars.tsx#2119"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Navbars.tsx#5333",
+            "label": "src",
+            "path": "src/bootstrap-components/Navbars.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Navbars.tsx#5333"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Navbars.tsx#7752",
+            "label": "src",
+            "path": "src/bootstrap-components/Navbars.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Navbars.tsx#7752"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Navbars.tsx#8569",
+            "label": "src",
+            "path": "src/bootstrap-components/Navbars.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Navbars.tsx#8569"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Navbars.tsx#9352",
+            "label": "src",
+            "path": "src/bootstrap-components/Navbars.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Navbars.tsx#9352"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Overlays.tsx#9069",
+            "label": "src",
+            "path": "src/bootstrap-components/Overlays.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Overlays.tsx#9069"
+            ]
+          },
+          {
+            "id": "media:src/bootstrap-components/Toasts.tsx#11835",
+            "label": "src",
+            "path": "src/bootstrap-components/Toasts.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/bootstrap-components/Toasts.tsx#11835"
+            ]
+          },
+          {
+            "id": "media:src/components/navbars/sidebar/Sidebar.tsx#1625",
+            "label": "src",
+            "path": "src/components/navbars/sidebar/Sidebar.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/components/navbars/sidebar/Sidebar.tsx#1625"
+            ]
+          },
+          {
+            "id": "media:src/components/navbars/topbar/DesktopNotifications.tsx#2295",
+            "label": "src",
+            "path": "src/components/navbars/topbar/DesktopNotifications.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/components/navbars/topbar/DesktopNotifications.tsx#2295"
+            ]
+          },
+          {
+            "id": "media:src/components/navbars/topbar/MobileNotifications.tsx#2274",
+            "label": "src",
+            "path": "src/components/navbars/topbar/MobileNotifications.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/components/navbars/topbar/MobileNotifications.tsx#2274"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#381",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#381"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#429",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#429"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#477",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#477"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#782",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#782"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#830",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#830"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#878",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#878"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#1178",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#1178"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#1226",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#1226"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#1274",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#1274"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#1585",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#1585"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#1634",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#1634"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#1683",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#1683"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#1996",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#1996"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#2045",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#2045"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#2094",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#2094"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#2398",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#2398"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#2447",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#2447"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/ActiveProjectsData.ts#2496",
+            "label": "image",
+            "path": "src/data/dashboard/ActiveProjectsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/ActiveProjectsData.ts#2496"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/TeamsData.ts#246",
+            "label": "image",
+            "path": "src/data/dashboard/TeamsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/TeamsData.ts#246"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/TeamsData.ts#437",
+            "label": "image",
+            "path": "src/data/dashboard/TeamsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/TeamsData.ts#437"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/TeamsData.ts#643",
+            "label": "image",
+            "path": "src/data/dashboard/TeamsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/TeamsData.ts#643"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/TeamsData.ts#843",
+            "label": "image",
+            "path": "src/data/dashboard/TeamsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/TeamsData.ts#843"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/TeamsData.ts#1048",
+            "label": "image",
+            "path": "src/data/dashboard/TeamsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/TeamsData.ts#1048"
+            ]
+          },
+          {
+            "id": "media:src/data/dashboard/TeamsData.ts#1250",
+            "label": "image",
+            "path": "src/data/dashboard/TeamsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/dashboard/TeamsData.ts#1250"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#345",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#345"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#394",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#394"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#443",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#443"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#721",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#721"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#771",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#771"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#821",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#821"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1099",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1099"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1148",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1148"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1197",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1197"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1478",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1478"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1527",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1527"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1576",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1576"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1855",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1855"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1905",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1905"
+            ]
+          },
+          {
+            "id": "media:src/data/profile/ProjectsContributionsData.ts#1955",
+            "label": "image",
+            "path": "src/data/profile/ProjectsContributionsData.ts",
+            "consumed": false,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/data/profile/ProjectsContributionsData.ts#1955"
+            ]
+          },
+          {
+            "id": "media:src/layouts/RootLayout.tsx#1167",
+            "label": "src",
+            "path": "src/layouts/RootLayout.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/layouts/RootLayout.tsx#1167"
+            ]
+          },
+          {
+            "id": "media:src/pages/auth/ForgetPassword.tsx#646",
+            "label": "src",
+            "path": "src/pages/auth/ForgetPassword.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/pages/auth/ForgetPassword.tsx#646"
+            ]
+          },
+          {
+            "id": "media:src/pages/auth/SignIn.tsx#636",
+            "label": "src",
+            "path": "src/pages/auth/SignIn.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/pages/auth/SignIn.tsx#636"
+            ]
+          },
+          {
+            "id": "media:src/pages/auth/SignUp.tsx#637",
+            "label": "src",
+            "path": "src/pages/auth/SignUp.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/pages/auth/SignUp.tsx#637"
+            ]
+          },
+          {
+            "id": "media:src/pages/dashboard/LayoutVertical.tsx#864",
+            "label": "src",
+            "path": "src/pages/dashboard/LayoutVertical.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/pages/dashboard/LayoutVertical.tsx#864"
+            ]
+          },
+          {
+            "id": "media:src/pages/dashboard/pages/NotFound.tsx#563",
+            "label": "src",
+            "path": "src/pages/dashboard/pages/NotFound.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/pages/dashboard/pages/NotFound.tsx#563"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/billing/CurrentPlan.tsx#6221",
+            "label": "src",
+            "path": "src/sub-components/billing/CurrentPlan.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/billing/CurrentPlan.tsx#6221"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/ActivityFeed.tsx#581",
+            "label": "src",
+            "path": "src/sub-components/profile/ActivityFeed.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/ActivityFeed.tsx#581"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/ActivityFeed.tsx#1232",
+            "label": "src",
+            "path": "src/sub-components/profile/ActivityFeed.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/ActivityFeed.tsx#1232"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/ActivityFeed.tsx#1895",
+            "label": "src",
+            "path": "src/sub-components/profile/ActivityFeed.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/ActivityFeed.tsx#1895"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/MyTeam.tsx#458",
+            "label": "src",
+            "path": "src/sub-components/profile/MyTeam.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/MyTeam.tsx#458"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/MyTeam.tsx#1422",
+            "label": "src",
+            "path": "src/sub-components/profile/MyTeam.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/MyTeam.tsx#1422"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/MyTeam.tsx#2386",
+            "label": "src",
+            "path": "src/sub-components/profile/MyTeam.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/MyTeam.tsx#2386"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/MyTeam.tsx#3302",
+            "label": "src",
+            "path": "src/sub-components/profile/MyTeam.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/MyTeam.tsx#3302"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/ProfileHeader.tsx#949",
+            "label": "src",
+            "path": "src/sub-components/profile/ProfileHeader.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/ProfileHeader.tsx#949"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/ProfileHeader.tsx#1470",
+            "label": "src",
+            "path": "src/sub-components/profile/ProfileHeader.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/ProfileHeader.tsx#1470"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/RecentFromBlog.tsx#1567",
+            "label": "src",
+            "path": "src/sub-components/profile/RecentFromBlog.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/RecentFromBlog.tsx#1567"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/RecentFromBlog.tsx#2469",
+            "label": "src",
+            "path": "src/sub-components/profile/RecentFromBlog.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/RecentFromBlog.tsx#2469"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/RecentFromBlog.tsx#3388",
+            "label": "src",
+            "path": "src/sub-components/profile/RecentFromBlog.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/RecentFromBlog.tsx#3388"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/RecentFromBlog.tsx#3668",
+            "label": "src",
+            "path": "src/sub-components/profile/RecentFromBlog.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/RecentFromBlog.tsx#3668"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/RecentFromBlog.tsx#3948",
+            "label": "src",
+            "path": "src/sub-components/profile/RecentFromBlog.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/RecentFromBlog.tsx#3948"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/profile/RecentFromBlog.tsx#4355",
+            "label": "src",
+            "path": "src/sub-components/profile/RecentFromBlog.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/profile/RecentFromBlog.tsx#4355"
+            ]
+          },
+          {
+            "id": "media:src/sub-components/settings/GeneralSetting.tsx#1428",
+            "label": "src",
+            "path": "src/sub-components/settings/GeneralSetting.tsx",
+            "consumed": true,
+            "certainty": "unknown",
+            "pageRefs": 0,
+            "unresolved": [
+              "目标没有可证明的页面消费者：media:src/sub-components/settings/GeneralSetting.tsx#1428"
+            ]
+          }
+        ]
+      },
+      "tokenConsumer": {
+        "sourceProven": 0,
+        "semanticCandidate": 0,
+        "unknown": 0
+      },
+      "tokenClosure": {
+        "total": 0,
+        "consumed": 0,
+        "full": 0,
+        "partial": 0,
+        "unknown": 0,
+        "entries": []
+      },
+      "unresolvedCount": 2,
+      "unresolved": [
+        "src/bootstrap-components/Dropdowns.tsx → unresolvable-component:DropdownType",
+        "src/main.tsx → ./styles/theme.scss"
+      ]
+    }
+  ]
+}

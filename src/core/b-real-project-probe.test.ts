@@ -13,6 +13,7 @@ import { sourceProvenPageImpact } from './scope'
  *
  *   RIPPLE_PROBE_QINGYE=<abs path to ripple-qingye-bolt checkout> \
  *   RIPPLE_PROBE_MOUNTAIN=<abs path to mountain-spirit-showcase checkout> \
+ *   RIPPLE_PROBE_CODECANDY=<abs path to codescandy-dashui checkout> \
  *   RIPPLE_PROBE_OUT=<abs path for results JSON>   (optional; defaults to console)
  *   npx vitest run src/core/b-real-project-probe.test.ts
  *
@@ -20,6 +21,16 @@ import { sourceProvenPageImpact } from './scope'
  * numbers can be reproduced bit-for-bit. Unset paths skip the project
  * (the test stays green in CI where the private checkouts do not exist).
  */
+
+interface ClosureEntry { id: string; label: string; path?: string; consumed: boolean; certainty: string; pageRefs: number; unresolved: string[] }
+interface ClosureStats {
+  total: number
+  consumed: number
+  full: number
+  partial: number
+  unknown: number
+  entries: ClosureEntry[]
+}
 
 interface ProbeResult {
   name: string
@@ -29,14 +40,9 @@ interface ProbeResult {
   edges: number
   kinds: Record<string, number>
   assetConsumer: { sourceProven: number; semanticCandidate: number }
-  mediaClosure: {
-    total: number
-    consumed: number
-    full: number
-    partial: number
-    unknown: number
-    entries: { id: string; label: string; path?: string; consumed: boolean; certainty: string; pageRefs: number; unresolved: string[] }[]
-  }
+  mediaClosure: ClosureStats
+  tokenConsumer: { sourceProven: number; semanticCandidate: number; unknown: number }
+  tokenClosure: ClosureStats
   unresolvedCount: number
   unresolved: string[]
 }
@@ -52,6 +58,7 @@ function frozenSha(root: string): string | 'unavailable' {
 const targets = [
   ['qingye-bolt', 'RIPPLE_PROBE_QINGYE'],
   ['mountain-spirit', 'RIPPLE_PROBE_MOUNTAIN'],
+  ['codescandy-dashui', 'RIPPLE_PROBE_CODECANDY'],
 ] as const
 
 const results: ProbeResult[] = []
@@ -94,6 +101,23 @@ describe('real-project probe (reproducible deliverable)', () => {
         }
       })
       const consumed = mediaEntries.filter(m => m.consumed)
+      const tokenProven = graph.edges.filter(e => e.kind === 'uses-token' && e.certainty === 'source-proven').length
+      const tokenCandidate = graph.edges.filter(e => e.kind === 'uses-token' && e.certainty === 'semantic-candidate').length
+      const tokenUnknownEdges = graph.edges.filter(e => e.kind === 'uses-token' && e.certainty === 'unknown').length
+      const consumerEdgeToken = new Set(graph.edges.filter(e => e.kind === 'uses-token').map(e => e.to))
+      const tokenEntries = graph.nodes.filter(n => n.kind === 'token').map(node => {
+        const impact = sourceProvenPageImpact(graph, node.id)
+        return {
+          id: node.id,
+          label: node.label,
+          path: node.location?.path,
+          consumed: consumerEdgeToken.has(node.id),
+          certainty: impact.certainty,
+          pageRefs: impact.pageRefs.length,
+          unresolved: impact.unresolved,
+        }
+      })
+      const tokensConsumed = tokenEntries.filter(t => t.consumed)
       results.push({
         name,
         rootEnv: envVar,
@@ -109,6 +133,15 @@ describe('real-project probe (reproducible deliverable)', () => {
           partial: consumed.filter(m => m.certainty === 'partial').length,
           unknown: consumed.filter(m => m.certainty === 'unknown').length,
           entries: mediaEntries,
+        },
+        tokenConsumer: { sourceProven: tokenProven, semanticCandidate: tokenCandidate, unknown: tokenUnknownEdges },
+        tokenClosure: {
+          total: tokenEntries.length,
+          consumed: tokensConsumed.length,
+          full: tokensConsumed.filter(t => t.certainty === 'source-proven').length,
+          partial: tokensConsumed.filter(t => t.certainty === 'partial').length,
+          unknown: tokensConsumed.filter(t => t.certainty === 'unknown').length,
+          entries: tokenEntries,
         },
         unresolvedCount: graph.unresolved.length,
         unresolved: graph.unresolved,
