@@ -1,5 +1,54 @@
 # Ripple 跨 Agent 开发交接（A 主线）
 
+## 接班最新核查（2026-10-20，A 交给下一位 Agent）
+
+**请优先阅读本节；后面的“前次独立审查记录”保留历史证据，涉及旧 SHA 的状态以本节为准。** 本次审查以 GitHub 远端代码、PR、Actions 和前任 Codex 留下的工作区说明为基础；**并没有直接读取前任本地未提交 Diff**。本文写入后分支 HEAD 会再前进一次，旧 SHA 是业务/文档对照点，不是写入后的 HEAD。
+
+### 远端精确状态
+
+| 事项 | 已核查结论 |
+| --- | --- |
+| A PR #2 | `feat/project-first-core-20261018`，交接前 HEAD `5cb8c743f76d22cda56ffe33d7653c491492b05c`；[CI #257 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39410503809)。从 `6b63f9455164e157b28269f75ef072c298fac69e` 至今**所有 A 远端新提交均只改本文档**，无新的已推送业务代码。 |
+| A 真实项目验收 | 最近一次仍为 [Bolt Run #6](https://github.com/Onesummer-D/Ripple/actions/runs/39358539574)，`6b63f94`，失败于预览 iframe 后续模块请求 `net::ERR_NETWORK_CHANGED` / Footer 90 秒等待；Run #6 的 Docker/Playwright 镜像预热、Tailwind 解析、Vite 启动成功。尚无真实 TEXT 全链路通过证据。 |
+| B PR #7 | `feat/b-media-executor-20261019` @ `caeeb2224e83ce7a0545a70737367ed76138b218`；[CI #256 成功](https://github.com/Onesummer-D/Ripple/actions/runs/39409500518)。新增来源探针 `scripts/debug-qingye-impact.ts`，确认商品图经过动态筛选时不能静态证明全链路，于是在 `scripts/media-qingye-acceptance.ts` 改选能够证明到商品页的分类图，并记录 certainty/unresolved；新增离线图片测试入口和浏览器 channel 调试选项。它**仍不是私有青野真实 MEDIA 工作流成功**。 |
+| B PR #4 | 来源分析 `137ff5444895a4ec906c13e25d2168581afab7a5`，此前 CI 通过；尚未与 A 最新公共基线做完整集成验收。 |
+| B 新 PR #8 | [启用 MEDIA 真实工作流入口](https://github.com/Onesummer-D/Ripple/pull/8)，HEAD `1576b54cdd865b94dc310b13a1ece26aaecd9dfa`，目标 main，当前**OPEN、未合并**，只增加 `.github/workflows/media-acceptance.yml`；需负责人先审查批准。未查到可宣称成功的 MEDIA workflow_dispatch 运行。 |
+| A 当前工程能力 | 已推送的公共 Candidate executor/Scope/Verification/Apply-Rollback 和合成工程测试通过；TEXT 真实 Bolt 未通过；TOKEN 执行器、AI 意图校准、复杂运行时实例、完整视觉验证等仍需 A 开发。正式 UI/UX 暂缓。 |
+
+### **最高优先级：前任本地未交付代码（不要误丢弃）**
+
+前任 Codex 在本文第 8 节明确报告，在 Windows checkout `ripple-pr2-bolt-run6` 有**未提交且未推送**的业务实验：
+
+1. `src/app/ProjectWorkbench.tsx`：原工程/候选 iframe 的“重新加载预演”，重载清空 selection，增加异步旧 iframe 来源响应的身份守卫。
+2. `e2e/project-workbench.spec.ts`：合成工程预演重建测试，以及 Bolt E2E 中在 `ERR_NETWORK_CHANGED` 且原 relay 对失败模块确认为 HTTP 200 的情况下才允许一次 reload 恢复；不放宽后续 Footer、Scope、Evidence 检查。
+3. `tsconfig.node.tsbuildinfo`：构建副产物，**不要当成目标代码提交**。
+
+**这些本地改动并非 GitHub PR #2 的内容，不能假定新 Agent clone 后存在。** 本次只能看到前任写下的说明，未复核工作区现状，亦未检查本地实际 Diff。旧 worktree、忽略目录 trace、暂停 UI ref 见第 8 节；禁止 `git reset --hard`、`git clean -fd`、强推、误合并或删除这些资产。
+
+接班人必须先确认其工作环境：
+
+- **有权限访问原 checkout**：先记录 `git status --short`、`git rev-parse HEAD`、`git diff --stat`、两份源码的完整 diff；对差异先审查旧 iframe 异步请求、重载重入、选择状态过期、网络瞬断恢复范围及相关负例。以单独分支/补丁安全保存并提交；对照远端 PR #2 最新 HEAD，避免用旧本地文档历史覆盖新的远端文档。
+- **不能访问原 checkout**：要求负责人/原机器通过安全方式提供两份未提交源码的 patch 或文件，**不要**宣称已恢复；若确实取不到，明确记录“旧本地实验未迁移”，并基于远端 `6b63f94` 的代码重新做诊断、实现和测试。
+- 旧本地实验测试只包含部分受限 Windows 测试，且晚于测试又改过源码。不得把它列为 Linux CI 已通过或 Bolt 修复完成。
+
+### 当前代码审查与协作风险
+
+- **A 业务代码审查**：本次对比 `d2a429a → 5cb8c74` 的远端提交只改变 `DEV_HANDOFF.md`，无法对两份本地实验进行实际代码级质量认证。A 新近通过的 CI 也没有覆盖这些未提交改动。
+- **B PR #7 当前仍有 P1（已核对最新 `caeeb22` 源码）**：`scripts/media-qingye-acceptance.ts` 中 `trustedRun()` 的七个 assertion 直接设为 `pass`，`interactionObservations` 为空，`baselineComparisons` 对基线与候选用同一个链接工件摘要。A `src/core/verification-receipt.ts` 会检查真实基线快照、交互观察和 evidence 对应版本；该验收脚本**按当前写法无法被视为统一 Receipt 的真实通过**。此外动态选择媒体节点应在 Scope 前核实要求的 `source-proven` 级别，不能把 `partial`/未解析关系默默升级；不应以 CI #256 代替私有 MEDIA 验收。**B 负责修复**，A 不能放宽通用门控来适配假 PASS。
+- **B 其他 P2**：`currentSrc.includes(assetRef)` 子串匹配、`object-position` 的像素对齐、四视口截图证据哈希/文件映射仍需 B 的实际负例与浏览器复核，不能直接宣称成熟完整。
+- **PR #8** 需在 main 暴露 workflow_dispatch 入口才能顺利从 GUI 调度，但它尚待审核；不要未经负责人批准合并。它只有 Workflow 文件，不代表 MEDIA 验收代码已经进入 main。
+- PR #2、#4、#7 均属于 Draft/未合并开发线，不得让新 Agent 为了迅速开始而直接从 main 重建或将 B 的专项模块复制到 A 分支。公共接口确需变更时通过 Issue #6 协调。
+
+### 接班人接下来的实际执行顺序
+
+1. **先救未推送的本地成果（如果可访问）**：核对并保存两份代码的 diff，评估重载恢复能否安全迁移到 A 正式分支。不能访问就明确告知并选择复现/重做，不要等待无限期权限。
+2. **完成 Run #6 根因分析及最小修复**：重点检查 iframe→relay/Vite 资源请求、Docker/服务生命周期、浏览器导航重载时序。重载可作为受控恢复手段，但不能把“重试偶尔通过”视为根因消失；必须补确定性回归、资源身份/旧回调作废、失败分类和清理负例。
+3. 运行 `npm run typecheck`、`npm test -- --run`、`npm run build`、相关 `npm run test:browser`、Docker 受限回归和独立审查；推送到 A 独立 PR #2 分支并记录新业务 SHA。使用 [Bolt workflow](.github/workflows/bolt-acceptance.yml) 固定提交手动验证，一轮轮依据日志推进，**不凭旧 CI 说真实 Bolt 成功**。
+4. Bolt TEXT 完整 `SourceGraph → Scope → Candidate → 四视口 Evidence → Approval → Apply → Rollback` 通过后，按第 5 节研发运行时精准关联、CSS TOKEN、AI 意图校准、通用视觉 Evidence、长期维护和第三方公共接口。
+5. 更新本 handoff 的 SHA、Run、剩余风险、未提交状态；不要重写整篇设计文档。**本轮正式 UI/UX 仍然暂停，B 的 MEDIA/第三方主责不变。**
+
+---
+
 ## 0. 前次独立审查记录（2026-10-20 14:51，UTC+8）
 
 > 以下审查针对当时 A `d8d8b18` / B `b7a0306`。当前 A 文档基线已到 `d2a429a`（CI #254 成功），B 已到 `caeeb22`（CI #256 成功）；下列 B 问题是否在新提交修复，尚未逐项复审，不能直接沿用为最新代码结论。
