@@ -43,7 +43,9 @@ function makeGraph(node: SourceNode): SourceGraph {
   }
 }
 
-function swapOperation(overrides: Partial<Extract<EditOperation, { kind: 'MEDIA' }>> = {}): EditOperation {
+type MediaSwapOverrides = Partial<Extract<EditOperation, { kind: 'MEDIA' }>>
+
+function swapOperation(overrides: MediaSwapOverrides = {}): EditOperation {
   return {
     id: 'op-1',
     kind: 'MEDIA',
@@ -129,7 +131,7 @@ describe('media-asset-swap', () => {
 
   it('operation.before 与源内容不一致时拒绝，且不暂存', () => {
     provideBytes('/images/hero-v2.jpg', 'new-hero-bytes')
-    const stale = swapOperation({ before: '"/images/old.jpg"' } as Partial<EditOperation>)
+    const stale = swapOperation({ before: '"/images/old.jpg"' } as MediaSwapOverrides)
     expect(() => applyMediaAssetSwapOperations(context, [stale])).toThrow(MediaAssetSwapError)
     expect(fs.existsSync(path.join(root, 'public', 'images', 'hero-v2.jpg'))).toBe(false)
   })
@@ -151,7 +153,7 @@ describe('media-asset-swap', () => {
         focalPoint: { x: 0.5, y: 0.4 },
         variants: [{ mechanism: 'srcset', condition: '768w', assetRef: '/images/hero-small.jpg', assetHash: sha256('small-bytes') }],
       },
-    } as Partial<EditOperation>)
+    } as MediaSwapOverrides)
     const modified = applyMediaAssetSwapOperations(context, [operation])
     const updated = fs.readFileSync(path.join(root, 'src/components/Hero.tsx'), 'utf8')
     expect(updated).toContain(`srcSet="/images/hero-small.jpg 768w"`)
@@ -174,7 +176,7 @@ describe('media-asset-swap', () => {
         assetHash: sha256('new-hero-bytes'),
         variants: [{ mechanism: 'srcset', condition: '768w', assetRef: '/images/hero-small.jpg', assetHash: sha256('small-bytes') }],
       },
-    } as Partial<EditOperation>)
+    } as MediaSwapOverrides)
     applyMediaAssetSwapOperations(context, [operation])
     const updated = fs.readFileSync(path.join(root, 'src/components/Hero.tsx'), 'utf8')
     expect(updated).toContain(`srcSet="/images/hero-small.jpg 768w"`)
@@ -191,13 +193,13 @@ describe('media-asset-swap', () => {
         assetHash: sha256('new-hero-bytes'),
         variants: [{ mechanism: 'css', condition: 'prefers-color-scheme: dark', assetRef: '/images/hero-dark.jpg', assetHash: sha256('dark-bytes') }],
       },
-    } as Partial<EditOperation>)
+    } as MediaSwapOverrides)
     expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(/暂不支持的 variant mechanism/)
   })
 
   it('operation.after 与执行器计算结果不一致时拒绝（保持操作记录真实）', () => {
     provideBytes('/images/hero-v2.jpg', 'new-hero-bytes')
-    const operation = swapOperation({ after: '"/images/something-else.jpg"' } as Partial<EditOperation>)
+    const operation = swapOperation({ after: '"/images/something-else.jpg"' } as MediaSwapOverrides)
     expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(/operation\.after/)
   })
 
@@ -217,7 +219,7 @@ describe('media-asset-swap', () => {
     const operation = swapOperation({
       after: '"&#x2f;a.jpg" data-evil="1"',
       payload: { assetRef: evilRef, assetHash: sha256('evil-bytes') },
-    } as Partial<EditOperation>)
+    } as MediaSwapOverrides)
     expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(/不安全字符/)
     expect(fs.readFileSync(path.join(root, 'src/components/Hero.tsx'), 'utf8')).toBe(HERO_SOURCE)
   })
@@ -228,7 +230,7 @@ describe('media-asset-swap', () => {
     const operation = swapOperation({
       after: '"/../src/App.tsx"',
       payload: { assetRef: sneakyRef, assetHash: sha256('sneaky-bytes') },
-    } as Partial<EditOperation>)
+    } as MediaSwapOverrides)
     expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(MediaAssetStagingError)
     expect(fs.existsSync(path.join(root, 'src', 'App.tsx'))).toBe(false)
   })
@@ -254,7 +256,7 @@ describe('media-asset-swap', () => {
         assetHash: sha256('new-hero-bytes'),
         variants: [{ mechanism: 'srcset', condition: '768w', assetRef: '/images/hero-small.jpg', assetHash: sha256('small-bytes') }],
       },
-    } as Partial<EditOperation>)
+    } as MediaSwapOverrides)
     expect(() => applyMediaAssetSwapOperations(context, [operation])).toThrow(/找不到 src 属性所在的 JSX 元素/)
     expect(fs.existsSync(path.join(root, 'public', 'images', 'hero-v2.jpg'))).toBe(false)
     expect(fs.existsSync(path.join(root, 'public', 'images', 'hero-small.jpg'))).toBe(false)
@@ -267,7 +269,7 @@ describe('media-asset-swap', () => {
       location: { path: 'src/components/Other.tsx', start: 10, end: 28 },
     }
     context.nodes.set(secondNode.id, secondNode)
-    const stale = swapOperation({ id: 'op-2', targetRef: 'media:other', before: '"/images/stale.jpg"' } as Partial<EditOperation>)
+    const stale = swapOperation({ id: 'op-2', targetRef: 'media:other', before: '"/images/stale.jpg"' } as MediaSwapOverrides)
     expect(() => applyMediaAssetSwapOperations(context, [swapOperation(), stale])).toThrow(MediaAssetSwapError)
     // op-1 的字节已暂存（文档化行为：失败即整体丢弃候选 worktree，不单独清理）
     expect(fs.existsSync(path.join(root, 'public', 'images', 'hero-v2.jpg'))).toBe(true)

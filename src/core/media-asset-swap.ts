@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import type { EditOperation, MediaAssetSwapPayload, SourceGraph, SourceNode } from './model'
-import { MediaAssetStagingError, resolveAssetRefToRelativePath, stageMediaAsset, type StagedMediaAsset } from './media-asset-staging'
+import { resolveAssetRefToRelativePath, stageMediaAsset, type StagedMediaAsset } from './media-asset-staging'
 
 /**
  * MEDIA asset-swap 执行器（B 侧模块）。
@@ -76,7 +76,7 @@ function swapQuotedUrl(sourceSlice: string, operationId: string, newUrl: string)
 interface JsxAttributeSpan { name: string; start: number; end: number }
 
 /** 在文件 AST 中找到包含 [start,end) 字符串字面量的 JSX 属性及其所在开始标签的属性区间。 */
-function findJsxAttribute(source: ts.SourceFile, file: string, start: number, end: number): { attributes: JsxAttributeSpan[]; selfClosing: boolean; elementStart: number; elementEnd: number } | undefined {
+function findJsxAttribute(source: ts.SourceFile, start: number, end: number): { attributes: JsxAttributeSpan[]; selfClosing: boolean; elementStart: number; elementEnd: number } | undefined {
   let found: { element: ts.JsxOpeningLikeElement; attribute: ts.JsxAttribute } | undefined
   const visit = (node: ts.Node) => {
     if (found) return
@@ -93,8 +93,8 @@ function findJsxAttribute(source: ts.SourceFile, file: string, start: number, en
   if (!found) return undefined
   const attributes: JsxAttributeSpan[] = found.element.attributes.properties
     .filter((item): item is ts.JsxAttribute => ts.isJsxAttribute(item))
-    .map(attribute => ({ name: attribute.name.getText(source), start: attribute.getStart(source), end: attribute.getEnd(source) }))
-  return { attributes, selfClosing: ts.isJsxSelfClosingElement(found.element), elementStart: found.element.getStart(source), elementEnd: found.element.getEnd(source) }
+    .map(attribute => ({ name: attribute.name.getText(source), start: attribute.getStart(source), end: attribute.end }))
+  return { attributes, selfClosing: ts.isJsxSelfClosingElement(found.element), elementStart: found.element.getStart(source), elementEnd: found.element.end }
 }
 
 /**
@@ -143,7 +143,7 @@ export function planMediaAssetSwap(operation: EditOperation, node: SourceNode, c
     // 先定位 JSX 元素再暂存任何字节，把不可执行的 variant 尽早挡在落盘之前
     const kind = /\.(tsx|jsx)$/i.test(file) ? ts.ScriptKind.TSX : /\.ts$/i.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JSX
     const source = ts.createSourceFile(file, sourceText, ts.ScriptTarget.Latest, true, kind)
-    located = findJsxAttribute(source, file, node.location.start, node.location.end)
+    located = findJsxAttribute(source, node.location.start, node.location.end)
     if (!located) throw new MediaAssetSwapError(`找不到 src 属性所在的 JSX 元素，无法设置 srcSet：${operation.id}`)
   }
 
