@@ -325,7 +325,7 @@ describe('resolveSourceMappingAssertion（source-mapping 独立来源证明）',
   it('负例：report 侧同一视口重复记录（等长替换，数量检查不先行）→ risk（自相矛盾）', () => {
     const observations = observationsAcross()
     observations[3] = observation({ viewport: FOUR[0] })
-    const verdict = resolveSourceMappingAssertion(observations, dual())
+    const verdict = resolveSourceMappingAssertion(observations as Parameters<typeof resolveSourceMappingAssertion>[0], dual())
     expect(verdict.result).toBe('risk')
     expect(verdict.detail).toMatch(/重复视口/)
   })
