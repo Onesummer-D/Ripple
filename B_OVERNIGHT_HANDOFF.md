@@ -1,8 +1,9 @@
-# B 侧接力记录 v2（2026-10-21 清晨）
+# B 侧接力记录 v3（2026-10-21 清晨）
 
 接力分支：`feat/b-media-overnight-20261021`
 - v1 基线：`8492aaf`（基于 PR #7 HEAD `f51719d`）
-- v2 当前：`1f5ee58`（见下文；推送后以远端为准）
+- v2：`1f5ee58`（P1 代码 + 恢复保证/source-mapping）
+- v3 当前：`919d40d`（见下文；推送后以远端为准）
 - A/B 集成分支：`integration/b-media-x-a-20261021` @ `5fd6e80`
 - PR #9 分支已更新：`d5764e7 → 8c1ae2b`（ff，无强推）
 
@@ -12,7 +13,15 @@ A 此后仍在推进（CI #291 @ `73bb9bd0`），集成是按 `caa2eaa` 时间�
 
 ---
 
-## 一、本轮新增代码（v2，相对 v1 的 `8492aaf`）
+## 一、本轮新增代码
+
+### v3 增量（`1f5ee58 → 919d40d`）
+
+| 文件 | 性质 |
+|---|---|
+| `scripts/media-qingye-acceptance.ts` | **修改**：成功路径的显式 `rollbackAppliedCandidate` 纳入故障注入与现场保留——此前 `rollback-failure` 只挂在恢复路径 `beforeRollback` 钩子上，成功路径无故障点，注入会被 happy path 绕过直接 PASS（v2 交接中"双故障实测"的描述不准确，v3 已用真实负例复现并修复） |
+
+### v2 增量（相对 v1 的 `8492aaf`）
 
 | 文件 | 性质 |
 |---|---|
@@ -37,7 +46,13 @@ VerificationReceipt 公共契约（仅使用其既有 API）。
   2. `post-apply` 注入：`MediaAcceptanceRecoveryError: 应用后校验失败，已自动回滚恢复
      原基线（1aee4f4207d1…）。原始错误：故障注入：post-apply`，退出码非零，
      无 PASS 产物，原工程干净。
-  3. `rollback-failure` 注入：双故障抛错、可丢弃副本现场按设计保留（运行日志为准）。
+  3. `rollback-failure` 注入：复跑真实验证通过（commit `919d40d` 修复后）。无 PASS 产物，
+     报错 `AcceptanceError: 显式回滚失败，现场已保留于可丢弃副本 …：故障注入：
+     rollback-failure`；保留副本中 `products.ts` 处于应用后状态（含
+     `/media/qingye-category-swap.jpg` 引用，`public/` 为暂存资产），证明回滚确实未执行；
+     青野克隆 `worktree list` 恢复原状、`status` 干净。⚠️ 教训：`919d40d` 之前该注入
+     只挂在恢复路径的 `beforeRollback` 钩子上，成功路径的显式回滚之前无故障点，
+     注入会被 happy path 绕过直接 PASS——真实负例抓住了这个缺口，请勿回退该修复。
 
 ## 三、P1-2 Source Mapping 独立证据 — ✅ 完成
 
