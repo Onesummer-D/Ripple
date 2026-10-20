@@ -299,4 +299,66 @@ describe('resolveSourceMappingAssertion（source-mapping 独立来源证明）',
     const notLoaded = reportOf({ loaded: false, naturalWidth: 0, naturalHeight: 0, renderedBox: { x: 0, y: 0, width: 10, height: 10 }, errors: ['boom'] })
     expect(resolveSourceMappingAssertion(notLoaded.observations, dual()).result).toBe('unknown')
   })
+
+  it('负例：候选端 matchCount=0（无消费实例）不得 pass → unknown', () => {
+    const verdict = resolveSourceMappingAssertion(reportOf({ matchCount: 0 }).observations, dual())
+    expect(verdict.result).toBe('unknown')
+    expect(verdict.detail).toMatch(/matchCount=0/)
+  })
+
+  it('负例：基线端 imageMatchCount=0（无消费实例）不得 pass → unknown', () => {
+    const tampered = dual()
+    tampered.viewports[1]!.baseline.imageMatchCount = 0
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, tampered)
+    expect(verdict.result).toBe('unknown')
+    expect(verdict.detail).toMatch(/imageMatchCount=0/)
+  })
+
+  it('负例：report 与 dual 视口数量不一致 → unknown（覆盖不完整，非矛盾）', () => {
+    const fewer = dual()
+    fewer.viewports = fewer.viewports.slice(0, 3)
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, fewer)
+    expect(verdict.result).toBe('unknown')
+    expect(verdict.detail).toMatch(/数量不一致/)
+  })
+
+  it('负例：report 侧同一视口重复记录（等长替换，数量检查不先行）→ risk（自相矛盾）', () => {
+    const observations = observationsAcross()
+    observations[3] = observation({ viewport: FOUR[0] })
+    const verdict = resolveSourceMappingAssertion(observations, dual())
+    expect(verdict.result).toBe('risk')
+    expect(verdict.detail).toMatch(/重复视口/)
+  })
+
+  it('负例：dual 侧同一视口重复记录（等长替换，数量检查不先行）→ risk（自相矛盾）', () => {
+    const tampered = dual()
+    tampered.viewports[3] = tampered.viewports[0]!
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, tampered)
+    expect(verdict.result).toBe('risk')
+    expect(verdict.detail).toMatch(/重复视口/)
+  })
+
+  it('负例：双端视口尺寸错位（同名不同宽）→ risk（身份不对应）', () => {
+    const misaligned = dual()
+    misaligned.viewports[0]!.viewport = { name: 'desktop', width: 1280, height: 900 }
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, misaligned)
+    expect(verdict.result).toBe('risk')
+    expect(verdict.detail).toMatch(/不一一对应/)
+  })
+
+  it('负例：基线端未找到目标图（imageFound=false）→ unknown', () => {
+    const tampered = dual()
+    tampered.viewports[2]!.baseline.imageFound = false
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, tampered)
+    expect(verdict.result).toBe('unknown')
+    expect(verdict.detail).toMatch(/未找到目标图/)
+  })
+
+  it('正常双端唯一匹配 pass，且 detail 如实声明证明边界（URL 级消费实例唯一，非任意 DOM→Source 映射）', () => {
+    const verdict = resolveSourceMappingAssertion(reportOf().observations, dual())
+    expect(verdict.result).toBe('pass')
+    expect(verdict.detail).toMatch(/消费实例唯一性证明通过/)
+    expect(verdict.detail).toMatch(/证明边界/)
+    expect(verdict.detail).not.toMatch(/三者一致且无歧义/)
+  })
 })

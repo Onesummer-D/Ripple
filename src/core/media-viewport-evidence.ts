@@ -322,33 +322,71 @@ export const mediaDualEndpointSha256 = (collection: MediaDualEndpointCollection)
   createHash('sha256').update(JSON.stringify(collection)).digest('hex')
 
 /**
- * source-mapping 断言的独立判定（与 target-change 解耦）：
- * 除候选图真实加载外，还要求双端 DOM 中目标资源的消费实例**唯一**——
- * 候选端恰好 1 个 img 命中 assetRef、基线端恰好 1 个 img 命中原值。
- * - 任一视口候选 matchCount > 1 或基线 imageMatchCount > 1：来源歧义 → risk（阻止 PASS）；
- * - 未完整渲染或替换未生效：覆盖不完整 → unknown（fail-closed，不猜测）。
+ * source-mapping 断言的独立判定（与 target-change 解耦）。
+ *
+ * 证明边界（独立审查 P1-3 收紧）：本断言严格证明的是**目标资源 URL 消费实例唯一性**——
+ * 双端每个视口中目标资源在 DOM 里恰好只有一个消费实例（候选端恰好 1 个 img 命中
+ * assetRef，基线端恰好 1 个 img 命中原值）。它不声称已证明 SourceGraph 任意媒体节点
+ * 到 DOM 实例的精确映射；完整 source-mapping PASS 还需目标源码位置、目标属性与可验证
+ * DOM 实例之间的关联证据，当前能力不足以夸大到该范围（detail 如实声明此边界）。
+ *
+ * 判定规则（fail-closed，绝不返回未经证明的 pass）：
+ * - 记录结构矛盾：重复视口、双端视口身份（名称+尺寸）不一一对应 → risk；
+ * - 任一视口任一端消费实例 > 1（来源歧义）→ risk；
+ * - 覆盖不完整：两份记录视口数量不一致、计数为 0、未加载/未渲染、基线未找到目标图
+ *   或 currentSrc 未命中 → unknown。
  */
 export function resolveSourceMappingAssertion(
   observations: MediaViewportEvidenceReport['observations'],
   dual: MediaDualEndpointCollection,
 ): { result: 'pass' | 'risk' | 'unknown'; detail: string } {
-  const swapped = observations.map(observation => assetUrlMatches(observation.currentSrc, observation.assetRef))
-  const rendered = dual.viewports.every(item => item.runtimeState === 'rendered' && item.candidate.worksPageReached)
-  const loaded = observations.every(observation => observation.loaded)
-  const candidateAmbiguous = observations.filter(observation => observation.matchCount > 1)
-  const baselineAmbiguous = dual.viewports.filter(item => item.baseline.imageMatchCount > 1)
-  if (candidateAmbiguous.length || baselineAmbiguous.length) {
-    const detail = [
-      candidateAmbiguous.length ? `候选端 ${candidateAmbiguous.length} 个视口存在多个消费实例（matchCount>1）` : '',
-      baselineAmbiguous.length ? `基线端 ${baselineAmbiguous.length} 个视口存在多个消费实例（imageMatchCount>1）` : '',
-    ].filter(Boolean).join('；')
-    return { result: 'risk', detail: `目标资源来源映射不唯一，${detail}，禁止按唯一映射通过。` }
+  const identity = (viewport: { name: string; width: number; height: number }): string => `${viewport.name}@${viewport.width}x${viewport.height}`
+
+  // 1. 覆盖完整性：两份记录的视口数量必须一致（数量不符说明采集不完整，而非矛盾）
+  if (observations.length !== dual.viewports.length) {
+    return { result: 'unknown', detail: `report 观测（${observations.length} 个视口）与 dual 采集（${dual.viewports.length} 个视口）数量不一致，来源映射覆盖不完整，保持未知。` }
   }
-  if (!(rendered && loaded && swapped.every(Boolean))) {
-    return { result: 'unknown', detail: '并非所有视口完成渲染或替换图未加载，来源映射覆盖不完整，保持未知。' }
+
+  // 2. 记录一致性：重复视口或双端身份错位属于明确矛盾 → risk
+  const hasDuplicate = (identities: string[]): boolean => identities.length !== new Set(identities).size
+  const observationIdentities = observations.map(item => identity(item.viewport))
+  const dualIdentities = dual.viewports.map(item => identity(item.viewport))
+  if (hasDuplicate(observationIdentities) || hasDuplicate(dualIdentities)) {
+    return { result: 'risk', detail: '存在重复视口记录，采集数据自相矛盾，禁止按唯一映射通过。' }
+  }
+  if (new Set(observationIdentities).size !== new Set([...observationIdentities, ...dualIdentities]).size) {
+    return { result: 'risk', detail: 'report 与 dual 的视口身份（名称/尺寸）不一一对应，采集记录错位，禁止按唯一映射通过。' }
+  }
+
+  // 3. 逐视口配对严格判定：计数必须恰好为 1，任何 0 或 >1 都不得 pass
+  const dualByIdentity = new Map(dual.viewports.map(item => [identity(item.viewport), item]))
+  const ambiguous: string[] = []
+  const incomplete: string[] = []
+  for (const observation of observations) {
+    const item = dualByIdentity.get(identity(observation.viewport))
+    const label = observation.viewport.name
+    if (!item) { incomplete.push(`${label}：dual 缺少对应视口`); continue }
+    if (observation.matchCount > 1 || item.baseline.imageMatchCount > 1) {
+      ambiguous.push(`${label}：候选 matchCount=${observation.matchCount} / 基线 imageMatchCount=${item.baseline.imageMatchCount}`)
+      continue
+    }
+    const reasons: string[] = []
+    if (observation.matchCount === 0) reasons.push('候选端无消费实例（matchCount=0）')
+    if (item.baseline.imageMatchCount === 0) reasons.push('基线端无消费实例（imageMatchCount=0）')
+    if (!item.baseline.imageFound) reasons.push('基线端未找到目标图')
+    if (!observation.loaded) reasons.push('替换图未真实加载')
+    if (!assetUrlMatches(observation.currentSrc, observation.assetRef)) reasons.push('currentSrc 未命中替换资源')
+    if (!(item.runtimeState === 'rendered' && item.candidate.worksPageReached)) reasons.push('候选端未完成渲染/到达作品页')
+    if (reasons.length) incomplete.push(`${label}：${reasons.join('；')}`)
+  }
+  if (ambiguous.length) {
+    return { result: 'risk', detail: `目标资源来源映射不唯一（${ambiguous.join('；')}），禁止按唯一映射通过。` }
+  }
+  if (incomplete.length) {
+    return { result: 'unknown', detail: `来源映射覆盖不完整（${incomplete.join('；')}），保持未知。` }
   }
   return {
     result: 'pass',
-    detail: `SourceGraph 定位节点在每个视口唯一映射到真实渲染的替换图：候选端 ${observations.length} 个视口各恰好 1 个 img 命中新资源、基线端各恰好 1 个 img 保持原值（来源定位 + 候选源码 + 浏览器渲染三者一致且无歧义）。`,
+    detail: `目标资源 URL 消费实例唯一性证明通过：候选端 ${observations.length} 个视口各恰好 1 个 img 命中新资源、基线端各恰好 1 个 img 保持原值。证明边界：本断言仅证明 URL 级消费实例唯一，不声称已证明任意场景精确的 DOM→Source 映射。`,
   }
 }
