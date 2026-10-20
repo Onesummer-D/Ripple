@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { isPublicPreviewResourceAddress, snapshotAuthorizedPreviewResources, type DownloadedResource } from './preview-resource-snapshot'
+import { isPublicPreviewResourceAddress, SnapshotFetchError, snapshotAuthorizedPreviewResources, type DownloadedResource } from './preview-resource-snapshot'
 
 const tempDirs: string[] = []
 afterEach(() => { for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
@@ -103,5 +103,55 @@ describe('isolated preview resource snapshots', () => {
       { url: 'https://fonts.gstatic.com/s/f0/v1/f0.woff2', reason: 'Authorized resource request timed out.' },
       { url: cssUrl, reason: 'A font dependency of the approved stylesheet could not be snapshotted.' },
     ])
+    // Both failures carry a structured diagnostic: the font fetch failure and
+    // the stylesheet-level dependency degradation.
+    const stages = out.diagnostics.filter(d => !d.ok).map(d => [d.url === cssUrl ? 'css' : 'font', d.stage])
+    expect(stages).toEqual([['font', 'connection'], ['css', 'dependency']])
   })
+
+  it('records staged diagnostics with status, bytes and duration for every fetch', async () => {
+    const good = 'https://images.pexels.com/photos/9/p.jpeg'
+    const bad = 'https://images.pexels.com/photos/10/p.jpeg'
+    const denied = 'https://images.pexels.com/photos/11/p.jpeg'
+    const fetcher = async (input: string): Promise<DownloadedResource> => {
+      if (input === good) return ok(Buffer.from('jpeg-bytes'), 'image/jpeg')
+      if (input === bad) throw new SnapshotFetchError('timeout', 'Authorized resource request timed out.')
+      throw new SnapshotFetchError('ip-check', 'Resource host does not resolve exclusively to public IP addresses.')
+    }
+    const out = await snapshotAuthorizedPreviewResources([good, bad, denied], tempDir(), fetcher)
+    expect(out.snapshots.map(s => s.url)).toEqual([good])
+    expect(out.diagnostics).toHaveLength(3)
+    const okEntry = out.diagnostics.find(d => d.url === good)!
+    expect(okEntry).toMatchObject({ stage: 'ok', ok: true, status: 200, contentType: 'image/jpeg', bytes: 10 })
+    expect(okEntry.durationMs).toBeGreaterThanOrEqual(0)
+    const timeoutEntry = out.diagnostics.find(d => d.url === bad)!
+    expect(timeoutEntry).toMatchObject({ stage: 'timeout', ok: false })
+    expect(timeoutEntry.message).toContain('timed out')
+    const deniedEntry = out.diagnostics.find(d => d.url === denied)!
+    expect(deniedEntry).toMatchObject({ stage: 'ip-check', ok: false })
+    expect(deniedEntry.message).toContain('public IP')
+  })
+})
+
+// Real-egress probe: gated behind RIPPLE_LIVE_RESOURCE_TEST so it runs on CI
+// (where the snapshotter's true network path exists) and stays inert on
+// developer machines with restricted DNS. It snapshots one small public
+// stylesheet through the REAL downloader — DNS pinning, public-IP
+// validation, TLS and HTTP handling included — and prints the full
+// diagnostic entry, so a runner-environment failure (the Run #9 class: all
+// resources lost in ~62 ms) is attributable from the unit-test log alone.
+describe.skipIf(process.env.RIPPLE_LIVE_RESOURCE_TEST !== '1')('live resource snapshot probe (CI egress)', () => {
+  it('snapshots a small public stylesheet through the real downloader', async () => {
+    const cssUrl = 'https://fonts.googleapis.com/css2?family=Roboto&display=swap'
+    const out = await snapshotAuthorizedPreviewResources([cssUrl], tempDir())
+    console.log('live snapshot diagnostics:', JSON.stringify(out.diagnostics, null, 2))
+    console.log('live snapshot unavailable:', JSON.stringify(out.unavailable, null, 2))
+    expect(out.unavailable).toEqual([])
+    const stylesheet = out.snapshots.find(s => s.url === cssUrl)
+    expect(stylesheet).toBeDefined()
+    expect(stylesheet!.sizeBytes).toBeGreaterThan(0)
+    const entry = out.diagnostics.find(d => d.url === cssUrl)!
+    expect(entry).toMatchObject({ stage: 'ok', ok: true, status: 200 })
+    expect(entry.durationMs).toBeGreaterThan(0)
+  }, 60_000)
 })

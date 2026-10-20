@@ -28,7 +28,15 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund --prefix test/fixtures/react-vite-tailwind
       - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
-      - run: npm test -- --run
+      - name: Unit tests (the live resource snapshot probe needs real egress)
+        run: npm test -- --run
+        env:
+          # Exercises the real HTTPS snapshotter (DNS pinning + public-IP
+          # check + TLS) on the runner. The Bolt workflow is the only other
+          # place this path runs; without this probe regressions reach the
+          # 16-minute acceptance run undetected (Run #9 lost all 19 resources
+          # in 62 ms and nothing else noticed).
+          RIPPLE_LIVE_RESOURCE_TEST: '1'
       - run: npm run build
       - name: Require Docker for isolated candidate browser preview
         run: docker info --format '{{.ServerVersion}}'

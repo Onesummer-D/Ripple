@@ -189,7 +189,7 @@ function exportRunDiagnostics(artifactRoot: string, runId: string): void {
   if (!exportRoot) return
   const destination = path.join(exportRoot, 'diagnostics', runId)
   fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
-  for (const name of ['progress.jsonl', 'snapshot-timing.json']) {
+  for (const name of ['progress.jsonl', 'snapshot-timing.json', 'resource-fetch-log.json']) {
     const source = path.join(artifactRoot, name)
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(destination, name))
   }
@@ -199,6 +199,21 @@ function readRunnerProgressTail(artifactRoot: string, maxLines = 24): string {
   const progressFile = path.join(artifactRoot, 'progress.jsonl')
   if (!fs.existsSync(progressFile)) return ''
   return fs.readFileSync(progressFile, 'utf8').trim().split('\n').filter(Boolean).slice(-maxLines).join('\n')
+}
+
+// Run #9: the snapshotter failed all 19 authorized resources in ~62 ms and the
+// run still burned the full 180 s executor budget, finishing with no trusted
+// record and no persisted reasons. When verification explicitly depends on
+// authorized resources and not one could be captured, continuing is strictly
+// worse than stopping: every external request would be blocked, viewport
+// checks would "pass" without their declared resources, and the failure would
+// surface only as a timeout. A project with no authorized resources (an empty
+// or fully optional list that snapshots cleanly) is unaffected.
+export function snapshotCoverageFailure(result: { snapshots: unknown[]; unavailable: Array<{ url: string; reason: string }> }): string | undefined {
+  if (result.snapshots.length > 0 || result.unavailable.length === 0) return undefined
+  const lines = result.unavailable.slice(0, 8).map(entry => `${entry.url} — ${entry.reason}`)
+  const more = result.unavailable.length > 8 ? [`…以及另外 ${result.unavailable.length - 8} 条（见 resource-fetch-log.json）`] : []
+  return `全部 ${result.unavailable.length} 个授权外部资源快照失败，本次验证未启动。原因：\n${[...lines, ...more].join('\n')}`
 }
 
 export async function runCandidateVerification(candidate: CandidateRecord, session: EditSession, baseGraph: SourceGraph, preview: CandidatePreview): Promise<VerificationRun> {
@@ -245,6 +260,15 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       unavailableCount: resourceSnapshotResult.unavailable.length,
       totalBytes: resourceSnapshotResult.snapshots.reduce((sum, snapshot) => sum + snapshot.sizeBytes, 0),
     }, null, 2))
+    // Run #9's reasons never reached the artifact: they lived only in this
+    // in-memory result and input.json is deleted in the finally block. Persist
+    // the full staged fetch log so any failure mode is attributable offline.
+    fs.writeFileSync(path.join(artifactRoot, 'resource-fetch-log.json'), JSON.stringify({
+      unavailable: resourceSnapshotResult.unavailable,
+      diagnostics: resourceSnapshotResult.diagnostics,
+    }, null, 2))
+    const coverageFailure = snapshotCoverageFailure(resourceSnapshotResult)
+    if (coverageFailure) throw new VerificationRunnerError(coverageFailure)
     exportResourceSnapshots(artifactRoot, runId, resourceSnapshotResult.snapshots)
     baseline = await startCandidateBaseline(candidate, preview)
     fs.writeFileSync(inputPath, JSON.stringify({

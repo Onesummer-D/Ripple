@@ -42,6 +42,15 @@ const progress = entry => {
   try { fs.appendFileSync(progressPath, JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n') } catch { /* bookkeeping must never fail the run */ }
 }
 progress({ event: 'runner-start', resourceSnapshots: resourceSnapshots.length, unavailableResources: (input.unavailableResources ?? []).length, viewports: viewportPlan.length })
+// Per-phase timings: Run #9 showed 50-70 s per viewport with no way to tell
+// whether the cost was navigation, rendering, font waits, DOM comparison, or
+// scope probes. timed() emits one progress line per phase so the next budget
+// kill attributes itself.
+let currentCheckId = ''
+const timed = async (phase, fn, extra) => {
+  const started = Date.now()
+  try { return await fn() } finally { progress({ event: 'phase', checkId: currentCheckId, phase, durationMs: Date.now() - started, ...(extra ?? {}) }) }
+}
 
 async function installResourceSnapshots(page) {
   await page.route('**/*', async route => {
@@ -162,6 +171,7 @@ const contractPages = input.verificationContract?.pages ?? []
 try {
   for (const viewport of viewportPlan) {
     const checkId = `${input.runId}-${viewport.name}`
+    currentCheckId = checkId
     const checkStart = Date.now()
     const page = await browser.newPage({ viewport })
     const baselinePage = await browser.newPage({ viewport })
@@ -184,18 +194,22 @@ try {
     let failure
     const pageUrl = `http://${input.previewHost}:5173/`
     try {
-      response = await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-      baselineResponse = await baselinePage.goto(`http://${input.baselineHost}:5173/`, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-      await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
-      await baselinePage.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
-      await page.waitForFunction(() => {
-        const root = document.querySelector('#root')
-        return !!root && !!root.textContent?.trim()
-      }, undefined, { timeout: 15_000 })
-      await baselinePage.waitForFunction(() => {
-        const root = document.querySelector('#root')
-        return !!root && !!root.textContent?.trim()
-      }, undefined, { timeout: 15_000 })
+      response = await timed('candidate-nav', () => page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 }))
+      baselineResponse = await timed('baseline-nav', () => baselinePage.goto(`http://${input.baselineHost}:5173/`, { waitUntil: 'domcontentloaded', timeout: 30_000 }))
+      await timed('candidate-root', async () => {
+        await page.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
+        await page.waitForFunction(() => {
+          const root = document.querySelector('#root')
+          return !!root && !!root.textContent?.trim()
+        }, undefined, { timeout: 15_000 })
+      })
+      await timed('baseline-root', async () => {
+        await baselinePage.locator('#root').waitFor({ state: 'attached', timeout: 15_000 })
+        await baselinePage.waitForFunction(() => {
+          const root = document.querySelector('#root')
+          return !!root && !!root.textContent?.trim()
+        }, undefined, { timeout: 15_000 })
+      })
       loaded = response?.ok() === true
       baselineLoaded = baselineResponse?.ok() === true
       runtimeState = loaded ? 'rendered' : `http-${response?.status() ?? 'no-response'}`
@@ -215,10 +229,10 @@ try {
       targetResults.push(input.targetBindings.length > 0 && input.targetBindings.every(binding =>
         binding.sourceRefs.length === 1 && matches.some(element => element.sourceRef === binding.sourceRefs[0] && element.text.includes(binding.expectedText))))
       if (loaded && baselineLoaded) {
-        const [baselineSnapshot, candidateSnapshot] = await Promise.all([
+        const [baselineSnapshot, candidateSnapshot] = await timed('dom-compare', () => Promise.all([
           snapshotOutsideTargets(baselinePage, input.targetBindings, true, input.baselineComparisonPageRef),
           snapshotOutsideTargets(page, input.targetBindings, false, input.baselineComparisonPageRef),
-        ])
+        ]))
         if (baselineSnapshot.ok && candidateSnapshot.ok) {
           const baselineBytes = Buffer.byteLength(baselineSnapshot.snapshot)
           const candidateBytes = Buffer.byteLength(candidateSnapshot.snapshot)
@@ -256,19 +270,19 @@ try {
           nonTargetResults.push(null)
         }
       } else nonTargetResults.push(null)
-      await page.evaluate(() => document.fonts.ready.then(() => true))
+      await timed('fonts-ready', () => page.evaluate(() => document.fonts.ready.then(() => true)))
       screenshotPath = `${checkId}.png`
       const absoluteScreenshot = path.join('/evidence', screenshotPath)
-      await page.screenshot({ path: absoluteScreenshot, fullPage: true, animations: 'disabled' })
+      await timed('screenshot', () => page.screenshot({ path: absoluteScreenshot, fullPage: true, animations: 'disabled' }))
       screenshotHash = sha256(fs.readFileSync(absoluteScreenshot))
       artifacts.push({ checkId, path: screenshotPath, sha256: screenshotHash })
       if (!noOverflow) runtimeState = 'horizontal-overflow'
 
       for (const spec of input.verificationContract?.pages ?? []) {
-        const [baselineProbe, candidateProbe] = await Promise.all([
+        const [baselineProbe, candidateProbe] = await timed('scope-probe', () => Promise.all([
           visitWithErrors(spec, input.baselineHost, viewport, contractPages),
           visitWithErrors(spec, input.previewHost, viewport, contractPages),
-        ])
+        ]), { pageRef: spec.pageRef })
         const operations = []
         for (const binding of input.targetBindings) {
           const [baselineValues, candidateValues] = await Promise.all([
@@ -306,10 +320,10 @@ try {
             return false
           }
         }
-        const [baselinePassed, candidatePassed] = await Promise.all([
+        const [baselinePassed, candidatePassed] = await timed('interaction', () => Promise.all([
           activate(baselineProbe.page, baselineProbe.routeIdentity),
           activate(candidateProbe.page, candidateProbe.routeIdentity),
-        ])
+        ]), { interactionIndex })
         interactionObservations.push({
           interactionIndex, pageRef: interaction.pageRef, route: spec.path,
           viewport: { width: viewport.width, height: viewport.height }, role: interaction.role,
@@ -336,8 +350,10 @@ try {
         runtimeState, elementRefs, ...(screenshotPath ? { artifactPath: screenshotPath, artifactHash: screenshotHash } : {}),
         ...(failure ? { reason: failure } : {}),
       })
-      await page.close()
-      await baselinePage.close()
+      await timed('close', async () => {
+        await page.close()
+        await baselinePage.close()
+      })
       progress({
         event: 'check-complete', checkId, durationMs: Date.now() - checkStart, result,
         loadedExternalResources: loadedExternalResourceUrls.size, blockedExternalResources: blockedExternalResourceUrls.size,
