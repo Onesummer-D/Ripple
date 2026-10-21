@@ -29,7 +29,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
       - name: Unit tests (the live resource snapshot probe needs real egress)
-        run: npm test -- --run
+        run: npm test -- --run --no-file-parallelism
         env:
           # Exercises the real HTTPS snapshotter (DNS pinning + public-IP
           # check + TLS) on the runner. The Bolt workflow is the only other
