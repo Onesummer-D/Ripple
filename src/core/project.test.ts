@@ -462,9 +462,13 @@ describe('real project graph and candidate executor', () => {
     const transformed = await Reflect.apply(plugin.transform, undefined, [source, file]) as { code?: string } | string | null
     const result = typeof transformed === 'object' && transformed && 'code' in transformed ? transformed.code! : String(transformed)
     expect(result).toContain(`data-ripple-source="jsx:src/pages/List.jsx#${source.indexOf('<ul>')}`)
-    expect(result).toContain('data-ripple-list-key={String(product.id)}')
+    // Tightened (task D round 2): the key is evaluated once where it was written and its
+    // value captured; annotation never repeats `product.id` (getters/Proxies could run).
+    // The key value itself is never read by annotation: host ids defer it to the collector.
+    expect(result).toContain('+ ":~"')
+    expect(result).not.toContain('data-ripple-list-key')
     expect(result).toContain('stable-react-instance')
-    expect(result).toContain('String(product.id)')
+    expect(result.match(/product\.id/g)).toHaveLength(source.match(/product\.id/g)!.length)
     expect(result).not.toMatch(/\bas\s+(?:typeof|const|globalThis)\b/)
     expect(result).not.toMatch(/:\s*(?:string|number)\b/)
     expect(result).not.toContain('__rippleInstanceCounters')
