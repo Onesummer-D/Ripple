@@ -174,13 +174,36 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
     baselinePage = await page.context().newPage()
     baselinePage.on('pageerror', onPageError)
     baselinePage.on('console', onConsole)
+    // Vite may finish the document load while React modules are still in flight.
+    // A transient Chromium ERR_NETWORK_CHANGED can leave the document loaded
+    // but the application unmounted. Retry *once* only for that observed network
+    // failure, and require the original Home heading on every attempt.
+    const loadBaselineHome = async () => {
+      const networkChanges: string[] = []
+      const onRequestFailed = (request: import('@playwright/test').Request) => {
+        if (request.failure()?.errorText === 'net::ERR_NETWORK_CHANGED') networkChanges.push(request.url())
+      }
+      baselinePage!.on('requestfailed', onRequestFailed)
+      try {
+        await baselinePage!.goto(baselineRelay!.url)
+        try {
+          await expect(baselinePage!.getByRole('heading', { name: 'Home page' })).toBeVisible()
+        } catch (error) {
+          if (networkChanges.length === 0) throw error
+          console.warn(`Baseline reload after ${networkChanges.length} net::ERR_NETWORK_CHANGED resource failure(s)`)
+          await baselinePage!.goto(baselineRelay!.url)
+          await expect(baselinePage!.getByRole('heading', { name: 'Home page' })).toBeVisible()
+        }
+      } finally {
+        baselinePage!.off('requestfailed', onRequestFailed)
+      }
+    }
     for (const { width, height } of projectPreviewViewports) {
       const viewport = { width, height }
       await page.setViewportSize(viewport)
       await baselinePage.setViewportSize(viewport)
-      await baselinePage.goto(baselineRelay.url)
+      await loadBaselineHome()
       await page.goto(preview.url)
-      await expect(baselinePage.getByRole('heading', { name: 'Home page' })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Home page' })).toBeVisible()
       for (const value of expectedHome) await expect(page.getByText(value, { exact: true })).toBeVisible()
       const mapped = page.locator('[data-ripple-source^="jsx:src/components/Navigation.jsx#"]').first()
@@ -209,7 +232,7 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
       })
       expect(baselineDigest, 'the candidate changed DOM outside the uniquely mapped text target').toBe(candidateDigest)
       for (const spec of session.verificationContract!.pages) {
-        await baselinePage.goto(baselineRelay.url)
+        await loadBaselineHome()
         await page.goto(preview.url)
         if (spec.navigateBy) {
           await baselinePage.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click()
@@ -248,7 +271,7 @@ async function verifyPreview(page: import('@playwright/test').Page, candidate: C
           for (const value of expectedHome) if (!['Home', 'Products'].includes(value)) await expect(page.getByText(value, { exact: true })).toHaveCount(0)
         }
       }
-      await baselinePage.goto(baselineRelay.url)
+      await loadBaselineHome()
       await page.goto(preview.url)
       await baselinePage.getByRole('button', { name: 'Clicks 0', exact: true }).click()
       await page.getByRole('button', { name: 'Clicks 0', exact: true }).click()
