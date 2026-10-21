@@ -17,7 +17,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Golden fixture metadata records this exact Node build and zlib version.
+          # Pin only the standalone reproducibility job; leave the main CI untouched.
+          node-version: '22.22.0'
           cache: npm
       - name: Install repository-locked dependencies
         id: dependencies

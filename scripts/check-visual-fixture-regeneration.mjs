@@ -54,7 +54,7 @@ for(const name of allPaths) {
       }
       recurse(left,right)
       item.jsonChangedFields=fields
-      item.onlyEnvironmentMetadata=fields.length>0 && fields.every(f=>/^\\.environment\\.(nodeVersion|zlib|platform|arch|runtime)$/.test(f.field))
+      item.onlyEnvironmentMetadata=fields.length>0 && fields.every(f => ['.environment.nodeVersion','.environment.zlib','.environment.platform','.environment.arch','.environment.runtime'].includes(f.field))
     } catch(e) {item.jsonCompareError=String(e?.message??e)}
   }
   if(name.endsWith('.png')) {
