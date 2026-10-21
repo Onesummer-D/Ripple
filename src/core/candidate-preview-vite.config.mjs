@@ -3,6 +3,7 @@ import { isIP } from 'node:net'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
 import { previewCspForRequest } from './preview-csp.mjs'
+import { symlinkedWorkspaceExcludes } from './preview-optimize-deps-excludes.mjs'
 
 const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
@@ -125,7 +126,18 @@ export default {
   plugins: [requestCsp(), sourceAnnotationPlugin('/work'), react(), selectionBridge()],
   resolve: { alias: typescriptAliases(), preserveSymlinks: true },
   cacheDir: '/tmp/ripple-vite-cache',
-  optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'], esbuildOptions: { preserveSymlinks: true } },
+  // Restricted dependency discovery (approved experiment, coordinator
+  // 2026-10-22): esbuild statically scans the entry and prebundles bare
+  // node_modules imports only. Project source and workspace-linked packages
+  // keep flowing through sourceAnnotationPlugin module by module — data-
+  // ripple-source annotations, SourceGraph bindings and Runtime Identity are
+  // never skipped by prebundling. No project Vite config, plugins or build
+  // scripts ever run: configFile stays false, the plugin set is pinned here,
+  // and esbuildOptions keep the production pins. holdUntilCrawlEnd collapses
+  // late-discovered dynamic imports into a single re-optimization instead of
+  // reloading per dependency. A prebundle failure degrades to per-module
+  // serving (the previous behavior), never to skipped annotations.
+  optimizeDeps: { include: ['react', 'react-dom/client'], exclude: symlinkedWorkspaceExcludes('/work'), holdUntilCrawlEnd: true, esbuildOptions: { preserveSymlinks: true } },
   server: {
     host: '0.0.0.0',
     port: 5173,
