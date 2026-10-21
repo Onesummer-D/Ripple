@@ -509,10 +509,27 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
     const live = candidates.get(body.candidateId)
     if (!live) return reject(response, 404, '候选不存在或已清理')
     assertCandidateCurrent(live.record)
-    if (body.previewId !== live.record.id || body.patchHash !== live.record.patchHash ||
-      body.candidateTreeDigest !== live.record.candidateTreeDigest) throw new CandidateError('点选消息来自不匹配的候选预览、补丁或源码树')
+    // Preserve the existing source-only navigation contract. This path accepts no
+    // runtime claim at all, and never returns a proven instance (nor authorizes editing).
+    // Explicit but incomplete runtime evidence must not fall back to this path.
+    const navigationOnly = body.runtimeIdentity === undefined && body.previewId === undefined &&
+      body.patchHash === undefined && body.candidateTreeDigest === undefined
+    if (!navigationOnly && (body.previewId !== live.record.id || body.patchHash !== live.record.patchHash ||
+      body.candidateTreeDigest !== live.record.candidateTreeDigest)) {
+      throw new CandidateError('点选消息来自不匹配的候选预览、补丁或源码树')
+    }
     const graph = analyzeProject(live.record.candidateRoot!, false)
     if (graph.revision.sourceDigest !== live.record.candidateTreeDigest) throw new CandidateError('候选源码图与当前补丁树摘要不一致')
+    if (navigationOnly) {
+      const { element, editableText } = resolveJsxSourceElement(graph, body.sourceRef)
+      return json(response, 200, {
+        candidateId: live.record.id, patchHash: live.record.patchHash,
+        sourceDigest: graph.revision.sourceDigest, element,
+        editableText: editableText.map(node => ({ ...node, impact: sourceProvenPageImpact(graph, node.id) })),
+        runtimeIdentity: { identityCertainty: 'unknown', instanceIdentityProven: false,
+          reasons: ['source-version-unavailable', 'page-context-unverified'], sameSourceCount: 0 },
+      })
+    }
 
     // The page sends observations, NOT a trusted certainty or an editing capability.
     // The host always reconstructs source version evidence from this exact worktree.
