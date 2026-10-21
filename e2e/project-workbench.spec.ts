@@ -987,7 +987,14 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   for (const [pageId, markerText, navigationName] of verificationPages) {
     await page.getByLabel(`${pageId} 页面访问路径`).fill('/')
     await page.getByLabel(`${pageId} 页面标记文字`).fill(markerText)
-    if (navigationName) await page.getByLabel(`${pageId} 页面导航控件名称`).fill(navigationName)
+    if (navigationName) {
+      await page.getByLabel(`${pageId} 页面导航控件名称`).fill(navigationName)
+      // Run #13: the pinned Bolt project hides desktop nav and declares a
+      // collapsible mobile menu (aria-label 菜单) outside the nav landmark on
+      // narrow viewports; declaring it lets the runner open the menu instead
+      // of failing all 375/390 visits.
+      await page.getByLabel(`${pageId} 页面菜单控件名称`).fill('菜单')
+    }
   }
   await page.getByTestId('add-verification-interaction').click()
   await page.getByLabel('交互检查 1 所在页面').selectOption('page:home')
@@ -1037,7 +1044,13 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     blockedExternalResourceUrls: string[]
   }
   fs.writeFileSync(path.join(evidenceRoot, 'bolt-workbench-execution.json'), JSON.stringify(execution, null, 2))
-  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 480_000 })
+  // The terminal class was already pinned above, so the state text is final
+  // here: assert it immediately and explicitly instead of waiting out a long
+  // PASSED poll (Run #13 ended RISKS and burned the full 480 s timeout before
+  // failing). RISKS/UNKNOWN/INCOMPLETE are NOT rewritten as PASS — they fail
+  // right now, with the complete execution record already persisted above.
+  const terminalStateText = (await page.getByTestId('verification-state').innerText()).replace(/\s+/g, ' ').trim()
+  expect(terminalStateText.includes('PASSED'), `Bolt acceptance requires PASSED; terminal state was '${terminalStateText}' (full execution record persisted at bolt-workbench-execution.json, assertions checked below)`).toBe(true)
   const assertions = page.getByTestId('verification-assertions')
   for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
     await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
