@@ -1,0 +1,78 @@
+name: Qingye real-project MEDIA acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # 经独立审查的 Ripple 提交（含 MEDIA 验收代码）。更新此常量必须由负责人重新走审查流程；
+  # 不接受任何运行时输入，杜绝把未审核提交当作可信授权（审查 P1：SHA 授权边界）。
+  RIPPLE_REVIEWED_SHA: d01604c49103338d7aea5686fffd6b762ae88f1a
+  # 已审核 SHA 白名单：检出前校验常量属于白名单（防常量被误改为非审核值）。
+  RIPPLE_REVIEWED_SHA_WHITELIST: d01604c49103338d7aea5686fffd6b762ae88f1a
+  # 固定青野验收源码版本，与 acceptance.json 的 qingyeCommit 绑定，可复现。
+  QINGYE_FIXED_SHA: f7e4998a5c77ab4aeb3232dbc31e61196e9051a6
+
+jobs:
+  media-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # 门控 1：白名单校验——固定常量必须是经审核的 40 位 SHA（env 传递，不进 shell 插值）
+      - name: Enforce reviewed-SHA whitelist and 40-hex format
+        env:
+          CANDIDATE: ${{ env.RIPPLE_REVIEWED_SHA }}
+          WHITELIST: ${{ env.RIPPLE_REVIEWED_SHA_WHITELIST }}
+        run: |
+          [ "${#CANDIDATE}" -eq 40 ] || { echo "RIPPLE_REVIEWED_SHA 长度不是 40" >&2; exit 1; }
+          case "$CANDIDATE" in (*[!0-9a-f]*) echo "RIPPLE_REVIEWED_SHA 含非小写十六进制字符" >&2; exit 1;; esac
+          case ",$WHITELIST," in (*,"$CANDIDATE",*) ;; (*) echo "RIPPLE_REVIEWED_SHA 不在已审核白名单" >&2; exit 1;; esac
+          echo "SHA 授权门控通过：$CANDIDATE"
+      - uses: actions/checkout@v4
+        with:
+          # 检出内容永远是经审核的固定 SHA，与触发分支/默认分支无关（审查 P0-1）
+          ref: ${{ env.RIPPLE_REVIEWED_SHA }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Onesummer-D/ripple-qingye-bolt
+          ref: ${{ env.QINGYE_FIXED_SHA }}
+          token: ${{ secrets.BOLT_REPO_TOKEN }}
+          path: qingye-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # 门控 2：实际检出必须等于经审核常量（env 传递，不直接插入用户输入）
+      - name: Verify checked-out Ripple SHA equals the reviewed constant
+        env:
+          REVIEWED_SHA: ${{ env.RIPPLE_REVIEWED_SHA }}
+        run: test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$REVIEWED_SHA"
+      - name: Record both source SHAs for reproducibility
+        env:
+          REVIEWED_SHA: ${{ env.RIPPLE_REVIEWED_SHA }}
+          QINGYE_SHA: ${{ env.QINGYE_FIXED_SHA }}
+        run: |
+          echo "Ripple HEAD: $(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)（预期 $REVIEWED_SHA）"
+          echo "Qingye HEAD: $QINGYE_SHA"
+      - name: Assert the real acceptance entrypoint exists in the checked-out Ripple workspace
+        run: test -f scripts/media-qingye-acceptance.ts
+      - name: Assert checkout credentials were not persisted
+        run: node --experimental-transform-types scripts/assert-no-checkout-credentials.ts "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/qingye-source"
+      - run: npm ci
+      - name: Install Chromium for the MEDIA evidence collector
+        run: npx playwright install --with-deps chromium
+      - name: Run the real Qingye MEDIA asset-swap acceptance
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/media-qingye-acceptance.ts "$GITHUB_WORKSPACE/qingye-source" "$RUNNER_TEMP/ripple-media-acceptance"
+      - name: Preserve acceptance evidence, screenshots and run metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-qingye-media-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ripple-media-acceptance/**
+          if-no-files-found: warn
+          retention-days: 30
