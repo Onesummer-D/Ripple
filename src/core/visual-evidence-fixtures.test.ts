@@ -3,13 +3,12 @@
 // evidence and not acceptance of any real project.
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { analyzeVisualDifference, serializeVisualEvidence, type VisualDifferenceEvidence } from './visual-evidence'
 import { buildVisualFixtureCases, comparableEvidence, requestFromFixtureInput, type VisualFixtureInput } from './visual-evidence-fixtures'
 import { readPng, sha256Hex } from './visual-png'
 
-const root = fileURLToPath(new URL('../../test/fixtures/visual-evidence', import.meta.url))
+const root = path.resolve(process.cwd(), 'test/fixtures/visual-evidence')
 const cases = buildVisualFixtureCases()
 
 const EXPECTED: Record<string, { result: string; outcome: 'changed' | 'unchanged' | null; reasons?: string[]; findings?: string[] }> = {

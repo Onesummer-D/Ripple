@@ -536,7 +536,7 @@ export function analyzeVisualDifference(request: VisualComparisonRequest): Visua
     resultReason = analysisResourceFailure
       ? 'The visual comparison exceeded its bounded region-analysis resource budget; no partial or trusted conclusion was produced.'
       : overLimit
-      ? 'An input exceeds the visual analysis resource limits (it is not necessarily corrupt); no comparison was made.'
+      ? 'An input exceeds the analysis size limits or the bounded visual analysis resource budget (it is not necessarily corrupt); no comparison was made.'
       : 'A screenshot is corrupt, unreadable, over the analysis limits or differs from its recorded hash; no comparison was made.'
   } else if (missing.length) {
     result = 'not-run'
