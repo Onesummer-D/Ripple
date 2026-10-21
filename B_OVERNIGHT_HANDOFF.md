@@ -445,3 +445,35 @@ P1 修正三项 + 阻断矩阵 + A 接口需求文本。本批全部完成，未
   TEXT 验收目标确认为 ProfileHeader.tsx:72 的 "Overview"
   （`literal:src/sub-components/profile/ProfileHeader.tsx#2691`）；
   逐环节 PASS/UNKNOWN/RISK 检查清单 = 阻断矩阵本身。
+
+---
+
+# 接力记录 v11——调查阶段审查通过与冻结状态（2026-10-21 最终）
+
+## 一、最终审查结论（协调人 GitHub 远端独立复核）
+
+- PR #9 HEAD `01422eb3`，CI #316（run 39572127334）SUCCESS：Vitest 153/3、Playwright 9/1、
+  typecheck/build/Docker 全过。交接分支 `48bd283`，CI #315 SUCCESS。
+- **审查通过，无阻断调查阶段的 P0/P1。** CLI 严格校验、6 smoke + 7 复现测试、
+  CI #311 归因、英文接口需求（标记 NOT POSTED）均认可。
+
+## 二、遗留 P2（下次 touched 该文档时一并修正，不单独开 CI 轮次）
+
+1. `docs/probes/codescandy-b700bbd-20261021.md` 统计节标题“（v2 schema）”
+   应统一为 schemaVersion 1（v2 仅文档迭代版本）。
+2. 同文档 smoke 测试记载仍为 4 个，最新实际为 6 个。
+
+## 三、冻结状态登记
+
+- **青野 MEDIA**：第一阶段验收通过，功能冻结；不重跑、不自行合并 PR #7。
+- **Issue #6 / codescandy**：调查、目标定位、缺口复现、探针、阻断矩阵完成；
+  TEXT 全生命周期（Candidate→Preview→Evidence→Receipt→Approval→Apply→Rollback）未运行，
+  **Issue #6 不关闭，不宣布第三方泛化完成**。
+- **PR #9**：保持 Draft（mergeable_state=dirty），不合并、不强推、不用未经审查的
+  冲突解决覆盖 A 公共核心。
+- **英文 Issue #6 评论**：由负责人发布至 Issue #6；状态保持 NOT POSTED 直至确认。
+- **B 暂停主动编码**，分支与证据可恢复；恢复前置条件 = A-P1a 路由识别合入 +
+  受限预演能力可用 + 三方 SHA 固定；A-P1b 是否构成实际阻断待 A-P1a 后真实复验判断。
+- 恢复后执行顺序：冻结 SHA 重跑探针 → 验证传播证明（负例升正向契约）→
+  ProfileHeader.tsx:72 "Overview" → Candidate（fail-closed）→ 双端预演/四视口/Receipt/
+  Approval/Apply/Rollback → 完整工件与验收报告。
