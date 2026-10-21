@@ -67,6 +67,21 @@ describe('React key stability classification', () => {
 })
 
 describe('source annotation transform', () => {
+
+  it('preserves the generated page-override provider as a React child-forwarding boundary only for its trusted import', () => {
+    const app = (specifier: string, local = 'RipplePageForState') => `import { RipplePageForState as ${local} } from '${specifier}'
+function HomePage(){ return <h1>Title</h1> }
+export function App(){ return <${local} state="home" pageRefs={{home:"page:home"}}>{<HomePage/>}</${local}> }`
+    const trusted = transform(app('../.ripple/overrides-runtime.js'))
+    expect(trusted).toMatch(/component=\\{HomePage\\}/)
+    const aliased = transform(app('../.ripple/overrides-runtime.js', 'GeneratedProvider'))
+    expect(aliased).toMatch(/component=\\{HomePage\\}/)
+    for (const untrusted of ["../components/RipplePageForState", "../.ripple/malicious-runtime.js"]) {
+      const output = transform(app(untrusted))
+      expect(output).not.toMatch(/component=\\{HomePage\\}/)
+    }
+  })
+
   it('marks index keys as position-dependent and business keys as stable-keyed', () => {
     const code = `export function App({ items }) { return <main>{items.map((item, i) => <Card key={i} item={item} />)}{items.map(item => <Card key={item.id} item={item} />)}<ol>{items.map((item, i) => <li key={\`row-\${i}\`}>{item.name}</li>)}</ol></main> }
 function Card({ item }) { return <p>{item.name}</p> }`
