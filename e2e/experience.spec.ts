@@ -37,6 +37,21 @@ test('选中与编辑：标题更新、候选状态推进、前后对照同步',
   await expect(page.getByTestId('canvas-el-el:hero-title')).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('原文与草稿分离：逐字输入不改画布原文，切换元素清空草稿', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  const input = page.getByTestId('draft-text-input')
+  await input.pressSequentially('冬日茶器市集')
+  // 画布上的原文保持「秋日茶器市集」；候选值只出现在对照区
+  await expect(page.getByTestId('canvas-el-el:hero-title')).toContainText('秋日茶器市集')
+  await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+  await expect(page.getByTestId('evidence-ev:expect')).toContainText('把「秋日茶器市集」改为「冬日茶器市集」')
+  // 切换元素：草稿清空，Evidence 换成新目标的原文
+  await page.getByTestId('canvas-el-el:hero-subtitle').click()
+  await expect(input).toHaveValue('')
+  await expect(page.getByTestId('evidence-ev:expect')).toContainText('以茶会友，以器传心')
+})
+
 test('来源未知元素只能查看：无输入框、无编辑授权', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:promo-card').click()
@@ -82,6 +97,8 @@ test('模拟内容不得进入 real 模式：real 桩下无演示 DOM，显示�
   await expect(page.getByText('尚无真实截图')).toHaveCount(2)
   await expect(page.getByTestId('demo-badge')).toHaveCount(0)
   await expect(page.getByTestId('demo-approve')).toHaveCount(0)
+  // real 模式没有可执行审批入口，明确提示未接入（不会点击后回演示确认）
+  await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
 })
 
 test('历史切换：胶片展示生命周期，点击定位页面', async ({ page }) => {

@@ -47,12 +47,51 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('scope-summary')).toContain('包含 2')
   })
 
+  it('原文与草稿分离：逐字输入后原文稳定，清空草稿后描述准确', async () => {
+    render(<ExperienceWorkbench />)
+    fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
+    const input = screen.getByTestId('draft-text-input')
+    // 逐字输入
+    fireEvent.change(input, { target: { value: '冬' } })
+    fireEvent.change(input, { target: { value: '冬日茶器市集' } })
+    // 画布上的原文保持「秋日茶器市集」，候选值只存在于草稿与对照区
+    expect(screen.getByTestId('canvas-el-el:hero-title').textContent).toContain('秋日茶器市集')
+    expect(text('evidence-ev:expect')).toContain('把「秋日茶器市集」改为「冬日茶器市集」')
+    expect(text('compare-candidate')).toContain('冬日茶器市集')
+    // 清空草稿：候选状态回落，Evidence 不臆造修改内容
+    fireEvent.change(input, { target: { value: '' } })
+    expect(text('candidate-status')).toContain('草稿')
+    expect(text('evidence-ev:expect')).toContain('（尚未输入）')
+  })
+
+  it('切换元素清空草稿：新目标的 Evidence 不携带旧草稿', async () => {
+    render(<ExperienceWorkbench />)
+    fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
+    fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '冬日茶器市集' } })
+    fireEvent.click(screen.getByTestId('canvas-el-el:hero-subtitle'))
+    expect((screen.getByTestId('draft-text-input') as HTMLInputElement).value).toBe('')
+    expect(text('evidence-ev:expect')).toContain('以茶会友，以器传心')
+    expect(text('evidence-ev:expect')).not.toContain('冬日茶器市集')
+  })
+
   it('来源未知的元素只能查看，不能进入编辑', async () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('canvas-el-el:promo-card'))
     expect(screen.queryByTestId('draft-text-input')).toBeNull()
     expect(screen.getByText(/来源未知：可以先查看，但不能承诺修改范围/)).not.toBeNull()
     expect(screen.getAllByTestId('certainty-unknown').length).toBeGreaterThan(0)
+  })
+
+  it('partial 来源的元素即使可编辑，排除未知页面后也不给安全审批', async () => {
+    render(<ExperienceWorkbench />)
+    // 先排除两个未证明页面，扫清"未决定/未证明包含"门控
+    fireEvent.click(await screen.findByTestId('scope-exclude-page:contact'))
+    fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
+    // 选中 partial + editable 的当季横幅并输入
+    fireEvent.click(screen.getByTestId('canvas-el-el:seasonal-banner'))
+    fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新春限定' } })
+    expect(text('approval-area')).toContain('未完全证明')
+    expect(screen.queryByTestId('demo-approve')).toBeNull()
   })
 
   it('范围决策：未证明页面被包含时审批被门控，排除后恢复，演示审批给出可见反馈', async () => {
@@ -123,7 +162,8 @@ describe('F 体验工作台 · 真实/演示隔离', () => {
     // 演示状态切换器与 DEMO 标记不出现
     expect(screen.queryByTestId('demo-canvas-state')).toBeNull()
     expect(screen.queryByTestId('demo-badge')).toBeNull()
-    // 没有可审批内容
+    // real 模式没有可执行的审批入口，明确提示未接入
     expect(screen.queryByTestId('demo-approve')).toBeNull()
+    expect(text('real-approval-pending')).toContain('真实审批尚未接入')
   })
 })

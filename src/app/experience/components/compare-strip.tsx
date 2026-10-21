@@ -10,6 +10,11 @@ const SIDE_STATE_LABEL: Record<CompareSide['state'], string> = {
 
 /** 真实截图：使用带来源标记的真实 imageUrl；加载失败/过期/缺失都有明确状态，不回退模拟图。 */
 function RealShot({ side, label }: { side: CompareSide; label: string }) {
+  // key 绑定 imageUrl：地址更新时重建内部组件，旧的 broken 状态不会滞留。
+  return <RealShotInner key={side.imageUrl ?? 'none'} side={side} label={label} />
+}
+
+function RealShotInner({ side, label }: { side: CompareSide; label: string }) {
   const [broken, setBroken] = useState(false)
   if (side.state === 'stale') return <span className="ripple-xp-compare-note">截图已过期</span>
   if (side.state === 'unavailable' || !side.imageUrl) return <span className="ripple-xp-compare-note">尚无真实截图</span>

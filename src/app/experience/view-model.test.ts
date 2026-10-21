@@ -39,6 +39,13 @@ describe('体验层 ViewModel 纯函数', () => {
     expect(gate.reasons.join()).toContain('来源未知')
   })
 
+  it('负例：partial 来源即使 editable 也得不到安全审批结论', () => {
+    const partialEditable: CanvasElementXp = { ...editableElement, certainty: 'partial' }
+    const gate = approvalGate({ ...okInput, selectedElement: partialEditable })
+    expect(gate.allowed).toBe(false)
+    expect(gate.reasons.join()).toContain('未完全证明')
+  })
+
   it('负例：修改内容为空或纯空白不得审批', () => {
     for (const draftAfterText of ['', '   ']) {
       const gate = approvalGate({ ...okInput, draftAfterText })

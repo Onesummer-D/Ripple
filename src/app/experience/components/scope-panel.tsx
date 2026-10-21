@@ -80,11 +80,16 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
     </p>
 
     <div className="ripple-xp-approval" data-testid="approval-area">
-      {gate.allowed
-        ? <button type="button" className="ripple-xp-primary" data-testid="demo-approve" onClick={onDemoApprove}>
-            {model.dataProvenance === 'demo' ? '演示审批（不写入真实工程）' : '审批候选'}
-          </button>
-        : <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+      {model.dataProvenance !== 'demo' ? (
+        // real 模式未接入正式 Approval：不显示可执行入口，也不回演示确认。
+        <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（集成阶段接入）</p>
+      ) : gate.allowed ? (
+        <button type="button" className="ripple-xp-primary" data-testid="demo-approve" onClick={onDemoApprove}>
+          演示审批（不写入真实工程）
+        </button>
+      ) : (
+        <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
+      )}
     </div>
   </aside>
 }

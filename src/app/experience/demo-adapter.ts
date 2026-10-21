@@ -120,18 +120,21 @@ export function createDemoAdapter(): ExperienceAdapter {
       model = {
         ...current,
         selectedElementId: elementId,
-        candidateStatus: element?.editable ? 'draft' : current.candidateStatus,
-        evidence: evidenceForSelection(element, current.draftAfterText),
+        // 切换目标时清空候选草稿：草稿属于目标，不属于全局输入框
+        draftAfterText: '',
+        candidateStatus: element?.editable ? 'draft' : 'none',
+        evidence: evidenceForSelection(element, ''),
       }
       return model
     },
     setDraftText(current, text) {
+      // 原始 currentText 保持稳定；候选值只存在 draftAfterText 草稿里，
+      // Evidence 描述的原文（currentText）与修改内容（草稿）因此始终准确。
       model = {
         ...current,
         draftAfterText: text,
-        candidateStatus: text.trim() && current.selectedElementId ? 'candidate' : current.candidateStatus,
-        elements: current.elements.map(item =>
-          item.id === current.selectedElementId ? { ...item, currentText: text } : item),
+        candidateStatus: text.trim() && current.selectedElementId ? 'candidate'
+          : current.selectedElementId ? 'draft' : current.candidateStatus,
         evidence: evidenceForSelection(current.elements.find(item => item.id === current.selectedElementId), text),
       }
       return model

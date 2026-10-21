@@ -115,13 +115,15 @@ export function scopeSummary(pages: PageXp[]): { included: number; excluded: num
 
 /**
  * 审批门（体验层强制，不依赖后端）。全部条件满足才允许（演示）审批：
- * 1. 已选中可编辑目标；2. 修改内容非空；3. 目标来源满足编辑条件（editable）；
+ * 1. 已选中可编辑目标；2. 修改内容非空；3. 目标来源确定性为 source-proven
+ *    （editable 只是"尝试编辑"的资格，partial/unknown 来源绝不能得到安全审批结论）；
  * 4. 无未决定页面；5. 未把 partial/unknown 页面包含进修改范围。
  */
 export function approvalGate(input: { pages: PageXp[]; selectedElement?: CanvasElementXp; draftAfterText: string }): { allowed: boolean; reasons: string[] } {
   const reasons: string[] = []
   if (!input.selectedElement) reasons.push('尚未选中要修改的位置')
   else if (!input.selectedElement.editable) reasons.push('选中位置来源未知，不能作为修改目标')
+  else if (input.selectedElement.certainty !== 'source-proven') reasons.push('选中位置来源未完全证明，不能作为安全修改目标')
   if (!input.draftAfterText.trim()) reasons.push('修改内容为空')
   const summary = scopeSummary(input.pages)
   if (summary.undecided > 0) reasons.push(`还有 ${summary.undecided} 个受影响页面未决定范围`)
