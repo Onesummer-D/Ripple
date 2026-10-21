@@ -344,7 +344,7 @@ export default function ProjectWorkbench() {
           // The DOM is an untrusted source; only a version/page/candidate-checked
           // server verdict can be displayed as stable, and it grants no edit permission.
           runtimeInstanceId: kind === 'candidate' ? (mapped.runtimeIdentity?.runtimeInstanceId) : undefined,
-          identityCertainty: kind === 'candidate' && mapped.runtimeIdentity?.identityCertainty ?? 'unknown',
+          identityCertainty: kind === 'candidate' ? (mapped.runtimeIdentity?.identityCertainty ?? 'unknown') : 'unknown',
           tagName: data.tagName as string,
           text: data.text as string,
         })
