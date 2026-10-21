@@ -1,41 +1,77 @@
 /**
- * Generic third-party project acceptance probe (Issue #6).
+ * Generic third-party capability probe (Issue #6).
  *
  * Usage:
  *   node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
- *     scripts/thirdparty-acceptance.ts <projectRoot> [outDir]
+ *     scripts/thirdparty-acceptance.ts <projectRoot> [--expect-sha <sha>] [--out <dir>]
  *
- * Runs the public analyzeProject() entry point against ANY git checkout and
- * emits a capability-boundary report as JSON (stdout or <outDir>/report.json):
- * node/edge counts, media/token consumption stats, route-node coverage, and
- * the three known capability boundaries measured on the project
- * (react-router data-router routes, tsconfig references, SCSS tokens).
+ * Positioning: this is a **capability probe**（能力探针）, NOT proof of a
+ * successful third-party full-lifecycle acceptance. It runs the public
+ * analyzeProject() entry point against one git checkout and reports measured
+ * capability boundaries. It does NOT run CandidatePatch / browser preview /
+ * VerificationReceipt / Approval / Apply / Rollback.
  *
- * The report never upgrades unsupported capabilities to PASS: boundaries are
- * reported as measured facts plus capability flags, never as claims of support.
+ * Trust rules (fail-closed, no plausible-looking reports from bad inputs):
+ *   - <projectRoot> must be a readable git checkout with a clean worktree
+ *     (enforced by analyzeProject → readProjectSnapshot; errors exit non-zero).
+ *   - --expect-sha, when given, must match `git rev-parse HEAD` exactly,
+ *     otherwise the run refuses to emit a report.
+ *   - The committed report JSON never contains absolute local paths.
  */
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { analyzeProject } from '../src/core/project.ts'
+import type { SourceGraph } from '../src/core/model.ts'
 import { sourceProvenPageImpact } from '../src/core/scope.ts'
 
-const root = resolve(process.argv[2] ?? '')
-const outDir = process.argv[3] ? resolve(process.argv[3]) : null
-if (!process.argv[2]) {
-  console.error('usage: thirdparty-acceptance.ts <projectRoot> [outDir]')
+const SCHEMA_VERSION = 1
+
+function fail(message: string): never {
+  console.error(`thirdparty-acceptance: ${message}`)
   process.exit(2)
 }
 
-function frozenSha(dir: string): string {
+const args = process.argv.slice(2)
+const rootArg = args[0]
+if (!rootArg) fail('usage: thirdparty-acceptance.ts <projectRoot> [--expect-sha <sha>] [--out <dir>]')
+let expectSha: string | null = null
+let outDir: string | null = null
+for (let i = 1; i < args.length; i++) {
+  if (args[i] === '--expect-sha') expectSha = args[++i] ?? null
+  else if (args[i] === '--out') outDir = args[++i] ?? null
+  else fail(`unknown argument: ${args[i]}`)
+}
+const root = resolve(rootArg)
+
+function headSha(dir: string): string | null {
   try {
     return execFileSync('git', ['-C', dir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
   } catch {
-    return 'unavailable'
+    return null
   }
 }
 
-const graph = analyzeProject(root)
+// Ripple's own version: the repo root is two levels above this script, so the
+// report stays meaningful even when invoked from another working directory.
+const rippleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const rippleHead = headSha(rippleRoot) ?? 'unavailable'
+
+const projectSha = headSha(root)
+if (projectSha === null) fail(`无法读取 Git 仓库：${root}`)
+if (expectSha && projectSha !== expectSha) {
+  fail(`SHA 不匹配：期望 ${expectSha}，实际 ${projectSha}；拒绝生成报告`)
+}
+
+// analyzeProject enforces the clean-worktree / readable-git-project contract.
+let graph: SourceGraph
+try {
+  graph = analyzeProject(root)
+} catch (error) {
+  fail(`analyzeProject 失败（检出不可用或工作区不干净，拒绝生成报告）：${(error as Error).message}`)
+}
+
 const kinds: Record<string, number> = {}
 for (const n of graph.nodes) kinds[n.kind] = (kinds[n.kind] ?? 0) + 1
 
@@ -45,11 +81,24 @@ const routeNodes = graph.nodes.filter(n => n.kind === 'route')
 const assetConsumers = graph.edges.filter(e => e.kind === 'asset-consumer')
 const tokenUsers = graph.edges.filter(e => e.kind === 'uses-token')
 
+const mediaClosure = { total: 0, full: 0, partial: 0, unknown: 0 }
+for (const node of mediaNodes) {
+  const impact = sourceProvenPageImpact(graph, node.id)
+  mediaClosure.total++
+  if (impact.certainty === 'source-proven') mediaClosure.full++
+  else if (impact.certainty === 'partial') mediaClosure.partial++
+  else mediaClosure.unknown++
+}
+
 const report = {
+  schemaVersion: SCHEMA_VERSION,
+  positioning: 'third-party capability probe（能力探针）；非全生命周期验收证明',
   generatedAt: new Date().toISOString(),
-  projectRoot: root,
-  frozenSha: frozenSha(root),
-  rippleHead: frozenSha(process.cwd()),
+  // 故意不写入绝对路径：committed JSON 只含目录名，避免泄露本机布局
+  projectDir: basename(root),
+  projectSha,
+  expectShaMatched: expectSha ? true : null,
+  rippleHead,
   stats: {
     nodes: graph.nodes.length,
     edges: graph.edges.length,
@@ -69,17 +118,8 @@ const report = {
       unknown: tokenUsers.filter(e => e.certainty === 'unknown').length,
     },
   },
-  mediaClosure: mediaNodes.map(node => {
-    const impact = sourceProvenPageImpact(graph, node.id)
-    return { id: node.id, label: node.label, certainty: impact.certainty, pageRefs: impact.pageRefs.length }
-  }).reduce((acc, m) => {
-    acc.total++
-    acc[m.certainty === 'source-proven' ? 'full' : m.certainty === 'partial' ? 'partial' : 'unknown']++
-    return acc
-  }, { total: 0, full: 0, partial: 0, unknown: 0 } as Record<string, number>),
+  mediaClosure,
   capabilityBoundaries: {
-    // Measured, never claimed as supported:
-    scssTokensSupported: tokenNodes.some(n => n.location?.path?.endsWith('.scss')) ? 'measured-present' : 'none-present',
     routeNodesDerived: routeNodes.length,
     unresolvedCount: graph.unresolved.length,
     unresolvedSample: graph.unresolved.slice(0, 20),

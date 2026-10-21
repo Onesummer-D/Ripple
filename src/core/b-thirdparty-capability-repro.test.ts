@@ -97,6 +97,73 @@ describe('第三方能力最小复现：react-router data router 路由识别缺
   })
 })
 
+describe('第三方能力最小复现：codescandy 真实 data router 结构（Component:/children/index/动态参数）', () => {
+  // 结构取自 codescandy App.tsx 真实形态（createBrowserRouter + 嵌套 children +
+  // Component: 标识符 + index route + 相对 path + 动态参数），最小化后作为提交 A 的
+  // 复现输入。A 实现后本组断言应升级为"route→component→source 证明关系成立"，
+  // 当前锁定真实行为：路由定义存在于源码、组件可解析，但渲染关系无法证明。
+  const routerApp = (extraPages: Record<string, string> = {}) => makeProject({
+    'src/pages/DashboardHome.tsx': `export function DashboardHome() { return <main><h1>Home Content</h1></main> }`,
+    'src/pages/Profile.tsx': `export function Profile() { return <main><h1>Profile Overview</h1></main> }`,
+    'src/pages/OrderDetail.tsx': `export function OrderDetail() { return <main><h1>Order Detail</h1></main> }`,
+    'src/App.tsx': `
+      import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+      import { DashboardHome } from './pages/DashboardHome';
+      import { Profile } from './pages/Profile';
+      import { OrderDetail } from './pages/OrderDetail';
+      const router = createBrowserRouter([
+        {
+          path: 'dashboard',
+          children: [
+            { index: true, Component: DashboardHome },
+            { path: 'profile', Component: Profile },
+            { path: 'orders/:orderId', element: <OrderDetail /> },
+          ],
+        },
+      ]);
+      export const App = () => <RouterProvider router={router} />;
+    `,
+    ...extraPages,
+  })
+
+  it('真实结构：嵌套 children + Component:/element:/index/动态参数当前产出 0 route 节点，页面影响 unknown', () => {
+    const graph = analyzeProject(routerApp())
+    // 附带实测：路由 path 字符串字面量（'dashboard'/'profile'/'orders/:orderId'）当前
+    // 不提取为 data 节点（图中仅 JSX 文本成为 data）——路由定义在源码中存在，
+    // 但在 SourceGraph 中完全不可见，这是 route 识别缺口的组成部分。
+    const pathValues = graph.nodes.filter(node => node.kind === 'data').map(node => node.value)
+    expect(pathValues).not.toContain('profile')
+    expect(pathValues).not.toContain('orders/:orderId')
+    // 当前真实行为（缺口）：0 个 route 节点，三种路由形态（Component:/element:/index/children）均不可证明
+    expect(graph.nodes.filter(node => node.kind === 'route')).toEqual([])
+    // 后果：页面文本影响 fail-closed 为 unknown（绝不升级为 proven）
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value === 'Profile Overview')
+    expect(text).toBeDefined()
+    const impact = sourceProvenPageImpact(graph, text!.id)
+    expect(impact.certainty).toBe('unknown')
+    expect(impact.pageRefs).toEqual([])
+  })
+
+  it('期望语义（A 实现后的验收标准，当前预先锁定输入与组件解析前提）', () => {
+    const graph = analyzeProject(routerApp())
+    // 输入前提①：路由涉及的三个组件在图中可解析（component 节点存在）
+    const componentNames = graph.nodes.filter(node => node.kind === 'component').map(node => node.label)
+    expect(componentNames).toContain('DashboardHome')
+    expect(componentNames).toContain('Profile')
+    expect(componentNames).toContain('OrderDetail')
+    // 输入前提②：App.tsx 到各页面文件的 imports 模块边真实建立（route→component 证明的原材料）
+    for (const page of ['DashboardHome', 'Profile', 'OrderDetail']) {
+      expect(graph.edges.some(edge =>
+        edge.kind === 'imports' && edge.id.startsWith('import:') &&
+        edge.from === 'file:src/App.tsx' && edge.to === `file:src/pages/${page}.tsx`,
+      )).toBe(true)
+    }
+    // 备注（不算断言）：A 实现时必须区分——route 定义存在、组件可解析、渲染关系可证明
+    // 是三个独立层次；动态参数 :orderId 与条件消费者应保持 partial/unknown，
+    // 不能只因检测到 createBrowserRouter 字符串就生成 source-proven 页面关系。
+  })
+})
+
 describe('第三方能力最小复现：tsconfig 配置读取边界（catch-all alias 与 references）', () => {
   it('支持：固定名单内 tsconfig.app.json 声明的 catch-all paths（* → ./src/*）参与模块解析', () => {
     // 输入：codescandy 同型 catch-all alias（声明在固定读取名单内的配置文件）
@@ -111,7 +178,7 @@ describe('第三方能力最小复现：tsconfig 配置读取边界（catch-all 
     expect(graph.edges.some(edge => edge.kind === 'imports' && edge.to === 'file:src/types.ts')).toBe(true)
   })
 
-  it('缺口：root tsconfig 仅有 references 而 alias 声明在非标准文件名时，模块解析失败并被如实记录', () => {
+  it('缺口：内部别名裸导入解析失败被静默忽略，无 import 模块边也无 unresolved 记录（2026-10-21 根因已修正）', () => {
     // 输入：root tsconfig.json 只有 references（solution 风格），paths 在非标准文件名 tsconfig.web.json
     const root = makeProject({
       'tsconfig.json': JSON.stringify({ files: [], references: [{ path: './tsconfig.web.json' }] }),
@@ -120,15 +187,22 @@ describe('第三方能力最小复现：tsconfig 配置读取边界（catch-all 
       'src/main.tsx': `import { title } from 'types'; export const App = () => <h1>{title}</h1>;`,
     })
     const graph = analyzeProject(root)
-    // 当前真实行为（缺口，2026-10-21 实测）：references 不被追随、非标准配置文件名不读取，
-    // 裸导入 'types' 解析失败后降级为一条自指 imports 边（component → 自身所在文件），
-    // 且不进入 unresolved。该自指边具有误导性（看似已解析，实际未指向真实目标文件）。
-    // 本用例锁定该真实行为，供提交 A：① 支持追随 tsconfig references；
-    // ② 解析失败应进入 unresolved 如实记录，而非产生自指边或静默丢失。
-    const imports = graph.edges.filter(edge => edge.kind === 'imports')
-    expect(imports.every(edge => edge.to === 'file:src/main.tsx')).toBe(true)
-    expect(imports.some(edge => edge.to === 'file:src/types.ts')).toBe(false)
+    // 根因（project.ts ImportDeclaration 循环，协调人 2026-10-21 独立审查确认）：
+    //   ts.resolveModuleName 失败后，specifier 既不以 '.' 也不以 '@/' 开头 →
+    //   unresolved 判定（仅记录这两种前缀）不覆盖裸导入 → continue 静默跳过。
+    // 注意区分两类 'imports' 边（Relation 无 source 字段，第四参是边 id，协调人 P1 修正）：
+    //   - id `source:<componentId>` = 组件来源边（component → 自身所在文件），属正常语义；
+    //   - id `import:<file>:<offset>` = 真实模块导入边（file → 目标文件）。
+    // 此前误把组件来源边当作"解析失败的自指 fallback"，本用例按修正后根因断言。
+    const moduleImportEdges = graph.edges.filter(edge => edge.kind === 'imports' && edge.id.startsWith('import:'))
+    // 真实缺口：指向 src/types.ts 的模块导入边不存在
+    expect(moduleImportEdges.some(edge => edge.to === 'file:src/types.ts')).toBe(false)
+    // 同时'types'也未进入 unresolved（静默忽略，而非 fail-closed 记录）
     expect(graph.unresolved.some(entry => entry.includes('types'))).toBe(false)
+    // 正常组件来源边不受影响（不得要求 A 删除）
+    const provenanceEdges = graph.edges.filter(edge => edge.kind === 'imports' && edge.id.startsWith('source:'))
+    expect(provenanceEdges.length).toBeGreaterThan(0)
+    expect(provenanceEdges.every(edge => edge.from.startsWith('component:'))).toBe(true)
   })
 })
 
