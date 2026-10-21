@@ -43,3 +43,68 @@
   `<PageHeading heading="Overview" />`，当前不提取为 data 节点）。其可编辑性需单独确定
   AST 来源证明、DOM 消费关系与授权范围。
 - **SCSS Token**：当前不支持，保持 unsupported。
+
+---
+
+## English version — ready-to-post GitHub Issue #6 comment
+
+> Status: NOT posted. B-side credentials return 401 on REST writes; this text
+> is handed to the coordinator for posting. Do not report it as published.
+
+---
+
+### Public interface requirements from third-party (codescandy) investigation
+
+Context: Issue #6 third-party generalization. The codescandy capability
+investigation and gap attribution are complete (see PR #9 and the blocking
+matrix below). Real TEXT full-lifecycle acceptance on codescandy is still
+blocked; this comment registers the public-interface requirements for A.
+No urgency — please keep current Bolt TEXT work as the priority; these can be
+scheduled after the public core is stable.
+
+**Measured baseline (codescandy dash-ui, frozen SHA
+`b700bbd55b31a62fe04d4cd8210fc37232f0c9f0`, MIT license):**
+SourceGraph 4924 nodes / 5006 edges; media 100; 61 source-proven asset-consumer
+edges; route nodes 0; token nodes 0; 100/100 media page impacts unknown;
+unresolved 2. The 61 source-proven consumption edges prove consumption only —
+not page propagation. Candidate gating correctly rejects any candidate today
+(fail-closed; must not be relaxed).
+
+**A-P1a — React Router data router recognition**
+
+- Support statically provable `createBrowserRouter` route/component relations.
+- Recognize both `element: <X />` and `Component: X` forms.
+- Recognize nested `children`, index routes and relative paths.
+- Dynamic params (`:id`) and unknown consumers keep conservative
+  partial/unknown semantics.
+- Build route → component → source proven relations; do NOT relax the
+  Candidate full page-impact gate.
+
+**A-P1b — TypeScript config graph and resolution attribution**
+
+- Read tsconfig `references` / `extends` correctly; do not rely on a fixed
+  config-file name list.
+- Produce traceable unresolved records for failed internal alias / bare
+  imports.
+- Keep normal `source:` component-provenance edges unchanged.
+- Do not mark all third-party npm imports as unresolved (would be noisy false
+  positives); distinguish supported external packages, internal aliases,
+  unknown aliases, and genuine resolution failures.
+
+**Repro:** `src/core/b-thirdparty-capability-repro.test.ts` (7 cases) in PR #9 —
+`https://github.com/Onesummer-D/Ripple/pull/9`. These are negative contract
+tests locking the current gaps; they should be upgraded to positive contract
+tests once A implements support.
+
+**Blocking matrix:** `docs/probes/thirdparty-text-blocker-matrix.md`.
+Capability stats JSON + probe: `docs/probes/b-codescandy-acceptance-2026-10-21.json`,
+`scripts/thirdparty-acceptance.ts` (capability probe, not a lifecycle proof).
+
+**Side note for A's tracking — browser preview stability:** CI run
+https://github.com/Onesummer-D/Ripple/actions/runs/39546320560 failed once at
+`e2e/page-override-lifecycle.spec.ts:308` with
+`page.goto: net::ERR_NETWORK_CHANGED at http://127.0.0.1:34533/`
+(8 passed / 1 failed / 1 skipped). An identical-tree re-run
+(https://github.com/Onesummer-D/Ripple/actions/runs/39547183042) passed
+(9 passed / 1 skipped). Registered as a public browser-preview stability
+issue; not claimed resolved.

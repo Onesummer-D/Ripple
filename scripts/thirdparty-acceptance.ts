@@ -34,16 +34,34 @@ function fail(message: string): never {
 }
 
 const args = process.argv.slice(2)
-const rootArg = args[0]
-if (!rootArg) fail('usage: thirdparty-acceptance.ts <projectRoot> [--expect-sha <sha>] [--out <dir>]')
+const usage = 'usage: thirdparty-acceptance.ts <projectRoot> [--expect-sha <sha>] [--out <dir>]'
+
+// 严格参数解析（协调人 P1）：缺失值、选项误作值、重复参数、未知参数、
+// 多余位置参数一律非零退出，绝不静默跳过校验后产出貌似可信的报告。
+const positionals: string[] = []
 let expectSha: string | null = null
 let outDir: string | null = null
-for (let i = 1; i < args.length; i++) {
-  if (args[i] === '--expect-sha') expectSha = args[++i] ?? null
-  else if (args[i] === '--out') outDir = args[++i] ?? null
-  else fail(`unknown argument: ${args[i]}`)
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i]
+  if (arg === '--expect-sha') {
+    if (expectSha !== null) fail('--expect-sha 重复出现')
+    const value = args[++i]
+    if (!value || value.startsWith('--')) fail('--expect-sha 必须紧跟完整的 40 位 Git SHA')
+    if (!/^[0-9a-f]{40}$/i.test(value)) fail(`--expect-sha 值非法（需 40 位十六进制）：${value}`)
+    expectSha = value.toLowerCase()
+  } else if (arg === '--out') {
+    if (outDir !== null) fail('--out 重复出现')
+    const value = args[++i]
+    if (!value || value.startsWith('--')) fail('--out 必须紧跟非空目录值')
+    outDir = value
+  } else if (arg.startsWith('--')) {
+    fail(`未知参数：${arg}`)
+  } else {
+    positionals.push(arg)
+  }
 }
-const root = resolve(rootArg)
+if (positionals.length !== 1) fail(positionals.length === 0 ? `缺少 <projectRoot>\n${usage}` : `多余的位置参数：${positionals.slice(1).join(' ')}\n${usage}`)
+const root = resolve(positionals[0])
 
 function headSha(dir: string): string | null {
   try {

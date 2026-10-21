@@ -26,3 +26,12 @@
 2. 固定 A、B、codescandy 三方 SHA，重跑真实 SourceGraph，核对 #1/#2。
 3. #1/#2 转 PASS 后，#3 应在有证明时才放行；若 adapter 不支持该工程，
    把阻断推进到 #4 并如实记录，不得把路由识别成功等同于验收通过。
+
+## 附：公共浏览器预演稳定性登记（2026-10-21）
+
+CI #311（run 39546320560，`d696e4f4` 树）曾一次失败于
+`e2e/page-override-lifecycle.spec.ts:308`：
+`page.goto: net::ERR_NETWORK_CHANGED at http://127.0.0.1:34533/`
+（8 passed / 1 failed / 1 skipped）。同树重跑 CI #313（run 39547183042）
+9 passed / 1 skipped 全过。此为 A 公共浏览器预演稳定性问题，如实登记，
+未自行修改 A 的 E2E、未降低断言、不声称已彻底解决。

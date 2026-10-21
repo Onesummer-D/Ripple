@@ -97,4 +97,38 @@ describe('thirdparty-acceptance.ts smoke（能力探针自身的验收边界）'
       expect(stdout).toBe('')
     } finally { cleanup() }
   })
+
+  it('CLI 严格校验：--expect-sha 缺值/选项误作值/非法 SHA/重复 均非零退出且无报告', () => {
+    const root = makeProject()
+    const head = git(root, 'rev-parse', 'HEAD').toString().trim()
+    try {
+      // 缺值
+      expect(runScript([root, '--expect-sha']).status).not.toBe(0)
+      // 下一个选项被误当参数值
+      expect(runScript([root, '--expect-sha', '--out', 'x']).status).not.toBe(0)
+      // 非法 SHA（非 40 位十六进制）
+      expect(runScript([root, '--expect-sha', 'xyz']).status).not.toBe(0)
+      expect(runScript([root, '--expect-sha', '0'.repeat(39)]).status).not.toBe(0)
+      // 重复出现
+      const dup = runScript([root, '--expect-sha', head, '--expect-sha', head])
+      expect(dup.status).not.toBe(0)
+      expect(dup.stdout).toBe('')
+      // 对照：合法大写 SHA 应被接受（大小写不敏感，正常路径不破）
+      expect(runScript([root, '--expect-sha', head.toUpperCase()]).status).toBe(0)
+    } finally { cleanup() }
+  })
+
+  it('CLI 严格校验：--out 缺值/未知参数/多余位置参数 均非零退出且无报告', () => {
+    const root = makeProject()
+    try {
+      expect(runScript([root, '--out']).status).not.toBe(0)
+      expect(runScript([root, '--out', '--expect-sha']).status).not.toBe(0)
+      const unknown = runScript([root, '--bogus'])
+      expect(unknown.status).not.toBe(0)
+      expect(unknown.stdout).toBe('')
+      const extra = runScript([root, 'extra-positional'])
+      expect(extra.status).not.toBe(0)
+      expect(extra.stdout).toBe('')
+    } finally { cleanup() }
+  })
 })

@@ -3,18 +3,24 @@
 - 日期：2026-10-21（v2，按协调人独立审查修正根因归因并加固探针）
 - 被测工程：github.com/codescandy/dash-ui-react-vitejs-typescript
 - 冻结 SHA：`b700bbd55b31a62fe04d4cd8210fc37232f0c9f0`
-- Ripple 侧基线：PR #9 分支（统计 JSON 内 rippleHead 为实测时的提交 SHA）
-- 统计 JSON：[b-codescandy-acceptance-2026-10-21.json](./b-codescandy-acceptance-2026-10-21.json)（schemaVersion 1）
+- Ripple 侧基线：统计 JSON 的实测基线为 `7bad3f4`（rippleHead 字段），即当时
+  真实运行探针的代码树；无需也不应为与 PR 最新 SHA 一致而伪造更新。
+- 统计 JSON：[b-codescandy-acceptance-2026-10-21.json](./b-codescandy-acceptance-2026-10-21.json)。
+  报告 `schemaVersion: 1`；文中"v2"仅指本报告的迭代版本（v1 → v2 修订），不是 schema 升级。
 - 复现方式：
   `node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/thirdparty-acceptance.ts <codescandy 检出路径> --expect-sha b700bbd55b31a62fe04d4cd8210fc37232f0c9f0 [--out <dir>]`
 
 ## 冻结 SHA 来源说明（8223897 → b700bbd 变更原因）
 
-- Issue #6 起草时的 `8223897` 经核验**在该仓库远端任何 ref 中均不可解析**
-  （`git ls-remote` 按前缀匹配无结果），无法作为可复验基线。
-- `b700bbd` 是该仓库 main 分支当前 HEAD（完整克隆，非 shallow），
-  commit 日期 2024-11-22（"Changelog date changed"），与协调人给定基线一致，
-  且此前多轮探针（2026-10-18/10-20/10-21）均使用同一 SHA，统计可复现。
+- Issue #6 起草时的 `8223897` **在本次可访问的远端环境中无法检出或复验**
+  （`git ls-remote` 按前缀匹配无结果；本地完整克隆中亦无该对象），
+  因此无法作为可复验基线。此结论仅限本次可访问环境，不据此断言该提交
+  在历史上绝对不存在（可能位于未抓取的分支/ fork 或已改写）。
+- 替代基线 `b700bbd55b31a62fe04d4cd8210fc37232f0c9f0`：该仓库 main 分支当前 HEAD
+  （完整克隆，非 shallow），commit 日期 2024-11-22（"Changelog date changed"），
+  与协调人给定基线一致，此前多轮探针（2026-10-18/10-20/10-21）均使用同一 SHA。
+- 固定检出方式：`git clone https://github.com/codescandy/dash-ui-react-vitejs-typescript`
+  后 `git checkout b700bbd55b31a62fe04d4cd8210fc37232f0c9f0`。
 - 许可证：MIT（仓库根 LICENSE，Copyright (c) 2024 Codescandy）。
 - 技术栈：React 18.3 + Vite 5.4 + TypeScript 5.6 + react-router 6.27（data router）+ Sass；
   root `tsconfig.json` 仅含 references，`paths`（catch-all `* → ./src/*`）在 `tsconfig.app.json`。
@@ -36,6 +42,11 @@
 fail-closed 行为，不能通过删除 Candidate 门控解决。
 
 ## 能力边界（最小复现：src/core/b-thirdparty-capability-repro.test.ts，7 用例全过）
+
+> 注意：以下 data router 用例是**锁定旧版缺口的负向契约**（当前 0 route 节点、
+> 影响 fail-closed 为 unknown）。A 实现 data router 支持后，这些用例应同步升级为
+> **正向契约测试**（断言 route 节点、route→component→source 关系与保守的
+> partial/unknown 语义），不得长期停留在"锁定缺口"状态。
 
 1. **react-router data router 路由识别缺口**：`App.tsx:48` 使用
    `createBrowserRouter([{ path: 'profile', Component: Profile }, ...])` + `<RouterProvider>`。
