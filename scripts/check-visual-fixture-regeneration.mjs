@@ -36,6 +36,27 @@ for(const name of allPaths) {
   const aa=fs.readFileSync(a), bb=fs.readFileSync(b)
   if(aa.equals(bb))continue
   const item={path:name,status:'byte-mismatch',beforeSha256:hash(aa),afterSha256:hash(bb)}
+  if(name.endsWith('.json')) {
+    try {
+      const left=JSON.parse(aa.toString('utf8')), right=JSON.parse(bb.toString('utf8'))
+      const fields=[]
+      function recurse(x,y,key='') {
+        if(fields.length>=100) return
+        if(Object.is(x,y)) return
+        if(typeof x !== 'object'||x===null||typeof y!=='object'||y===null||Array.isArray(x)!==Array.isArray(y)) {
+          fields.push({field:key||'$root',before:x,after:y}); return
+        }
+        const keys=[...new Set([...Object.keys(x),...Object.keys(y)])].sort()
+        for(const k of keys) {
+          if(fields.length>=100)break
+          recurse(x[k],y[k],key+(Array.isArray(x)?'['+k+']':'.'+k))
+        }
+      }
+      recurse(left,right)
+      item.jsonChangedFields=fields
+      item.onlyEnvironmentMetadata=fields.length>0 && fields.every(f=>/^\\.environment\\.(nodeVersion|zlib|platform|arch|runtime)$/.test(f.field))
+    } catch(e) {item.jsonCompareError=String(e?.message??e)}
+  }
   if(name.endsWith('.png')) {
     try{
       const pa=PNG.sync.read(aa), pb=PNG.sync.read(bb)
