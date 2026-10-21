@@ -115,6 +115,20 @@ describe('agent C: conservative data-router page provenance', () => {
 
 
 describe('agent C P1: app ownership, lexical binding and mutable route safety', () => {
+  it('proves a default-imported route component used by an App-local data router', () => {
+    const root = project({
+      'src/pages/Profile.tsx': 'const Profile=()=> <h1>Real Default Profile</h1>; export default Profile;',
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';
+        import Profile from './pages/Profile';
+        const App=()=>{const router=createBrowserRouter([{path:'/pages/profile',Component:Profile}]);return <RouterProvider router={router}/>};
+        export default App;`,
+      'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+    })
+    expect(impact(analyzeProject(root), 'Real Default Profile')).toMatchObject({
+      pageRefs:['page:/pages/profile'],certainty:'source-proven'
+    })
+  })
+
   const expectUnknown = (root: string, message?: string) => {
     const graph = analyzeProject(root)
     const result = impact(graph, 'Profile Title')

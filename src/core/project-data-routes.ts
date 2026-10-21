@@ -63,6 +63,10 @@ export function inspectDataRouter(
     const importSymbols = new Map<string, ts.Symbol>()
     for (const stmt of source.statements) {
       if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) continue
+      if (stmt.importClause?.name) {
+        const alias = symbol(stmt.importClause.name)
+        if (alias) importSymbols.set(stmt.importClause.name.text, alias)
+      }
       const names = stmt.importClause?.namedBindings
       if (!names || !ts.isNamedImports(names)) continue
       for (const item of names.elements) {
