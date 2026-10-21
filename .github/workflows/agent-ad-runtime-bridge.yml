@@ -1,0 +1,51 @@
+name: A+D Runtime Bridge — official Docker browser regression
+
+on:
+  push:
+    branches: [feat/agent-ad-runtime-bridge-20261022]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/fixtures/react-vite-tailwind/package-lock.json
+      - name: Locked project dependencies
+        run: npm ci
+      - name: Pinned fixture dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix test/fixtures/react-vite-tailwind
+      - name: Browser runtime
+        run: npx playwright install --with-deps chromium
+      - name: Official TypeScript check
+        run: npm run typecheck
+      - name: Identity, project and source selection unit tests
+        run: npx vitest run src/core/runtime-identity.test.ts src/core/project.test.ts src/core/local-project-api.test.ts --no-file-parallelism
+      - name: Production build
+        run: npm run build
+      - name: Docker availability
+        run: docker info --format '{{.ServerVersion}}'
+      - name: Preview image
+        run: docker pull node:22-bookworm-slim
+      - name: Browser verification runtime
+        run: bash scripts/prepare-browser-verification.sh
+      - name: Real candidate workbench and source identity E2E
+        run: npx playwright test e2e/project-workbench.spec.ts e2e/source-identity.spec.ts
+      - name: Preserve failure traces and browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ad-browser-regression-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 30
