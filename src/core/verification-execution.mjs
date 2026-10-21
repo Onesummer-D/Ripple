@@ -232,17 +232,21 @@ export async function executeVerification({
   // project hides the desktop nav with display:none (excluded from the
   // accessibility tree) while the collapsed overlay menu stays in the tree
   // with opacity-0/pointer-events:none, so clicking it burns the full action
-  // timeout before failing. When the contract declares a menuControl AND
-  // exactly one instance of it is visible, the runner opens that menu first
-  // and only clicks the declared target when exactly one visible candidate
-  // remains afterwards. Missing/duplicate menu controls, failed opens and
-  // duplicate post-open targets all stay UNKNOWN (thrown as observations,
-  // never position-resolved). Viewports where the toggle is not visible
-  // (desktop, tablet) keep the original direct click and the Run #12
-  // landmark rescue unchanged.
+  // timeout before failing. When the contract declares a menuControl that is
+  // present in the accessibility tree on this viewport, the menu leg owns the
+  // click: it opens the menu only when exactly one instance is visible and
+  // clicks the declared target only when exactly one visible candidate
+  // remains afterwards. A present-but-ambiguous declared menu (duplicate
+  // toggles, or toggles that exist but are not clickable here) is refused
+  // outright — never silently bypassed by falling back to a directly
+  // clickable nav target, which would launder the ambiguity into a PASS.
+  // Viewports where the toggle is absent from the tree entirely (desktop,
+  // tablet with the pinned Bolt markup) keep the original direct click and
+  // the Run #12 landmark rescue unchanged.
   async function clickDeclaredControl(page, scope, side, spec) {
-    if (spec.menuControl && await hasUniqueVisibleMenuToggle(page, spec)) {
-      return openDeclaredMenuAndClick(page, scope, side, spec)
+    if (spec.menuControl) {
+      const toggles = page.getByRole(spec.menuControl.role, { name: spec.menuControl.name, exact: true })
+      if (await toggles.count() > 0) return openDeclaredMenuAndClick(page, scope, side, spec)
     }
     const target = page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
     try {
@@ -267,16 +271,6 @@ export async function executeVerification({
       landmarkMatches: matches, visibleMatches: visible.length, viewport: scope.viewport,
     })
     return true
-  }
-
-  async function hasUniqueVisibleMenuToggle(page, spec) {
-    const toggles = page.getByRole(spec.menuControl.role, { name: spec.menuControl.name, exact: true })
-    const count = await toggles.count()
-    let visible = 0
-    for (let index = 0; index < count; index += 1) {
-      if (await toggles.nth(index).isVisible()) visible += 1
-    }
-    return visible === 1
   }
 
   // Mobile-menu leg of the declared navigation contract (see
@@ -329,17 +323,28 @@ export async function executeVerification({
   // page identity, not to incidental copy: promotional banners, navigation
   // and recommendation cards mention other pages' marker text all the time
   // (the pinned Bolt HomePage carries the autumn page's exact marker in an
-  // event banner). An other-page marker match only proves wrong-route when:
-  //   - it is NOT inside chrome contexts (nav/footer landmarks, links) — ads
-  //     and navigation never prove the route; and
-  //   - when both sides carry source annotations, it renders from a DIFFERENT
-  //     module than the current page's own marker (a genuinely mounted other
-  //     page component); same-module matches are the page quoting itself.
-  // Unannotated matches outside chrome keep the legacy conservative negation
-  // (unproven route states must stay UNKNOWN rather than pass).
-  async function isWrongRouteEvidence(page, otherMarkerText, ownSourceFile) {
+  // event banner). Evidence grading for a visible other-page marker match
+  // outside chrome contexts (nav/footer landmarks, links — those never prove
+  // anything and are skipped):
+  //   - both sides annotated, SAME module → the page quoting itself: no
+  //     evidence (a home page legitimately renders its own promo copy);
+  //   - both sides annotated, DIFFERENT module → conflicting evidence, NOT a
+  //     verdict: module ownership is not route ownership (a home page may
+  //     import a shared EventBanner component). The route downgrades to
+  //     'ambiguous' (UNKNOWN) with a route-identity-conflict diagnostic, never
+  //     'wrong-route' on a file name alone;
+  //   - either side unannotated → the legacy conservative negation
+  //     ('wrong-route'), preserving the pre-Run-13 fail-closed semantics for
+  //     unproven route states.
+  // Residual, documented: one module rendering BOTH the page's own marker and
+  // another page's marker is indistinguishable from self-quoting at this
+  // abstraction, so it stays verified; only route-level ownership information
+  // (which the contract does not carry) could separate a shared shell from a
+  // double-mounted page.
+  async function wrongRouteEvidence(page, otherMarkerText, ownSourceFile) {
     const matches = page.getByText(otherMarkerText, { exact: true })
     const count = await matches.count()
+    let conflict = null
     for (let index = 0; index < count; index += 1) {
       const match = matches.nth(index)
       if (!(await match.isVisible().catch(() => false))) continue
@@ -351,12 +356,12 @@ export async function executeVerification({
       }).catch(() => null)
       if (!probe || probe.inChromeContext) continue
       if (ownSourceFile && probe.sourceFile) {
-        if (probe.sourceFile !== ownSourceFile) return true
+        if (probe.sourceFile !== ownSourceFile) conflict = conflict ?? { otherMarker: otherMarkerText, otherSourceFile: probe.sourceFile }
         continue
       }
-      return true
+      return { kind: 'unbound' }
     }
-    return false
+    return conflict
   }
 
   async function visitContractPage(scope, side, spec, reuseCurrent) {
@@ -376,11 +381,22 @@ export async function executeVerification({
       let routeIdentity = declaredMatches !== 1 || markerMatchCount > 1 ? 'ambiguous' : markerMatchCount === 0 ? 'missing' : 'verified'
       if (routeIdentity === 'verified') {
         const ownSourceFile = await sourceFileOf(marker.first())
+        let conflict = null
         for (const otherMarker of new Set(contractPages.filter(item => item.pageRef !== spec.pageRef).map(item => item.markerText))) {
-          if (await isWrongRouteEvidence(page, otherMarker, ownSourceFile)) {
+          const evidence = await wrongRouteEvidence(page, otherMarker, ownSourceFile)
+          if (!evidence) continue
+          if (evidence.kind === 'unbound') {
             routeIdentity = 'wrong-route'
             break
           }
+          conflict = conflict ?? evidence
+        }
+        if (routeIdentity === 'verified' && conflict) {
+          routeIdentity = 'ambiguous'
+          scope.note({
+            event: 'route-identity-conflict', pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path),
+            ownSourceFile, otherMarker: conflict.otherMarker, otherSourceFile: conflict.otherSourceFile, viewport: scope.viewport,
+          })
         }
       }
       return { markerVisible, markerMatchCount, routeIdentity }

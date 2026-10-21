@@ -48,7 +48,7 @@ const spaOptions = {
   // stays in the accessibility tree at opacity-0/pointer-events:none until the
   // declared toggle ('菜单') opens it. dualToggle renders two visible toggles;
   // duplicateOverlay renders that page's overlay button twice.
-  mobileMenu: false, dualToggle: false, duplicateOverlay: [] as string[],
+  mobileMenu: false, dualToggle: false, duplicateOverlay: [] as string[], directMobileNav: false,
   // wrong-route matrix: annotateHome annotates the home h1 with a
   // data-ripple-source ref; promoHome renders a home-page banner quoting
   // another page's marker text (sourceRef null = unannotated, inNav = inside
@@ -65,7 +65,7 @@ const spaOptions = {
 function spa(brand: string): string {
   const candidate = brand === 'New brand'
   const mobileStyle = spaOptions.mobileMenu
-    ? '<style>@media (max-width: 767px) { .desktop-nav { display: none } } @media (min-width: 768px) { .menu-toggle, .mobile-overlay { display: none } } .mobile-overlay { opacity: 0; pointer-events: none } .mobile-overlay.open { opacity: 1; pointer-events: auto }</style>'
+    ? `<style>${spaOptions.directMobileNav ? '' : '@media (max-width: 767px) { .desktop-nav { display: none } } '}@media (min-width: 768px) { .menu-toggle, .mobile-overlay { display: none } } .mobile-overlay { opacity: 0; pointer-events: none } .mobile-overlay.open { opacity: 1; pointer-events: auto }</style>`
     : ''
   const toggleMarkup = spaOptions.mobileMenu
     ? '<button class="menu-toggle" aria-label="菜单">菜单</button>'.repeat(spaOptions.dualToggle ? 2 : 1)
@@ -698,9 +698,14 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
   it('binds wrong-route negation to source context instead of incidental copy', async () => {
     // Run #13 P1: the pinned Bolt HomePage renders the autumn page's exact
     // marker inside a promo banner, and every viewport reported page:home as
-    // wrong-route. Negation evidence must be bound to provenance: same-module
-    // copy (the page quoting itself), nav/footer chrome, and unannotated
-    // matches keep or reject identity exactly as their provenance supports.
+    // wrong-route. Negation evidence must be graded by provenance: same-module
+    // copy (the page quoting itself) and nav/footer chrome are no evidence;
+    // a different module is CONFLICTING evidence, not a verdict — module
+    // ownership is not route ownership, so a cross-module promo component
+    // (a home page importing a shared EventBanner) downgrades to UNKNOWN
+    // ('ambiguous') with a route-identity-conflict diagnostic, never
+    // 'wrong-route' on a file name alone. Only unannotated matches keep the
+    // legacy conservative negation.
     const homeObservations = (manifest: Record<string, any>) => manifest.scopeObservations.filter((item: { pageRef: string }) => item.pageRef === 'page:home')
     const expectHomeIdentity = async (runId: string, promo: { marker: string; sourceRef: string | null; inNav?: boolean }, expectedIdentity: string) => {
       spaOptions.annotateHome = 'jsx:src/pages/Home.tsx#1'
@@ -713,6 +718,14 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
         for (const observation of observations) {
           expect([observation.baselineRouteIdentity, observation.candidateRouteIdentity]).toEqual([expectedIdentity, expectedIdentity])
         }
+        const conflicts = outcome.events.filter(event => event.event === 'route-identity-conflict')
+        if (expectedIdentity === 'ambiguous') {
+          expect(conflicts.length).toBeGreaterThan(0)
+          expect(conflicts.every(event => String(event.checkId).startsWith(runId))).toBe(true)
+          expect(conflicts[0]).toMatchObject({ ownSourceFile: 'src/pages/Home.tsx', otherMarker: promo.marker })
+        } else {
+          expect(conflicts).toHaveLength(0)
+        }
       } finally {
         spaOptions.annotateHome = null
         spaOptions.promoHome = null
@@ -720,13 +733,55 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
     }
     // The page quoting itself: promo and marker render from the same module.
     await expectHomeIdentity('run-route-home-self-quote', { marker: 'Autumn page', sourceRef: 'jsx:src/pages/Home.tsx#2' }, 'verified')
-    // A genuinely mounted other-page component proves the wrong route.
-    await expectHomeIdentity('run-route-home-other-module', { marker: 'Autumn page', sourceRef: 'jsx:src/pages/Autumn.tsx#9' }, 'wrong-route')
+    // Another page's own component mounted here would be wrong-route, but a
+    // different module alone cannot prove that — it downgrades to UNKNOWN.
+    await expectHomeIdentity('run-route-home-other-module', { marker: 'Autumn page', sourceRef: 'jsx:src/pages/Autumn.tsx#9' }, 'ambiguous')
+    // The common layout case: a cross-module promo component that still
+    // belongs to the home page (shared EventBanner). Also UNKNOWN, with the
+    // conflict recorded for human review — never verified, never wrong-route.
+    await expectHomeIdentity('run-route-home-cross-module-banner', { marker: 'Autumn page', sourceRef: 'jsx:src/components/EventBanner.tsx#3' }, 'ambiguous')
     // Chrome (inside the nav landmark) never proves a wrong route.
     await expectHomeIdentity('run-route-home-promo-in-nav', { marker: 'Autumn page', sourceRef: 'jsx:src/pages/Autumn.tsx#9', inNav: true }, 'verified')
     // Unannotated incidental copy keeps the conservative legacy negation.
     await expectHomeIdentity('run-route-home-unannotated-promo', { marker: 'Autumn page', sourceRef: null }, 'wrong-route')
   }, 360_000)
+
+  it('refuses a duplicated declared menu even when the nav target is directly clickable', async () => {
+    // Review boundary: with two visible '菜单' toggles the previous gate fell
+    // back to the legacy direct click, so a project pairing duplicate toggles
+    // with a directly clickable nav target would have the ambiguity silently
+    // accepted. The menu leg must own the click whenever the declared control
+    // is in the tree on this viewport: duplicates refuse (UNKNOWN) even here.
+    spaOptions.mobileMenu = true
+    spaOptions.dualToggle = true
+    spaOptions.directMobileNav = true
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-dup-toggle-clickable', {}, {}, contract)
+      const { manifest } = outcome.result!
+      expect(outcome.events.find(event => event.event === 'navigation-menu-disambiguated')).toBeUndefined()
+      expect(outcome.events.find(event => event.event === 'navigation-disambiguated')).toBeUndefined()
+      // Mobile viewports refuse (duplicated declared menu); desktop has no
+      // toggle in the tree and keeps the original direct click.
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(3 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          const expected = viewport.width < 768 ? 'missing' : 'verified'
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.dualToggle = false
+      spaOptions.directMobileNav = false
+    }
+  }, 90_000)
 
   it('counts a browser error storm exactly while keeping samples bounded and redacted', async () => {
     spaOptions.consoleErrorsPerLoad = 150
