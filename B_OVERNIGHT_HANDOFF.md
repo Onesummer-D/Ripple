@@ -393,3 +393,14 @@ P1 修正三项 + 阻断矩阵 + A 接口需求文本。本批全部完成，未
   推进条件重新集成。
 - 青野 MEDIA Run #1 不重跑；关键摘要/SHA/哈希/回滚证明已持久归档于
   `_scratch/media-acceptance/` 与本 handoff 历史版本。
+
+## 六、CI 结果补充（同批内容两次运行）
+
+- `d696e4f`（本批全部内容）→ CI run **39546320560 FAILURE**：typecheck、Vitest（31 文件全过）、
+  build、Docker 门控全 success，仅 `npm run test:browser` 步失败。失败用例/日志因
+  admin 权限 403 不可读，无法归因到具体用例。
+- `482badf`（对 `d696e4f` 的空提交，树内容完全一致）→ CI run **重跑 SUCCESS**。
+- 结论：同树两跑一次 fail 一次 pass，与协调人此前记录的 page-override-lifecycle
+  基线预演不稳定现象一致；本批纯新增文件（测试/脚本/文档）不构成 e2e 回归的
+  可行机制（diff 不触碰任何被 e2e 加载的源码）。最终以 `482badf` 的 SUCCESS 作为
+  本批 CI 结论，首次失败如实保留在案待追踪。
