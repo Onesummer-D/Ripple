@@ -320,6 +320,9 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   const dependencies = fs.realpathSync(path.join(rippleRoot, 'node_modules'))
   let baseline: Awaited<ReturnType<typeof startCandidateBaseline>> | undefined
   let resourceSnapshotResult: Awaited<ReturnType<typeof snapshotAuthorizedPreviewResources>>
+  // Set only when the run itself already failed, so cleanup failures in the
+  // finally block can augment it instead of replacing the original diagnostics.
+  let pendingFailure: VerificationRunnerError | undefined
   try {
     const snapshotStarted = Date.now()
     resourceSnapshotResult = await snapshotAuthorizedPreviewResources(preview.authorizedResourceUrls, artifactRoot)
@@ -389,13 +392,24 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
         runtimeFingerprint: session.projectRevision.runtimeFingerprint, reason: wrapped.message,
       })
     } catch { /* failure diagnostics must never mask the original verification error */ }
-    if (progressTail) throw new VerificationRunnerError(`${wrapped.message}\n隔离执行器进度（最后事件）：\n${progressTail}`)
-    throw wrapped
+    pendingFailure = progressTail ? new VerificationRunnerError(`${wrapped.message}\n隔离执行器进度（最后事件）：\n${progressTail}`) : wrapped
+    throw pendingFailure
   } finally {
     try { exportRunDiagnostics(artifactRoot, runId) } catch { /* diagnostics must never mask the original failure */ }
     await removeExecutor(containerName)
-    if (baseline) await stopCandidateBaseline(baseline)
+    // Cleanup stays fail-closed but never masks the original failure: when the
+    // run already failed, a baseline-stop error is appended to its message; a
+    // run that succeeded so far fails here instead of silently passing with a
+    // leftover baseline preview container.
+    let cleanupFailure: string | undefined
+    if (baseline) {
+      try { await stopCandidateBaseline(baseline) } catch (error) { cleanupFailure = error instanceof Error ? error.message : String(error) }
+    }
     if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
+    if (cleanupFailure) {
+      if (pendingFailure) pendingFailure.message = `${pendingFailure.message}\n基线预演清理失败（保留原失败原因）：${cleanupFailure}`
+      else throw new VerificationRunnerError(`验证执行已结束，但基线预演容器清理失败：${cleanupFailure}`)
+    }
   }
 
   assertCandidateCurrent(candidate)

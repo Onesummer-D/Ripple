@@ -15,6 +15,8 @@ import { buildFailedToRunDiagnostic } from './verification-runner'
 import type { VerificationRun } from './model'
 // @ts-expect-error The container runtime is plain ESM without a TS build target.
 import { executeVerification, RunnerAborted, runnerDeadline } from './verification-execution.mjs'
+// @ts-expect-error The container runtime is plain ESM without a TS build target.
+import { runVerificationAndPublish } from './verification-publish.mjs'
 
 const CANDIDATE_HOST = '127.0.0.2'
 const BASELINE_HOST = '127.0.0.3'
@@ -116,7 +118,7 @@ afterAll(async () => {
   await Promise.all(servers.map(server => new Promise(resolve => server.close(resolve))))
 })
 
-function verificationInput(runId: string, contract: { pages: Array<Record<string, unknown>>; interactions: Array<Record<string, unknown>> } = { pages: PAGES, interactions: [HOME_INTERACTION] }, resourceSnapshots: unknown[] = []) {
+function verificationInput(runId: string, contract: { pages: Array<Record<string, unknown>>; interactions: Array<Record<string, unknown>> } = { pages: PAGES, interactions: [HOME_INTERACTION] }, resourceSnapshots: unknown[] = [], unavailableResources: unknown[] = []) {
   const expectations = Object.fromEntries(contract.pages.map(page => [page.pageRef, { baselineText: 'Old brand', candidateText: 'New brand' }]))
   return {
     runId, candidateId: 'candidate-1', scopeDecisionId: 'scope-1', scopeVersion: 1,
@@ -132,7 +134,7 @@ function verificationInput(runId: string, contract: { pages: Array<Record<string
     operations: [{ id: 'op-brand', kind: 'TEXT' }],
     scopeTargetPageRefs: { 'op-brand': contract.pages.map(page => page.pageRef) },
     verificationContract: contract,
-    resourceSnapshots, unavailableResources: [],
+    resourceSnapshots, unavailableResources,
   }
 }
 
@@ -187,12 +189,12 @@ type RunOutcome = {
   result?: Record<string, any>; error?: any; events: Array<Record<string, any>>; evidenceRoot: string
   open: Set<Page>; openBefore: Array<{ viewportWidth: number; open: number }>; newPageCalls: () => number
 }
-async function run(runId: string, hooks: Hooks = {}, options: Record<string, unknown> = {}, contract?: Parameters<typeof verificationInput>[1], snapshots?: { evidenceRoot: string; resourceSnapshots: unknown[] }): Promise<RunOutcome> {
+async function run(runId: string, hooks: Hooks = {}, options: Record<string, unknown> = {}, contract?: Parameters<typeof verificationInput>[1], snapshots?: { evidenceRoot: string; resourceSnapshots: unknown[] }, unavailable?: unknown[]): Promise<RunOutcome> {
   const evidenceRoot = snapshots?.evidenceRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-verify-'))
   const events: Array<Record<string, any>> = []
   const instrumented = instrumentedBrowser(hooks)
   const outcome = await executeVerification({
-    input: verificationInput(runId, contract, snapshots?.resourceSnapshots), browser: instrumented.browser, evidenceRoot,
+    input: verificationInput(runId, contract, snapshots?.resourceSnapshots, unavailable), browser: instrumented.browser, evidenceRoot,
     progress: (entry: Record<string, unknown>) => events.push({ ...entry }), ...options,
   }).then((result: Record<string, any>) => ({ result }), (error: unknown) => ({ error }))
   return { ...outcome, events, evidenceRoot, ...instrumented }
@@ -559,4 +561,212 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
     fs.writeFileSync(shaped, JSON.stringify({ ...failed, schemaVersion: 4, executor: 'playwright', runId: 'run-budget', verificationContractHash: 'contract', completed: false }))
     expect(() => attestBrowserExecution(registeredRun, shaped)).toThrow(/does not match this candidate run/)
   }, 90_000)
+
+  it('publishes the real executor output as a top-level v4 manifest through the publish gate, closing the browser exactly once', async () => {
+    // Integration contract: executeVerification() returns { manifest, ... }
+    // but execution.json must contain the manifest itself at the top level —
+    // a unit test with a hand-made object cannot catch a serialization of
+    // the wrapper, so the real executor output goes through the real gate.
+    const evidenceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-verify-'))
+    const outputPath = path.join(evidenceRoot, 'execution.json')
+    const instrumented = instrumentedBrowser()
+    let closeCalls = 0
+    const gatedBrowser = {
+      ...instrumented.browser,
+      close: async () => { closeCalls += 1 },
+    }
+    const events: Array<Record<string, unknown>> = []
+    const summary = await runVerificationAndPublish({
+      browser: gatedBrowser,
+      outputPath,
+      runVerification: () => executeVerification({
+        input: verificationInput('run-publish'), browser: gatedBrowser, evidenceRoot,
+        progress: (entry: Record<string, unknown>) => events.push({ ...entry }),
+      }),
+    })
+    expect(closeCalls).toBe(1)
+    expect(summary.manifest.completed).toBe(true)
+    const published = JSON.parse(fs.readFileSync(outputPath, 'utf8'))
+    expect(published).toMatchObject({
+      schemaVersion: 4, executor: 'playwright', completed: true, runId: 'run-publish',
+      candidateId: 'candidate-1', scopeDecisionId: 'scope-1',
+    })
+    expect(Array.isArray(published.checks)).toBe(true)
+    expect(published.viewportDiagnostics).toBeUndefined()
+    expect(published.status).toBeUndefined()
+    expect(published.checks).toHaveLength(VIEWPORTS.length)
+    expect(fs.readdirSync(evidenceRoot).filter(name => name.endsWith('.tmp'))).toEqual([])
+  }, 90_000)
+
+  it('aborts the run when a viewport cannot close its pages: the next viewport never starts and no record is produced', async () => {
+    // Deterministic cleanup failure: every page close of the tablet viewport
+    // rejects. The leaked pages stay alive in the shared browser (the Run #11
+    // cascade precondition), so the invariant is that the runner stops here:
+    // no second viewport starts on top of unclosed pages, and no execution
+    // record (approvable or not) is written for this run.
+    const outcome = await run('run-leak-tablet', {
+      page: (_page, { viewportWidth }) => viewportWidth === 768 ? { close: async () => { throw new Error('Protocol error (Target.close): Connection closed') } } : {},
+    })
+    expect(outcome.error).toBeInstanceOf(RunnerAborted)
+    const diagnostic = outcome.error.diagnostic
+    expect(diagnostic).toMatchObject({ completed: false, status: 'failed-to-run', notStarted: ['mobile-375', 'mobile-390'] })
+    // desktop completed and kept its pass; tablet ended failed-to-run with the
+    // cleanup failure attributed to its own scope, not the next viewport.
+    expect(diagnostic.viewports).toHaveLength(2)
+    expect(diagnostic.viewports[0]).toMatchObject({ result: 'pass', outcome: 'completed' })
+    expect(diagnostic.viewports[1]).toMatchObject({ result: 'failed-to-run', outcome: 'completed', endedBy: { phase: 'close-page' } })
+    expect(firstErrorOf(outcome.events, 'tablet')).toMatchObject({ phase: 'close-page' })
+    expect(firstErrorOf(outcome.events, 'tablet')?.message).toContain('viewport cleanup did not finish')
+    expect(lifecycle(outcome.events, 'tablet')).toMatchObject({ closeFailures: expect.any(Number), pagesLeaked: 0 })
+    expect(lifecycle(outcome.events, 'tablet').closeFailures).toBeGreaterThan(0)
+    // The invariant itself: only the two viewports up to the failed cleanup
+    // ever emitted check-complete; no mobile viewport started.
+    const completes = outcome.events.filter(event => event.event === 'check-complete')
+    expect(completes.map(event => String(event.checkId))).toEqual(['run-leak-tablet-desktop', 'run-leak-tablet-tablet'])
+    // No execution record exists; even a completed:false record shaped as v4
+    // with matching identity cannot be attested into a Receipt.
+    expect(fs.existsSync(path.join(outcome.evidenceRoot, 'execution.json'))).toBe(false)
+    const shaped = path.join(outcome.evidenceRoot, 'shaped-cleanup-failure.json')
+    fs.writeFileSync(shaped, JSON.stringify({
+      schemaVersion: 4, executor: 'playwright', runId: 'run-leak-tablet', candidateId: 'candidate-1',
+      scopeDecisionId: 'scope-1', scopeVersion: 1, baseSourceDigest: 'base', patchHash: 'patch',
+      candidateTreeDigest: 'tree', runtimeFingerprint: 'runtime', verificationContractHash: 'contract', completed: false,
+    }))
+    const registeredRun = {
+      id: 'run-leak-tablet', candidateId: 'candidate-1', scopeDecisionId: 'scope-1', scopeVersion: 1, baseSourceDigest: 'base',
+      patchHash: 'patch', candidateTreeDigest: 'tree', runtimeFingerprint: 'runtime', verificationContractHash: 'contract',
+    } as unknown as VerificationRun
+    expect(() => attestBrowserExecution(registeredRun, shaped)).toThrow(/does not match this candidate run/)
+    // The leaked pages really are still open — exactly why the next viewport
+    // must not start.
+    expect(outcome.open.size).toBeGreaterThan(0)
+    const desktopLifecycle = lifecycle(outcome.events, 'desktop')
+    expect(desktopLifecycle).toMatchObject({ pagesLeaked: 0, unsettled: 0, closeFailures: 0 })
+    expect(outcome.events.filter((event: { late?: boolean }) => event.late)).toEqual([])
+  }, 120_000)
+
+  it('counts a page close that hangs past its deadline, then aborts before the next viewport', async () => {
+    // A close that never settles hits the close deadline instead of blocking
+    // the scope; the hung close promises stay pending past the grace drain and
+    // are reported, and the run aborts on the closeFailures just like a
+    // rejecting close does.
+    const outcome = await run('run-hang-close', {
+      page: (_page, { viewportWidth }) => viewportWidth === 768 ? { close: () => new Promise(() => {}) } : {},
+    })
+    expect(outcome.error).toBeInstanceOf(RunnerAborted)
+    const diagnostic = outcome.error.diagnostic
+    expect(diagnostic).toMatchObject({ completed: false, status: 'failed-to-run', notStarted: ['mobile-375', 'mobile-390'] })
+    expect(diagnostic.viewports).toHaveLength(2)
+    const summary = lifecycle(outcome.events, 'tablet')
+    expect(summary.closeFailures).toBeGreaterThan(0)
+    expect(summary.unsettled).toBeGreaterThan(0)
+    expect(firstErrorOf(outcome.events, 'tablet')).toMatchObject({ phase: 'close-page' })
+    expect(checkComplete(outcome.events, 'desktop').result).toBe('pass')
+    expect(fs.existsSync(path.join(outcome.evidenceRoot, 'execution.json'))).toBe(false)
+  }, 120_000)
+
+  it('aborts the run when a newPage() promise outlives the cleanup grace: no leak counted, no next viewport, no record', async () => {
+    // The tablet viewport's first candidate page opens so slowly that its
+    // newPage() promise is still pending when the open deadline fails the
+    // viewport and the 5 s cleanup grace expires. At that moment there is no
+    // leaked page and no close failure — only unsettled work with no proof
+    // it cannot still create a page in the shared browser — so the run must
+    // abort exactly as if a page had leaked: the next viewport never starts
+    // and no execution record exists.
+    const outcome = await run('run-late-newpage', {
+      newPage: async ({ viewportWidth, side }) => {
+        if (viewportWidth === 768 && side === 'candidate') await new Promise(resolve => setTimeout(resolve, 7_500))
+      },
+    }, { openTimeoutMs: 1_000 })
+    expect(outcome.error).toBeInstanceOf(RunnerAborted)
+    const diagnostic = outcome.error.diagnostic
+    expect(diagnostic).toMatchObject({ completed: false, status: 'failed-to-run', notStarted: ['mobile-375', 'mobile-390'] })
+    expect(diagnostic.viewports).toHaveLength(2)
+    expect(checkComplete(outcome.events, 'desktop').result).toBe('pass')
+    // The invariant's evidence: the lifecycle summary was clean on leaks and
+    // close failures, and the abort rests on the unsettled count alone.
+    const summary = lifecycle(outcome.events, 'tablet')
+    expect(summary).toMatchObject({ pagesLeaked: 0, closeFailures: 0, unsettled: 1 })
+    expect(diagnostic.viewports[1]).toMatchObject({ result: 'failed-to-run', endedBy: { phase: 'close-page', message: expect.stringContaining('unsettled') } })
+    expect(firstErrorOf(outcome.events, 'tablet')).toMatchObject({ phase: 'open-page', side: 'candidate', type: 'DeadlineError' })
+    // Only the two viewports up to the unproven cleanup ever ran.
+    const completes = outcome.events.filter(event => event.event === 'check-complete')
+    expect(completes.map(event => String(event.checkId))).toEqual(['run-late-newpage-desktop', 'run-late-newpage-tablet'])
+    expect(fs.existsSync(path.join(outcome.evidenceRoot, 'execution.json'))).toBe(false)
+  }, 90_000)
+
+  it('aborts the run when a timed-out task keeps running past the cleanup grace: the probe is not provably stopped', async () => {
+    // The tablet candidate's products marker probe is replaced by a promise
+    // that never settles and — unlike a real Playwright call — is not
+    // cancelled by closing its page. The task deadline fails the viewport,
+    // but the work itself is still running after the grace drain: no page
+    // leaked and no close failed, only unsettled work that can still mutate
+    // run state, so the run must abort before the next viewport.
+    const outcome = await run('run-wedged-probe', {
+      page: (page, { side, viewportWidth }) => {
+        if (viewportWidth !== 768 || side !== 'candidate') return {}
+        // Only the products marker probe wedges: the flag flips once the page
+        // navigates via the Products button, so the root probe's wrong-route
+        // marker scan (which also reads the text 'Products page') is not hit.
+        let onProducts = false
+        return {
+          getByRole: (role: string, options: { name: string }) => {
+            onProducts = options.name === 'Products'
+            return page.getByRole(role as 'button', options)
+          },
+          getByText: (text: string, options: object) => onProducts && text === 'Products page'
+            ? { count: () => new Promise(() => {}), first: () => page.getByText(text, options).first() }
+            : page.getByText(text, options),
+        }
+      },
+    }, { probeDeadlineMs: 2_000 })
+    expect(outcome.error).toBeInstanceOf(RunnerAborted)
+    const diagnostic = outcome.error.diagnostic
+    expect(diagnostic).toMatchObject({ completed: false, status: 'failed-to-run', notStarted: ['mobile-375', 'mobile-390'] })
+    expect(diagnostic.viewports).toHaveLength(2)
+    expect(checkComplete(outcome.events, 'desktop').result).toBe('pass')
+    expect(outcome.events.find(event => event.event === 'task' && event.task === 'scope-probe:page:products:candidate' && event.state === 'timed-out')).toBeTruthy()
+    const summary = lifecycle(outcome.events, 'tablet')
+    expect(summary).toMatchObject({ pagesLeaked: 0, closeFailures: 0, unsettled: 1 })
+    expect(diagnostic.viewports[1]).toMatchObject({ result: 'failed-to-run', endedBy: { phase: 'close-page', message: expect.stringContaining('unsettled') } })
+    expect(firstErrorOf(outcome.events, 'tablet')).toMatchObject({ type: 'DeadlineError', phase: 'scope-probe' })
+    expect(firstErrorOf(outcome.events, 'tablet')!.inFlight).toEqual(expect.arrayContaining([expect.objectContaining({ phase: 'scope-marker', pageRef: 'page:products', side: 'candidate' })]))
+    expect(fs.existsSync(path.join(outcome.evidenceRoot, 'execution.json'))).toBe(false)
+  }, 90_000)
+
+  it('aborts at the first viewport when no viewport can close its pages', async () => {
+    const outcome = await run('run-leak-all', {
+      page: () => ({ close: async () => { throw new Error('renderer wedged') } }),
+    })
+    expect(outcome.error).toBeInstanceOf(RunnerAborted)
+    const diagnostic = outcome.error.diagnostic
+    expect(diagnostic).toMatchObject({ completed: false, status: 'failed-to-run', notStarted: ['tablet', 'mobile-375', 'mobile-390'] })
+    expect(diagnostic.viewports).toHaveLength(1)
+    expect(diagnostic.viewports[0]).toMatchObject({ result: 'failed-to-run', endedBy: { phase: 'close-page' } })
+    expect(fs.existsSync(path.join(outcome.evidenceRoot, 'execution.json'))).toBe(false)
+    expect(outcome.open.size).toBeGreaterThan(0)
+  }, 120_000)
+
+  it('keeps browser-errors at RISK when an authorized resource could not be snapshotted, even if the page never requests it', async () => {
+    // Declared-degradation semantics: a fully unavailable snapshot set must
+    // not yield a clean PASS just because the degraded render happened not to
+    // touch the missing resource. The run completes, the evidence is honest,
+    // and the browser-errors assertion names the degradation.
+    const outcome = await run('run-unavailable', {}, {}, undefined, undefined, [
+      { url: 'https://unreachable.example.test/app.css', reason: 'unreachable' },
+    ])
+    expect(outcome.error).toBeUndefined()
+    const manifest = outcome.result!.manifest
+    expect(manifest.completed).toBe(true)
+    expect(manifest.unavailableResources).toHaveLength(1)
+    expect(assertion(manifest, 'browser-errors')).toBe('risk')
+    expect(assertion(manifest, 'browser-errors')).not.toBe('pass')
+    expect(manifest.assertions.find((item: { id: string }) => item.id === 'browser-errors').detail).toContain('could not be snapshotted')
+    expect(outcome.events.filter((event: { late?: boolean }) => event.late)).toEqual([])
+    expectBoundedAndCleanPages(outcome)
+  }, 120_000)
 })
+
+function checkComplete(events: Array<Record<string, any>>, name: string) {
+  return events.find(event => event.event === 'check-complete' && String(event.checkId).endsWith(`-${name}`))!
+}
