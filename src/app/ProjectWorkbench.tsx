@@ -85,6 +85,7 @@ interface SourceSelection {
   previewId?: string
   patchHash?: string
   sourceDigest: string
+  sourceVersion?: string
   element: { id: string; label: string; location?: { path: string; start?: number; end?: number } }
   editableText: Array<{ id: string; label: string; value?: string; location?: { path: string; start?: number; end?: number }; impact: { pageRefs: string[]; unresolved: string[]; certainty: 'source-proven' | 'partial' | 'unknown' } }>
   runtimeInstanceId?: string
@@ -334,7 +335,8 @@ export default function ProjectWorkbench() {
           typeof context.search === 'string' && typeof context.hash === 'string'
         const reasons = Array.isArray(data.reasons) && data.reasons.every(x => typeof x === 'string')
           ? data.reasons as string[] : ['invalid-certainty']
-        const validIdentity = contextOK && typeof data.sourceVersion === 'string' &&
+        const validIdentity = contextOK && typeof mapped.sourceVersion === 'string' &&
+          mapped.sourceVersion === data.sourceVersion && typeof data.sourceVersion === 'string' &&
           /^[a-f0-9]{64}$/.test(data.sourceVersion) && typeof data.runtimeInstanceId === 'string' &&
           !data.runtimeInstanceId.endsWith(':~') && !reasons.length &&
           (data.identityCertainty === 'stable-react-instance' || data.identityCertainty === 'stable-keyed-instance')
