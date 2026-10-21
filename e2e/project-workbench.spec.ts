@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { projectPreviewViewports } from '../src/core/project-viewports'
+import { collectRuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
@@ -264,6 +265,28 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toBeVisible({ timeout: 90_000 })
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toHaveAttribute('data-ripple-source', /jsx:src\/pages\/HomePage\.tsx#/)
+    // Diagnostic evidence from the real Docker candidate iframe. Preserve the existing
+    // stable-react-instance assertion: never downgrade the expectation to make CI green.
+    const candidateFrameUrl = await page.getByTestId('candidate-preview').getAttribute('src')
+    const candidateFrame = page.frames().find(frame => frame.url() === candidateFrameUrl)
+    expect(candidateFrame).toBeTruthy()
+    const runtimeDiagnosis = await candidateFrame!.evaluate(collector => {
+      const heading = document.querySelector('h1[data-ripple-source]')
+      const all = (0, eval)(`(${collector})`)({ label: 'data-testid' }) as {
+        records: Array<{ sourceRef: string; runtimeInstanceId?: string; certainty: string; reasons: string[]; sourceVersion?: string; sameSourceCount: number }>
+        page: { pathname: string; search: string; hash: string }
+      }
+      const sourceRef = heading?.getAttribute('data-ripple-source') ?? ''
+      return {
+        raw: {
+          sourceRef, instance: heading?.getAttribute('data-ripple-instance'),
+          certainty: heading?.getAttribute('data-ripple-identity-certainty'),
+        },
+        page: all.page,
+        collected: all.records.filter(record => record.sourceRef === sourceRef),
+      }
+    }, collectRuntimeIdentitySnapshot.toString())
+    console.log('RIPPLE_RUNTIME_IDENTITY_DIAG ' + JSON.stringify(runtimeDiagnosis))
     await page.getByTestId('toggle-element-selection').click()
     await preview.getByRole('heading', { name: 'Candidate title' }).click()
     await expect(page.getByTestId('selected-source')).toBeVisible({ timeout: 15_000 })
