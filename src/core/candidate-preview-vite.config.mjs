@@ -100,8 +100,11 @@ const collectRuntimeIdentitySnapshot = ${collectRuntimeIdentitySnapshot.toString
     let record;
     try {
       target.setAttribute(correlation, marker);
-      snapshot = collectRuntimeIdentitySnapshot({ root: '[' + correlation + '="' + marker + '"]' });
-      if (snapshot.records.length === 1 && snapshot.records[0].sourceRef === sourceRef) record = snapshot.records[0];
+      snapshot = collectRuntimeIdentitySnapshot({ root: '[' + correlation + '="' + marker + '"]', label: correlation });
+      // A selected host may itself contain annotated descendant elements. Only the
+      // explicitly marked host is the clicked target; do not confuse it with children.
+      const matches = snapshot.records.filter(item => item.label === marker && item.sourceRef === sourceRef);
+      if (matches.length === 1) record = matches[0];
     } catch {
       // Missing Fiber/collector support always reduces the observation to unknown.
     } finally {
