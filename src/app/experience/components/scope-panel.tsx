@@ -50,7 +50,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
   return <aside className="ripple-xp-scope" data-testid="scope-panel">
     <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>选中位置</SectionTitle>
     {selected ? (
-      <div className="ripple-xp-selection-card">
+      <div className="ripple-xp-selection-block">
         <strong>{selected.label}</strong>
         <p>来源：{selected.sourcePath ? <code>{selected.sourcePath}</code> : '运行时内容，静态来源未定位'}</p>
         {selected.unresolvedReasons.map(reason => <p key={reason} className="ripple-xp-warn">· {reason}</p>)}
@@ -67,7 +67,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
           </label>
         ) : <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
       </div>
-    ) : <p className="ripple-xp-hint">在左侧画布中悬停并点击想修改的位置。</p>}
+    ) : <p>在左侧画布中悬停并点击想修改的位置。</p>}
 
     <SectionTitle>范围决策</SectionTitle>
     <ul className="ripple-xp-scope-list">

@@ -14,7 +14,6 @@ export function TopBar({ model, onOpenHistory }: { model: ExperienceViewModel; o
       <span className="ripple-xp-logo" aria-hidden>≈</span>
       <div>
         <strong>{model.projectName}</strong>
-        <span className="ripple-xp-tagline">尚未落笔，先见涟漪</span>
       </div>
     </div>
     <div className="ripple-xp-topbar-status">

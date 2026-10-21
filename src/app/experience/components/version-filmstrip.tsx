@@ -29,19 +29,18 @@ export function VersionFilmstrip({ model, activeVersionId, onSelect, onClose }: 
               <span className="ripple-xp-film-bar" />
             </span>
             <span className="ripple-xp-film-meta">
-              <strong>{version.title}</strong>
-              <small>{version.updatedAt} · {version.summary}</small>
+              <span className="ripple-xp-film-title">{version.title} · {version.summary}</span>
               <span className="ripple-xp-film-tags">
                 <LifecyclePill lifecycle={version.lifecycle} />
                 <span className={`ripple-xp-chip ${version.evidenceAvailable ? 'ripple-xp-chip-ready' : 'ripple-xp-chip-none'}`}>
                   {version.evidenceAvailable ? '证据可用' : '无证据'}
                 </span>
+                <time>{version.updatedAt}</time>
               </span>
             </span>
           </button>
         </li>
       ))}
     </ol>
-    <p className="ripple-xp-hint">版本切换只定位到对应页面与候选信息；真实的应用与恢复由同一候选补丁生命周期完成。</p>
   </section>
 }

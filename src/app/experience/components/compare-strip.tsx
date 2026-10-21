@@ -26,7 +26,6 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
       </div>
       <figcaption>
         <strong>{label}</strong>
-        {sideState.note && <small>{sideState.note}</small>}
       </figcaption>
     </figure>
   )
@@ -40,6 +39,5 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
       {side('修改前', baseline, 'compare-baseline')}
       {side('候选修改后', candidate, 'compare-candidate')}
     </div>
-    {model.dataProvenance === 'demo' && <p className="ripple-xp-hint">演示数据：尚未经过真实浏览器验证；真实候选会以同版本四视口截图对照。</p>}
   </section>
 }

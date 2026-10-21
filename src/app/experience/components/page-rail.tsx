@@ -39,6 +39,5 @@ export function PageRail({ pages, currentPageRef, onSelectPage }: {
         </li>
       ))}
     </ul>
-    <p className="ripple-xp-hint">「影响未证明」表示 Ripple 还不能从源码确认该页面是否受影响——它不会被当作安全范围。</p>
   </nav>
 }
