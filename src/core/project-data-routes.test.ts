@@ -92,7 +92,7 @@ describe('agent C: conservative data-router page provenance', () => {
   it('reuses referenced nonstandard app config for aliased imports without marking npm packages unresolved', () => {
     const root = project({ ...pages,
       'index.html': '<script type="module" src="/src/main.tsx"></script>',
-      'src/main.tsx': `export { App } from './App'`,
+      'src/main.tsx': `import { App } from './App'; import {createRoot} from 'react-dom/client'; createRoot(document.getElementById('root')!).render(<App/>);`,
       'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';
         import {Profile} from 'widgets/Profile';
         const router=createBrowserRouter([{path:'/profile',Component:Profile}]);
@@ -110,5 +110,110 @@ describe('agent C: conservative data-router page provenance', () => {
       'tsconfig.web.json': JSON.stringify({compilerOptions:{jsx:'react-jsx',moduleResolution:'Bundler',baseUrl:'.',paths:{'widgets/*':['src/widgets/*']}},include:['src']}) },
       {files:[],references:[{path:'./tsconfig.web.json'}]})
     expect(analyzeProject(root).unresolved).toContain('src/App.tsx → widgets/Missing')
+  })
+})
+
+
+describe('agent C P1: app ownership, lexical binding and mutable route safety', () => {
+  const expectUnknown = (root: string, message?: string) => {
+    const graph = analyzeProject(root)
+    const result = impact(graph, 'Profile Title')
+    expect(result.certainty).not.toBe('source-proven')
+    if (message) expect(graph.unresolved.join('\n')).toContain(message)
+    return graph
+  }
+
+  it('proves the real codescandy App-local router layout for /pages/profile', () => {
+    const root = project({ ...pages,
+      'src/App.tsx': `${routerImports}
+        const App = () => {
+          const router = createBrowserRouter([{id:'root',path:'/',children:[
+            {id:'pages',path:'/pages',children:[{path:'profile',Component:Profile}]}
+          ]}]);
+          return <RouterProvider router={router} />;
+        };
+        export default App;`,
+      'src/main.tsx': `import App from './App'; import {createRoot} from 'react-dom/client'; createRoot(document.getElementById('root')!).render(<App/>);`,
+    })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title')).toMatchObject({certainty:'source-proven',pageRefs:['page:/pages/profile']})
+    expect(graph.edges.some(edge => edge.kind === 'renders' && edge.from === 'page:/pages/profile' && edge.to.startsWith('component:'))).toBe(true)
+  })
+
+  it('does not infer mounted pages from a Provider found only in a dead helper', () => {
+    const root = project({...pages,'src/App.tsx': `${routerImports}
+      function Spare(){const router=createBrowserRouter([{path:'/profile',Component:Profile}]);return <RouterProvider router={router}/>}
+      export const App=()=> <main>Nothing mounted</main>;`})
+    expect(expectUnknown(root).nodes.filter(x=>x.kind==='route')).toEqual([])
+  })
+
+  it('does not infer pages from an alternate screen that App does not render', () => {
+    const root = project({...pages,'src/App.tsx': `${routerImports}
+      const Alternate=()=> <RouterProvider router={createBrowserRouter([{path:'/profile',Component:Profile}])}/>;
+      export const App=()=> <div>Current screen</div>;`})
+    expect(expectUnknown(root).nodes.filter(x=>x.kind==='route')).toEqual([])
+  })
+
+  it('does not join two identically named router variables from different scopes', () => {
+    const root = project({...pages,'src/App.tsx': `${routerImports}
+      const router=createBrowserRouter([{path:'/profile',Component:Profile}]);
+      export const App=()=> {const router={unused:true};return <RouterProvider router={router}/>}`})
+    expect(expectUnknown(root,'binding does not resolve').nodes.filter(x=>x.kind==='route')).toEqual([])
+  })
+
+  it('does not confuse a factory or Provider shadow with the imported binding', () => {
+    const root = project({...pages,'src/App.tsx': `${routerImports}
+      export const App=()=>{const createBrowserRouter=(x:unknown)=>x;const router=createBrowserRouter([{path:'/profile',Component:Profile}]);return <RouterProvider router={router}/>}`})
+    expectUnknown(root,'binding does not resolve')
+  })
+
+  it('does not prove an App that is not mounted from an available entrypoint', () => {
+    const root = project({...pages,'src/App.tsx': `${routerImports}
+        const router=createBrowserRouter([{path:'/profile',Component:Profile}]);export default function App(){return <RouterProvider router={router}/>}`,
+      'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';function Dead(){return <App/>};createRoot(null).render(<div>Unrelated</div>);`})
+    expectUnknown(root,'not proven reachable')
+  })
+
+  it('only declares partial impact on a conditionally mounted App-local Provider', () => {
+    const root=project({...pages,'src/App.tsx':`${routerImports}
+      export const App=({active}:{active:boolean})=>{const router=createBrowserRouter([{path:'/profile',Component:Profile}]);return active?<RouterProvider router={router}/>:<Profile/>}`})
+    // The unknown branch cannot be claimed as complete consumer coverage.
+    expectUnknown(root,'conditional App RouterProvider')
+  })
+
+  for (const [label, statement] of [
+    ['push','routes.push({path:"/extra",Component:Profile});'],
+    ['splice','routes.splice(0,1);'],
+    ['indexed write','routes[0]={path:"/other",Component:Profile};'],
+    ['aliased mutation','const alias=routes;alias.push({path:"/other",Component:Profile});'],
+    ['aliased index','const alias=routes;alias[0]={path:"/other",Component:Profile};'],
+  ]) {
+    it(`fails closed on ${label} of a static routes array`, () => {
+      const root = project({...pages,'src/App.tsx':`${routerImports}
+        const routes=[{path:'/profile',Component:Profile}]; ${statement}
+        const router=createBrowserRouter(routes);export const App=()=> <RouterProvider router={router}/>;`})
+      expectUnknown(root,'route-coverage:')
+    })
+  }
+
+  it('fails closed on an unknown route-array spread', () => {
+    const root=project({...pages,'src/App.tsx':`${routerImports}
+      declare const unknown: any[];
+      const routes=[{path:'/profile',Component:Profile},...unknown];
+      const router=createBrowserRouter(routes);export const App=()=> <RouterProvider router={router}/>;`})
+    expectUnknown(root,'unresolved spread')
+  })
+
+  it('fails closed on computed, duplicate, and spread route object keys', () => {
+    for(const object of [
+      `{path:'/profile',Component:Profile,...extra}`,
+      `{path:'/profile',Component:Profile,['Component']:Profile}`,
+      `{path:'/profile',Component:Profile,Component:Profile}`,
+    ]) {
+      const root=project({...pages,'src/App.tsx':`${routerImports}
+        declare const extra: any; const router=createBrowserRouter([${object}]);
+        export const App=()=> <RouterProvider router={router}/>;`})
+      expectUnknown(root,'overlapping or dynamic')
+    }
   })
 })
