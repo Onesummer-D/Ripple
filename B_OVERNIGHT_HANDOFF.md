@@ -1,14 +1,51 @@
-# B 侧接力记录 v5（2026-10-21 中午）
+# B 侧接力记录 v6（2026-10-21 下午）
+
+接力分支：`feat/b-media-overnight-20261021`（最新含本文档）
+- **PR #8 已由负责人合并进 main**（merge commit `5e1f909c`，main HEAD 确认）
+- `Qingye real-project MEDIA acceptance` 工作流已在 main 注册（id 391233712，state active，
+  配置 = 合并的 `7b56438`：固定 Ripple `d01604c` + 青野 `f7e4998`，无自由输入）
+- **真实验收尚未运行**：workflow_dispatch 返回 "Must have admin rights"，当前凭据
+  无 admin 权限（该凭据可 git push 但 REST 写操作一律 401，已实测 /user 与评论端点）。
+  **请负责人在 Actions 页手动 Run workflow**（无需参数，SHA 已内置固定）。
+- 两盏新增红灯如实记录（见下）。**A 已通知**：PR #2 评论因凭据 401 无法代发，
+  通知内容见本节末尾，请协调人转达或让 A 直接读本文件。
+
+---
+
+## 〇、v6 增量——合并后状态与红灯记录
+
+### 红灯 1：B 侧交接提交 `ca4b880` 的 CI #39533615647 failure
+- 失败用例：`e2e/page-override-lifecycle.spec.ts` 浏览器测试（协调人已定性为
+  基线预演不稳定现象）；**非 MEDIA 回归**（MEDIA 模块测试全部通过），但需要继续
+  追踪，不能忽略。该 spec 属 A 的 workbench 基线，建议与 A 的 `1e1c69c` 问题一并观察。
+
+### 红灯 2：A 侧 `1e1c69c` 的 CI #39533868942 failure
+- A 分支 `feat/project-first-core-20261018` 在 `44e4588` 之后有真实代码更新；
+  失败步骤 = Unit tests，定位 `verification-execution.test.ts:332`（并行 Scope 验证器
+  生命周期，A 已知在修的 Bolt Run #11 问题）。
+- **此前 A/B 集成（`c3619a3`，CI 39533129216 success）不覆盖该 SHA**；按协调人
+  安排由 A 处理，A 验证器稳定且 CI 全绿后再安排下一次集成。
+
+### 给 A 的通知原文（PR #2 评论 401 未能发出）
+> A 侧基线通知（B 侧接力转达，协调人已确认）：
+> - 分支 `feat/project-first-core-20261018` 最新 `1e1c69c` 的 CI #39533868942 在
+>   Unit tests 步骤失败，定位 `verification-execution.test.ts:332`（并行 Scope 验证器相关）。
+> - 该 SHA 晚于 A/B 集成快照（集成按 `44e4588`，CI #39533129216 success）。
+> - 由 A 处理该测试；稳定后再安排下一次 A/B 集成。B 侧不会改动 A 的核心实现。
+
+---
+
+## 历史版本（v5 及之前）
 
 接力分支：`feat/b-media-overnight-20261021`
-- v5 当前：`6d6e735`（= v4 `d01604c` + handoff v4 文档；CI #297/#298 success）
+- v5 当前：`6d6e735`（CI #297/#298 success）
 - **PR #7 分支 `feat/b-media-executor-20261019` 已 ff 同步至 `6d6e735`**（f51719d..6d6e735，无强推），**CI run 39530636927 success**——正式 PR 已包含全部恢复/来源映射/目录隔离模块
 - PR #8 分支：`b438096 → 9b618b0 → 7b56438`（ff）
 - A/B 最新集成分支：`integration/b-media-x-a-20261021-v2` @ `c3619a3`（= A `44e45887` + B `6d6e735` 干净合并，零文本冲突）
 
 ---
 
-## 〇、v5 增量——复审指令执行结果
+## 一、v5 增量——复审指令执行结果
 
 ### 1. PR #8 SHA 授权边界（复审 P1）✅ `7b56438`
 - 移除 `ripple_sha` 自由 dispatch 输入，改为 workflow 固定常量 `RIPPLE_REVIEWED_SHA=d01604c4…`；
