@@ -356,8 +356,16 @@ function screenshotRecord(descriptor: VisualCaptureDescriptor, input: Screenshot
   const header = inspectPng(bytes, limits)
   if (header.ok) {
     try {
-      assertVisualWorkBudget(header.header.width, header.header.height,
-        Math.ceil(mergeDistanceCssPx * (descriptor.devicePixelRatio ?? 1)))
+      const mergeDistancePx = Math.ceil(mergeDistanceCssPx * (descriptor.devicePixelRatio ?? 1))
+      // Individually permitted CSS distance and DPR may exceed the downstream
+      // 256-device-pixel grid limit when combined. Treat this as a bounded
+      // analysis failure, not an uncaught RangeError from diffPixels().
+      if (mergeDistancePx > 256) {
+        throw new VisualResourceLimitError(
+          `mergeDistanceCssPx × devicePixelRatio produces ${mergeDistancePx} device pixels (maximum 256).`,
+        )
+      }
+      assertVisualWorkBudget(header.header.width, header.header.height, mergeDistancePx)
     } catch (error) {
       if (!(error instanceof VisualResourceLimitError)) throw error
       const sha256 = bytes.length <= limits.maxFileBytes ? sha256Hex(bytes) : null

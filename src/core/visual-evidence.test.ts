@@ -403,6 +403,31 @@ describe('visual difference evidence: determinism, bounds and integration helper
     for (const variant of variants) expect(analyze(variant).result).not.toBe('pass')
   })
 
+  it('fails closed when independently valid CSS merge distance and DPR exceed 256 device pixels', () => {
+    const make = (dpr: number, mergeDistanceCssPx: number) =>
+      analyzeVisualDifference(request({ dpr, geometry: null }, { dpr, geometry: null }, { parameters: { mergeDistanceCssPx } }))
+    for (const [dpr, css, expectedPx] of [[8, 64, 512], [8, 32.01, 257]] as const) {
+      const { evidence, diffPng } = make(dpr, css)
+      expect(evidence.result).toBe('failed-to-run')
+      expect(evidence.comparability.comparable).toBe(false)
+      expect(evidence.observation).toBeNull()
+      expect(diffPng).toBeNull()
+      expect(evidence.inputs.baseline.screenshot.failure?.code).toBe('visual-analysis-resource-limit')
+      expect(evidence.inputs.candidate.screenshot.failure?.code).toBe('visual-analysis-resource-limit')
+      expect(evidence.inputs.baseline.screenshot.failure?.detail).toContain(String(expectedPx))
+      expect(evidence.result).not.toBe('pass')
+    }
+  })
+
+  it('accepts the combined 256-device-pixel grid boundary', () => {
+    const evidence = analyze(request({ dpr: 4, geometry: null }, { dpr: 4, geometry: null },
+      { parameters: { mergeDistanceCssPx: 64 } }))
+    expect(evidence.parameters.mergeDistancePx).toBe(256)
+    expect(evidence.comparability.comparable).toBe(true)
+    expect(evidence.result).toBe('unknown')
+    expect(evidence.observation?.outcome).toBe('changed')
+  })
+
   it('only lets callers tighten safety limits', () => {
     expect(() => analyze(request({}, {}, { parameters: { png: { maxPixels: 10 ** 9 } } }))).toThrow(/tightened/)
     expect(() => analyze(request({}, {}, { parameters: { geometry: { maxElements: 10 ** 6 } } }))).toThrow(/tightened/)
