@@ -42,6 +42,15 @@
 - 文件清单更正：最终补丁 12 个文件 = 5 源码 + 3 测试 + 3 份阶段记录 + 1 份交接文档（新增 `verification-publish.mjs` 与 `verification-publish.test.ts`）。
 - 性能结论维持保守口径，本轮改动不影响阶段二结论（发布门只是把 execution.json 的写入从"browser.close 之前"移到"之后"，JSON 序列化与硬链接为毫秒级，且发生在 reserve 内的 cleanup 时段）。
 
+## 7. 第三轮独立审查回流修订（2026-10-21 深夜，第四轮；P0 + 3×P1）
+
+- **P0 execution.json 被错误序列化**：发布门原样 `JSON.stringify(summary)`，使执行文件顶层变为 `{manifest, viewportDiagnostics, status}`，宿主 attestation 要求的 schemaVersion/completed 等顶层字段全部缺失。修复：先经 `executionManifestOf()` 结构校验（`manifest` 对象、`schemaVersion === 4`、`executor === 'playwright'`、`completed === true`、非空 `runId`、`checks` 为数组，否则拒绝发布），且落盘的是 `summary.manifest` 本身。新增集成测试：真实 `executeVerification()` 输出经真实发布门，断言写出的 JSON 顶层即 v4 ExecutionManifest（`viewportDiagnostics`/`status` 不得泄漏）、关闭恰好一次、无残留临时文件。
+- **P1 补丁无法应用到 GitHub 真实字节基线**：本地导入基线 `680098f` 有 5 个文件为 CRLF 而 GitHub A 原始 Blob 为 LF（`candidate-verification-runner.mjs`、`verification-execution.mjs`、`verification-execution.test.ts`、`verification-lifecycle.mjs`、`verification-lifecycle.test.ts`），旧补丁在真实 checkout 上五处均 `does not apply`。修复：直接从 GitHub 拉取 `10a808bb4845a0a947688080a7e97394095517a9` 精确字节树，重建交付分支 `feat/a-run12-cleanup-review-20261021`，重新导出补丁（基线即 GitHub SHA 本身）。**更正此前记录**："680098f 与 GitHub A 字节一致"的表述不实——两树文件路径集合完全一致，但 177 个文件的 Blob 因行尾不同而不同（经逐字节核验：177 个全部为纯 CRLF 差异、0 个真实内容差异），其中补丁触碰的 5 个文件（GitHub 为 LF）导致补丁在真实 checkout 上无法应用；`verification-runner.ts` 在 GitHub 上即为 CRLF，本地同为 CRLF，故该文件保持 CRLF（20 行语义 diff），其余按 GitHub 字节。逐文件 Blob SHA 已核对（5 个 LF 文件 + 1 个 CRLF 文件），在 `git archive` 解包的真实字节树上 `git apply --check` / `git apply` 通过，应用结果与最终 HEAD 树逐字节一致（`diff -r` exit 0，仅排除 .git）。**教训：附件 ZIP 工作区快照 ≠ Git 提交树，行尾核对必须以 Git Blob SHA 为准。**
+- **P1 不得删除不属于本次尝试的既有记录**：发布门与入口曾对 outputPath 无条件 `rmSync`。独立复现：预先存在的有效 execution.json 在本验证抛错后被删。修复：发布门只删除本运行自己创建的临时文件（文件名含 pid+nonce），任何失败路径都不触碰 outputPath；入口 catch 的防御性 `rmSync` 一并移除。no-clobber 语义不变（硬链接 EEXIST 拒绝覆盖）。新增负例：预先存在的记录 + 本次验证失败 → 文件原样保留、传播原错误、close 未被调用；预先存在的记录 + 本次发布 → 拒绝覆盖且字节不变。
+- **P1 发布后的二次 browser.close**：入口 finally 在发布门已关闭浏览器后会再关一次，若第二次失败会形成"exit 3 但 execution.json 存在"的矛盾状态。修复：入口建立明确的 final-close 状态机（`pending`/`closed`/`failed`）——发布门成功关闭后置 `closed`，finally 不再关闭；发布门关闭失败时错误携带 `browserCloseAttempted: true`，catch 置 `failed`，finally 不重试；验证/启动失败路径（`pending`）由 finally 执行唯一一次有界 3 s 关闭并保留首个错误。新增测试：成功路径 close 恰好调用一次；close 失败错误带状态标记；三路径（成功/验证失败/最终清理失败）均可明确判定可信记录是否存在。
+- 回归（重建分支上）：verification-execution 22/22（约 146 s，含新增集成测试）、publish 8/8、lifecycle 9/9、contract 5/5、runner-failure 3/3，typecheck / build / `node --check` 通过。补丁基线应用验证见上条。
+- 文件清单不变（12 个文件）；分支与 PR 信息见 `RIPPLE_A_HANDOFF.md`。
+
 ## 4. 交付验证（补丁完整性）
 
 - 补丁基线：本地导入提交 `680098f`（== GitHub 10a808b 字节树）。
