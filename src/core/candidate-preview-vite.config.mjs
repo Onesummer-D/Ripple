@@ -4,6 +4,8 @@ import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-re
 import { sourceAnnotationPlugin } from './source-annotation.ts'
 import { previewCspForRequest } from './preview-csp.mjs'
 import { symlinkedWorkspaceExcludes } from './preview-optimize-deps-excludes.mjs'
+import { collectRuntimeIdentitySnapshot } from './runtime-identity.ts'
+import { insertCandidateSelectionBridge } from './candidate-selection-bridge-html.ts'
 
 const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
@@ -46,12 +48,15 @@ function requestCsp() {
 }
 
 function selectionBridge() {
+  // The collector is self-contained by contract; serialization uses Vite's compiled JS function.
+  const collectorCode = `(${collectRuntimeIdentitySnapshot.toString()})`
   const script = `<script>
 (() => {
   let active = false;
   let token = '';
   let previewId = '';
   let hovered = null;
+  const collectRuntimeIdentitySnapshot = ${collectorCode};
   const style = document.createElement('style');
   style.textContent = '[data-ripple-select-hover="true"]{outline:2px solid #a8c477!important;outline-offset:2px!important;cursor:crosshair!important}';
   document.head.append(style);
@@ -93,11 +98,37 @@ function selectionBridge() {
     if (!target) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    // Correlate the clicked DOM node with one collector record. The collector checks
+    // global duplicates and completes keyed host :~ identities from React Fiber.
+    const marker = 'data-ripple-selection-correlation';
+    const previous = target.getAttribute(marker);
+    const correlation = crypto.randomUUID();
+    let snapshot;
+    try {
+      target.setAttribute(marker, correlation);
+      snapshot = collectRuntimeIdentitySnapshot({ label: marker });
+    } catch {
+      snapshot = null;
+    } finally {
+      if (previous === null) target.removeAttribute(marker);
+      else target.setAttribute(marker, previous);
+    }
+    const matches = snapshot?.records.filter(record => record.label === correlation) || [];
+    const record = matches.length === 1 && matches[0].sourceRef === target.getAttribute('data-ripple-source')
+      ? matches[0] : null;
+    const valid = !!record && !!record.runtimeInstanceId && !record.runtimeInstanceId.endsWith(':~') &&
+      record.certainty !== 'unmapped' && record.certainty !== 'unknown' &&
+      !record.reasons.some(reason => reason !== 'source-version-unavailable');
     window.parent.postMessage({
-      type: 'ripple:element-selected', token, previewId,
+      type: 'ripple:element-selected', protocol: 'ripple-runtime-identity/v1', token, previewId,
       sourceRef: target.getAttribute('data-ripple-source'),
-      runtimeInstanceId: target.getAttribute('data-ripple-instance'),
-      identityCertainty: target.getAttribute('data-ripple-identity-certainty') || 'unknown',
+      runtimeInstanceId: valid ? record.runtimeInstanceId : undefined,
+      identityCertainty: valid ? record.certainty : 'unknown',
+      reasons: record?.reasons || ['instance-unavailable'],
+      sourceVersion: record?.sourceVersion,
+      pageContext: snapshot?.page || { pathname: location.pathname, search: location.search, hash: location.hash },
+      sameSourceCount: record?.sameSourceCount || 0,
+      domNode: record?.domNode,
       tagName: target.tagName.toLowerCase(), text: (target.textContent || '').trim().slice(0, 300)
     }, '*');
   }, true);
@@ -107,9 +138,7 @@ function selectionBridge() {
     name: 'ripple-candidate-selection-bridge',
     transformIndexHtml: {
       order: 'post',
-      handler: (html) => html
-        .replace(/<script\b(?=[^>]*\bsrc=["']\/@vite\/client["'])[^>]*>\s*<\/script>/g, '')
-        .replace('</body>', `${script}</body>`),
+      handler: (html) => insertCandidateSelectionBridge(html, script),
     },
   }
 }
