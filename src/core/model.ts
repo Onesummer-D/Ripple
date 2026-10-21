@@ -94,6 +94,7 @@ export interface BrowserVerificationContract {
     path: string
     markerText: string
     navigateBy?: { role: BrowserControlRole; name: string }
+    menuControl?: { role: BrowserControlRole; name: string }
   }>
   interactions: Array<{
     pageRef: Id

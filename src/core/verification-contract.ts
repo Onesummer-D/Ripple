@@ -60,7 +60,13 @@ export function normalizeVerificationContract(value: unknown, routeRefs: string[
       const navigation = page.navigateBy as Record<string, unknown>
       navigateBy = { role: role(navigation.role), name: boundedText(navigation.name, `Contract page ${pageRef} navigation name`) }
     }
-    return { pageRef, path: safePath(page.path), markerText: boundedText(page.markerText, `Contract page ${pageRef} markerText`), ...(navigateBy ? { navigateBy } : {}) }
+    let menuControl: { role: BrowserControlRole; name: string } | undefined
+    if (page.menuControl !== undefined) {
+      if (!page.menuControl || typeof page.menuControl !== 'object' || Array.isArray(page.menuControl)) throw new VerificationContractError(`Contract page ${pageRef} menu control is invalid`)
+      const menu = page.menuControl as Record<string, unknown>
+      menuControl = { role: role(menu.role), name: boundedText(menu.name, `Contract page ${pageRef} menu control name`) }
+    }
+    return { pageRef, path: safePath(page.path), markerText: boundedText(page.markerText, `Contract page ${pageRef} markerText`), ...(navigateBy ? { navigateBy } : {}), ...(menuControl ? { menuControl } : {}) }
   })
   if (new Set(pages.map(page => page.pageRef)).size !== pages.length) throw new VerificationContractError('Contract page references must be unique')
   const interactions = input.interactions.map((item, index) => {

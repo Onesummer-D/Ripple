@@ -41,7 +41,21 @@ const LOADS_PER_VIEWPORT = 5
 const servers: http.Server[] = []
 const documentRequests: Array<{ host: string; verificationFonts?: string }> = []
 let browser: Browser
-const spaOptions = { consoleErrorsPerLoad: 0, cart: false, introGate: false, images: [] as string[], duplicateNavNames: [] as string[], dualNavNames: [] as string[] }
+const spaOptions = {
+  consoleErrorsPerLoad: 0, cart: false, introGate: false, images: [] as string[], duplicateNavNames: [] as string[], dualNavNames: [] as string[],
+  // Run #13 fixture shapes. mobileMenu reproduces the pinned Bolt Navigation:
+  // the desktop nav is display:none below 768px while the collapsed overlay
+  // stays in the accessibility tree at opacity-0/pointer-events:none until the
+  // declared toggle ('菜单') opens it. dualToggle renders two visible toggles;
+  // duplicateOverlay renders that page's overlay button twice.
+  mobileMenu: false, dualToggle: false, duplicateOverlay: [] as string[],
+  // wrong-route matrix: annotateHome annotates the home h1 with a
+  // data-ripple-source ref; promoHome renders a home-page banner quoting
+  // another page's marker text (sourceRef null = unannotated, inNav = inside
+  // the nav landmark).
+  annotateHome: null as string | null,
+  promoHome: null as { marker: string; sourceRef: string | null; inNav?: boolean } | null,
+}
 
 // With `cart`, the SPA keeps a cart count in IndexedDB, writes it to
 // localStorage on pagehide, and serves a cart view on the hash route #/cart.
@@ -50,9 +64,23 @@ const spaOptions = { consoleErrorsPerLoad: 0, cart: false, introGate: false, ima
 // not isolated, turning the broken button into a false PASS.
 function spa(brand: string): string {
   const candidate = brand === 'New brand'
-  return `<!doctype html><html><head><meta charset="utf-8"><title>spa</title></head><body><div id="root"></div><script>
+  const mobileStyle = spaOptions.mobileMenu
+    ? '<style>@media (max-width: 767px) { .desktop-nav { display: none } } @media (min-width: 768px) { .menu-toggle, .mobile-overlay { display: none } } .mobile-overlay { opacity: 0; pointer-events: none } .mobile-overlay.open { opacity: 1; pointer-events: auto }</style>'
+    : ''
+  const toggleMarkup = spaOptions.mobileMenu
+    ? '<button class="menu-toggle" aria-label="菜单">菜单</button>'.repeat(spaOptions.dualToggle ? 2 : 1)
+    : ''
+  const overlayMarkup = spaOptions.mobileMenu
+    ? `<div class="mobile-overlay">${(['autumn', 'products', 'story'] as const).map(tabName => {
+        const label = tabName[0].toUpperCase() + tabName.slice(1)
+        return `<button data-tab="${tabName}">${label}</button>`.repeat(spaOptions.duplicateOverlay.includes(tabName) ? 2 : 1)
+      }).join('')}</div>`
+    : ''
+  return `<!doctype html><html><head><meta charset="utf-8"><title>spa</title>${mobileStyle}</head><body><div id="root"></div>${toggleMarkup}${overlayMarkup}<script>
   const markers = { home: 'Home page', autumn: 'Autumn page', products: 'Products page', story: 'Story page', cart: 'Cart page' }
   const root = document.getElementById('root')
+  const promoHome = ${JSON.stringify(spaOptions.promoHome)}
+  const annotateHome = ${JSON.stringify(spaOptions.annotateHome)}
   for (const src of ${JSON.stringify(spaOptions.images)}) { const image = new Image(); image.src = src; document.body.append(image) }
   for (let i = 0; i < ${spaOptions.consoleErrorsPerLoad}; i += 1) console.error('widget failed to hydrate ' + (i % 3) + ' https://cdn.example.test/w.js?sig=SECRET' + i)
   const cartEnabled = ${spaOptions.cart}
@@ -70,10 +98,13 @@ function spa(brand: string): string {
   function render(tab) {
     localStorage.setItem('tab', tab)
     const cartView = cartEnabled ? '<button id="add">Add to cart</button><button id="quick">Quick add</button>' + (cart ? '<p>Cart (' + cart + ')</p>' : '') : ''
-    root.innerHTML = '<nav><button data-tab="autumn">Autumn</button><button data-tab="products">Products</button><button data-tab="story">Story</button></nav>' + dualNav +
-      '<main><h1>' + markers[tab] + '</h1>' + duplicateButtons + (tab === 'home' ? '<button id="browse">Browse items</button><div id="out"></div>' : '') + (tab === 'home' || tab === 'cart' ? cartView : '') + '</main>' +
+    const promoHtml = promoHome && tab === 'home' ? '<p class="promo"' + (promoHome.sourceRef ? ' data-ripple-source="' + promoHome.sourceRef + '"' : '') + '>' + promoHome.marker + '</p>' : ''
+    const heading = tab === 'home' && annotateHome ? '<h1 data-ripple-source="' + annotateHome + '">' + markers[tab] + '</h1>' : '<h1>' + markers[tab] + '</h1>'
+    const navMarkup = '<nav><button data-tab="autumn">Autumn</button><button data-tab="products">Products</button><button data-tab="story">Story</button>' + (promoHome && promoHome.inNav ? promoHtml : '') + '</nav>'
+    root.innerHTML = (${spaOptions.mobileMenu} ? '<div class="desktop-nav">' + navMarkup + '</div>' : navMarkup) + dualNav +
+      '<main>' + heading + (promoHome && !promoHome.inNav ? '<section class="promo-banner">' + promoHtml + '</section>' : '') + duplicateButtons + (tab === 'home' ? '<button id="browse">Browse items</button><div id="out"></div>' : '') + (tab === 'home' || tab === 'cart' ? cartView : '') + '</main>' +
       '<footer><span data-ripple-source="${BRAND_REF}" data-ripple-instance="footer-brand">${brand}</span></footer>'
-    for (const button of root.querySelectorAll('button[data-tab]')) button.onclick = () => render(button.dataset.tab)
+    for (const button of document.querySelectorAll('button[data-tab]')) button.onclick = () => { document.querySelector('.mobile-overlay')?.classList.remove('open'); render(button.dataset.tab) }
     const browse = document.getElementById('browse')
     // With introGate, the candidate's button only works once a 20 s entrance
     // transition has ended (a regression); the baseline's works at once.
@@ -96,6 +127,7 @@ function spa(brand: string): string {
     }
   }
   render(currentTab())
+  for (const toggle of document.querySelectorAll('.menu-toggle')) toggle.onclick = () => document.querySelector('.mobile-overlay')?.classList.add('open')
   var introDone = false
   if (${spaOptions.introGate}) {
     const intro = document.createElement('div')
@@ -537,6 +569,164 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
       spaOptions.dualNavNames = []
     }
   }, 90_000)
+
+  it('opens the declared collapsible menu on narrow viewports and clicks the only visible target', async () => {
+    // Run #13 P1: the pinned Bolt project hides the desktop nav below 768px
+    // while the collapsed overlay stays pointer-events:none until the declared
+    // toggle is clicked. The contract declares menuControl '菜单'; on the two
+    // mobile viewports the runner must open the menu and click the single
+    // visible target, never the hidden desktop nav by position.
+    spaOptions.mobileMenu = true
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu', {}, {}, contract)
+      const { manifest } = outcome.result!
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified' })
+        }
+      }
+      // Three navigated pages x both sides x the two mobile viewports.
+      const menuEvents = outcome.events.filter(event => event.event === 'navigation-menu-disambiguated')
+      expect(menuEvents).toHaveLength(3 * 2 * 2)
+      expect(menuEvents.every(event => String(event.checkId).startsWith('run-nav-mobile-menu'))).toBe(true)
+      expect(menuEvents.every(event => event.menuControl === '菜单' && event.visibleMatches === 1)).toBe(true)
+      expect(menuEvents.every(event => event.viewport.width === 375 || event.viewport.width === 390)).toBe(true)
+      expect(menuEvents.filter(event => event.side === 'candidate')).toHaveLength(3 * 2)
+      expect(menuEvents.filter(event => event.side === 'baseline')).toHaveLength(3 * 2)
+      // The rescued menu click is not a browser error: the page behaved well.
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed'] ?? 0).toBe(0)
+      expect(assertion(manifest, 'scope-propagation')).toBe('pass')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+    }
+  }, 90_000)
+
+  it('keeps the route UNKNOWN when the declared menu control does not exist', async () => {
+    // A fabricated menuControl name matches nothing; the runner must not fall
+    // back to clicking the pointer-events:none overlay button by position.
+    spaOptions.mobileMenu = true
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '无此菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-missing', {}, {}, contract)
+      const { manifest } = outcome.result!
+      expect(outcome.events.find(event => event.event === 'navigation-menu-disambiguated')).toBeUndefined()
+      // Only the mobile viewports fail; desktop/tablet still click the desktop nav.
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(3 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          const expected = viewport.width < 768 ? 'missing' : 'verified'
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+    }
+  }, 90_000)
+
+  it('keeps the route UNKNOWN when the opened menu exposes duplicate targets', async () => {
+    // The overlay renders the Autumn button twice; even after a successful
+    // menu open, two visible candidates are ambiguous and must not be resolved
+    // by position. Products and story stay menu-resolvable.
+    spaOptions.mobileMenu = true
+    spaOptions.duplicateOverlay = ['autumn']
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-dup-target', {}, {}, contract)
+      const { manifest } = outcome.result!
+      const menuEvents = outcome.events.filter(event => event.event === 'navigation-menu-disambiguated')
+      expect(menuEvents).toHaveLength(2 * 2 * 2)
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(1 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const viewport of VIEWPORTS) {
+        const expected = viewport.width < 768 ? 'missing' : 'verified'
+        expect(observation('page:autumn', viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        expect(observation('page:products', viewport.width)).toMatchObject({ baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified' })
+        expect(observation('page:story', viewport.width)).toMatchObject({ baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified' })
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.duplicateOverlay = []
+    }
+  }, 90_000)
+
+  it('keeps the route UNKNOWN when two visible toggles carry the declared menu name', async () => {
+    // Two visible '菜单' toggles make the menu control itself ambiguous; the
+    // runner must refuse rather than open one by position.
+    spaOptions.mobileMenu = true
+    spaOptions.dualToggle = true
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-dup-toggle', {}, {}, contract)
+      const { manifest } = outcome.result!
+      expect(outcome.events.find(event => event.event === 'navigation-menu-disambiguated')).toBeUndefined()
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(3 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          const expected = viewport.width < 768 ? 'missing' : 'verified'
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.dualToggle = false
+    }
+  }, 90_000)
+
+  it('binds wrong-route negation to source context instead of incidental copy', async () => {
+    // Run #13 P1: the pinned Bolt HomePage renders the autumn page's exact
+    // marker inside a promo banner, and every viewport reported page:home as
+    // wrong-route. Negation evidence must be bound to provenance: same-module
+    // copy (the page quoting itself), nav/footer chrome, and unannotated
+    // matches keep or reject identity exactly as their provenance supports.
+    const homeObservations = (manifest: Record<string, any>) => manifest.scopeObservations.filter((item: { pageRef: string }) => item.pageRef === 'page:home')
+    const expectHomeIdentity = async (runId: string, promo: { marker: string; sourceRef: string | null; inNav?: boolean }, expectedIdentity: string) => {
+      spaOptions.annotateHome = 'jsx:src/pages/Home.tsx#1'
+      spaOptions.promoHome = promo
+      try {
+        const outcome = await run(runId)
+        const { manifest } = outcome.result!
+        const observations = homeObservations(manifest)
+        expect(observations).toHaveLength(VIEWPORTS.length)
+        for (const observation of observations) {
+          expect([observation.baselineRouteIdentity, observation.candidateRouteIdentity]).toEqual([expectedIdentity, expectedIdentity])
+        }
+      } finally {
+        spaOptions.annotateHome = null
+        spaOptions.promoHome = null
+      }
+    }
+    // The page quoting itself: promo and marker render from the same module.
+    await expectHomeIdentity('run-route-home-self-quote', { marker: 'Autumn page', sourceRef: 'jsx:src/pages/Home.tsx#2' }, 'verified')
+    // A genuinely mounted other-page component proves the wrong route.
+    await expectHomeIdentity('run-route-home-other-module', { marker: 'Autumn page', sourceRef: 'jsx:src/pages/Autumn.tsx#9' }, 'wrong-route')
+    // Chrome (inside the nav landmark) never proves a wrong route.
+    await expectHomeIdentity('run-route-home-promo-in-nav', { marker: 'Autumn page', sourceRef: 'jsx:src/pages/Autumn.tsx#9', inNav: true }, 'verified')
+    // Unannotated incidental copy keeps the conservative legacy negation.
+    await expectHomeIdentity('run-route-home-unannotated-promo', { marker: 'Autumn page', sourceRef: null }, 'wrong-route')
+  }, 360_000)
 
   it('counts a browser error storm exactly while keeping samples bounded and redacted', async () => {
     spaOptions.consoleErrorsPerLoad = 150

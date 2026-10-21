@@ -53,8 +53,19 @@ describe('workbench verification form', () => {
       pages: [{ pageRef: 'page:home', path: '/home', markerText: 'Home' }, { pageRef: 'page:removed', path: '/', markerText: 'Old' }],
       interactions: [{ pageRef: 'page:home', role: 'button', name: 'Continue', expectedText: 'Done' }],
     })
-    expect(draft.pages).toEqual([{ pageRef: 'page:home', path: '/home', markerText: 'Home', navigationRole: 'button', navigationName: '' }])
+    expect(draft.pages).toEqual([{ pageRef: 'page:home', path: '/home', markerText: 'Home', navigationRole: 'button', navigationName: '', menuRole: 'button', menuName: '' }])
     expect(toBrowserVerificationContract(draft)?.interactions[0]).toMatchObject({ pageRef: 'page:home', name: 'Continue' })
+  })
+
+  it('emits a declared menu control only when the menu name is set, and round-trips it', () => {
+    const draft = createVerificationContractDraft([{ id: 'page:autumn' }], {
+      pages: [{ pageRef: 'page:autumn', path: '/', markerText: 'Autumn', navigateBy: { role: 'button', name: 'Autumn' }, menuControl: { role: 'button', name: '菜单' } }],
+      interactions: [],
+    })
+    const contract = toBrowserVerificationContract(draft)
+    expect(contract?.pages[0]).toMatchObject({ navigateBy: { role: 'button', name: 'Autumn' }, menuControl: { role: 'button', name: '菜单' } })
+    draft.pages[0].menuName = '  '
+    expect(toBrowserVerificationContract(draft)?.pages[0].menuControl).toBeUndefined()
   })
 
   it('suggests only unique, unedited source-proven TEXT markers for a single analyzed page', () => {
