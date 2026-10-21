@@ -39,6 +39,7 @@ const HOME_INTERACTION = { pageRef: 'page:home', role: 'button', name: 'Browse i
 const LOADS_PER_VIEWPORT = 5
 
 const servers: http.Server[] = []
+const documentRequests: Array<{ host: string; verificationFonts?: string }> = []
 let browser: Browser
 const spaOptions = { consoleErrorsPerLoad: 0, cart: false, introGate: false, images: [] as string[], duplicateNavNames: [] as string[], dualNavNames: [] as string[] }
 
@@ -107,7 +108,8 @@ function spa(brand: string): string {
 }
 
 async function listen(host: string, brand: string): Promise<void> {
-  const server = http.createServer((_request, response) => {
+  const server = http.createServer((request, response) => {
+    documentRequests.push({ host, verificationFonts: request.headers['x-ripple-verification-fonts'] as string | undefined })
     response.setHeader('content-type', 'text/html; charset=utf-8')
     response.end(spa(brand))
   })
@@ -491,6 +493,17 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
         })
       }
       expect(outcome.events.filter(event => event.event === 'navigation-disambiguated')).toHaveLength(VIEWPORTS.length * 2)
+      // The event is recorded only after the landmark-scoped click succeeded,
+      // stamped with the viewport's checkId and the side it ran on.
+      const disambiguated = outcome.events.filter(event => event.event === 'navigation-disambiguated')
+      expect(disambiguated.every(event => String(event.checkId).startsWith('run-nav-disambiguate'))).toBe(true)
+      expect(disambiguated.filter(event => event.side === 'candidate')).toHaveLength(VIEWPORTS.length)
+      expect(disambiguated.filter(event => event.side === 'baseline')).toHaveLength(VIEWPORTS.length)
+      expect(disambiguated[0]).toMatchObject({ landmarkMatches: 1, visibleMatches: 1, viewport: expect.objectContaining({ width: expect.any(Number) }) })
+      // Every document request the runner made carried the verification font
+      // header, so the preview server served the verification CSP shape.
+      expect(documentRequests.length).toBeGreaterThan(0)
+      expect(documentRequests.every(request => request.verificationFonts === 'verified-font-dependencies')).toBe(true)
       // The rescued click is not a browser error: the page behaved correctly.
       expect(manifest.browserErrorDetails.byCategory['page-visit-failed'] ?? 0).toBe(0)
       expect(assertion(manifest, 'scope-propagation')).toBe('pass')

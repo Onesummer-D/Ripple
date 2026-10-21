@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 import { isIP } from 'node:net'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
-import { buildPreviewCsp } from './preview-csp.mjs'
+import { previewCspForRequest } from './preview-csp.mjs'
 
 const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
@@ -18,11 +18,28 @@ if (!Array.isArray(approvedResourceUrls) || approvedResourceUrls.some(value => {
   } catch { return true }
 })) throw new Error('Ripple preview resource authorization is invalid')
 if (approvedResourceUrls.reduce((size, value) => size + value.length + 3, 0) > 6000) throw new Error('Ripple preview resource authorization is too large')
-// Snapshot-authorized font dependencies must be loadable by the page, not just
-// by the verification route layer; buildPreviewCsp adds the fonts.gstatic.com
-// font origin only when a stylesheet was authorized (Run #12: 22,624 blocked-
-// font console errors). Per-URL authorization stays enforced by the route.
-const contentSecurityPolicy = buildPreviewCsp(approvedResourceUrls)
+// The CSP is set per document request, not via server.headers: only the
+// isolated verification runner's navigations carry the font-dependency header
+// (see preview-csp.mjs), so interactive workbench previews keep the strict
+// authorized-URL-only font-src while verification pages can load their
+// hash-verified snapshot fonts. Pages cannot attach custom headers to document
+// navigations, so the widened shape cannot leak into interactive sessions.
+function documentCsp() {
+  return {
+    name: 'ripple-document-csp',
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        if (request.method === 'GET' && String(request.headers.accept ?? '').includes('text/html')) {
+          response.setHeader('content-security-policy', previewCspForRequest(request.headers, approvedResourceUrls))
+          // Never replay one shape's CSP from a heuristic cache into the
+          // other context.
+          response.setHeader('cache-control', 'no-store')
+        }
+        next()
+      })
+    },
+  }
+}
 
 function selectionBridge() {
   const script = `<script>
@@ -102,7 +119,7 @@ function typescriptAliases() {
 export default {
   configFile: false,
   root: '/work',
-  plugins: [sourceAnnotationPlugin('/work'), react(), selectionBridge()],
+  plugins: [documentCsp(), sourceAnnotationPlugin('/work'), react(), selectionBridge()],
   resolve: { alias: typescriptAliases(), preserveSymlinks: true },
   cacheDir: '/tmp/ripple-vite-cache',
   optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'], esbuildOptions: { preserveSymlinks: true } },
@@ -114,7 +131,6 @@ export default {
     cors: { origin: 'null' },
     fs: { strict: true, allow: ['/work', '/ripple/core', '/ripple/node_modules'] },
     headers: {
-      'content-security-policy': contentSecurityPolicy,
       'referrer-policy': 'no-referrer',
       'x-content-type-options': 'nosniff',
     },

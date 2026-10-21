@@ -16,6 +16,8 @@ import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { createBrowserErrorAccumulator } from './browser-error-accumulator.mjs'
+// @ts-expect-error Plain ESM without a TS build target.
+import { VERIFICATION_FONT_HEADER } from './preview-csp.mjs'
 import { createViewportScope, readCgroupUsage } from './verification-lifecycle.mjs'
 
 export const REQUIRED_ASSERTIONS = [
@@ -127,6 +129,11 @@ export async function executeVerification({
   }
 
   async function preparePage(page, scope, record) {
+    // Documents opened by the isolated runner carry the font-dependency
+    // header: the preview server then serves the verification shape of the
+    // CSP (snapshot-authorized fonts.gstatic.com allowed, see preview-csp.mjs).
+    // Interactive workbench previews never set it and keep the strict policy.
+    await page.setExtraHTTPHeaders({ [VERIFICATION_FONT_HEADER]: 'verified-font-dependencies' })
     await page.route('**/*', async route => {
       const requestedUrl = route.request().url()
       let parsed
@@ -216,8 +223,10 @@ export async function executeVerification({
   // Pages carrying two visible same-named controls inside navigation
   // landmarks (e.g. desktop and mobile navs both live) stay UNKNOWN; the
   // runner never picks a match by position (.first()/.nth(0)) because that
-  // would click an arbitrary element and could pass for the wrong route.
-  async function clickDeclaredControl(page, spec) {
+  // would click an arbitrary element and could pass for the wrong route. The
+  // disambiguation is recorded only after the landmark-scoped click actually
+  // succeeded, with the viewport's checkId, side and match counts.
+  async function clickDeclaredControl(page, scope, side, spec) {
     const target = page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
     try {
       await target.click({ timeout: actionTimeoutMs })
@@ -235,8 +244,11 @@ export async function executeVerification({
     if (visible.length !== 1) {
       throw new Error(`declared navigation control '${spec.navigateBy.name}' is ambiguous: ${matches} matches inside navigation landmarks, ${visible.length} visible; refusing to pick one arbitrarily`)
     }
-    progress({ event: 'navigation-disambiguated', pageRef: spec.pageRef, route: diagnosticRoute(spec.path), landmarkMatches: matches })
     await visible[0].click({ timeout: actionTimeoutMs })
+    scope.note({
+      event: 'navigation-disambiguated', pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path),
+      landmarkMatches: matches, visibleMatches: visible.length, viewport: scope.viewport,
+    })
     return true
   }
 
@@ -247,7 +259,7 @@ export async function executeVerification({
     if (!reuseCurrent) {
       await scope.timed('scope-navigate', () => page.goto(`http://${side.host}:5173${spec.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }), extra)
       await scope.timed('scope-root', () => waitForRoot(page), extra)
-      if (spec.navigateBy) navigationDisambiguated = await scope.timed('scope-navigation-action', () => clickDeclaredControl(page, spec), extra)
+      if (spec.navigateBy) navigationDisambiguated = await scope.timed('scope-navigation-action', () => clickDeclaredControl(page, scope, side, spec), extra)
     }
     const marker = await scope.timed('scope-marker', async () => {
       const marker = page.getByText(spec.markerText, { exact: true })
