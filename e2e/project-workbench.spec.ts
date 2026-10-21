@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { projectPreviewViewports } from '../src/core/project-viewports'
+import { collectRuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
@@ -161,6 +162,12 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
     const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
     await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
+    // The served script must contain the literal React Fiber field name. Calling
+    // String.replace with a string replacement expands "$'" to the HTML suffix,
+    // creating a syntax error which previously broke both preview and verification.
+    const previewHtml = await (await page.request.get(sourcePreview.url)).text()
+    expect(previewHtml).toContain("name.startsWith('__reactFiber$')")
+    expect(previewHtml).not.toContain('__reactFiber</html>')
     const firstFrameElement = await page.getByTestId('project-preview').elementHandle()
     await page.getByTestId('project-preview-reload').click()
     await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
@@ -264,12 +271,81 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toBeVisible({ timeout: 90_000 })
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toHaveAttribute('data-ripple-source', /jsx:src\/pages\/HomePage\.tsx#/)
+    const candidateFrameUrl = await page.getByTestId('candidate-preview').getAttribute('src')
+    const candidateFrameForIdentity = page.frames().find(frame => frame.url() === candidateFrameUrl)
+    expect(candidateFrameForIdentity).toBeTruthy()
+    const rawIdentity = await preview.getByRole('heading', { name: 'Candidate title' }).evaluate(target => ({
+      sourceRef: target.getAttribute('data-ripple-source'),
+      instance: target.getAttribute('data-ripple-instance'),
+      certainty: target.getAttribute('data-ripple-identity-certainty'),
+      fiberKeys: Object.keys(target).filter(key => key.startsWith('__reactFiber$')),
+    }))
+    const collectedIdentity = await candidateFrameForIdentity!.evaluate(collectRuntimeIdentitySnapshot, { root: 'h1' })
+    const candidateTitle = collectedIdentity.records.find(item => item.sourceRef === rawIdentity.sourceRef)
+    expect(candidateTitle, 'the clicked h1 has exactly one collector record').toBeTruthy()
+    expect(rawIdentity.certainty, 'candidate generated provider must preserve proven component boundary').toBe('stable-react-instance')
+    expect(candidateTitle?.certainty).toBe('stable-react-instance')
+    expect(candidateTitle?.reasons).toEqual([])
+    expect(candidateTitle?.sourceVersion).toMatch(/^[a-f0-9]{64}$/)
+    expect(candidateTitle?.runtimeInstanceId).toBe(rawIdentity.instance)
+    expect(candidateTitle?.sameSourceCount).toBe(1)
+    expect(collectedIdentity.page).toEqual({ pathname: '/', search: '', hash: '' })
+    // A forged parent-window message cannot masquerade as the candidate frame.
+    await page.evaluate(() => window.postMessage({ type: 'ripple:element-selected', protocol: 'ripple-runtime-identity/v1',
+      previewId: 'stale-preview', token: 'wrong-nonce', sourceRef: 'jsx:bad#0', identityCertainty: 'stable-react-instance',
+      tagName: 'h1', text: 'forged' }, '*'))
     await page.getByTestId('toggle-element-selection').click()
+    const selectedRequestPromise = page.waitForRequest(request => request.url().endsWith('/__ripple/api/candidate/source-selection'))
     await preview.getByRole('heading', { name: 'Candidate title' }).click()
+    const selectionPayload = (await selectedRequestPromise).postDataJSON() as {
+      candidateId: string; previewId: string; patchHash: string; candidateTreeDigest: string; sourceRef: string;
+      runtimeIdentity: { protocol: string; page: { pathname: string; search: string; hash: string };
+        expectedPage: { pathname: string; search: string; hash: string }; record: {
+          sourceRef: string; runtimeInstanceId?: string; sourceVersion?: string; certainty: string;
+          declaredCertainty: string; sameSourceCount: number; domNode: number; reasons: string[] } }
+    }
     await expect(page.getByTestId('selected-source')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('selected-jsx-source')).toContainText('src/pages/HomePage.tsx#')
     await expect(page.getByTestId('selected-source')).toContainText('Patch')
     await expect(page.getByTestId('selected-source')).toContainText('stable-react-instance')
+    await expect(page.getByTestId('selected-source')).toContainText('仅用于定位，不构成编辑授权')
+    const originalSourceDisplay = await page.getByTestId('selected-jsx-source').innerText()
+    // Even the CURRENT iframe cannot replay an earlier nonce or preview session.
+    await candidateFrameForIdentity!.evaluate(() => {
+      for (const [previewId, token] of [['stale-preview', 'old-nonce'], ['stale-preview', '']]) {
+        window.parent.postMessage({ type: 'ripple:element-selected', protocol: 'ripple-runtime-identity/v1',
+          previewId, token, sourceRef: 'jsx:forged.tsx#0', identityCertainty: 'stable-react-instance',
+          tagName: 'h1', text: 'forged' }, '*')
+      }
+    })
+    await expect(page.getByTestId('selected-jsx-source')).toHaveText(originalSourceDisplay)
+    const selectionApi = 'http://127.0.0.1:4173/__ripple/api/candidate/source-selection'
+    const staleSource = await page.request.post(selectionApi, { data: { ...selectionPayload,
+      runtimeIdentity: { ...selectionPayload.runtimeIdentity, record: { ...selectionPayload.runtimeIdentity.record,
+        sourceVersion: '0'.repeat(64) } } } })
+    expect(staleSource.status(), 'stale candidate source digest must be rejected').toBe(409)
+    const wrongPage = await page.request.post(selectionApi, { data: { ...selectionPayload,
+      runtimeIdentity: { ...selectionPayload.runtimeIdentity,
+        expectedPage: { ...selectionPayload.runtimeIdentity.expectedPage, pathname: '/other' } } } })
+    expect(wrongPage.status(), 'mismatched page context must be rejected').toBe(409)
+    const wrongTree = await page.request.post(selectionApi, { data: { ...selectionPayload,
+      candidateTreeDigest: '0'.repeat(64) } })
+    expect(wrongTree.status(), 'an old candidate tree must be rejected').toBe(409)
+    for (const record of [
+      { ...selectionPayload.runtimeIdentity.record, runtimeInstanceId: undefined,
+        reasons: ['instance-unavailable'], certainty: 'unknown' },
+      { ...selectionPayload.runtimeIdentity.record, reasons: ['duplicate-runtime-instance'],
+        certainty: 'unknown' },
+      { ...selectionPayload.runtimeIdentity.record, reasons: ['react-keys-unavailable'],
+        certainty: 'unknown' },
+    ]) {
+      const response = await page.request.post(selectionApi, { data: { ...selectionPayload,
+        runtimeIdentity: { ...selectionPayload.runtimeIdentity, record } } })
+      expect(response.ok(), 'unproven instances may remain navigable').toBe(true)
+      const result = await response.json() as { runtimeIdentity: { identityCertainty: string; instanceIdentityProven: boolean } }
+      expect(result.runtimeIdentity.identityCertainty).toBe('unknown')
+      expect(result.runtimeIdentity.instanceIdentityProven).toBe(false)
+    }
     const previewUrl = await page.getByTestId('candidate-preview').getAttribute('src')
     const previewFrame = page.frames().find(frame => frame.url() === previewUrl)
     expect(previewFrame).toBeTruthy()

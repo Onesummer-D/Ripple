@@ -91,6 +91,13 @@ interface SourceSelection {
   identityCertainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
   tagName: string
   text: string
+  runtimeIdentity?: {
+    runtimeInstanceId?: string
+    identityCertainty: SourceSelection['identityCertainty']
+    instanceIdentityProven: boolean
+    sameSourceCount: number
+    reasons: string[]
+  }
 }
 interface ProjectSourcePreview { projectId: string; previewId: string; sourceDigest: string; url: string }
 type PageScope = PageScopeChoice
@@ -297,8 +304,9 @@ export default function ProjectWorkbench() {
         ? { kind: 'project' as const, previewId: sourcePreview.previewId, frame: sourcePreviewFrame.current }
         : undefined
     if (!active?.frame?.contentWindow) return
-    active.frame.contentWindow.postMessage({ type: 'ripple:selection-mode', previewId: active.previewId, token: selectionNonce, enabled: !!selectionNonce }, '*')
-  }, [candidate?.id, previewUrl, sourcePreview?.previewId, selectionNonce])
+    active.frame.contentWindow.postMessage({ type: 'ripple:selection-mode', previewId: active.previewId, token: selectionNonce,
+      enabled: !!selectionNonce, ...(candidate?.id === active.previewId ? { candidateId: candidate.id, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest } : {}) }, '*')
+  }, [candidate?.id, candidate?.patchHash, candidate?.candidateTreeDigest, previewUrl, sourcePreview?.previewId, selectionNonce])
 
   useEffect(() => {
     const kind = candidate && previewUrl ? 'candidate' : sourcePreview ? 'project' : undefined
@@ -309,14 +317,22 @@ export default function ProjectWorkbench() {
       const frame = frameRef.current
       const generation = previewGeneration.current
       const data = event.data as Record<string, unknown> | null
-      const certainties = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
       if (!frame?.contentWindow || event.source !== frame.contentWindow || !data || data.type !== 'ripple:element-selected' ||
+        data.protocol !== 'ripple-runtime-identity/v1' ||
         data.previewId !== previewId || data.token !== selectionNonce || typeof data.sourceRef !== 'string' ||
-        typeof data.identityCertainty !== 'string' || !certainties.includes(data.identityCertainty) ||
         typeof data.tagName !== 'string' || typeof data.text !== 'string') return
+      // A stale iframe/preview cannot replay a previous candidate's observation.
+      if (kind === 'candidate' && (data.candidateId !== candidate?.id || data.patchHash !== candidate?.patchHash ||
+        data.candidateTreeDigest !== candidate?.candidateTreeDigest)) return
+      const expectedUrl = new URL(frame.src, location.href)
+      const expectedPage = { pathname: expectedUrl.pathname, search: expectedUrl.search, hash: expectedUrl.hash }
       const request = kind === 'candidate'
-        ? post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('candidate/source-selection', { candidateId: previewId, sourceRef: data.sourceRef })
-        : post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('project/source-selection', {
+        ? post<SourceSelection>('candidate/source-selection', {
+          candidateId: previewId, previewId, sourceRef: data.sourceRef, patchHash: candidate?.patchHash,
+          candidateTreeDigest: candidate?.candidateTreeDigest,
+          runtimeIdentity: { protocol: data.protocol, page: data.pageContext, record: data.record, expectedPage },
+        })
+        : post<SourceSelection>('project/source-selection', {
           projectId: sourcePreview?.projectId, previewId, sourceDigest: sourcePreview?.sourceDigest, sourceRef: data.sourceRef,
         })
       void request.then(mapped => {
@@ -325,8 +341,10 @@ export default function ProjectWorkbench() {
           (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
         setSelection({
           ...mapped,
-          runtimeInstanceId: typeof data.runtimeInstanceId === 'string' ? data.runtimeInstanceId : undefined,
-          identityCertainty: data.identityCertainty as SourceSelection['identityCertainty'],
+          // The DOM is an untrusted source; only a version/page/candidate-checked
+          // server verdict can be displayed as stable, and it grants no edit permission.
+          runtimeInstanceId: kind === 'candidate' ? (mapped.runtimeIdentity?.runtimeInstanceId) : undefined,
+          identityCertainty: kind === 'candidate' ? (mapped.runtimeIdentity?.identityCertainty ?? 'unknown') : 'unknown',
           tagName: data.tagName as string,
           text: data.text as string,
         })
@@ -335,7 +353,7 @@ export default function ProjectWorkbench() {
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [candidate?.id, previewUrl, sourcePreview?.projectId, sourcePreview?.previewId, sourcePreview?.sourceDigest, selectionNonce])
+  }, [candidate?.id, candidate?.patchHash, candidate?.candidateTreeDigest, previewUrl, sourcePreview?.projectId, sourcePreview?.previewId, sourcePreview?.sourceDigest, selectionNonce])
 
   // Replacing a preview invalidates every selection response still in flight
   // against the frame that is being torn down.
@@ -343,9 +361,14 @@ export default function ProjectWorkbench() {
     previewGeneration.current += 1
   }, [previewUrl, sourcePreview?.previewId, candidate?.id])
 
+  function selectionModeMessage(previewId: string, enabled: boolean, token: string) {
+    return { type: 'ripple:selection-mode', previewId, token, enabled,
+      ...(candidate?.id === previewId ? { candidateId: candidate.id, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest } : {}) }
+  }
+
   function toggleElementSelection(previewId: string, frame: { current: HTMLIFrameElement | null }) {
     if (selectionNonce) {
-      frame.current?.contentWindow?.postMessage({ type: 'ripple:selection-mode', previewId, token: selectionNonce, enabled: false }, '*')
+      frame.current?.contentWindow?.postMessage(selectionModeMessage(previewId, false, selectionNonce), '*')
       setSelectionNonce('')
     } else {
       setSelection(undefined)
@@ -356,7 +379,7 @@ export default function ProjectWorkbench() {
 
   function syncElementSelection(event: { currentTarget: HTMLIFrameElement }, previewId: string) {
     event.currentTarget.contentWindow?.postMessage({
-      type: 'ripple:selection-mode', previewId, token: selectionNonce, enabled: !!selectionNonce,
+      ...selectionModeMessage(previewId, !!selectionNonce, selectionNonce),
     }, '*')
   }
 
