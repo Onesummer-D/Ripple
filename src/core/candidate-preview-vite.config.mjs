@@ -2,6 +2,8 @@ import { createRequire } from 'node:module'
 import { isIP } from 'node:net'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
+import { previewCspForRequest } from './preview-csp.mjs'
+import { analyzeNodeModulesDeps } from './preview-optimize-deps-excludes.mjs'
 import { collectRuntimeIdentitySnapshot } from './runtime-identity.ts'
 import { insertCandidateSelectionBridge } from './candidate-selection-bridge-html.ts'
 
@@ -19,24 +21,31 @@ if (!Array.isArray(approvedResourceUrls) || approvedResourceUrls.some(value => {
   } catch { return true }
 })) throw new Error('Ripple preview resource authorization is invalid')
 if (approvedResourceUrls.reduce((size, value) => size + value.length + 3, 0) > 6000) throw new Error('Ripple preview resource authorization is too large')
-const externalResources = approvedResourceUrls.map(value => {
-  const url = new URL(value)
-  return `${url.origin}${url.pathname}`
-}).join(' ')
-const contentSecurityPolicy = [
-  "default-src 'self' data: blob:",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  `style-src 'self' 'unsafe-inline' ${externalResources}`,
-  `font-src 'self' data: ${externalResources}`,
-  `img-src 'self' data: blob: ${externalResources}`,
-  `media-src 'self' data: blob: ${externalResources}`,
-  "connect-src 'self'",
-  "form-action 'none'",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "frame-src 'none'",
-  "worker-src 'none'",
-].join('; ')
+// The CSP is set per request, not via server.headers: only the isolated
+// verification runner's navigations carry the font-dependency header
+// (see preview-csp.mjs), so interactive workbench previews keep the strict
+// authorized-URL-only font-src while verification pages can load their
+// hash-verified snapshot fonts. Pages cannot attach custom headers to document
+// navigations, so the widened shape cannot leak into interactive sessions.
+function requestCsp() {
+  return {
+    name: 'ripple-request-csp',
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        // Shape follows the request, not the response type: API-style fetches
+        // (Accept: */*) must see the same policy as navigations, and only
+        // requests carrying the runner header ever get the widened shape.
+        response.setHeader('content-security-policy', previewCspForRequest(request.headers, approvedResourceUrls))
+        // Document responses must never replay one shape's CSP from a
+        // heuristic cache into the other context.
+        if (request.method === 'GET' && String(request.headers.accept ?? '').includes('text/html')) {
+          response.setHeader('cache-control', 'no-store')
+        }
+        next()
+      })
+    },
+  }
+}
 
 function selectionBridge() {
   // The collector is self-contained by contract; serialization uses Vite's compiled JS function.
@@ -140,13 +149,35 @@ function typescriptAliases() {
   return toViteAliasRules(graph)
 }
 
+// Dependency-origin classification for the restricted discovery below. A
+// scan failure MUST NOT open every dependency to prebundling: when the
+// analysis reports ok:false, refuse optimization entirely and keep the
+// previous noDiscovery behavior.
+const depDiscovery = analyzeNodeModulesDeps('/work')
+
 export default {
   configFile: false,
   root: '/work',
-  plugins: [sourceAnnotationPlugin('/work'), react(), selectionBridge()],
+  plugins: [requestCsp(), sourceAnnotationPlugin('/work'), react(), selectionBridge()],
   resolve: { alias: typescriptAliases(), preserveSymlinks: true },
   cacheDir: '/tmp/ripple-vite-cache',
-  optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client'], esbuildOptions: { preserveSymlinks: true } },
+  // Restricted dependency discovery (approved experiment, coordinator
+  // 2026-10-22): esbuild statically scans the entry and prebundles bare
+  // node_modules imports of CONFIRMED third-party deps only. Project source
+  // and workspace-linked packages (realpath outside node_modules) keep
+  // flowing through sourceAnnotationPlugin module by module — data-
+  // ripple-source annotations, SourceGraph bindings and Runtime Identity are
+  // never skipped by prebundling. Unknown-origin symlinks are conservatively
+  // excluded; a failed node_modules scan refuses optimization and falls back
+  // to noDiscovery. No project Vite config, plugins or build scripts ever
+  // run: configFile stays false, the plugin set is pinned here, and
+  // esbuildOptions keep the production pins. holdUntilCrawlEnd collapses
+  // late-discovered dynamic imports into a single re-optimization instead of
+  // reloading per dependency. A prebundle failure degrades to per-module
+  // serving (the previous behavior), never to skipped annotations.
+  optimizeDeps: depDiscovery.ok
+    ? { include: ['react', 'react-dom/client'], exclude: depDiscovery.excludes, holdUntilCrawlEnd: true, esbuildOptions: { preserveSymlinks: true } }
+    : { noDiscovery: true, include: ['react', 'react-dom/client'], esbuildOptions: { preserveSymlinks: true } },
   server: {
     host: '0.0.0.0',
     port: 5173,
@@ -155,7 +186,6 @@ export default {
     cors: { origin: 'null' },
     fs: { strict: true, allow: ['/work', '/ripple/core', '/ripple/node_modules'] },
     headers: {
-      'content-security-policy': contentSecurityPolicy,
       'referrer-policy': 'no-referrer',
       'x-content-type-options': 'nosniff',
     },

@@ -39,8 +39,9 @@ const HOME_INTERACTION = { pageRef: 'page:home', role: 'button', name: 'Browse i
 const LOADS_PER_VIEWPORT = 5
 
 const servers: http.Server[] = []
+const documentRequests: Array<{ host: string; verificationFonts?: string }> = []
 let browser: Browser
-const spaOptions = { consoleErrorsPerLoad: 0, cart: false, introGate: false, images: [] as string[] }
+const spaOptions = { consoleErrorsPerLoad: 0, cart: false, introGate: false, images: [] as string[], duplicateNavNames: [] as string[], dualNavNames: [] as string[] }
 
 // With `cart`, the SPA keeps a cart count in IndexedDB, writes it to
 // localStorage on pagehide, and serves a cart view on the hash route #/cart.
@@ -55,16 +56,24 @@ function spa(brand: string): string {
   for (const src of ${JSON.stringify(spaOptions.images)}) { const image = new Image(); image.src = src; document.body.append(image) }
   for (let i = 0; i < ${spaOptions.consoleErrorsPerLoad}; i += 1) console.error('widget failed to hydrate ' + (i % 3) + ' https://cdn.example.test/w.js?sig=SECRET' + i)
   const cartEnabled = ${spaOptions.cart}
+  // duplicateNavNames renders same-named buttons OUTSIDE the nav (a hero CTA
+  // repeating a nav label — Run #12's '秋日手作节'); dualNavNames renders a
+  // second VISIBLE navigation landmark carrying the same label, which no
+  // stable context can disambiguate.
+  const duplicateButtons = ${JSON.stringify(spaOptions.duplicateNavNames)}.map(name => '<button class="dup">' + name + '</button>').join('')
+  const dualNav = ${JSON.stringify(spaOptions.dualNavNames)}.length
+    ? '<div role="navigation">' + ${JSON.stringify(spaOptions.dualNavNames)}.map(name => '<button data-tab="autumn">' + name + '</button>').join('') + '</div>'
+    : ''
   let cart = Number(localStorage.getItem('cart') || 0)
   let db
   function saveCart() { if (db) db.transaction('cart', 'readwrite').objectStore('cart').put(cart, 'count') }
   function render(tab) {
     localStorage.setItem('tab', tab)
     const cartView = cartEnabled ? '<button id="add">Add to cart</button><button id="quick">Quick add</button>' + (cart ? '<p>Cart (' + cart + ')</p>' : '') : ''
-    root.innerHTML = '<nav><button data-tab="autumn">Autumn</button><button data-tab="products">Products</button><button data-tab="story">Story</button></nav>' +
-      '<main><h1>' + markers[tab] + '</h1>' + (tab === 'home' ? '<button id="browse">Browse items</button><div id="out"></div>' : '') + (tab === 'home' || tab === 'cart' ? cartView : '') + '</main>' +
+    root.innerHTML = '<nav><button data-tab="autumn">Autumn</button><button data-tab="products">Products</button><button data-tab="story">Story</button></nav>' + dualNav +
+      '<main><h1>' + markers[tab] + '</h1>' + duplicateButtons + (tab === 'home' ? '<button id="browse">Browse items</button><div id="out"></div>' : '') + (tab === 'home' || tab === 'cart' ? cartView : '') + '</main>' +
       '<footer><span data-ripple-source="${BRAND_REF}" data-ripple-instance="footer-brand">${brand}</span></footer>'
-    for (const button of root.querySelectorAll('nav button')) button.onclick = () => render(button.dataset.tab)
+    for (const button of root.querySelectorAll('button[data-tab]')) button.onclick = () => render(button.dataset.tab)
     const browse = document.getElementById('browse')
     // With introGate, the candidate's button only works once a 20 s entrance
     // transition has ended (a regression); the baseline's works at once.
@@ -99,7 +108,8 @@ function spa(brand: string): string {
 }
 
 async function listen(host: string, brand: string): Promise<void> {
-  const server = http.createServer((_request, response) => {
+  const server = http.createServer((request, response) => {
+    documentRequests.push({ host, verificationFonts: request.headers['x-ripple-verification-fonts'] as string | undefined })
     response.setHeader('content-type', 'text/html; charset=utf-8')
     response.end(spa(brand))
   })
@@ -465,6 +475,67 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
     expect(firstErrorOf(outcome.events, 'mobile-390')).toMatchObject({ phase: 'scope-navigate', pageRef: 'page:products', side: 'baseline' })
     expect(JSON.stringify(outcome.events)).not.toContain('session=abc')
     expectBoundedAndCleanPages(outcome)
+  }, 90_000)
+
+  it('resolves a duplicated navigation label through the navigation landmark, only when exactly one visible candidate remains', async () => {
+    // Run #12: the bolt page repeats a nav button's text on an in-page CTA, so
+    // the declared getByRole matches 2 elements. The runner may rescue the
+    // click only via the stable navigation landmark, and records the rescue.
+    spaOptions.duplicateNavNames = ['Autumn']
+    try {
+      const outcome = await run('run-nav-disambiguate')
+      const { manifest } = outcome.result!
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const viewport of VIEWPORTS) {
+        expect(observation('page:autumn', viewport.width)).toMatchObject({
+          baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified',
+          baselineNavigationDisambiguated: true, candidateNavigationDisambiguated: true,
+        })
+      }
+      expect(outcome.events.filter(event => event.event === 'navigation-disambiguated')).toHaveLength(VIEWPORTS.length * 2)
+      // The event is recorded only after the landmark-scoped click succeeded,
+      // stamped with the viewport's checkId and the side it ran on.
+      const disambiguated = outcome.events.filter(event => event.event === 'navigation-disambiguated')
+      expect(disambiguated.every(event => String(event.checkId).startsWith('run-nav-disambiguate'))).toBe(true)
+      expect(disambiguated.filter(event => event.side === 'candidate')).toHaveLength(VIEWPORTS.length)
+      expect(disambiguated.filter(event => event.side === 'baseline')).toHaveLength(VIEWPORTS.length)
+      expect(disambiguated[0]).toMatchObject({ landmarkMatches: 1, visibleMatches: 1, viewport: expect.objectContaining({ width: expect.any(Number) }) })
+      // Every document request the runner made carried the verification font
+      // header, so the preview server served the verification CSP shape.
+      expect(documentRequests.length).toBeGreaterThan(0)
+      expect(documentRequests.every(request => request.verificationFonts === 'verified-font-dependencies')).toBe(true)
+      // The rescued click is not a browser error: the page behaved correctly.
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed'] ?? 0).toBe(0)
+      expect(assertion(manifest, 'scope-propagation')).toBe('pass')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.duplicateNavNames = []
+    }
+  }, 90_000)
+
+  it('keeps the route UNKNOWN when the duplicated label is ambiguous even inside navigation landmarks', async () => {
+    // Two visible navigation landmarks both carry the declared label (desktop
+    // and drawer navs both live in the DOM, both visible in this fixture). No
+    // stable context decides between them, so the runner must refuse to click
+    // rather than pick one by position.
+    spaOptions.dualNavNames = ['Autumn']
+    try {
+      const outcome = await run('run-nav-dual-landmark')
+      const { manifest } = outcome.result!
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const viewport of VIEWPORTS) {
+        expect(observation('page:autumn', viewport.width)).toMatchObject({ baselineRouteIdentity: 'missing', candidateRouteIdentity: 'missing' })
+        expect(observation('page:autumn', viewport.width).baselineNavigationDisambiguated).toBe(false)
+        expect(observation('page:autumn', viewport.width).candidateNavigationDisambiguated).toBe(false)
+      }
+      expect(outcome.events.find(event => event.event === 'navigation-disambiguated')).toBeUndefined()
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(VIEWPORTS.length * 2)
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expect(assertion(manifest, 'browser-errors')).toBe('risk')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.dualNavNames = []
+    }
   }, 90_000)
 
   it('counts a browser error storm exactly while keeping samples bounded and redacted', async () => {
