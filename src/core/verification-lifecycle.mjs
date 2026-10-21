@@ -92,7 +92,10 @@ export function createViewportScope({ checkId, viewport, progress, recordError, 
     inFlight: () => [...activePhases.values()].slice(0, 8).map(({ startedAt, ...item }) => ({ ...item, elapsedMs: now() - startedAt })),
 
     // Records an exception against this viewport. Returns the sanitized form.
-    fail(error, context = {}) {
+    // `terminal` reports a failure the viewport itself ends with (a cleanup
+    // failure found after close()): it is not work outliving the viewport, so
+    // it must not carry the late attribution flag.
+    fail(error, context = {}, { terminal = false } = {}) {
       const described = describeError(error)
       // The innermost annotation (where the error was thrown) wins over the
       // context of the task that observed it.
@@ -107,7 +110,9 @@ export function createViewportScope({ checkId, viewport, progress, recordError, 
           ...(context.inFlight?.length ? { inFlight: context.inFlight } : {}),
           at: new Date(now()).toISOString(),
         }
-        emit({ event: 'first-error', ...firstError })
+        const entry = { event: 'first-error', checkId, ...firstError }
+        if (terminal) progress(entry)
+        else emit(entry)
       }
       return { ...described, ...location }
     },

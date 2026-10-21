@@ -40,8 +40,10 @@ export function runnerDeadline(input, reserveMs = BUDGET_RESERVE_MS) {
 }
 
 // Failures that say the browser could not give this viewport a page, as
-// opposed to the candidate failing to load or render in one.
-const INFRASTRUCTURE_PHASES = new Set(['open-page', 'prepare-page'])
+// opposed to the candidate failing to load or render in one. A close-page
+// cleanup failure counts too: pages that stay alive mean the browser is sick,
+// not that the candidate misbehaved.
+const INFRASTRUCTURE_PHASES = new Set(['open-page', 'prepare-page', 'close-page'])
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 
 // Thrown when the runner cannot produce a trustworthy execution record: its
@@ -482,10 +484,32 @@ export async function executeVerification({
     // Copied before close: cancelled work may still settle afterwards.
     const runtimeState = partial.runtimeState
     const lifecycle = await scope.close({ extra: { cgroup: readCgroupUsage(cgroupRoot) } })
-    const value = outcome.status === 'completed' ? outcome.value : undefined
+    let value = outcome.status === 'completed' ? outcome.value : undefined
+    // Cleanup is fail-closed: a page this viewport could not close stays alive
+    // in the shared browser (the Run #11 cascade precondition) and may still
+    // run script against the relay, so the viewport cannot keep the results it
+    // produced; they are discarded, the viewport reports failed-to-run, and
+    // the runner aborts below without starting the next viewport.
+    // Cleanup must also PROVABLY finish: work the scope started counts as
+    // settled only once its promise settles. Calls a page close reliably
+    // cancels reject and therefore settle within the drain, so a promise that
+    // is still pending after the grace period has no cancellation proof: it
+    // may still create a page (a late newPage), still run, or still mutate
+    // run state. An unsettled count above zero is a cleanup that did not
+    // finish, not a diagnostic footnote, and aborts the run exactly like a
+    // leaked page. The lifecycle summary is immutable once returned, so a
+    // late failure arriving afterwards (a late page whose close rejects)
+    // cannot retroactively be counted; the unsettled count at return time is
+    // what keeps that window fail-closed.
+    let cleanupFailure
+    if (lifecycle.pagesLeaked > 0 || lifecycle.closeFailures > 0 || lifecycle.unsettled > 0) {
+      cleanupFailure = scope.fail(new Error(`viewport cleanup did not finish: ${lifecycle.closeFailures} page close attempt(s) failed; ${lifecycle.pagesLeaked} page(s) still alive; ${lifecycle.unsettled} started task(s) still unsettled after the cleanup grace period`), { category: 'viewport-cleanup-failed', phase: 'close-page' }, { terminal: true })
+      value = undefined
+    }
     const result = !value?.loaded ? 'failed-to-run' : value.noOverflow ? 'pass' : 'risk'
-    // The error that ended the viewport, not an earlier observation error.
-    const failure = value ? undefined : outcome.error?.message
+    // The error that ended the viewport, not an earlier observation error; a
+    // completed task whose cleanup leaked pages ends with the cleanup failure.
+    const failure = value ? undefined : (cleanupFailure?.message ?? outcome.error?.message)
     if (value) {
       if (value.loaded) loadedViewports += 1
       overflowObserved ||= !value.noOverflow
@@ -506,7 +530,7 @@ export async function executeVerification({
     })
     const diagnostic = {
       checkId, viewport: viewport.name, result, outcome: outcome.status, durationMs: now() - checkStart,
-      ...(outcome.error ? { endedBy: outcome.error } : {}),
+      ...(cleanupFailure ? { endedBy: cleanupFailure } : outcome.error ? { endedBy: outcome.error } : {}),
       ...(scope.firstError ? { firstError: scope.firstError } : {}),
       browserErrors: viewportErrors.snapshot(), lifecycle,
     }
@@ -519,24 +543,36 @@ export async function executeVerification({
     })
     // The viewport deadline is the remaining runner budget, so a viewport
     // timeout means the budget is spent. A disconnected browser cannot run
-    // the remaining viewports either.
+    // the remaining viewports either. Neither can a viewport whose cleanup
+    // did not provably finish: its pages may still be alive, or its started
+    // work may still create pages or mutate state in the shared browser, so
+    // starting the next viewport on top of it would repeat the Run #11
+    // cascade. The invariant is: no viewport starts while any earlier
+    // viewport's cleanup is not provably closed (pages counted, closes
+    // counted, and nothing still unsettled).
     const browserGone = typeof browser.isConnected === 'function' && !browser.isConnected()
-    if (outcome.status === 'timed-out' || browserGone) {
+    if (cleanupFailure || outcome.status === 'timed-out' || browserGone) {
       throw new RunnerAborted({
         schemaVersion: 1, executor: 'playwright', completed: false, status: 'failed-to-run', runId: input.runId,
-        reason: browserGone ? `The browser disconnected during ${checkId}; no execution record was produced.` : `Runner budget expired during ${checkId}; no execution record was produced.`,
+        reason: cleanupFailure ? `Viewport cleanup could not finish during ${checkId} (${lifecycle.unsettled} unsettled, ${lifecycle.closeFailures} close failure(s), ${lifecycle.pagesLeaked} page(s) leaked); no execution record was produced.`
+          : browserGone ? `The browser disconnected during ${checkId}; no execution record was produced.`
+            : `Runner budget expired during ${checkId}; no execution record was produced.`,
         viewports: viewportDiagnostics, notStarted: viewportPlan.slice(viewportPlan.indexOf(viewport) + 1).map(item => item.name),
         browserErrorDetails: browserErrors.snapshot(),
       })
     }
   }
-  // If the browser could not give any viewport a page, the record would
-  // describe the runner, not the candidate; report a runner failure instead.
-  // A candidate that loads but never renders stays a (non-approvable) record.
-  if (viewportDiagnostics.every(item => item.outcome !== 'completed' && INFRASTRUCTURE_PHASES.has(item.endedBy?.phase))) {
+  // If the browser could not give any viewport a usable page — or every
+  // viewport's pages failed to close, the Run #11 cascade precondition — the
+  // record would describe the runner, not the candidate; report a runner
+  // failure instead. A candidate that loads but never renders stays a
+  // (non-approvable) record.
+  const infrastructureEnded = item => INFRASTRUCTURE_PHASES.has(item.endedBy?.phase) &&
+    (item.outcome !== 'completed' || item.result === 'failed-to-run')
+  if (viewportDiagnostics.length > 0 && viewportDiagnostics.every(infrastructureEnded)) {
     throw new RunnerAborted({
       schemaVersion: 1, executor: 'playwright', completed: false, status: 'failed-to-run', runId: input.runId,
-      reason: 'The browser could not open pages for any viewport; no execution record was produced.',
+      reason: 'The browser could not complete page work for any viewport; no execution record was produced.',
       viewports: viewportDiagnostics, notStarted: [], browserErrorDetails: browserErrors.snapshot(),
     })
   }
@@ -601,7 +637,7 @@ export async function executeVerification({
       result: input.targetBindings.length === 0 || loadedViewports !== viewportPlan.length ? 'unknown' : all(mappedResults, Boolean) ? 'pass' : 'unknown',
       detail: input.targetBindings.length === 0 ? 'No unique source binding was available for the changed targets.' : loadedViewports !== viewportPlan.length ? 'Not all planned viewports rendered, so source mapping is incomplete.' : all(mappedResults, Boolean) ? 'Each changed target source reference matched a rendered annotated element with a runtime instance identity.' : 'At least one changed source target could not be mapped to a rendered annotated element with a runtime instance identity.',
     },
-    { id: 'browser-errors', result: errorTotal ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: errorTotal ? `${errorTotal} browser or page error(s) were observed.` : loadedViewports === viewportPlan.length ? 'No uncaught page or console errors were observed at the tested viewports.' : 'Not all planned viewports rendered, so browser error coverage is incomplete.' },
+    { id: 'browser-errors', result: errorTotal || (input.unavailableResources ?? []).length ? 'risk' : loadedViewports === viewportPlan.length ? 'pass' : 'unknown', detail: errorTotal ? `${errorTotal} browser or page error(s) were observed.` : (input.unavailableResources ?? []).length ? `${(input.unavailableResources ?? []).length} authorized resource(s) could not be snapshotted; the degraded render cannot claim a clean browser run.` : loadedViewports === viewportPlan.length ? 'No uncaught page or console errors were observed at the tested viewports.' : 'Not all planned viewports rendered, so browser error coverage is incomplete.' },
   ]
   if (assertions.length !== REQUIRED_ASSERTIONS.length || assertions.some(assertion => !REQUIRED_ASSERTIONS.includes(assertion.id))) {
     throw new Error('Verification assertion contract is incomplete')
