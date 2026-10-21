@@ -3,7 +3,7 @@ import { isIP } from 'node:net'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
 import { previewCspForRequest } from './preview-csp.mjs'
-import { symlinkedWorkspaceExcludes } from './preview-optimize-deps-excludes.mjs'
+import { analyzeNodeModulesDeps } from './preview-optimize-deps-excludes.mjs'
 import { collectRuntimeIdentitySnapshot } from './runtime-identity.ts'
 import { insertCandidateSelectionBridge } from './candidate-selection-bridge-html.ts'
 
@@ -149,6 +149,12 @@ function typescriptAliases() {
   return toViteAliasRules(graph)
 }
 
+// Dependency-origin classification for the restricted discovery below. A
+// scan failure MUST NOT open every dependency to prebundling: when the
+// analysis reports ok:false, refuse optimization entirely and keep the
+// previous noDiscovery behavior.
+const depDiscovery = analyzeNodeModulesDeps('/work')
+
 export default {
   configFile: false,
   root: '/work',
@@ -157,16 +163,21 @@ export default {
   cacheDir: '/tmp/ripple-vite-cache',
   // Restricted dependency discovery (approved experiment, coordinator
   // 2026-10-22): esbuild statically scans the entry and prebundles bare
-  // node_modules imports only. Project source and workspace-linked packages
-  // keep flowing through sourceAnnotationPlugin module by module — data-
+  // node_modules imports of CONFIRMED third-party deps only. Project source
+  // and workspace-linked packages (realpath outside node_modules) keep
+  // flowing through sourceAnnotationPlugin module by module — data-
   // ripple-source annotations, SourceGraph bindings and Runtime Identity are
-  // never skipped by prebundling. No project Vite config, plugins or build
-  // scripts ever run: configFile stays false, the plugin set is pinned here,
-  // and esbuildOptions keep the production pins. holdUntilCrawlEnd collapses
+  // never skipped by prebundling. Unknown-origin symlinks are conservatively
+  // excluded; a failed node_modules scan refuses optimization and falls back
+  // to noDiscovery. No project Vite config, plugins or build scripts ever
+  // run: configFile stays false, the plugin set is pinned here, and
+  // esbuildOptions keep the production pins. holdUntilCrawlEnd collapses
   // late-discovered dynamic imports into a single re-optimization instead of
   // reloading per dependency. A prebundle failure degrades to per-module
   // serving (the previous behavior), never to skipped annotations.
-  optimizeDeps: { include: ['react', 'react-dom/client'], exclude: symlinkedWorkspaceExcludes('/work'), holdUntilCrawlEnd: true, esbuildOptions: { preserveSymlinks: true } },
+  optimizeDeps: depDiscovery.ok
+    ? { include: ['react', 'react-dom/client'], exclude: depDiscovery.excludes, holdUntilCrawlEnd: true, esbuildOptions: { preserveSymlinks: true } }
+    : { noDiscovery: true, include: ['react', 'react-dom/client'], esbuildOptions: { preserveSymlinks: true } },
   server: {
     host: '0.0.0.0',
     port: 5173,
