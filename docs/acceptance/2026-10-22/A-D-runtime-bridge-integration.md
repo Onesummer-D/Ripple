@@ -20,7 +20,21 @@ GitHub Actions Run [39632922100](https://github.com/Onesummer-D/Ripple/actions/r
 
 候选生成器在 App JSX 根部插入受控 `<RipplePageForState>{原页面组件}</RipplePageForState>`。原 D 注解器将所有第三方组件包装都按不透明处理，因而拒绝包内页面组件的 React identity boundary。候选标题在**页面初次渲染时**便标为 `unknown`。旧点选桥又直接转发原始 DOM 值，进一步导致未校验版本、页面、重复 key 等风险。
 
-本轮在 `source-annotation.ts` 中仅识别**相对路径精确指向工作区 `.ripple/overrides-runtime.js`、具名导入的 `RipplePageForState`** 作为已知 child-forwarding 包装。自定义同名组件、非该文件导入、未知 HOC 仍保持不透明，禁止将未知身份提升为稳定。候选此时应生成真实边界并恢复稳定身份；最终成立与否必须由 CI 的真实 Docker 页面观测确认。
+本轮在 `source-annotation.ts` 中仅识别**相对路径精确指向工作区 `.ripple/overrides-runtime.js`、具名导入的 `RipplePageForState`** 作为已知 child-forwarding 包装。自定义同名组件、非该文件导入、未知 HOC 仍保持不透明，禁止将未知身份提升为稳定。候选应生成可追溯的 React 边界并恢复稳定身份。官方 Docker E2E 已在 [Run #39641408116](https://github.com/Onesummer-D/Ripple/actions/runs/39641408116) 复核，包含原有候选标题 `stable-react-instance` 断言，所有工作台身份测试通过。
+
+### 1.1 第二项根因：HTML 模板字符串替换污染脚本
+
+首次 A+D Docker 验收 [Run #39640298383](https://github.com/Onesummer-D/Ripple/actions/runs/39640298383) 共 26 项通过、2 项失败、1 项 Bolt 专项跳过；原 Project 预览无法完成点选，另一条验证产生 24 条 `pageerror`。
+
+从该 Run 的 Playwright trace 直接提取 Vite 预演返回的 HTML，发现 `collectRuntimeIdentitySnapshot.toString()` 序列化代码中的 React Fiber 字段名含有特殊文本 `$'`。原 `transformIndexHtml` 使用 `html.replace('</body>', \`\${script}</body>\`)` 字符串替换，JavaScript 将 `$'` 扩展为被替换文本后面剩余的 HTML（`</html>`），将合法 JS 改成 `name.startsWith('__reactFiber</html>)`，触发 `missing ) after argument list`。
+
+修复为 `html.replace('</body>', () => \`\${script}</body>\`)`，让序列化脚本逐字注入，不触发特殊替换模式。E2E 在真实预演 HTML 中断言 Fiber 字段原样保留，并保持原工作台点选及批准验证原断言，不允许删除/放宽。
+
+### 1.2 正式正反例证据
+
+- [Run #39641408116](https://github.com/Onesummer-D/Ripple/actions/runs/39641408116)（修复代码 commit `314153c68a05232f5fa7612016fd7d4d549a7c5f`）：锁定依赖安装、TypeScript、179 项身份/Project/API 单测、生产构建、Docker 准备与实际浏览器均成功。浏览器共 29 个用例，**28 passed / 1 skipped / 0 failed**；跳过的是需要私有 Bolt 的专项，没有运行 Bolt。
+- [Run #39641419514](https://github.com/Onesummer-D/Ripple/actions/runs/39641419514)：独立 D 身份官方 TypeScript/Vitest/Vite/21 个真实身份 Chromium 用例全绿。
+- **标准全仓 Ripple CI**：其外网资源真实探针与全量 Vitest 测试属于另一条工作流，需单独核对，不以专用 Docker 绿色冒充全仓完成。
 
 ## 2. 点选链路对照
 
@@ -63,4 +77,4 @@ C 与 D 都修改 `src/core/project.ts`，但变更逻辑分别集中在 C 的�
 - P1：旧 `project-workbench.spec.ts:272` 断言必须保持，真实候选标题由原来 unknown 恢复为稳定才可通过；旧 D 的身份单元/浏览器测试不得变弱；C+D 后续另做联合验收。
 - P2：Fiber 是 React 内部字段，缺失就 fail-closed；SPA 同窗口异路由及复杂 HMR 场景仍有覆盖率/证明局限。
 
-在完整 Docker CI 未通过、失败层级尚不明朗或缺失版本页面证据时，只能保持 Draft 并交由独立 Agent 复核，不得合并，也不得宣称实例级精准编辑可用。
+专用真实 Docker 工作台验收已通过；标准全仓 CI（包含真实外网资源探针）的完成状态仍应在 PR 检查中单列审查。当前代码实现只支持可信导航定位，**运行时单实例编辑授权仍未开放**。A+D Draft PR #16 不合并，交独立 Agent 审核后由负责人统一决定集成。
