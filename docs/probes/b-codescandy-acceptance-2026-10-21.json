@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-10-21T03:48:07.759Z",
+  "projectRoot": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\codescandy-dashui",
+  "frozenSha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+  "rippleHead": "8c1ae2bb93dafcde6f0274a1542f764842a41974",
+  "stats": {
+    "nodes": 4924,
+    "edges": 5006,
+    "kinds": {
+      "file": 503,
+      "component": 90,
+      "media": 100,
+      "jsx-element": 1948,
+      "data": 2283
+    },
+    "media": {
+      "total": 100
+    },
+    "tokens": {
+      "total": 0
+    },
+    "routes": {
+      "total": 0
+    },
+    "assetConsumers": {
+      "total": 61,
+      "sourceProven": 61,
+      "semanticCandidate": 0
+    },
+    "tokenConsumers": {
+      "total": 0,
+      "sourceProven": 0,
+      "semanticCandidate": 0,
+      "unknown": 0
+    }
+  },
+  "mediaClosure": {
+    "total": 100,
+    "full": 0,
+    "partial": 0,
+    "unknown": 100
+  },
+  "capabilityBoundaries": {
+    "scssTokensSupported": "none-present",
+    "routeNodesDerived": 0,
+    "unresolvedCount": 2,
+    "unresolvedSample": [
+      "src/bootstrap-components/Dropdowns.tsx → unresolvable-component:DropdownType",
+      "src/main.tsx → ./styles/theme.scss"
+    ]
+  }
+}
