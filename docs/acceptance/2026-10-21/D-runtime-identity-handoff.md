@@ -112,3 +112,29 @@ npx playwright test e2e/source-identity.spec.ts
 npm run test:browser
 ```
 注：完整 `test:browser` 包括需要 Docker 的工程 E2E。CI 与手动 Bolt Acceptance 是不同流程；本次未触发 Bolt。
+
+## 八、最终 CI 复核结果与合并阻塞（补充）
+
+正式 D 专项工作流： https://github.com/Onesummer-D/Ripple/actions/runs/39632922105
+- 官方锁定依赖 `npm ci`：成功
+- `npm run typecheck`：成功
+- 官方 Vitest 身份与工程回归：2 个文件，171/171 通过
+- `npm run build`：成功
+- 真实 Vite + @vitejs/plugin-react + Chromium `e2e/source-identity.spec.ts`：21/21 通过
+- 专项工作流最终状态：SUCCESS
+
+标准完整 Docker 浏览器 CI：
+- https://github.com/Onesummer-D/Ripple/actions/runs/39632333211 —— 29 通过 / 1 失败 / 1 跳过，FAILED
+- https://github.com/Onesummer-D/Ripple/actions/runs/39632922100 —— 同一失败可复现，29 通过 / 1 失败 / 1 跳过，FAILED
+- https://github.com/Onesummer-D/Ripple/actions/runs/39632644370 —— runner 收到 shutdown signal 而取消，不能作为代码通过/失败的依据
+
+**可复现 P1 阻塞**：`e2e/project-workbench.spec.ts:272`，真实候选预演点击 `HomePage.tsx` 的标题后，测试期望 UI 中的 `stable-react-instance`，却实际收到 `unknown`。候选文件、DOM 和 JSX sourceRef 均能定位，界面清楚写明「不允许按唯一实例精准修改」，所以未发生放宽授权的安全问题；但产品原有的“稳定实例”回归预期未达成，完整集成 CI 不通过。原因可能涉及新增身份契约与原始 DOM 属性点选桥的连接，以及候选覆盖代码的 React 组件边界；本轮无足够证据区分，不得武断归因。不放宽原测试，不擅自修改点选桥或授权规则。
+
+**C PR #11 接口交叉补充**：已将 C 在 `src/core/project.ts` 的 12 段文本变更逐段映射到当前 D 文件，12/12 均能按原上下文匹配，无直接文本块冲突。但仍未有同分支的 C+D 官方 TypeScript / Playwright 联合验证，所以语义兼容性属于 P1 待验收事项。
+
+**最终分级**
+- P0：现有点选桥不调用 D 的实例采集器，实例级精准编辑功能不能开放；等待 A/D 统一接入。
+- P1：真实候选预演工作台稳定实例判定回归失败；必须由 A/D 对照原始 DOM、React Identity Context、候选页面覆盖和采集器结果诊断，并新增真实候选负例；C+D 联合验证也未完成。当前不允许独立合并。
+- P2：React Fiber 内部字段、未验证 React Compiler 和特殊 workspace/HMR 情形仍属后续兼容性评估。
+
+**最终决定：原始代码恢复完整，官方身份专项验收成功，完整集成验收失败。PR #15 继续保持 Draft，停止新增开发；不合并 A/main，不启动 Bolt。待负责人统一安排。**
