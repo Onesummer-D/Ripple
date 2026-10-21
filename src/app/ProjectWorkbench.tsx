@@ -90,7 +90,6 @@ interface SourceSelection {
   editableText: Array<{ id: string; label: string; value?: string; location?: { path: string; start?: number; end?: number }; impact: { pageRefs: string[]; unresolved: string[]; certainty: 'source-proven' | 'partial' | 'unknown' } }>
   runtimeInstanceId?: string
   identityReasons?: string[]
-  sourceVersion?: string
   sameSourceCount?: number
   pageContext?: { pathname: string; search: string; hash: string }
   identityCertainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
