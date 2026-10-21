@@ -329,7 +329,18 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
     const { manifest } = outcome.result!
     expect(evidenceFor(manifest, 'desktop').result).toBe('failed-to-run')
     expect(evidenceFor(manifest, 'desktop').reason).toContain('Execution context was destroyed')
-    for (const name of ['tablet', 'mobile-375', 'mobile-390']) expect(evidenceFor(manifest, name).result).toBe('pass')
+    // Keep the pass/fail condition unchanged while making CI failures actionable:
+    // report the sibling viewport, its reason and its first recorded error.
+    const siblings = ['tablet', 'mobile-375', 'mobile-390'].map(name => ({
+      name,
+      result: evidenceFor(manifest, name).result,
+      reason: evidenceFor(manifest, name).reason,
+      firstError: firstErrorOf(outcome.events, name),
+    }))
+    expect(
+      siblings.map(({ name, result }) => ({ name, result })),
+      `Sibling viewport diagnostics: ${JSON.stringify(siblings, null, 2)}`,
+    ).toEqual(['tablet', 'mobile-375', 'mobile-390'].map(name => ({ name, result: 'pass' })))
     const taskEvents = outcome.events.filter(event => event.event === 'task' && String(event.task).startsWith('scope-probe:page:story'))
     const candidateFailed = taskEvents.findIndex(event => event.task === 'scope-probe:page:story:candidate' && event.state === 'failed')
     const baselineCompleted = taskEvents.findIndex(event => event.task === 'scope-probe:page:story:baseline' && event.state === 'completed')
