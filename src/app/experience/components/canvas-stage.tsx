@@ -137,7 +137,13 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
         className="ripple-xp-viewport-surface"
         style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})` }}
       >
-        {canvasState === 'ready' ? (
+        {model.dataProvenance !== 'demo' ? (
+          // 真实模式：绝不渲染写死的演示 DOM。真实预览 URL 由未来真实适配器提供，
+          // 未提供时明确提示，而不是退回模拟内容。
+          <div className="ripple-xp-canvas-state" role="status" data-testid="real-preview-pending">
+            真实预览尚未接入
+          </div>
+        ) : canvasState === 'ready' ? (
           currentPage?.id === 'page:home' ? demoPage : (
             <div className="ripple-xp-demo-page is-placeholder" data-testid="demo-canvas-placeholder">
               <h2>{currentPage?.label}</h2>

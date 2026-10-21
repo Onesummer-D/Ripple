@@ -16,7 +16,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
 }) {
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const summary = scopeSummary(model.pages)
-  const gate = approvalGate(model.pages)
+  const gate = approvalGate({ pages: model.pages, selectedElement: selected, draftAfterText: model.draftAfterText })
   const editingPage = model.pages.find(page => page.relation === 'editing')
   const sameSourcePages = model.pages.filter(page => page.relation === 'same-source')
   const unprovenPages = model.pages.filter(page => page.relation === 'unproven')

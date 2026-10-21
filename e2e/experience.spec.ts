@@ -1,0 +1,113 @@
+import { expect, test, type Page } from '@playwright/test'
+
+// F 体验工作台浏览器验收（PR #14 第一轮独立审查整改）。
+// 覆盖：初始页面、选中与编辑、来源未知元素、Scope 阻断、无选中/无修改不得审批、
+// 视口切换、模拟内容不得进入 real 模式、历史切换、桌面与窄窗口布局、控制台错误。
+
+const consoleErrors: string[] = []
+
+async function openExperience(page: Page, url = '/experience.html') {
+  page.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
+  page.on('pageerror', error => consoleErrors.push(String(error)))
+  await page.goto(url, { waitUntil: 'networkidle' })
+  await expect(page.getByTestId('xp-topbar')).toBeVisible()
+}
+
+test.beforeEach(() => { consoleErrors.length = 0 })
+
+test('初始页面：工程状态、页面导航、画布与 DEMO 标记', async ({ page }) => {
+  await openExperience(page)
+  await expect(page.getByTestId('project-status')).toContainText('工程就绪')
+  await expect(page.getByTestId('demo-badge')).toContainText('演示数据')
+  await expect(page.getByTestId('page-item-page:home')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('demo-canvas')).toBeVisible()
+  await expect(page.getByTestId('evidence-drawer')).toBeVisible()
+})
+
+test('选中与编辑：标题更新、候选状态推进、前后对照同步', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await expect(page.getByTestId('candidate-status')).toContainText('候选已生成')
+  await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+  await expect(page.getByTestId('compare-baseline')).toContainText('秋日茶器市集')
+  await expect(page.getByTestId('canvas-el-el:hero-title')).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('来源未知元素只能查看：无输入框、无编辑授权', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:promo-card').click()
+  await expect(page.getByTestId('draft-text-input')).toHaveCount(0)
+  await expect(page.getByText('来源未知：可以先查看，但不能承诺修改范围')).toBeVisible()
+})
+
+test('Scope 阻断：未证明页面包含/未决定时不得审批，排除后演示审批并给出可见反馈', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await expect(page.getByTestId('approval-area')).toContainText('未决定')
+  await page.getByTestId('scope-include-page:contact').click()
+  await expect(page.getByTestId('approval-area')).toContainText('无法完全证明')
+  await page.getByTestId('scope-exclude-page:contact').click()
+  await page.getByTestId('scope-exclude-page:seasonal').click()
+  await page.getByTestId('demo-approve').click()
+  await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认，未执行真实应用')
+})
+
+test('无选中/无修改不得审批', async ({ page }) => {
+  await openExperience(page)
+  await expect(page.getByTestId('approval-area')).toContainText('尚未选中')
+  await expect(page.getByTestId('approval-area')).toContainText('修改内容为空')
+  await expect(page.getByTestId('demo-approve')).toHaveCount(0)
+})
+
+test('视口切换 1440/768/375 与 390 验证中标注', async ({ page }) => {
+  await openExperience(page)
+  for (const id of ['desktop', 'tablet', 'mobile-375']) {
+    await page.getByTestId(`viewport-${id}`).click()
+    await expect(page.getByTestId(`viewport-${id}`)).toHaveAttribute('aria-pressed', 'true')
+  }
+  await page.getByTestId('viewport-mobile-390').click()
+  await expect(page.getByTestId('viewport-mobile-390')).toContainText('验证中')
+  await expect(page.getByTestId('demo-canvas')).toBeVisible()
+})
+
+test('模拟内容不得进入 real 模式：real 桩下无演示 DOM，显示未接入状态', async ({ page }) => {
+  await openExperience(page, '/experience.html?adapter=real-stub')
+  await expect(page.getByTestId('real-preview-pending')).toContainText('真实预览尚未接入')
+  await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
+  await expect(page.getByText('尚无真实截图')).toHaveCount(2)
+  await expect(page.getByTestId('demo-badge')).toHaveCount(0)
+  await expect(page.getByTestId('demo-approve')).toHaveCount(0)
+})
+
+test('历史切换：胶片展示生命周期，点击定位页面', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('open-history').click()
+  await expect(page.getByTestId('version-v:3')).toContainText('已回滚')
+  await expect(page.getByTestId('version-v:1')).toContainText('已失效')
+  await page.getByTestId('version-v:3').click()
+  await expect(page.getByTestId('page-item-page:products')).toHaveAttribute('aria-current', 'page')
+})
+
+test('桌面与窄窗口布局都可操作', async ({ page }) => {
+  await openExperience(page)
+  await expect(page.getByTestId('scope-panel')).toBeVisible()
+  await page.setViewportSize({ width: 700, height: 900 })
+  await expect(page.getByTestId('scope-panel')).toBeVisible()
+  await expect(page.getByTestId('canvas-el-el:hero-title')).toBeVisible()
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+})
+
+test('控制台无错误', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await page.getByTestId('open-history').click()
+  await page.getByTestId('version-v:2').click()
+  expect(consoleErrors).toEqual([])
+})

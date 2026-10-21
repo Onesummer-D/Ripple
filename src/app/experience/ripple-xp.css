@@ -217,6 +217,7 @@
 .ripple-xp-focus-ring { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: var(--xp-brand); border: 1px dashed var(--xp-brand); border-radius: 6px; padding: 1px 6px; }
 .ripple-xp-compare-side figcaption { display: grid; font-size: 12px; color: var(--xp-ink-soft); }
 .ripple-xp-compare-note { color: var(--xp-warn); }
+.ripple-xp-compare-img { max-width: 100%; max-height: 130px; object-fit: contain; }
 .ripple-xp-match-note { color: var(--xp-ok); }
 .ripple-xp-match-note.is-mismatch { color: var(--xp-risk); }
 
@@ -233,6 +234,13 @@
 .ripple-xp-film-title { color: var(--xp-ink); font-size: 13px; }
 .ripple-xp-film-tags { display: flex; gap: 6px; align-items: center; }
 .ripple-xp-film-tags time { color: var(--xp-ink-soft); }
+
+/* 演示审批反馈横幅（可见反馈，非面板） */
+.ripple-xp-feedback {
+  position: sticky; bottom: 0; z-index: 9;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  background: var(--xp-ink); color: #fff; padding: 10px 18px; font-size: 14px;
+}
 
 /* 加载 / 错误态 */
 .ripple-xp-loading, .ripple-xp-fatal { display: grid; place-items: center; min-height: 60vh; color: var(--xp-ink-soft); }

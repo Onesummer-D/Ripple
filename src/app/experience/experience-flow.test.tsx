@@ -1,14 +1,20 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ExperienceWorkbench } from './experience-workbench'
-
-afterEach(cleanup)
+import { createStubRealAdapter } from './stub-real-adapter'
 
 const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 
 /** 青野连续演示流（任务书第五节）：打开→选中标题→输入→关联页面→范围→对照→证据→历史。 */
 describe('F 体验工作台 · 青野演示流', () => {
-  it('演示数据全程标记 DEMO，且不能把演示结果送入真实审批', async () => {
+  afterEach(cleanup)
+
+  async function selectAndType() {
+    fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
+    fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '冬日茶器市集' } })
+  }
+
+  it('演示数据全程标记 DEMO', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('demo-badge')
     expect(text('demo-badge')).toContain('演示数据')
@@ -23,16 +29,22 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(screen.getByTestId('demo-canvas')).not.toBeNull()
   })
 
+  it('无选中/无修改时不得审批（门控前置条件）', async () => {
+    render(<ExperienceWorkbench />)
+    await screen.findByTestId('scope-panel')
+    expect(text('approval-area')).toContain('尚未选中')
+    expect(text('approval-area')).toContain('修改内容为空')
+  })
+
   it('选中活动标题并输入新标题：候选状态推进、选中摘要与前后对照更新', async () => {
     render(<ExperienceWorkbench />)
-    fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
+    await selectAndType()
     expect(text('selection-summary')).toContain('活动标题')
     expect(text('selection-summary')).toContain('src/data/campaign.ts')
-    fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '冬日茶器市集' } })
     expect(text('candidate-status')).toContain('候选已生成')
     expect(text('compare-candidate')).toContain('冬日茶器市集')
     expect(text('compare-baseline')).toContain('秋日茶器市集')
-    expect(text('scope-summary')).toContain('包含 3')
+    expect(text('scope-summary')).toContain('包含 2')
   })
 
   it('来源未知的元素只能查看，不能进入编辑', async () => {
@@ -43,11 +55,10 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(screen.getAllByTestId('certainty-unknown').length).toBeGreaterThan(0)
   })
 
-  it('范围决策：影响未证明页面被包含时审批被门控，排除后恢复', async () => {
+  it('范围决策：未证明页面被包含时审批被门控，排除后恢复，演示审批给出可见反馈', async () => {
     render(<ExperienceWorkbench />)
-    await screen.findByTestId('scope-panel')
-    // 默认两个 unproven 页面未决定 → 门控
-    expect(screen.queryByTestId('demo-approve')).toBeNull()
+    await selectAndType()
+    // 两个未证明页面未决定 → 门控
     expect(text('approval-area')).toContain('未决定')
     // 把未证明页面“包含” → 仍然不得审批（不得提升为安全范围）
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
@@ -57,11 +68,15 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
     expect(text('demo-approve')).toContain('演示审批')
     expect(text('demo-approve')).toContain('不写入真实工程')
+    fireEvent.click(screen.getByTestId('demo-approve'))
+    expect(text('approve-feedback')).toContain('演示范围决策已确认，未执行真实应用')
+    fireEvent.click(screen.getByTestId('dismiss-feedback'))
+    expect(screen.queryByTestId('approve-feedback')).toBeNull()
   })
 
   it('证据面板第一眼分区齐全且依据类型分开标注', async () => {
     render(<ExperienceWorkbench />)
-    fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
+    await selectAndType()
     expect(text('evidence-ev:expect')).toContain('预期修改')
     expect(text('evidence-ev:risk')).toContain('已发现的风险')
     expect(text('evidence-ev:not-checked')).toContain('尚未检查')
@@ -92,5 +107,23 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('canvas-state-banner')).toContain('加载失败')
     fireEvent.click(screen.getByTestId('canvas-retry'))
     expect(screen.getByTestId('demo-canvas')).not.toBeNull()
+  })
+})
+
+describe('F 体验工作台 · 真实/演示隔离', () => {
+  afterEach(cleanup)
+
+  it('真实模式绝不渲染演示 DOM 或模拟对照，未接入时显示明确状态', async () => {
+    render(<ExperienceWorkbench adapter={createStubRealAdapter()} />)
+    await screen.findByTestId('real-preview-pending')
+    expect(text('real-preview-pending')).toContain('真实预览尚未接入')
+    expect(screen.queryByTestId('demo-canvas')).toBeNull()
+    // 对照区：真实模式下只接受真实截图，缺失时明确提示
+    expect(screen.getAllByText('尚无真实截图').length).toBe(2)
+    // 演示状态切换器与 DEMO 标记不出现
+    expect(screen.queryByTestId('demo-canvas-state')).toBeNull()
+    expect(screen.queryByTestId('demo-badge')).toBeNull()
+    // 没有可审批内容
+    expect(screen.queryByTestId('demo-approve')).toBeNull()
   })
 })

@@ -27,16 +27,15 @@ function initialModel(): ExperienceViewModel {
     canvasState: 'ready',
     pages: [
       { id: HOME, label: '首页', path: '/', relation: 'editing', relationCertainty: 'source-proven', scope: 'include' },
-      { id: 'page:products', label: '全部商品', path: '/products', relation: 'same-source', relationCertainty: 'source-proven', scope: 'include' },
-      { id: 'page:story', label: '品牌故事', path: '/story', relation: 'same-source', relationCertainty: 'source-proven', scope: 'include' },
-      { id: 'page:seasonal', label: '当季专题', path: '/seasonal', relation: 'unproven', relationCertainty: 'unknown', scope: 'undecided' },
-      { id: 'page:contact', label: '联系我们', path: '/contact', relation: 'unproven', relationCertainty: 'partial', scope: 'undecided' },
+      { id: 'page:products', label: '商品专题', path: '/products', relation: 'same-source', relationCertainty: 'source-proven', scope: 'include' },
+      { id: 'page:seasonal', label: '活动页', path: '/seasonal', relation: 'unproven', relationCertainty: 'partial', scope: 'undecided' },
+      { id: 'page:contact', label: '联系我们', path: '/contact', relation: 'unproven', relationCertainty: 'unknown', scope: 'undecided' },
     ],
     elements: [
       {
         id: 'el:hero-title', label: '活动标题「秋日茶器市集」', demoSelector: '[data-xp-demo="hero-title"]',
         currentText: '秋日茶器市集', sourceRef: 'data:hero-title', sourcePath: 'src/data/campaign.ts',
-        certainty: 'source-proven', impactPageRefs: [HOME, 'page:products', 'page:story'],
+        certainty: 'source-proven', impactPageRefs: [HOME, 'page:products'],
         unresolvedReasons: [], editable: true,
       },
       {
@@ -82,7 +81,7 @@ function evidenceForSelection(element: CanvasElementXp | undefined, draftText: s
     {
       id: 'ev:risk', title: '已发现的风险', state: 'risk', sourceKind: 'source-graph',
       summary: '「联系我们」页通过条件渲染引用同一数据，当前只能部分证明；「推荐卡片」内容来自运行时接口，静态来源不完整。',
-      detail: 'source-graph: 61/61 消费边 source-proven；2 条 unresolved 如实保留（演示口径）。',
+      detail: 'source-graph 演示口径：消费关系逐条标注确定性，无法证明的引用如实保留为未知。',
     },
     {
       id: 'ev:not-checked', title: '尚未检查的项目', state: 'not-run', sourceKind: 'runtime-observation',
@@ -104,7 +103,7 @@ function evidenceForSelection(element: CanvasElementXp | undefined, draftText: s
 
 const initialVersions = (): ExperienceViewModel['versions'] => [
   { id: 'v:3', title: '图片替换试验', lifecycle: 'rolled-back', updatedAt: '昨天 21:12', summary: '替换了商品主图，验证未通过后回滚', pageRef: 'page:products', evidenceAvailable: true },
-  { id: 'v:2', title: '导航文案微调', lifecycle: 'applied', updatedAt: '昨天 18:40', summary: '「全部作品」改为「全部商品」，三个页面一致生效', pageRef: 'page:products', evidenceAvailable: true },
+  { id: 'v:2', title: '导航文案微调', lifecycle: 'applied', updatedAt: '昨天 18:40', summary: '「全部作品」改为「商品专题」，两个页面一致生效', pageRef: 'page:products', evidenceAvailable: true },
   { id: 'v:1', title: '旧版活动标题候选', lifecycle: 'stale', updatedAt: '10-18 15:03', summary: '源码已更新，候选与当前工程不一致', pageRef: HOME, evidenceAvailable: false },
 ]
 

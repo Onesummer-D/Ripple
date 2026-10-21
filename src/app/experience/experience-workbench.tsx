@@ -21,6 +21,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [error, setError] = useState('')
   const [panel, setPanel] = useState<'evidence' | 'history' | null>('evidence')
   const [activeVersionId, setActiveVersionId] = useState<string>()
+  const [feedback, setFeedback] = useState('')
 
   useEffect(() => {
     let active = true
@@ -48,9 +49,18 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         model={model}
         onDraftText={text => apply(activeAdapter.setDraftText(model, text) ?? model)}
         onPageScope={(pageRef, scope: PageScopeChoiceXp) => apply(activeAdapter.setPageScope(model, pageRef, scope) ?? model)}
-        onDemoApprove={() => setPanel('evidence')}
+        onDemoApprove={() => {
+          // 演示审批只产生可见反馈，绝不进入真实 Approval/Apply。
+          setFeedback('演示范围决策已确认，未执行真实应用')
+        }}
       />
     </div>
+    {feedback && (
+      <div className="ripple-xp-feedback" role="status" aria-live="polite" data-testid="approve-feedback">
+        <span>{feedback}</span>
+        <button type="button" className="ripple-xp-quiet" data-testid="dismiss-feedback" onClick={() => setFeedback('')}>知道了</button>
+      </div>
+    )}
     {panel === 'evidence' && <EvidenceDrawer items={model.evidence} onClose={() => setPanel(null)} />}
     {panel === 'history' && (
       <VersionFilmstrip
