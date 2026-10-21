@@ -289,11 +289,47 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
       previewId: 'stale-preview', token: 'wrong-nonce', sourceRef: 'jsx:bad#0', identityCertainty: 'stable-react-instance',
       tagName: 'h1', text: 'forged' }, '*'))
     await page.getByTestId('toggle-element-selection').click()
+    const selectedRequestPromise = page.waitForRequest(request => request.url().endsWith('/__ripple/api/candidate/source-selection'))
     await preview.getByRole('heading', { name: 'Candidate title' }).click()
+    const selectionPayload = (await selectedRequestPromise).postDataJSON() as {
+      candidateId: string; previewId: string; patchHash: string; candidateTreeDigest: string; sourceRef: string;
+      runtimeIdentity: { protocol: string; page: { pathname: string; search: string; hash: string };
+        expectedPage: { pathname: string; search: string; hash: string }; record: {
+          sourceRef: string; runtimeInstanceId?: string; sourceVersion?: string; certainty: string;
+          declaredCertainty: string; sameSourceCount: number; domNode: number; reasons: string[] } }
+    }
     await expect(page.getByTestId('selected-source')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('selected-jsx-source')).toContainText('src/pages/HomePage.tsx#')
     await expect(page.getByTestId('selected-source')).toContainText('Patch')
     await expect(page.getByTestId('selected-source')).toContainText('stable-react-instance')
+    await expect(page.getByTestId('selected-source')).toContainText('仅用于定位，不构成编辑授权')
+    const selectionApi = 'http://127.0.0.1:4173/__ripple/api/candidate/source-selection'
+    const staleSource = await page.request.post(selectionApi, { data: { ...selectionPayload,
+      runtimeIdentity: { ...selectionPayload.runtimeIdentity, record: { ...selectionPayload.runtimeIdentity.record,
+        sourceVersion: '0'.repeat(64) } } } })
+    expect(staleSource.status(), 'stale candidate source digest must be rejected').toBe(409)
+    const wrongPage = await page.request.post(selectionApi, { data: { ...selectionPayload,
+      runtimeIdentity: { ...selectionPayload.runtimeIdentity,
+        expectedPage: { ...selectionPayload.runtimeIdentity.expectedPage, pathname: '/other' } } } })
+    expect(wrongPage.status(), 'mismatched page context must be rejected').toBe(409)
+    const wrongTree = await page.request.post(selectionApi, { data: { ...selectionPayload,
+      candidateTreeDigest: '0'.repeat(64) } })
+    expect(wrongTree.status(), 'an old candidate tree must be rejected').toBe(409)
+    for (const record of [
+      { ...selectionPayload.runtimeIdentity.record, runtimeInstanceId: undefined,
+        reasons: ['instance-unavailable'], certainty: 'unknown' },
+      { ...selectionPayload.runtimeIdentity.record, reasons: ['duplicate-runtime-instance'],
+        certainty: 'unknown' },
+      { ...selectionPayload.runtimeIdentity.record, reasons: ['react-keys-unavailable'],
+        certainty: 'unknown' },
+    ]) {
+      const response = await page.request.post(selectionApi, { data: { ...selectionPayload,
+        runtimeIdentity: { ...selectionPayload.runtimeIdentity, record } } })
+      expect(response.ok(), 'unproven instances may remain navigable').toBe(true)
+      const result = await response.json() as { runtimeIdentity: { identityCertainty: string; instanceIdentityProven: boolean } }
+      expect(result.runtimeIdentity.identityCertainty).toBe('unknown')
+      expect(result.runtimeIdentity.instanceIdentityProven).toBe(false)
+    }
     const previewUrl = await page.getByTestId('candidate-preview').getAttribute('src')
     const previewFrame = page.frames().find(frame => frame.url() === previewUrl)
     expect(previewFrame).toBeTruthy()
