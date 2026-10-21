@@ -1,0 +1,315 @@
+{
+  "schema": "ripple-visual-difference/v1",
+  "id": "visual-0f65681f4c69277c736fb94aaae659c4",
+  "checkId": "fixture-page-extent-changed",
+  "analyzedAt": "2026-10-21T00:00:00.000Z",
+  "result": "unknown",
+  "resultReason": "The screenshots are not comparable (image-size-mismatch); no visual conclusion is drawn.",
+  "subject": {
+    "candidateId": "candidate-fixture-1",
+    "patchHash": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+    "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+    "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+    "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+    "scopeDecisionId": "scope-fixture-1",
+    "scopeVersion": 1,
+    "runId": "run-fixture-page-extent-changed"
+  },
+  "identity": {
+    "status": "consistent",
+    "expectedProvided": true,
+    "checks": [
+      {
+        "field": "subject.candidateId",
+        "observed": "candidate-fixture-1",
+        "expected": "candidate-fixture-1",
+        "status": "match"
+      },
+      {
+        "field": "subject.patchHash",
+        "observed": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+        "expected": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+        "status": "match"
+      },
+      {
+        "field": "subject.baseSourceDigest",
+        "observed": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "expected": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "status": "match"
+      },
+      {
+        "field": "subject.candidateTreeDigest",
+        "observed": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "expected": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "status": "match"
+      },
+      {
+        "field": "subject.runtimeFingerprint",
+        "observed": "fixture-runtime:synthetic-scene-renderer/1",
+        "expected": "fixture-runtime:synthetic-scene-renderer/1",
+        "status": "match"
+      },
+      {
+        "field": "subject.scopeDecisionId",
+        "observed": "scope-fixture-1",
+        "expected": "scope-fixture-1",
+        "status": "match"
+      },
+      {
+        "field": "subject.scopeVersion",
+        "observed": 1,
+        "expected": 1,
+        "status": "match"
+      },
+      {
+        "field": "baseline.sourceDigest",
+        "observed": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "expected": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "status": "match"
+      },
+      {
+        "field": "candidate.sourceDigest",
+        "observed": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "expected": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "status": "match"
+      },
+      {
+        "field": "baseline.runtimeFingerprint",
+        "observed": "fixture-runtime:synthetic-scene-renderer/1",
+        "expected": "fixture-runtime:synthetic-scene-renderer/1",
+        "status": "match"
+      },
+      {
+        "field": "candidate.runtimeFingerprint",
+        "observed": "fixture-runtime:synthetic-scene-renderer/1",
+        "expected": "fixture-runtime:synthetic-scene-renderer/1",
+        "status": "match"
+      }
+    ]
+  },
+  "inputs": {
+    "baseline": {
+      "descriptor": {
+        "side": "baseline",
+        "route": "/",
+        "pageUrl": "http://fixture.invalid/",
+        "locationRedacted": false,
+        "routeSuffixSha256": "498d26f2807d146886f648329078a14f422972205d63eb39d06db6e5fd37a38a",
+        "pageUrlLocationSha256": "ecd21a0c6cdba6f1ebeaad45146f48966b92b4e2a84548fc34cebed0e89953e9",
+        "viewport": {
+          "width": 320,
+          "height": 240
+        },
+        "devicePixelRatio": 1,
+        "browser": {
+          "name": "synthetic-scene-renderer",
+          "version": "1"
+        },
+        "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+        "interactionState": "rendered",
+        "sourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "capture": {
+          "completed": true,
+          "stable": true,
+          "fullPage": true,
+          "animationsDisabled": true,
+          "fontsReady": true,
+          "capturedAt": "2026-10-21T00:00:00.000Z",
+          "scroll": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "screenshot": {
+          "declaredSha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+          "artifactPath": "baseline.png"
+        }
+      },
+      "descriptorIssues": [],
+      "screenshot": {
+        "status": "present",
+        "sha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "declaredSha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "hashMatchesDeclared": true,
+        "pixelSha256": "648cb61f2234c69841fd8367c566188e237f47447ba8bdbd228fa03c2e4480bc",
+        "sizeBytes": 3563,
+        "width": 320,
+        "height": 240,
+        "bitDepth": 8,
+        "colorType": 6,
+        "opaque": true,
+        "failure": null
+      }
+    },
+    "candidate": {
+      "descriptor": {
+        "side": "candidate",
+        "route": "/",
+        "pageUrl": "http://fixture.invalid/",
+        "locationRedacted": false,
+        "routeSuffixSha256": "498d26f2807d146886f648329078a14f422972205d63eb39d06db6e5fd37a38a",
+        "pageUrlLocationSha256": "ecd21a0c6cdba6f1ebeaad45146f48966b92b4e2a84548fc34cebed0e89953e9",
+        "viewport": {
+          "width": 320,
+          "height": 240
+        },
+        "devicePixelRatio": 1,
+        "browser": {
+          "name": "synthetic-scene-renderer",
+          "version": "1"
+        },
+        "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+        "interactionState": "rendered",
+        "sourceDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "capture": {
+          "completed": true,
+          "stable": true,
+          "fullPage": true,
+          "animationsDisabled": true,
+          "fontsReady": true,
+          "capturedAt": "2026-10-21T00:00:00.000Z",
+          "scroll": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "screenshot": {
+          "declaredSha256": "f1650606adf3bd2eba7e43b3046fab5d809c19ff236ae0f3bb61b7a47c96f106",
+          "artifactPath": "candidate.png"
+        }
+      },
+      "descriptorIssues": [],
+      "screenshot": {
+        "status": "present",
+        "sha256": "f1650606adf3bd2eba7e43b3046fab5d809c19ff236ae0f3bb61b7a47c96f106",
+        "declaredSha256": "f1650606adf3bd2eba7e43b3046fab5d809c19ff236ae0f3bb61b7a47c96f106",
+        "hashMatchesDeclared": true,
+        "pixelSha256": "9c235810f5f1a239d7388460a4309ff7025e67d5f2ccc8f011bf8511642926f6",
+        "sizeBytes": 3730,
+        "width": 320,
+        "height": 280,
+        "bitDepth": 8,
+        "colorType": 6,
+        "opaque": true,
+        "failure": null
+      }
+    }
+  },
+  "comparability": {
+    "comparable": false,
+    "reasons": [
+      {
+        "code": "image-size-mismatch",
+        "detail": "The screenshots have different pixel dimensions (for full-page captures this usually means the page extent changed); pixels cannot be compared one to one.",
+        "baseline": {
+          "width": 320,
+          "height": 240
+        },
+        "candidate": {
+          "width": 320,
+          "height": 280
+        }
+      }
+    ],
+    "limitations": []
+  },
+  "observation": null,
+  "geometry": {
+    "status": "not-evaluated",
+    "baseline": {
+      "status": "missing",
+      "detail": null,
+      "elementCount": 0,
+      "screenshotBound": false
+    },
+    "candidate": {
+      "status": "missing",
+      "detail": null,
+      "elementCount": 0,
+      "screenshotBound": false
+    },
+    "target": {
+      "status": "unavailable",
+      "declaredRefs": [
+        "src/components/Hero.tsx#h1"
+      ],
+      "mappedRefs": {
+        "baseline": [],
+        "candidate": []
+      },
+      "missingRefs": [
+        "src/components/Hero.tsx#h1"
+      ]
+    },
+    "changedPixelsInsideTarget": null,
+    "changedPixelsOutsideTarget": null,
+    "matching": null,
+    "documentSize": {
+      "baseline": null,
+      "candidate": null
+    },
+    "displacements": [],
+    "displacementsTruncated": false,
+    "risks": [],
+    "risksTruncated": false
+  },
+  "findings": [],
+  "coverage": {
+    "route": "/",
+    "viewport": {
+      "width": 320,
+      "height": 240
+    },
+    "devicePixelRatio": 1,
+    "interactionState": "rendered",
+    "captureExtent": "full-page",
+    "compared": false,
+    "notChecked": [
+      "entire-capture"
+    ]
+  },
+  "parameters": {
+    "algorithm": {
+      "name": "pixelmatch",
+      "version": "8.0.0",
+      "colorMetric": "OKLab HyAB"
+    },
+    "decoder": {
+      "name": "pngjs",
+      "version": "7.0.0"
+    },
+    "threshold": 0.03,
+    "includeAA": false,
+    "mergeDistanceCssPx": 8,
+    "mergeDistancePx": null,
+    "targetMarginCssPx": 2,
+    "targetMarginPx": null,
+    "geometryToleranceCssPx": 1,
+    "maxRegions": 100,
+    "maxElementsPerRegion": 5,
+    "maxListedItems": 100,
+    "png": {
+      "maxFileBytes": 67108864,
+      "maxWidth": 8192,
+      "maxHeight": 32768,
+      "maxPixels": 33554432,
+      "maxChunks": 4096
+    },
+    "geometry": {
+      "maxElements": 2000
+    },
+    "geometryRules": {
+      "new-overlap": "Two stably identified, visible, non-nested elements whose visible (unclipped) boxes did not overlap in the baseline overlap by more than the tolerance in both axes in the candidate (possible occlusion).",
+      "new-viewport-overflow": "A stably identified, visible element whose clipped box stayed within the viewport width in the baseline extends beyond it by more than the tolerance in the candidate.",
+      "new-clip-overflow": "A stably identified, visible element that fit inside its overflow:hidden/clip ancestors in the baseline exceeds them by more than the tolerance in the candidate (content is cut off; scroll containers are excluded).",
+      "new-document-horizontal-overflow": "The document scroll width stayed within the viewport width in the baseline and exceeds it by more than the tolerance in the candidate."
+    }
+  },
+  "environment": {
+    "runtime": "node",
+    "nodeVersion": "v22.22.0",
+    "platform": "linux",
+    "arch": "x64",
+    "zlib": "1.3.1-470d3a2"
+  }
+}

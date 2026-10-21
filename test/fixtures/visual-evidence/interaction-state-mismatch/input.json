@@ -1,0 +1,346 @@
+{
+  "description": "Baseline shows the default state while the candidate shows the opened menu.",
+  "demonstrates": [
+    "not comparable: interaction-state-mismatch"
+  ],
+  "checkId": "fixture-interaction-state-mismatch",
+  "subject": {
+    "candidateId": "candidate-fixture-1",
+    "patchHash": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+    "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+    "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+    "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+    "scopeDecisionId": "scope-fixture-1",
+    "scopeVersion": 1,
+    "runId": "run-fixture-interaction-state-mismatch"
+  },
+  "expected": {
+    "candidateId": "candidate-fixture-1",
+    "patchHash": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+    "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+    "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+    "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+    "scopeDecisionId": "scope-fixture-1",
+    "scopeVersion": 1
+  },
+  "targets": {
+    "sourceRefs": [
+      "src/components/Hero.tsx#h1"
+    ]
+  },
+  "baseline": {
+    "descriptor": {
+      "side": "baseline",
+      "route": "/",
+      "pageUrl": "http://fixture.invalid/",
+      "viewport": {
+        "width": 320,
+        "height": 240
+      },
+      "devicePixelRatio": 1,
+      "browser": {
+        "name": "synthetic-scene-renderer",
+        "version": "1"
+      },
+      "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+      "interactionState": "rendered",
+      "sourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+      "capture": {
+        "completed": true,
+        "stable": true,
+        "fullPage": true,
+        "animationsDisabled": true,
+        "fontsReady": true,
+        "capturedAt": "2026-10-21T00:00:00.000Z",
+        "scroll": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "screenshot": {
+        "declaredSha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "artifactPath": "baseline.png"
+      }
+    },
+    "screenshot": "baseline.png",
+    "geometry": {
+      "schema": "ripple-dom-geometry/v1",
+      "side": "baseline",
+      "route": "/",
+      "viewport": {
+        "width": 320,
+        "height": 240
+      },
+      "devicePixelRatio": 1,
+      "interactionState": "rendered",
+      "coordinateSpace": "document",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "documentSize": {
+        "width": 320,
+        "height": 240
+      },
+      "screenshotSha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+      "elements": [
+        {
+          "id": "e0",
+          "parentId": null,
+          "sourceRef": "src/App.tsx#App",
+          "runtimeInstanceId": "App",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 320,
+            "height": 240
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e1",
+          "parentId": "e0",
+          "sourceRef": "src/components/Header.tsx#header",
+          "runtimeInstanceId": "App/Header",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 320,
+            "height": 40
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e2",
+          "parentId": "e0",
+          "sourceRef": "src/components/Hero.tsx#h1",
+          "runtimeInstanceId": "App/Hero/h1",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 16,
+            "y": 56,
+            "width": 200,
+            "height": 24
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e3",
+          "parentId": "e0",
+          "sourceRef": "src/components/Hero.tsx#p",
+          "runtimeInstanceId": "App/Hero/p",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 16,
+            "y": 92,
+            "width": 288,
+            "height": 40
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e4",
+          "parentId": "e0",
+          "sourceRef": "src/components/Hero.tsx#a.cta",
+          "runtimeInstanceId": "App/Hero/a.cta",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 16,
+            "y": 150,
+            "width": 120,
+            "height": 36
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e5",
+          "parentId": "e0",
+          "sourceRef": "src/components/Footer.tsx#footer",
+          "runtimeInstanceId": "App/Footer",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 0,
+            "y": 208,
+            "width": 320,
+            "height": 32
+          },
+          "clipRect": null,
+          "visible": true
+        }
+      ]
+    }
+  },
+  "candidate": {
+    "descriptor": {
+      "side": "candidate",
+      "route": "/",
+      "pageUrl": "http://fixture.invalid/",
+      "viewport": {
+        "width": 320,
+        "height": 240
+      },
+      "devicePixelRatio": 1,
+      "browser": {
+        "name": "synthetic-scene-renderer",
+        "version": "1"
+      },
+      "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+      "interactionState": "after:button:Open menu",
+      "sourceDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+      "capture": {
+        "completed": true,
+        "stable": true,
+        "fullPage": true,
+        "animationsDisabled": true,
+        "fontsReady": true,
+        "capturedAt": "2026-10-21T00:00:00.000Z",
+        "scroll": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "screenshot": {
+        "declaredSha256": "0f157f9724ed5cfc4d70bdf3775d60df4b8b813a3956cfa9472b186235c96dbb",
+        "artifactPath": "candidate.png"
+      }
+    },
+    "screenshot": "candidate.png",
+    "geometry": {
+      "schema": "ripple-dom-geometry/v1",
+      "side": "candidate",
+      "route": "/",
+      "viewport": {
+        "width": 320,
+        "height": 240
+      },
+      "devicePixelRatio": 1,
+      "interactionState": "after:button:Open menu",
+      "coordinateSpace": "document",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "documentSize": {
+        "width": 320,
+        "height": 240
+      },
+      "screenshotSha256": "0f157f9724ed5cfc4d70bdf3775d60df4b8b813a3956cfa9472b186235c96dbb",
+      "elements": [
+        {
+          "id": "e0",
+          "parentId": null,
+          "sourceRef": "src/App.tsx#App",
+          "runtimeInstanceId": "App",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 320,
+            "height": 240
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e1",
+          "parentId": "e0",
+          "sourceRef": "src/components/Header.tsx#header",
+          "runtimeInstanceId": "App/Header",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 320,
+            "height": 40
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e2",
+          "parentId": "e0",
+          "sourceRef": "src/components/Hero.tsx#h1",
+          "runtimeInstanceId": "App/Hero/h1",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 16,
+            "y": 56,
+            "width": 200,
+            "height": 24
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e3",
+          "parentId": "e0",
+          "sourceRef": "src/components/Hero.tsx#p",
+          "runtimeInstanceId": "App/Hero/p",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 16,
+            "y": 92,
+            "width": 288,
+            "height": 40
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e4",
+          "parentId": "e0",
+          "sourceRef": "src/components/Hero.tsx#a.cta",
+          "runtimeInstanceId": "App/Hero/a.cta",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 16,
+            "y": 150,
+            "width": 120,
+            "height": 36
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e5",
+          "parentId": "e0",
+          "sourceRef": "src/components/Footer.tsx#footer",
+          "runtimeInstanceId": "App/Footer",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 0,
+            "y": 208,
+            "width": 320,
+            "height": 32
+          },
+          "clipRect": null,
+          "visible": true
+        },
+        {
+          "id": "e6",
+          "parentId": "e1",
+          "sourceRef": "src/components/Header.tsx#nav.menu",
+          "runtimeInstanceId": "App/Header/nav.menu",
+          "identityCertainty": "stable-react-instance",
+          "rect": {
+            "x": 200,
+            "y": 40,
+            "width": 120,
+            "height": 96
+          },
+          "clipRect": null,
+          "visible": true
+        }
+      ]
+    }
+  },
+  "analyzedAt": "2026-10-21T00:00:00.000Z",
+  "diffArtifactPath": "diff.png"
+}
