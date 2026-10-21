@@ -339,3 +339,57 @@ VerificationReceipt 公共契约（仅使用其既有 API）。
   唯一共享路径是 `docs/probes/` 目录（纯新增）。PR #9 历史提交 `8c1ae2b`（CI #280 修复）
   之前已在 v7 记录。
 - `_scratch/codescandy-dashui`（冻结检出）与 `_scratch/probe-codescandy-acceptance/` 可复验。
+
+---
+
+# 接力记录 v9——Issue #6 审查回流：根因修正、真实 data router 复现、探针加固（2026-10-21）
+
+## 一、背景
+
+协调人对 PR #9 `272506a` 完成独立审查（认可能力盘点与最小复现；Issue #6 整体
+**不宣布验收完成**，定位="真实项目能力盘点与公共接口缺口复现完成"），下达
+P1 修正三项 + 阻断矩阵 + A 接口需求文本。本批全部完成，未改 A 任何公共实现。
+
+## 二、新增/变更代码（PR #9 分支 `feat/thirdparty-dash-ui-20261019`）
+
+- `7bad3f4` test(core)：审查回流——
+  - **根因修正**：v8 所称"解析失败自指 imports 边"经协调人核实**不准确**。真实缺口在
+    project.ts ImportDeclaration 循环：resolveModuleName 失败后，非 `.`/`@/` 前缀的
+    内部别名/裸导入被 continue 静默跳过（无 import: 模块边、无 unresolved）。组件来源边
+    （id `source:<componentId>`）是正常语义，不得删除。复现测试已改写并按
+    id 前缀区分两类 imports 边（Relation 无 source 字段，第四参是边 id）。
+  - **真实 data router 复现**：新增 codescandy 同型结构（`Component:`/children/index/
+    动态参数/RouterProvider）2 用例；实测附带发现：路由 path 字面量当前不入图为 data 节点。
+  - **探针加固**：schemaVersion 1、`--expect-sha` 精确校验、检出失败/SHA 不匹配/工作区脏
+    拒绝生成报告、committed JSON 不含本机绝对路径、明确标注 capability probe 定位；
+    新增 smoke 测试 4 用例（字段/错误退出/路径红线）。
+- `d696e4f` docs(probes)：以 v2 schema 重生成 codescandy 统计 JSON
+  （--expect-sha b700bbd 校验通过，实测基线 `7bad3f4`）。
+
+## 三、新增文档（均为审查结论与工程输入，非新代码能力）
+
+- `docs/probes/thirdparty-text-blocker-matrix.md`：10 环节阻断矩阵
+  （#1 UNSUPPORTED、#2/#3 BLOCKED、#4–#7 NOT RUN、#8 PASS、#9/#10 UNSUPPORTED），
+  含推进条件；未运行环节不级联写成已验证失败。
+- `docs/probes/a-interface-requirements-issue6.md`：给 A 的可复制评论文本
+  （A-P1a data router、A-P1b tsconfig 图与解析失败归因、后续 JSX 字符串属性/SCSS）。
+  **注意：B 凭据 REST 写操作 401，评论未发布，文本需负责人代发，不得宣称已发布。**
+- `docs/probes/codescandy-b700bbd-20261021.md` v2：根因修正、探针定位声明、
+  SHA 来源说明（8223897 在远端任何 ref 均不可解析；b700bbd 为远端 main 当前 HEAD
+  完整克隆、MIT、commit 2024-11-22、与协调人基线一致）。
+
+## 四、验证结果（本机 Windows，Linux CI 为权威）
+
+- 复现测试 7/7、探针 smoke 4/4、typecheck ✅、build ✅；
+- 全量 Vitest 零 AssertionError（失败均为已知 EPERM teardown/超时噪音）；
+- 推送后 CI run **39546320560**（`d696e4f`），结论以该 run 为准。
+
+## 五、交接注意
+
+- 与 B 原工作区可能冲突的文件：全部为新增/本分支文件（`b-thirdparty-*`、
+  `thirdparty-acceptance.ts`、`docs/probes/` 三个新文档 + 一个改版文档），
+  不触碰 B 既有 MEDIA 工件。
+- PR #9 仍为 Draft 且有合并冲突，未自行合并/强推；待 A 公共核心稳定后按阻断矩阵
+  推进条件重新集成。
+- 青野 MEDIA Run #1 不重跑；关键摘要/SHA/哈希/回滚证明已持久归档于
+  `_scratch/media-acceptance/` 与本 handoff 历史版本。
