@@ -7,7 +7,9 @@ import { assertCandidateCurrent, assertCandidateIntegrity, CandidateError, creat
 import { applyApprovedCandidate, isAppliedCandidateRollbackable, PatchApplyError, rollbackAppliedCandidate } from './apply'
 import { isCurrentProjectSourcePreview, preparePreviewNetworkPool, readProjectSourcePreviewDiagnostics, startCandidatePreview, startProjectSourcePreview, stopCandidatePreview, stopPreviewNetworkPool, stopProjectSourcePreview } from './candidate-preview'
 import { referencedPreviewResourceUrls, saveTrustedPreviewResourceUrls, trustedPreviewResourceUrls } from './preview-resource-policy'
-import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
+import { analyzeProject, createRuntimeSourceMap, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement, resolveRuntimeInstance } from './project'
+import { assessRuntimeIdentity, selectableRuntimeObservations, RUNTIME_IDENTITY_PROTOCOL } from './runtime-identity'
+import type { RuntimeIdentityRecord, RuntimeIdentitySnapshot } from './runtime-identity'
 import { sourceProvenPageImpact } from './scope'
 import { approve, beginVerification, chooseScope, openSession, recordAppliedRevision, recordRollback, recordSourceGraph, recordVerificationFailure, registerVerification, SessionInvariantError, stageCandidate, stageOperations } from './session'
 import { assertTrustedBrowserExecution, restoreBrowserExecution } from './verification-receipt'
@@ -507,8 +509,54 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
     const live = candidates.get(body.candidateId)
     if (!live) return reject(response, 404, '候选不存在或已清理')
     assertCandidateCurrent(live.record)
+    if (body.previewId !== live.record.id || body.patchHash !== live.record.patchHash ||
+      body.candidateTreeDigest !== live.record.candidateTreeDigest) throw new CandidateError('点选消息来自不匹配的候选预览、补丁或源码树')
     const graph = analyzeProject(live.record.candidateRoot!, false)
     if (graph.revision.sourceDigest !== live.record.candidateTreeDigest) throw new CandidateError('候选源码图与当前补丁树摘要不一致')
+
+    // The page sends observations, NOT a trusted certainty or an editing capability.
+    // The host always reconstructs source version evidence from this exact worktree.
+    const identity = body.runtimeIdentity
+    if (!identity || typeof identity !== 'object' || Array.isArray(identity)) throw new CandidateError('点选缺少运行时采集证据')
+    const packet = identity as Record<string, unknown>
+    const page = packet.page as Record<string, unknown> | undefined
+    const expected = packet.expectedPage as Record<string, unknown> | undefined
+    const record = packet.record as Record<string, unknown> | undefined
+    if (packet.protocol !== RUNTIME_IDENTITY_PROTOCOL || !page || !expected || !record ||
+      typeof page.pathname !== 'string' || typeof page.search !== 'string' || typeof page.hash !== 'string' ||
+      typeof expected.pathname !== 'string' || typeof expected.search !== 'string' || typeof expected.hash !== 'string' ||
+      page.pathname !== expected.pathname || page.search !== expected.search || page.hash !== expected.hash ||
+      record.sourceRef !== body.sourceRef ||
+      typeof record.certainty !== 'string' ||
+      !['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped'].includes(record.certainty) ||
+      typeof record.declaredCertainty !== 'string' ||
+      !Array.isArray(record.reasons) || record.reasons.length > 24 || record.reasons.some(reason => typeof reason !== 'string') ||
+      typeof record.sameSourceCount !== 'number' || !Number.isSafeInteger(record.sameSourceCount) || record.sameSourceCount < 0 ||
+      typeof record.domNode !== 'number' || !Number.isSafeInteger(record.domNode) || record.domNode < 0 ||
+      (record.runtimeInstanceId !== undefined && typeof record.runtimeInstanceId !== 'string') ||
+      (record.sourceVersion !== undefined && typeof record.sourceVersion !== 'string')) {
+      throw new CandidateError('运行时采集格式无效或与当前页面上下文不一致')
+    }
+    const snapshot: RuntimeIdentitySnapshot = {
+      protocol: RUNTIME_IDENTITY_PROTOCOL,
+      page: { pathname: page.pathname, search: page.search, hash: page.hash },
+      records: [record as unknown as RuntimeIdentityRecord],
+    }
+    const fileDigest = (file: string): string | undefined => {
+      if (!graph.nodes.some(node => node.kind === 'jsx-element' && node.id === body.sourceRef && node.location?.path === file)) return undefined
+      if (path.isAbsolute(file) || file.split(/[\\/]/).includes('..')) return undefined
+      const filename = path.resolve(live.record.candidateRoot!, file)
+      if (!filename.startsWith(path.resolve(live.record.candidateRoot!) + path.sep) || fs.lstatSync(filename).isSymbolicLink()) return undefined
+      return createHash('sha256').update(fs.readFileSync(filename)).digest('hex')
+    }
+    const assessment = assessRuntimeIdentity(graph, snapshot, snapshot.records[0], { fileDigest, expectedPage: snapshot.page })
+    if (!assessment.locatable || assessment.reasons.includes('source-version-mismatch') || assessment.reasons.includes('page-context-mismatch') ||
+      assessment.reasons.includes('source-version-ambiguous')) throw new CandidateError('运行时身份对应的源码版本或页面已失效，必须重新点选')
+    if (assessment.instanceIdentityProven) {
+      // Strict mapping is still ONLY for navigation/display; it cannot grant Scope or Override.
+      const map = createRuntimeSourceMap(graph, selectableRuntimeObservations(snapshot))
+      resolveRuntimeInstance(graph, { sourceRef: assessment.sourceRef, runtimeInstanceId: assessment.runtimeInstanceId! }, map, { fileDigest, page: snapshot.page })
+    }
     const { element, editableText } = resolveJsxSourceElement(graph, body.sourceRef)
     return json(response, 200, {
       candidateId: live.record.id,
@@ -516,6 +564,13 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
       sourceDigest: graph.revision.sourceDigest,
       element,
       editableText: editableText.map(node => ({ ...node, impact: sourceProvenPageImpact(graph, node.id) })),
+      runtimeIdentity: {
+        runtimeInstanceId: assessment.runtimeInstanceId,
+        identityCertainty: assessment.instanceIdentityProven ? assessment.certainty : 'unknown',
+        instanceIdentityProven: assessment.instanceIdentityProven,
+        sameSourceCount: assessment.sameSourceCount,
+        reasons: assessment.reasons,
+      },
     })
   }
 

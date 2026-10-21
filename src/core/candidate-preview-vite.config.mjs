@@ -119,6 +119,7 @@ const collectRuntimeIdentitySnapshot = ${collectRuntimeIdentitySnapshot.toString
       sourceVersion: record?.sourceVersion,
       pageContext, sameSourceCount: record?.sameSourceCount ?? 0,
       domNode: record?.domNode,
+      record: record || { sourceRef, declaredCertainty: 'unknown', certainty: 'unknown', reasons: ['instance-unavailable'], sameSourceCount: 0, domNode: 0 },
       tagName: target.tagName.toLowerCase(), text: (target.textContent || '').trim().slice(0, 300)
     }, '*');
   }, true);
