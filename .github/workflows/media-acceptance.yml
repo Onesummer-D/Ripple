@@ -1,0 +1,42 @@
+name: Qingye real-project MEDIA acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  media-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: Onesummer-D/ripple-qingye-bolt
+          token: ${{ secrets.BOLT_REPO_TOKEN }}
+          path: qingye-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Assert checkout credentials were not persisted
+        run: node --experimental-transform-types scripts/assert-no-checkout-credentials.ts "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/qingye-source"
+      - run: npm ci
+      - name: Install Chromium for the MEDIA evidence collector
+        run: npx playwright install --with-deps chromium
+      - name: Run the real Qingye MEDIA asset-swap acceptance
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/media-qingye-acceptance.ts "$GITHUB_WORKSPACE/qingye-source" "$RUNNER_TEMP/ripple-media-acceptance"
+      - name: Preserve acceptance evidence, screenshots and run metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-qingye-media-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ripple-media-acceptance/**
+          if-no-files-found: warn
+          retention-days: 30
