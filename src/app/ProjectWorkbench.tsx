@@ -88,6 +88,10 @@ interface SourceSelection {
   element: { id: string; label: string; location?: { path: string; start?: number; end?: number } }
   editableText: Array<{ id: string; label: string; value?: string; location?: { path: string; start?: number; end?: number }; impact: { pageRefs: string[]; unresolved: string[]; certainty: 'source-proven' | 'partial' | 'unknown' } }>
   runtimeInstanceId?: string
+  identityReasons?: string[]
+  sourceVersion?: string
+  sameSourceCount?: number
+  pageContext?: { pathname: string; search: string; hash: string }
   identityCertainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
   tagName: string
   text: string
@@ -157,6 +161,8 @@ function SourceSelectionDetails({ selection, kind, onUseText }: { selection: Sou
     <div><span className="eyebrow">{kind === 'project' ? 'PROJECT SOURCE MAPPING' : 'CANDIDATE SOURCE MAPPING'}</span><strong>{selection.element.label} · &lt;{selection.tagName}&gt;</strong><code data-testid="selected-jsx-source">{selection.element.location?.path}#{selection.element.location?.start}</code></div>
     <p>{selection.patchHash ? <>绑定候选 Patch <code>{selection.patchHash.slice(0, 16)}</code> 与源码摘要</> : <>绑定当前项目源码摘要</>} <code>{selection.sourceDigest.slice(0, 16)}</code>。这是本次预演的定位信息，不是验证证据。</p>
     <p>运行时实例：<code>{selection.runtimeInstanceId ?? '未提供'}</code> · 身份确定性：<strong>{selection.identityCertainty}</strong>{selection.identityCertainty === 'position-dependent' || selection.identityCertainty === 'unknown' || selection.identityCertainty === 'unmapped' ? ' · 不允许按唯一实例精准修改' : ' · 仅用于定位，不构成编辑授权'}</p>
+    {selection.sameSourceCount && selection.sameSourceCount > 1 ? <p>同源共享 {selection.sameSourceCount} 处；点选仅用于导航，不授予局部覆盖权限。</p> : null}
+    {selection.identityReasons?.length ? <small>身份校验原因：{selection.identityReasons.join('、')}</small> : null}
     <p>页面文本：{selection.text || '（无文本）'}</p>
     {selection.editableText.length > 0 ? <ul>{selection.editableText.map(item => <li key={item.id}><code>{item.location?.path}#{item.location?.start}</code> {item.label} · {item.impact.certainty}{item.impact.pageRefs.length ? ` · ${item.impact.pageRefs.map(ref => ref.replace('page:', '/')).join('、')}` : ''}{kind === 'project' && onUseText && item.value !== undefined && <button type="button" className="quiet-button" data-testid={`use-source-text-${item.id}`} aria-label={`编辑这段文字：${item.value}`} onClick={() => onUseText(item.id)}>编辑这段文字</button>}</li>)}</ul> : <small>此 JSX 元素没有直接映射到可编辑文本节点。</small>}
   </div>
@@ -311,7 +317,7 @@ export default function ProjectWorkbench() {
       const data = event.data as Record<string, unknown> | null
       const certainties = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
       if (!frame?.contentWindow || event.source !== frame.contentWindow || !data || data.type !== 'ripple:element-selected' ||
-        data.previewId !== previewId || data.token !== selectionNonce || typeof data.sourceRef !== 'string' ||
+        data.previewId !== previewId || data.token !== selectionNonce || data.protocol !== 'ripple-runtime-identity/v1' || typeof data.sourceRef !== 'string' ||
         typeof data.identityCertainty !== 'string' || !certainties.includes(data.identityCertainty) ||
         typeof data.tagName !== 'string' || typeof data.text !== 'string') return
       const request = kind === 'candidate'
@@ -323,10 +329,25 @@ export default function ProjectWorkbench() {
         if (previewGeneration.current !== generation || frameRef.current?.contentWindow !== event.source ||
           selectionNonce !== data.token ||
           (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
+        const context = data.pageContext as Record<string, unknown> | undefined
+        const contextOK = !!context && typeof context.pathname === 'string' &&
+          typeof context.search === 'string' && typeof context.hash === 'string'
+        const reasons = Array.isArray(data.reasons) && data.reasons.every(x => typeof x === 'string')
+          ? data.reasons as string[] : ['invalid-certainty']
+        const validIdentity = contextOK && typeof data.sourceVersion === 'string' &&
+          /^[a-f0-9]{64}$/.test(data.sourceVersion) && typeof data.runtimeInstanceId === 'string' &&
+          !data.runtimeInstanceId.endsWith(':~') && !reasons.length &&
+          (data.identityCertainty === 'stable-react-instance' || data.identityCertainty === 'stable-keyed-instance')
+        // The iframe is untrusted: this verdict is only display/navigation metadata.
+        // The trusted API resolves JSX separately; no Scope or edit is authorized here.
         setSelection({
           ...mapped,
-          runtimeInstanceId: typeof data.runtimeInstanceId === 'string' ? data.runtimeInstanceId : undefined,
-          identityCertainty: data.identityCertainty as SourceSelection['identityCertainty'],
+          runtimeInstanceId: validIdentity ? data.runtimeInstanceId as string : undefined,
+          identityCertainty: validIdentity ? data.identityCertainty as SourceSelection['identityCertainty'] : 'unknown',
+          identityReasons: validIdentity ? [] : reasons.length ? reasons : ['page-context-unverified'],
+          sourceVersion: typeof data.sourceVersion === 'string' ? data.sourceVersion : undefined,
+          pageContext: contextOK ? context as { pathname: string; search: string; hash: string } : undefined,
+          sameSourceCount: Number.isSafeInteger(data.sameSourceCount) && Number(data.sameSourceCount) > 0 ? Number(data.sameSourceCount) : undefined,
           tagName: data.tagName as string,
           text: data.text as string,
         })
