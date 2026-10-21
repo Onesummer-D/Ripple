@@ -83,7 +83,11 @@ export function inspectDataRouter(
     const resolve = (expr: ts.Expression, seen = new Set<ts.Symbol>()): ts.Expression | undefined => {
       const raw = unwrap(expr)
       if (!ts.isIdentifier(raw)) return raw
-      const bound = symbol(raw)
+      // In an object shorthand (`{ children }`), the identifier may bind to
+      // the property symbol, not to the referenced lexical variable.
+      const bound = ts.isShorthandPropertyAssignment(raw.parent)
+        ? checker.getShorthandAssignmentValueSymbol(raw.parent) ?? symbol(raw)
+        : symbol(raw)
       if (!bound || seen.has(bound)) return undefined
       const declaration = bound.declarations?.find(ts.isVariableDeclaration)
       if (!declaration?.initializer || !ts.isVariableDeclarationList(declaration.parent) ||
