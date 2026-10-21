@@ -115,6 +115,22 @@ describe('agent C: conservative data-router page provenance', () => {
 
 
 describe('agent C P1: app ownership, lexical binding and mutable route safety', () => {
+  it('never turns a route errorElement into an unconditional global page consumer', () => {
+    const root = project({
+      ...pages,
+      'src/pages/NotFound.tsx': 'export function NotFound(){return <p>Error Screen</p>}',
+      'src/App.tsx': `${routerImports} import {NotFound} from './pages/NotFound';
+        const router=createBrowserRouter([{path:'/profile',Component:Profile,errorElement:<NotFound/>}]);
+        export const App=()=> <RouterProvider router={router}/>;`,
+    })
+    const graph = analyzeProject(root)
+    const errorImpact = impact(graph,'Error Screen')
+    expect(errorImpact.certainty).not.toBe('source-proven')
+    expect(errorImpact.pageRefs).not.toContain('page:/profile')
+    expect(graph.unresolved.join('\n')).toContain('conditional route fallback')
+    expect(impact(graph,'Profile Title').certainty).toBe('partial')
+  })
+
   it('proves a default-imported route component used by an App-local data router', () => {
     const root = project({
       'src/pages/Profile.tsx': 'const Profile=()=> <h1>Real Default Profile</h1>; export default Profile;',

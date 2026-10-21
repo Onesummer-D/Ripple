@@ -218,6 +218,11 @@ export function inspectDataRouter(
           fail(file, value, 'overlapping or dynamic route object properties')
         }
         const componentValue = prop(value, 'Component') ?? prop(value, 'element')
+        // The error boundary is a conditional alternate consumer. Until its
+        // runtime mounting state is proven, a complete page impact is unsafe.
+        if (prop(value, 'errorElement') || prop(value, 'ErrorBoundary') || prop(value, 'hydrateFallbackElement')) {
+          fail(file, value, 'conditional route fallback consumer is not modeled')
+        }
         if (prop(value, 'Component') && prop(value, 'element')) fail(file, value, 'conflicting Component and element')
         const index = prop(value, 'index')
         const isIndex = index?.kind === ts.SyntaxKind.TrueKeyword

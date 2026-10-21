@@ -415,7 +415,17 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
           addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
         }
-        const target = declarationComponentName(tag, imports, byExport)
+        // JSX declared inside a data-router route object is a route configuration
+        // value, not JSX actually rendered by App. In particular errorElement
+        // must never become a source-proven global page consumer.
+        let routeConfigJsx = false
+        for (let ancestor = node.parent; ancestor && ancestor !== ownerComponent?.node; ancestor = ancestor.parent) {
+          if (ts.isPropertyAssignment(ancestor) && ['element', 'errorElement', 'hydrateFallbackElement', 'fallbackElement'].includes(propertyName(ancestor) ?? '')) {
+            routeConfigJsx = true
+            break
+          }
+        }
+        const target = routeConfigJsx ? undefined : declarationComponentName(tag, imports, byExport)
         if (target && ownerComponent) {
           if (!componentRenders.has(ownerComponent.id)) componentRenders.set(ownerComponent.id, new Set())
           componentRenders.get(ownerComponent.id)!.add(target.id)
