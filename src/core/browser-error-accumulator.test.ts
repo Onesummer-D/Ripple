@@ -20,6 +20,23 @@ describe('browser error accumulator', () => {
     expect(result.truncated).toBe(true)
   })
 
+  it('strips query strings and fragments from URLs embedded in messages', () => {
+    const accumulator = createBrowserErrorAccumulator()
+    accumulator.add('console-error', 'GET https://cdn.example.test/a.js?X-Amz-Signature=abc&exp=1#frag failed; see http://127.0.0.2:5173/src/App.tsx?t=123')
+    const [sample] = accumulator.snapshot().samples
+    expect(sample).toContain('https://cdn.example.test/a.js failed')
+    expect(sample).toContain('http://127.0.0.2:5173/src/App.tsx')
+    expect(sample).not.toMatch(/Signature|abc|exp=|frag|t=123/)
+  })
+
+  it('bounds redaction work on very large messages', () => {
+    const accumulator = createBrowserErrorAccumulator()
+    const started = Date.now()
+    accumulator.add('console-error', 'http://x/'.repeat(40_000))
+    expect(Date.now() - started).toBeLessThan(1_000)
+    expect(accumulator.snapshot().samples[0].length).toBeLessThan(600)
+  })
+
   it('retains viewport and phase context for representative diagnostics', () => {
     const accumulator = createBrowserErrorAccumulator()
     accumulator.add('pageerror', 'module failed', { url: 'http://candidate.test/src/App.tsx?x=1', viewport: { width: 1440, height: 900 }, phase: 'candidate-nav' })

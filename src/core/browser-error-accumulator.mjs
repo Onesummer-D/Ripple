@@ -1,13 +1,17 @@
 const DEFAULT_SAMPLE_LIMIT = 25
 const DEFAULT_MESSAGE_LIMIT = 500
 
-function redactMessage(value, limit) {
-  return String(value)
+export function redactMessage(value, limit = DEFAULT_MESSAGE_LIMIT) {
+  // Bound the input before the patterns run: messages can be hundreds of KB.
+  return String(value).slice(0, limit * 4)
+    // Playwright messages embed full request URLs; their query strings and
+    // fragments can carry signed tokens that a key-name pattern cannot catch.
+    .replace(/\b(https?:\/\/[^\s?#'"<>]+)[?#][^\s'"<>]*/gi, '$1')
     .replace(/(authorization|bearer|token|secret|password|api[_-]?key)(\s*[:=]\s*|\s+)[^\s,;]+/gi, '$1=<redacted>')
     .slice(0, limit)
 }
 
-function safeUrl(value) {
+export function safeUrl(value) {
   if (!value) return ''
   try {
     const parsed = new URL(String(value))

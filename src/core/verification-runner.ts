@@ -19,9 +19,12 @@ export class VerificationRunnerError extends Error {
 }
 
 export const playwrightImage = 'mcr.microsoft.com/playwright:v1.64.0-noble'
+// One budget for the host kill and the runner's own deadline; the runner stops
+// early enough to persist runner-diagnostic.json before this expires.
+export const VERIFICATION_EXECUTION_BUDGET_MS = 180_000
 const rippleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
-function docker(args: string[], timeoutMs = 180_000): Promise<void> {
+function docker(args: string[], timeoutMs = VERIFICATION_EXECUTION_BUDGET_MS): Promise<void> {
   return new Promise((resolve, reject) => {
     let stdout = ''
     let stderr = ''
@@ -184,14 +187,34 @@ function exportResourceSnapshots(runDirectory: string, runId: string, snapshots:
 // kills the container, so the runner streams progress.jsonl into the mounted
 // evidence dir and the snapshot phase writes its own timing here. Both are
 // copied into the exported evidence root even when verification throws.
+// The verification container can write these files, so only bounded regular
+// files are read or exported (never symlinks or devices).
+const DIAGNOSTIC_FILE_LIMIT_BYTES = 16 * 1024 * 1024
+function readDiagnosticFile(filePath: string, maxBytes = DIAGNOSTIC_FILE_LIMIT_BYTES): Buffer | undefined {
+  // Open without following a final symlink and without blocking (a FIFO would
+  // otherwise hang the open), then check the opened descriptor, so the file
+  // cannot be swapped between the check and the read.
+  let fd: number
+  try { fd = fs.openSync(filePath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0) | (fs.constants.O_NONBLOCK ?? 0)) } catch { return undefined }
+  try {
+    const stat = fs.fstatSync(fd)
+    if (!stat.isFile() || stat.size > maxBytes) return undefined
+    const bytes = Buffer.alloc(stat.size)
+    const read = fs.readSync(fd, bytes, 0, stat.size, 0)
+    return bytes.subarray(0, read)
+  } finally {
+    fs.closeSync(fd)
+  }
+}
+
 function exportRunDiagnostics(artifactRoot: string, runId: string): void {
   const exportRoot = resolveEvidenceExportRoot()
   if (!exportRoot) return
   const destination = path.join(exportRoot, 'diagnostics', runId)
   fs.mkdirSync(destination, { recursive: true, mode: 0o700 })
-  for (const name of ['progress.jsonl', 'snapshot-timing.json', 'resource-fetch-log.json', 'failed-to-run.json']) {
-    const source = path.join(artifactRoot, name)
-    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(destination, name))
+  for (const name of ['progress.jsonl', 'snapshot-timing.json', 'resource-fetch-log.json', 'runner-diagnostic.json', 'failed-to-run.json']) {
+    const bytes = readDiagnosticFile(path.join(artifactRoot, name))
+    if (bytes) fs.writeFileSync(path.join(destination, name), bytes)
   }
 }
 
@@ -205,16 +228,29 @@ export function buildFailedToRunDiagnostic(input: {
   candidateTreeDigest: string
   runtimeFingerprint: string
   reason: string
-}, progress: unknown[], recordedAt = new Date().toISOString()): Record<string, unknown> {
+}, progress: unknown[], recordedAt = new Date().toISOString(), runnerDiagnostic?: unknown): Record<string, unknown> {
+  const events = progress.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+  const ofKind = (kind: string) => events.filter(item => item.event === kind)
+  // Tasks the runner started but never reported as settled: with a budget kill
+  // these are exactly the probes that were still running, per viewport.
+  const taskStates = new Map<string, Record<string, unknown>>()
+  for (const item of ofKind('task')) taskStates.set(`${String(item.checkId)}\u0000${String(item.task)}`, item)
   return {
     schemaVersion: 1,
     executor: 'playwright',
+    // Diagnostics only: never completed, never an execution record.
+    ...input,
     completed: false,
     status: 'failed-to-run',
-    ...input,
     recordedAt,
-    completedChecks: progress.filter(item => typeof item === 'object' && item !== null && (item as { event?: unknown }).event === 'check-complete'),
-    lastProgress: progress.slice(-24),
+    completedChecks: ofKind('check-complete'),
+    firstErrors: ofKind('first-error').slice(0, 16),
+    viewportLifecycle: ofKind('viewport-lifecycle').slice(0, 16),
+    unfinishedTasks: [...taskStates.values()].filter(item => item.state === 'started').slice(0, 32),
+    lateEvents: events.filter(item => item.late === true).length,
+    // Carried as data only, and never allowed to claim completion.
+    ...(runnerDiagnostic !== undefined ? { runnerDiagnostic: typeof runnerDiagnostic === 'object' && runnerDiagnostic !== null ? { ...runnerDiagnostic, completed: false } : { unreadable: true } } : {}),
+    lastProgress: events.slice(-24),
   }
 }
 
@@ -230,21 +266,23 @@ function writeFailedToRunDiagnostic(artifactRoot: string, input: {
   reason: string
 }): void {
   const diagnosticPath = path.join(artifactRoot, 'failed-to-run.json')
-  if (fs.existsSync(diagnosticPath)) return
-  let progress: unknown[] = []
-  const progressPath = path.join(artifactRoot, 'progress.jsonl')
-  if (fs.existsSync(progressPath)) {
-    progress = fs.readFileSync(progressPath, 'utf8').split('\n').filter(Boolean).flatMap(line => {
-      try { return [JSON.parse(line)] } catch { return [] }
-    })
-  }
-  fs.writeFileSync(diagnosticPath, JSON.stringify(buildFailedToRunDiagnostic(input, progress), null, 2), { flag: 'wx' })
+  // The container can write into this directory; the host's diagnostic always
+  // replaces anything already there under this name.
+  fs.rmSync(diagnosticPath, { force: true })
+  const progress: unknown[] = (readDiagnosticFile(path.join(artifactRoot, 'progress.jsonl'))?.toString('utf8') ?? '').split('\n').filter(Boolean).flatMap(line => {
+    try { return [JSON.parse(line)] } catch { return [] }
+  })
+  let runnerDiagnostic: unknown
+  const runnerDiagnosticBytes = readDiagnosticFile(path.join(artifactRoot, 'runner-diagnostic.json'), 1024 * 1024)
+  if (runnerDiagnosticBytes) {
+    try { runnerDiagnostic = JSON.parse(runnerDiagnosticBytes.toString('utf8')) } catch { runnerDiagnostic = { unreadable: true } }
+  } else if (fs.existsSync(path.join(artifactRoot, 'runner-diagnostic.json'))) runnerDiagnostic = { unreadable: true }
+  fs.writeFileSync(diagnosticPath, JSON.stringify(buildFailedToRunDiagnostic(input, progress, undefined, runnerDiagnostic), null, 2), { flag: 'wx' })
 }
 
 function readRunnerProgressTail(artifactRoot: string, maxLines = 24): string {
-  const progressFile = path.join(artifactRoot, 'progress.jsonl')
-  if (!fs.existsSync(progressFile)) return ''
-  return fs.readFileSync(progressFile, 'utf8').trim().split('\n').filter(Boolean).slice(-maxLines).join('\n')
+  const bytes = readDiagnosticFile(path.join(artifactRoot, 'progress.jsonl'))
+  return bytes ? bytes.toString('utf8').trim().split('\n').filter(Boolean).slice(-maxLines).join('\n') : ''
 }
 
 export async function runCandidateVerification(candidate: CandidateRecord, session: EditSession, baseGraph: SourceGraph, preview: CandidatePreview): Promise<VerificationRun> {
@@ -312,6 +350,9 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash, candidateTreeDigest: candidate.candidateTreeDigest,
       runtimeFingerprint: session.projectRevision.runtimeFingerprint,
       verificationContractHash: verificationContractHash(session.verificationContract),
+      // Absolute kill time (host clock == container clock); the runner stops
+      // before it to persist its diagnostic.
+      executionDeadlineAt: Date.now() + VERIFICATION_EXECUTION_BUDGET_MS,
       viewports: projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height })),
       previewHost: await resolveCandidatePreviewAddress(preview), baselineHost: baseline.address,
       targetBindings: sourceBindings(candidate, baseGraph, candidateGraph, session),
@@ -337,7 +378,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       '--mount', mount(artifactRoot, '/evidence', false),
       '--workdir', '/ripple', playwrightImage,
       'node', '/ripple/core/candidate-verification-runner.mjs', '/evidence/input.json',
-    ])
+    ], VERIFICATION_EXECUTION_BUDGET_MS)
   } catch (error) {
     const wrapped = error instanceof VerificationRunnerError ? error : new VerificationRunnerError(error instanceof Error ? error.message : 'Playwright 执行失败')
     const progressTail = readRunnerProgressTail(artifactRoot)
