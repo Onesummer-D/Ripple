@@ -3,6 +3,7 @@ import { isIP } from 'node:net'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
 import { collectRuntimeIdentitySnapshot } from './runtime-identity.ts'
+import { insertCandidateSelectionBridge } from './candidate-selection-bridge-html.ts'
 
 const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
@@ -128,9 +129,7 @@ function selectionBridge() {
     name: 'ripple-candidate-selection-bridge',
     transformIndexHtml: {
       order: 'post',
-      handler: (html) => html
-        .replace(/<script\b(?=[^>]*\bsrc=["']\/@vite\/client["'])[^>]*>\s*<\/script>/g, '')
-        .replace('</body>', () => `${script}</body>`),
+      handler: (html) => insertCandidateSelectionBridge(html, script),
     },
   }
 }
