@@ -91,6 +91,13 @@ interface SourceSelection {
   identityCertainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
   tagName: string
   text: string
+  runtimeIdentity?: {
+    runtimeInstanceId?: string
+    identityCertainty: SourceSelection['identityCertainty']
+    instanceIdentityProven: boolean
+    sameSourceCount: number
+    reasons: string[]
+  }
 }
 interface ProjectSourcePreview { projectId: string; previewId: string; sourceDigest: string; url: string }
 type PageScope = PageScopeChoice
@@ -320,7 +327,7 @@ export default function ProjectWorkbench() {
       const expectedUrl = new URL(frame.src, location.href)
       const expectedPage = { pathname: expectedUrl.pathname, search: expectedUrl.search, hash: expectedUrl.hash }
       const request = kind === 'candidate'
-        ? post<SourceSelection & { runtimeIdentity: { runtimeInstanceId?: string; identityCertainty: SourceSelection['identityCertainty']; instanceIdentityProven: boolean; sameSourceCount: number; reasons: string[] } }>('candidate/source-selection', {
+        ? post<SourceSelection>('candidate/source-selection', {
           candidateId: previewId, previewId, sourceRef: data.sourceRef, patchHash: candidate?.patchHash,
           candidateTreeDigest: candidate?.candidateTreeDigest,
           runtimeIdentity: { protocol: data.protocol, page: data.pageContext, record: data.record, expectedPage },
@@ -336,8 +343,8 @@ export default function ProjectWorkbench() {
           ...mapped,
           // The DOM is an untrusted source; only a version/page/candidate-checked
           // server verdict can be displayed as stable, and it grants no edit permission.
-          runtimeInstanceId: kind === 'candidate' ? ('runtimeIdentity' in mapped ? mapped.runtimeIdentity?.runtimeInstanceId : undefined) : undefined,
-          identityCertainty: kind === 'candidate' && 'runtimeIdentity' in mapped ? mapped.runtimeIdentity?.identityCertainty ?? 'unknown' : 'unknown',
+          runtimeInstanceId: kind === 'candidate' ? (mapped.runtimeIdentity?.runtimeInstanceId) : undefined,
+          identityCertainty: kind === 'candidate' && mapped.runtimeIdentity?.identityCertainty ?? 'unknown',
           tagName: data.tagName as string,
           text: data.text as string,
         })
