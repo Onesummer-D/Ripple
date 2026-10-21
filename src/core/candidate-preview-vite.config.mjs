@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import { isIP } from 'node:net'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
+import { buildPreviewCsp } from './preview-csp.mjs'
 
 const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
@@ -17,24 +18,11 @@ if (!Array.isArray(approvedResourceUrls) || approvedResourceUrls.some(value => {
   } catch { return true }
 })) throw new Error('Ripple preview resource authorization is invalid')
 if (approvedResourceUrls.reduce((size, value) => size + value.length + 3, 0) > 6000) throw new Error('Ripple preview resource authorization is too large')
-const externalResources = approvedResourceUrls.map(value => {
-  const url = new URL(value)
-  return `${url.origin}${url.pathname}`
-}).join(' ')
-const contentSecurityPolicy = [
-  "default-src 'self' data: blob:",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  `style-src 'self' 'unsafe-inline' ${externalResources}`,
-  `font-src 'self' data: ${externalResources}`,
-  `img-src 'self' data: blob: ${externalResources}`,
-  `media-src 'self' data: blob: ${externalResources}`,
-  "connect-src 'self'",
-  "form-action 'none'",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "frame-src 'none'",
-  "worker-src 'none'",
-].join('; ')
+// Snapshot-authorized font dependencies must be loadable by the page, not just
+// by the verification route layer; buildPreviewCsp adds the fonts.gstatic.com
+// font origin only when a stylesheet was authorized (Run #12: 22,624 blocked-
+// font console errors). Per-URL authorization stays enforced by the route.
+const contentSecurityPolicy = buildPreviewCsp(approvedResourceUrls)
 
 function selectionBridge() {
   const script = `<script>

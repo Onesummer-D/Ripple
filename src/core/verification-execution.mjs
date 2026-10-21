@@ -204,15 +204,52 @@ export async function executeVerification({
     await page.waitForFunction(() => !!document.querySelector('#root')?.textContent?.trim(), undefined, { timeout: 15_000 })
   }
 
+  // True only for Playwright strict-mode ambiguity ("resolved to N elements"),
+  // which is the one failure mode where a narrower semantic context can
+  // legitimately rescue the click. Timeouts and missing controls propagate.
+  const isStrictModeAmbiguity = error => error instanceof Error && /strict mode violation/.test(error.message) && /resolved to \d+ elements?/.test(error.message)
+
+  // Clicks the contract's declared navigation control. When the name alone is
+  // ambiguous (Run #12: a hero CTA repeated a nav button's text), the only
+  // permitted resolution is a stable semantic context — the navigation
+  // landmark — and only when exactly one visible candidate remains there.
+  // Pages carrying two visible same-named controls inside navigation
+  // landmarks (e.g. desktop and mobile navs both live) stay UNKNOWN; the
+  // runner never picks a match by position (.first()/.nth(0)) because that
+  // would click an arbitrary element and could pass for the wrong route.
+  async function clickDeclaredControl(page, spec) {
+    const target = page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
+    try {
+      await target.click({ timeout: actionTimeoutMs })
+      return false
+    } catch (error) {
+      if (!isStrictModeAmbiguity(error)) throw error
+    }
+    const landmarkScoped = page.getByRole('navigation').getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
+    const matches = await landmarkScoped.count()
+    const visible = []
+    for (let index = 0; index < matches; index += 1) {
+      const candidate = landmarkScoped.nth(index)
+      if (await candidate.isVisible()) visible.push(candidate)
+    }
+    if (visible.length !== 1) {
+      throw new Error(`declared navigation control '${spec.navigateBy.name}' is ambiguous: ${matches} matches inside navigation landmarks, ${visible.length} visible; refusing to pick one arbitrarily`)
+    }
+    progress({ event: 'navigation-disambiguated', pageRef: spec.pageRef, route: diagnosticRoute(spec.path), landmarkMatches: matches })
+    await visible[0].click({ timeout: actionTimeoutMs })
+    return true
+  }
+
   async function visitContractPage(scope, side, spec, reuseCurrent) {
     const extra = { pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path) }
     const { page } = side
+    let navigationDisambiguated = false
     if (!reuseCurrent) {
       await scope.timed('scope-navigate', () => page.goto(`http://${side.host}:5173${spec.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }), extra)
       await scope.timed('scope-root', () => waitForRoot(page), extra)
-      if (spec.navigateBy) await scope.timed('scope-navigation-action', () => page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click({ timeout: actionTimeoutMs }), extra)
+      if (spec.navigateBy) navigationDisambiguated = await scope.timed('scope-navigation-action', () => clickDeclaredControl(page, spec), extra)
     }
-    return scope.timed('scope-marker', async () => {
+    const marker = await scope.timed('scope-marker', async () => {
       const marker = page.getByText(spec.markerText, { exact: true })
       const markerMatchCount = await marker.count()
       const markerVisible = markerMatchCount > 0 && await marker.first().isVisible().catch(() => false)
@@ -228,6 +265,7 @@ export async function executeVerification({
       }
       return { markerVisible, markerMatchCount, routeIdentity }
     }, extra)
+    return { ...marker, navigationDisambiguated }
   }
 
   // A failed visit is an observation (route identity unverified => UNKNOWN),
@@ -238,7 +276,7 @@ export async function executeVerification({
       return await visitContractPage(scope, side, spec, reuseCurrent)
     } catch (error) {
       scope.fail(error, { category: 'page-visit-failed', url: side.page.url(), pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path) })
-      return { markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing' }
+      return { markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing', navigationDisambiguated: false }
     }
   }
 
@@ -442,6 +480,7 @@ export async function executeVerification({
         markerText: spec.markerText, baselineMarkerVisible: baselineProbe.markerVisible, candidateMarkerVisible: candidateProbe.markerVisible,
         baselineMarkerMatchCount: baselineProbe.markerMatchCount, candidateMarkerMatchCount: candidateProbe.markerMatchCount,
         baselineRouteIdentity: baselineProbe.routeIdentity, candidateRouteIdentity: candidateProbe.routeIdentity,
+        baselineNavigationDisambiguated: baselineProbe.navigationDisambiguated === true, candidateNavigationDisambiguated: candidateProbe.navigationDisambiguated === true,
         operations: input.targetBindings.map((binding, index) => {
           const expectation = binding.pageExpectations[spec.pageRef]
           return {
