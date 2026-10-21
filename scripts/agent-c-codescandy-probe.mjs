@@ -4,6 +4,8 @@ import fs from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { analyzeProject } from '../src/core/project.ts'
 import { sourceProvenPageImpact } from '../src/core/scope.ts'
+import ts from 'typescript'
+import { resolveProjectConfigGraph } from '../src/core/project-config-resolver.mjs'
 
 const repo = process.argv[2]
 const output = process.argv[3] ?? 'test-results/agent-c-codescandy-probe.json'
@@ -21,7 +23,22 @@ const targetMatches = target.map(node => ({
   value: node.value,
   impact: sourceProvenPageImpact(graph, node.id),
 }))
+const config = resolveProjectConfigGraph(repo, ts)
+const testModule = 'pages/dashboard/pages/Profile'
+const resolvedTestModule = config.application.status === 'supported'
+  ? ts.resolveModuleName(testModule, path.join(repo, 'src/App.tsx'), config.application.parsed.options, ts.sys).resolvedModule?.resolvedFileName
+  : undefined
+const debug = {
+  appConfigStatus: config.application.status,
+  appConfigPath: config.application.status === 'supported' ? path.relative(repo, config.application.configPath) : null,
+  paths: config.application.status === 'supported' ? config.application.parsed.options.paths : null,
+  pathsBasePath: config.application.status === 'supported' ? config.application.parsed.options.pathsBasePath : null,
+  profileAliasResolved: resolvedTestModule ? path.relative(repo, resolvedTestModule) : null,
+  appProfileImportEdges: graph.edges.filter(e => e.kind === 'imports' && e.id.startsWith('import:src/App.tsx') && e.to.includes('Profile')),
+  profileComponents: graph.nodes.filter(n => n.kind === 'component' && n.label === 'Profile').map(n => ({ id: n.id, path: n.location?.path })),
+}
 const result = {
+  debug,
   schemaVersion: 1,
   rippleSha: process.env.GITHUB_SHA ?? 'local-unpinned',
   codescandySha: actual,
