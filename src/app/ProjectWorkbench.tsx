@@ -4,6 +4,7 @@ import { VerificationContractEditor } from './VerificationContractEditor'
 import { ScopeEffectPreview } from './ScopeEffectPreview'
 import { buildScopeEffectPreview, type PageScopeChoice } from './scope-effect-preview'
 import { projectPreviewViewports } from '../core/project-viewports'
+import { assessPickerDisplayIdentity, isCurrentPickerEnvelope } from '../core/runtime-selection-bridge'
 import { createVerificationContractDraft, rebaseVerificationContractDraft, incompleteVerificationDeclarations, suggestVerificationPageMarkers, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
 import './project-workbench.css'
 
@@ -315,11 +316,9 @@ export default function ProjectWorkbench() {
       const frame = frameRef.current
       const generation = previewGeneration.current
       const data = event.data as Record<string, unknown> | null
-      const certainties = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
-      if (!frame?.contentWindow || event.source !== frame.contentWindow || !data || data.type !== 'ripple:element-selected' ||
-        data.previewId !== previewId || data.token !== selectionNonce || data.protocol !== 'ripple-runtime-identity/v1' || typeof data.sourceRef !== 'string' ||
-        typeof data.identityCertainty !== 'string' || !certainties.includes(data.identityCertainty) ||
-        typeof data.tagName !== 'string' || typeof data.text !== 'string') return
+      if (!frame?.contentWindow || !isCurrentPickerEnvelope(data, {
+        eventSource: event.source, iframeSource: frame.contentWindow, previewId, token: selectionNonce,
+      })) return
       const request = kind === 'candidate'
         ? post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('candidate/source-selection', { candidateId: previewId, sourceRef: data.sourceRef })
         : post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('project/source-selection', {
@@ -336,28 +335,22 @@ export default function ProjectWorkbench() {
         if (previewGeneration.current !== generation || frameRef.current?.contentWindow !== event.source ||
           selectionNonce !== data.token ||
           (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
-        const context = data.pageContext as Record<string, unknown> | undefined
-        const contextOK = !!context && typeof context.pathname === 'string' &&
-          typeof context.search === 'string' && typeof context.hash === 'string'
-        const reasons = Array.isArray(data.reasons) && data.reasons.every(x => typeof x === 'string')
-          ? data.reasons as string[] : ['invalid-certainty']
-        const validIdentity = contextOK && typeof mapped.sourceVersion === 'string' &&
-          mapped.sourceVersion === data.sourceVersion && typeof data.sourceVersion === 'string' &&
-          /^[a-f0-9]{64}$/.test(data.sourceVersion) && typeof data.runtimeInstanceId === 'string' &&
-          !data.runtimeInstanceId.endsWith(':~') && !reasons.length &&
-          (data.identityCertainty === 'stable-react-instance' || data.identityCertainty === 'stable-keyed-instance')
-        // The iframe is untrusted: this verdict is only display/navigation metadata.
-        // The trusted API resolves JSX separately; no Scope or edit is authorized here.
+        const verdict = assessPickerDisplayIdentity(data, {
+          sourceRef: mapped.element.id,
+          sourceVersion: mapped.sourceVersion,
+          expectedPathname: new URL(frame.src, window.location.href).pathname,
+        })
+        // This is a display/navigation result, not an edit or Scope authorization.
         setSelection({
           ...mapped,
-          runtimeInstanceId: validIdentity ? data.runtimeInstanceId as string : undefined,
-          identityCertainty: validIdentity ? data.identityCertainty as SourceSelection['identityCertainty'] : 'unknown',
-          identityReasons: validIdentity ? [] : reasons.length ? reasons : ['page-context-unverified'],
+          runtimeInstanceId: verdict.runtimeInstanceId,
+          identityCertainty: verdict.certainty,
+          identityReasons: verdict.reasons,
           sourceVersion: typeof data.sourceVersion === 'string' ? data.sourceVersion : undefined,
-          pageContext: contextOK ? context as { pathname: string; search: string; hash: string } : undefined,
+          pageContext: data.pageContext,
           sameSourceCount: Number.isSafeInteger(data.sameSourceCount) && Number(data.sameSourceCount) > 0 ? Number(data.sameSourceCount) : undefined,
-          tagName: data.tagName as string,
-          text: data.text as string,
+          tagName: data.tagName,
+          text: data.text,
         })
         setSelectionKind(kind)
       }).catch(cause => setError(cause instanceof Error ? `元素没有可确认的 JSX 来源：${cause.message}` : '元素没有可确认的 JSX 来源'))
