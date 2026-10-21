@@ -130,7 +130,7 @@ function selectionBridge() {
       order: 'post',
       handler: (html) => html
         .replace(/<script\b(?=[^>]*\bsrc=["']\/@vite\/client["'])[^>]*>\s*<\/script>/g, '')
-        .replace('</body>', `${script}</body>`),
+        .replace('</body>', () => `${script}</body>`),
     },
   }
 }
