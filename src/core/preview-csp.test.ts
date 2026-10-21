@@ -154,4 +154,53 @@ describe('preview CSP font boundary in a real browser', () => {
     expect(strict.fontRequests).toEqual([])
     expect(verification.fontRequests).toEqual([])
   }, 60_000)
+
+  // Coordinator boundary check (approved experiment 2026-10-22): project code
+  // inside an interactive preview could forge the verification header on its
+  // own fetches. This must gain no font capability: the response header on a
+  // subresource is inert (only the DOCUMENT's CSP is enforced), and the
+  // document was served to a navigation without the header — the strict
+  // shape. Observed hard boundary: the strict document's connect-src refuses
+  // the forged cross-origin fetch in the renderer, so it never reaches the
+  // network layer at all, and a FontFace load of the same URL is refused by
+  // font-src.
+  it('a forged verification header on a fetch gains no font capability in an interactive preview', async () => {
+    const { server, fontRequests, cspViolations } = await serve([FONTS_CSS])
+    browser ??= await chromium.launch({ headless: true, executablePath: process.env.RIPPLE_TEST_CHROMIUM_PATH || undefined })
+    const page = await browser.newPage()
+    page.on('console', message => { if (message.type() === 'error' && message.text().includes('Content Security Policy')) cspViolations.push(message.text()) })
+    await page.route('**/*', route => {
+      const url = route.request().url()
+      if (url === fontUrl) { fontRequests.push(url); return route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('wOF2') }) }
+      if (url.startsWith('https://fonts.googleapis.com/')) return route.fulfill({ status: 200, contentType: 'text/css', body: '/* authorized stylesheet */' })
+      return route.continue()
+    })
+    // No setExtraHTTPHeaders: the PAGE forges the header itself.
+    await page.goto(`http://127.0.0.1:${(server.address() as { port: number }).port}/`, { waitUntil: 'domcontentloaded' })
+    const outcome = await page.evaluate(async ({ fontUrl, headerName }) => {
+      try {
+        const response = await fetch(fontUrl, { headers: { [headerName]: 'verified-font-dependencies' } })
+        return { fetched: true, status: response.status, responseCsp: response.headers.get('content-security-policy') ?? '' }
+      } catch (error) {
+        return { fetched: false, error: String(error) }
+      }
+    }, { fontUrl, headerName: VERIFICATION_FONT_HEADER })
+    // The enforcing document CSP is strict, so the forged cross-origin fetch
+    // is refused by connect-src in the renderer — it never reaches the
+    // network layer and the forged header gains nothing.
+    expect(outcome.fetched).toBe(false)
+    // The document that is actually enforced was served strict; loading the
+    // bytes as a font is still refused (font-src), and the direct fetch above
+    // only proves response-header inertness, not a font capability.
+    const fontLoad = await page.evaluate(async (url) => {
+      try {
+        const face = new FontFace('ForgedBoundary', `url("${url}") format("woff2")`)
+        await face.load()
+        return 'loaded'
+      } catch { return 'blocked' }
+    }, fontUrl)
+    expect(fontLoad).toBe('blocked')
+    expect(fontRequests).toEqual([])
+    expect(cspViolations.some(text => text.includes('font-src'))).toBe(true)
+  }, 60_000)
 })
