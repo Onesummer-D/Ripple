@@ -404,3 +404,44 @@ P1 修正三项 + 阻断矩阵 + A 接口需求文本。本批全部完成，未
   基线预演不稳定现象一致；本批纯新增文件（测试/脚本/文档）不构成 e2e 回归的
   可行机制（diff 不触碰任何被 e2e 加载的源码）。最终以 `482badf` 的 SUCCESS 作为
   本批 CI 结论，首次失败如实保留在案待追踪。
+
+---
+
+# 接力记录 v10——Issue #6 调查阶段收尾：CLI 严格校验、文档一致性、英文接口需求（2026-10-21）
+
+## 一、代码（PR #9 分支，本轮唯一要求的代码修改）
+
+- `scripts/thirdparty-acceptance.ts`：严格参数解析——`--expect-sha` 必须紧跟
+  合法 40 位十六进制 SHA（大小写不敏感）、`--out` 必须非空且不得为选项、
+  拒绝重复参数/未知参数/多余位置参数/选项误作值；非法输入非零退出且不产出报告；
+  正常路径与既有报告结构完全兼容。
+- `src/core/b-thirdparty-acceptance-script.test.ts`：新增 2 个 CLI 负例用例
+  （--expect-sha 家族、--out/未知/多余位置参数家族），smoke 共 6 用例全过。
+- 更正 CI #311 根因（协调人已独立核实）：真实失败为
+  `e2e/page-override-lifecycle.spec.ts:308`，
+  `page.goto: net::ERR_NETWORK_CHANGED`；同树 CI #313 全过。已登记为
+  A 公共浏览器预演稳定性问题，不改 A 的 E2E、不降断言、不声称已解决。
+  handoff v9"日志不可读"的表述已由协调人核实结果取代。
+
+## 二、文档一致性修订（docs/probes/）
+
+- codescandy 文档：明确报告 `schemaVersion: 1`，"v2"仅为报告迭代版本；
+  rippleHead=7bad3f4 即实测基线，不为对齐 PR SHA 伪造更新；
+  8223897 描述收紧为"在本次可访问的远端环境中无法检出或复验"（不断言历史上绝对不存在）；
+  保留 b700bbd 完整 SHA + MIT + 固定检出方式；明确 data router 负例锁定旧版缺口、
+  A 实现后应升级为正向契约测试。
+- 阻断矩阵新增公共浏览器预演稳定性登记（CI #311/#313 双跑证据）。
+- a-interface-requirements-issue6.md 追加**英文 Issue #6 评论正文**（A-P1a/A-P1b、
+  复现路径、codescandy SHA、矩阵、PR #9 链接、CI #311 网络错误）。
+
+## 三、状态与交付
+
+- 英文评论**未发布**（凭据 REST 写 401），正文已交负责人代发，不得宣称已发布。
+- 本阶段正式收束："第三方 SourceGraph 能力调查与公共接口缺口归因完成"。
+  Issue #6 不关闭；PR #9 仍 Draft 且有冲突，不合并、不强推、不 rebase。
+- 下一阶段 = 等待 A 公共接口：B 恢复开发的前置依赖 = A 实现 data router 路由识别
+  （A-P1a）并经审核合入 + 三方 SHA 固定；届时按阻断矩阵推进条件逐项复验。
+- B 侧待命准备：codescandy 最小复现输入与固定 SHA 已存档；
+  TEXT 验收目标确认为 ProfileHeader.tsx:72 的 "Overview"
+  （`literal:src/sub-components/profile/ProfileHeader.tsx#2691`）；
+  逐环节 PASS/UNKNOWN/RISK 检查清单 = 阻断矩阵本身。
