@@ -133,8 +133,46 @@ export function inspectDataRouter(
       const reachable = candidateEntrypoints.some(([entryAbsolute, entrySource]) => {
         const imported = importsByFile.get(entryAbsolute) ?? new Map()
         let mounted = false
+        // A method named `.render` is not proof of a React application root.
+        // Require the receiver to originate from react-dom/client createRoot.
+        const roots = new Set<ts.Symbol>()
+        const namespaces = new Set<ts.Symbol>()
+        for (const statement of entrySource.statements) {
+          if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
+              statement.moduleSpecifier.text !== 'react-dom/client') continue
+          const clause = statement.importClause
+          if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+            for (const element of clause.namedBindings.elements) {
+              if ((element.propertyName?.text ?? element.name.text) !== 'createRoot') continue
+              const sym = checker.getSymbolAtLocation(element.name)
+              if (sym) roots.add(sym)
+            }
+          }
+          if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+            const sym = checker.getSymbolAtLocation(clause.namedBindings.name)
+            if (sym) namespaces.add(sym)
+          }
+        }
+        const isCreateRoot = (expr: ts.Expression): boolean => {
+          const raw = unwrap(expr)
+          if (!ts.isCallExpression(raw)) return false
+          const callee = raw.expression
+          return ts.isIdentifier(callee) && roots.has(checker.getSymbolAtLocation(callee)!) ||
+            ts.isPropertyAccessExpression(callee) && callee.name.text === 'createRoot' &&
+            ts.isIdentifier(callee.expression) && namespaces.has(checker.getSymbolAtLocation(callee.expression)!)
+        }
+        const isReactRoot = (expr: ts.Expression): boolean => {
+          const raw = unwrap(expr)
+          if (isCreateRoot(raw)) return true
+          if (!ts.isIdentifier(raw)) return false
+          const binding = checker.getSymbolAtLocation(raw)
+          const declaration = binding?.declarations?.find(ts.isVariableDeclaration)
+          return Boolean(declaration?.initializer && ts.isVariableDeclarationList(declaration.parent) &&
+            declaration.parent.flags & ts.NodeFlags.Const && isCreateRoot(declaration.initializer))
+        }
         const visit = (n: ts.Node): void => {
-          if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'render') {
+          if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) &&
+              n.expression.name.text === 'render' && isReactRoot(n.expression.expression)) {
             const isRendered = (child: ts.Node): void => {
               if ((ts.isJsxSelfClosingElement(child) || ts.isJsxOpeningElement(child)) && ts.isIdentifier(child.tagName)) {
                 const target = imported.get(child.tagName.text)

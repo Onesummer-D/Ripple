@@ -137,9 +137,32 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
   return result
 }
 
-function declarationComponentName(tag: string | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>): ComponentInfo | undefined {
+/** Follow TypeScript's actual imported/exported symbol, including barrel chains.
+ * A file import is not, by itself, component consumption evidence: the JSX tag
+ * must bind to the exact component declaration tracked in this graph.
+ */
+function declarationComponentName(
+  tag: ts.Identifier | undefined,
+  checker: ts.TypeChecker,
+  byDeclaration: Map<ts.Node, ComponentInfo>,
+  localImports: Map<string, ImportTarget>,
+  byExport: Map<string, ComponentInfo>,
+): ComponentInfo | undefined {
   if (!tag) return undefined
-  const target = localImports.get(tag)
+  const symbol = checker.getSymbolAtLocation(tag)
+  if (symbol) {
+    const actual = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
+    // The resolved declaration must be an actual JSX component, not a barrel
+    // import/export alias or another value with the same spelling.
+    for (const declaration of actual?.declarations ?? []) {
+      const component = byDeclaration.get(declaration)
+      if (component) return component
+    }
+    return undefined
+  }
+  // The program may omit symbol information for unsupported script shapes;
+  // retain the established *direct-import* behavior, not arbitrary re-exports.
+  const target = localImports.get(tag.text)
   return target ? byExport.get(`${target.file}#${target.exportName}`) : undefined
 }
 
@@ -214,6 +237,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       byExport.set(`${component.file}#default`, component)
     }
   }
+  const byDeclaration = new Map<ts.Node, ComponentInfo>(components.map(component => [component.node, component]))
   for (const component of components) {
     const loc = { path: component.file, start: component.node.getStart(), end: component.node.getEnd() }
     addNode({ id: component.id, kind: 'component', label: component.name, location: loc })
@@ -403,9 +427,25 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         const sourceNode: SourceNode = { id: nodeId(relative, 'literal', start), kind: 'data', label: rawValue.trim(), value: rawValue, location: { path: relative, start, end }, page: undefined }
         addNode(sourceNode)
         if (ownerComponent) addEdge(ownerComponent.id, sourceNode.id, 'reads', `literal-read:${sourceNode.id}`)
+        if (ts.isJsxElement(parentElement) && ownerComponent) {
+          const tag = jsxTagName(parentElement.openingElement)
+          if (!tag || !/^[a-z]/.test(tag)) {
+            // Passing a JSX text child to a composite component is statically
+            // visible, but whether it forwards children into the DOM is not.
+            // Keep the owner's lexical read, with independent uncertain DOM
+            // consumption evidence so downstream Scope remains fail-closed.
+            addEdge(ownerComponent.id, sourceNode.id, 'reads',
+              `composite-jsx-child:${ownerComponent.id}:${sourceNode.id}`, 'semantic-candidate')
+          }
+        }
         if (ts.isJsxElement(parentElement)) {
-          const elementId = nodeId(relative, 'jsx', parentElement.openingElement.getStart(source))
-          addEdge(elementId, sourceNode.id, 'reads', `jsx-text:${elementId}:${sourceNode.id}`)
+          const opening = parentElement.openingElement
+          const elementId = nodeId(relative, 'jsx', opening.getStart(source))
+          // Only intrinsic JSX tags have a trusted source-to-DOM annotation.
+          // Composite tags such as React Router <Link> receive children but
+          // must not be conflated with HTML anchors or phantom JSX nodes.
+          const tag = jsxTagName(opening)
+          if (tag && /^[a-z]/.test(tag)) addEdge(elementId, sourceNode.id, 'reads', `jsx-text:${elementId}:${sourceNode.id}`)
         }
       }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
@@ -425,7 +465,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
             break
           }
         }
-        const target = routeConfigJsx ? undefined : declarationComponentName(tag, imports, byExport)
+        const target = routeConfigJsx ? undefined : declarationComponentName(ts.isIdentifier(node.tagName) ? node.tagName : undefined, checker, byDeclaration, imports, byExport)
         if (target && ownerComponent) {
           if (!componentRenders.has(ownerComponent.id)) componentRenders.set(ownerComponent.id, new Set())
           componentRenders.get(ownerComponent.id)!.add(target.id)
@@ -439,7 +479,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         const targets = new Set<string>()
         const collectTags = (child: ts.Node) => {
           if (ts.isJsxOpeningElement(child) || ts.isJsxSelfClosingElement(child)) {
-            const target = declarationComponentName(jsxTagName(child), imports, byExport)
+            const target = declarationComponentName(ts.isIdentifier(child.tagName) ? child.tagName : undefined, checker, byDeclaration, imports, byExport)
             if (target) targets.add(target.id)
           }
           child.forEachChild(collectTags)

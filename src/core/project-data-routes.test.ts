@@ -247,3 +247,83 @@ describe('agent C P1: app ownership, lexical binding and mutable route safety', 
     }
   })
 })
+
+describe('agent C P1 round 2: barrel provenance, JSX child and graph invariants', () => {
+  function barrelProject(barrel: string, header: string, importName = 'ProfileHeader') {
+    return project({
+      'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import Profile from './pages/Profile';
+        export default function App(){const router=createBrowserRouter([{path:'/pages/profile',Component:Profile}]);return <RouterProvider router={router}/>}`,
+      'src/pages/Profile.tsx': `import {${importName}} from '../sub-components';const Profile=()=> <div><${importName}/></div>;export default Profile;`,
+      'src/sub-components/index.ts': barrel,
+      'src/sub-components/profile/ProfileHeader.tsx': header,
+    })
+  }
+  const headerComponent = `import {Link} from 'react-router-dom';
+    const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`
+  const overview = (graph: ReturnType<typeof analyzeProject>) => {
+    const text = graph.nodes.filter(node => node.kind === 'data' && node.value?.trim() === 'Overview')
+    expect(text).toHaveLength(1)
+    return text[0]
+  }
+  const expectSafeGraph = (graph: ReturnType<typeof analyzeProject>) => {
+    const nodes = new Set(graph.nodes.map(node => node.id))
+    expect(graph.edges.filter(edge => edge.certainty === 'source-proven' && (!nodes.has(edge.from) || !nodes.has(edge.to)))).toEqual([])
+  }
+  it('proves Profile -> barrel imported default ProfileHeader without inventing Link DOM mapping', () => {
+    const root = barrelProject(`import ProfileHeader from './profile/ProfileHeader';export {ProfileHeader};`, headerComponent)
+    const graph = analyzeProject(root)
+    const profile = graph.nodes.find(node => node.kind === 'component' && node.label === 'Profile')!
+    const header = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProfileHeader')!
+    const text = overview(graph)
+    expect(graph.edges).toContainEqual(expect.objectContaining({from:profile.id,to:header.id,kind:'renders',certainty:'source-proven'}))
+    expect(graph.edges).toContainEqual(expect.objectContaining({from:header.id,to:text.id,kind:'reads',certainty:'source-proven'}))
+    expect(graph.edges.some(edge => edge.id.startsWith('jsx-text:') && edge.to === text.id)).toBe(false)
+    expect(graph.nodes.some(node => node.kind === 'jsx-element' && node.label === '<Link>')).toBe(false)
+    expect(sourceProvenPageImpact(graph,text.id)).toMatchObject({pageRefs:['page:/pages/profile'],certainty:'partial'})
+    expect(sourceProvenPageImpact(graph,text.id).unresolved.join('\n')).toContain('composite-jsx-child')
+    expectSafeGraph(graph)
+  })
+  it('resolves export { default as Name } from a barrel', () => {
+    const graph = analyzeProject(barrelProject(`export {default as ProfileHeader} from './profile/ProfileHeader'`,headerComponent))
+    const text=overview(graph)
+    expect(sourceProvenPageImpact(graph,text.id).pageRefs).toContain('page:/pages/profile')
+    expectSafeGraph(graph)
+  })
+  it('resolves export * through two nested barrels when named component is exported', () => {
+    const graph = analyzeProject(project({
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import {Profile} from './Profile';const router=createBrowserRouter([{path:'/header',Component:Profile}]);export const App=()=> <RouterProvider router={router}/>;`,
+      'src/Profile.tsx': `import {ProfileHeader} from './barrel';export function Profile(){return <ProfileHeader/>}`,
+      'src/barrel.ts': `export * from './middle';`,
+      'src/middle.ts': `export {ProfileHeader} from './profile/ProfileHeader';`,
+      'src/profile/ProfileHeader.tsx': `export function ProfileHeader(){return <h1>Wildcard proof</h1>}`,
+    }))
+    const text=graph.nodes.find(node=>node.kind==='data'&&node.value==='Wildcard proof')!
+    expect(sourceProvenPageImpact(graph,text.id)).toMatchObject({pageRefs:['page:/header'],certainty:'source-proven'})
+    expectSafeGraph(graph)
+  })
+  it('does not replace an unresolved or shadowed barrel import with a same-named component', () => {
+    const graph=analyzeProject(project({
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import Profile from './pages/Profile';const router=createBrowserRouter([{path:'/profile',Component:Profile}]);export const App=()=> <RouterProvider router={router}/>;`,
+      'src/pages/Profile.tsx': `import {ProfileHeader} from '../sub-components';export const Profile=()=> <div><ProfileHeader/></div>;`,
+      'src/sub-components/index.ts': `export {FakeHeader as ProfileHeader} from './Fake';`,
+      'src/sub-components/Fake.tsx': `export function FakeHeader(){return <p>Incorrect header</p>}`,
+      'src/sub-components/profile/ProfileHeader.tsx': headerComponent,
+    }))
+    const text=overview(graph)
+    expect(sourceProvenPageImpact(graph,text.id).pageRefs).toEqual([])
+    expect(sourceProvenPageImpact(graph,text.id).certainty).toBe('unknown')
+    expectSafeGraph(graph)
+  })
+  it('does not count an arbitrary object.render(<App/>) as an application root', () => {
+    const root=project({
+      'src/main.tsx': `import {App} from './App';const fake={render(node:unknown){return node}};fake.render(<App/>);`,
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import {Header} from './Header';export const App=()=>{const router=createBrowserRouter([{path:'/header',Component:Header}]);return <RouterProvider router={router}/>}`,
+      'src/Header.tsx': `export function Header(){return <h1>Fake root title</h1>}`,
+    })
+    const graph=analyzeProject(root)
+    const target=graph.nodes.find(node=>node.kind==='data'&&node.value==='Fake root title')!
+    expect(sourceProvenPageImpact(graph,target.id).certainty).not.toBe('source-proven')
+    expectSafeGraph(graph)
+  })
+})
