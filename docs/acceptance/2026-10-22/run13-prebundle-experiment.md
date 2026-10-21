@@ -1,125 +1,137 @@
-# Run #13 前性能门控：受限依赖预构建实验记录（2026-10-22）
+# Run #13 前性能门控：受限依赖预构建实验记录（2026-10-22，复审第 2 轮修正版）
 
-协调人批准实验（2026-10-22）。目标：在不放宽任何 Project-first 安全边界的前提下，
-消除 Bolt Run #12 中每次导航接近 10 秒的模块加载成本。
+协调人批准实验（2026-10-22），复审第 2 轮（2026-10-22）关闭两个 P1 后的最终记录。
+目标：在不放宽任何 Project-first 安全边界的前提下，消除 Bolt Run #12 中每次
+导航接近 10 秒的模块加载成本。
 
-## 变更（PR #17，独立可回退提交）
+## 变更（PR #17，性能优化保持独立可回退提交）
 
 - `ac04bbf` `perf(preview): restricted optimizeDeps discovery for bare deps, reversible`
-  - `src/core/candidate-preview-vite.config.mjs`：`noDiscovery: true` → 受限 discovery
-    （`include: ['react', 'react-dom/client']` + `holdUntilCrawlEnd: true`）。
-    `configFile: false`、固定插件集、`fs.strict`、四视口、180 秒预算、Receipt
-    授权规则全部不变。
-  - `src/core/preview-optimize-deps-excludes.mjs`（新）：见下方安全发现。
-  - `src/core/preview-optimize-deps.test.ts`（新）：可复现实验，Linux CI 真实
-    Chromium 上运行，数字可从提交单独复现。
-- `83e374b` `test(preview): forged verification header gains no font capability`
-  - 伪造验证请求头的真实浏览器负例（见下方安全边界）。
-- `1d5f26d` 合并 A@33791a2（含 D PR #18 Runtime Identity）后的联合分支。
+  （后经 `dab7eb3` 按复审修正，见下）
+- `dab7eb3` `fix(preview): production-faithful restricted discovery + workspace annotation matrix`
+- `83e374b` 伪造验证头安全边界测试；`1d5f26d` 合并 A@33791a2（D PR #18）。
 
-回退方案：恢复 `noDiscovery: true` 并删除两个新文件，无其它代码依赖。
+回退方案：恢复 `noDiscovery: true` 并删除 `preview-optimize-deps-excludes.mjs`、
+`preview-optimize-deps.test.ts`、`preview-workspace-annotation.test.ts`，无其它
+代码依赖。
 
-## 关键安全发现：workspace 链接包会被预构建吞掉
+## 复审第 2 轮关闭的两个 P1
 
-实验第一版配置下，symlink 进 `node_modules` 的 workspace 包（pnpm/workspace
-布局的典型形态）被 vite 优化器当作普通第三方依赖预构建——`/.vite-cache/deps/`
-直接出现 `linkedpkg.js`。这意味着用户自己的 workspace 源码会绕过
-sourceAnnotationPlugin，SourceGraph 绑定和 Runtime Identity 被静默丢弃。
+### P1-1 实验必须使用实际生产配置（已修正）
 
-根因：`preserveSymlinks: true` 下优化器按解析路径分类，无法区分 symlink 包与
-真实依赖；去掉 `esbuildOptions.preserveSymlinks` 也无效（已实测排除）。
+复审指出的问题属实且更严重：修正前，实验的对照腿**没有传任何 exclude**，
+`linkedpkg` 实际被预构建（URL 日志出现 `deps/linkedpkg.js`），而测试断言
+却声称 workspace 逐模块——bucket 按字符串 `linkedpkg` 匹配，两种 URL 形态
+都计入同一桶，断言被静默绕过。
 
-修复：`symlinkedWorkspaceExcludes(root)` 在配置构建期确定性地 lstat
-`root/node_modules`（含 `@scope` 一层），凡是符号链接的包一律加入
-`optimizeDeps.exclude`（vite 的 exclude 前缀匹配自动覆盖子路径导入，已对
-vite 6.4.4 `moduleListContains` 源码核实）。真实第三方依赖（node_modules 内
-真实目录）不受影响，仍会被预构建。
+修正后：
+
+- 测试工程镜像生产安装形态：react/react-dom/scheduler/lucide-react 是
+  node_modules 里的**真实目录**；workspace 包是 realpath 落在项目内的
+  symlink。restricted 对照使用与生产配置**完全相同的字段**（同一分类器、
+  同一 include、同一 esbuild pins、holdUntilCrawlEnd）。
+- 该工程上 `analyzeNodeModulesDeps(root)` 的实测分类：
+  `thirdParty = [fakepkg, lucide-react, react, react-dom, scheduler]`，
+  `excludes = [linked-ui, linkedpkg]`。第三方参与预构建，workspace 排除。
+
+### 分类规则（realpath 语义，替代第 1 轮的"凡 symlink 即排除"）
+
+- node_modules 内真实目录 → 确认的第三方，可预构建；
+- symlink 且 realpath 仍含 `node_modules` 段（pnpm `.pnpm` store 布局）→ 确认
+  的第三方，可预构建；
+- symlink 且 realpath 无 `node_modules` 段 → workspace 源码，排除；
+- realpath 无法解析 → 来源未知，保守排除；
+- **node_modules 扫描失败 → `ok: false`，生产配置拒绝优化、回退
+  noDiscovery**，绝不返回空列表放开全部依赖（`candidate-preview-vite.config.mjs`
+  中三元选择；`preview-optimize-deps.test.ts` 第三个用例固定该行为）。
+  项目根本没有 node_modules（ENOENT）是完整安全的答案，返回空列表。
+
+### P1-2 workspace 注解语义矩阵（已钉死，不扩大支持范围）
+
+`preview-workspace-annotation.test.ts` 记录五列事实（项目 TSX 正例 + workspace
+TSX 反例，Linux CI 实测）：
+
+| 列 | 项目 TSX（/src/Cmp.tsx） | workspace TSX（linked-ui/Panel.tsx） |
+| --- | --- | --- |
+| 是否被预构建 | 不适用（项目源码不在 node_modules） | 否（exclude 生效，Linux URL 证据：`/node_modules/linked-ui/Panel.tsx` 逐模块） |
+| 经过 sourceAnnotationPlugin | 是 | **否**——transform 显式跳过 node_modules 路径且仅 tsx/jsx（source-annotation.ts） |
+| DOM 可信来源注解 | `jsx:src/Cmp.tsx#31` | **无**（`data-ripple-source` 缺席） |
+| Runtime Identity 可证明实例 | `stable-react-instance`，runtimeInstanceId 非 `:~` 结尾 | **无记录**（采集器查不到该 sourceRef） |
+| SourceGraph 收录 | 收录 | **不支持**：A 主线 project.ts 的图排除 node_modules 路径；无 C 分支 SourceGraph |
+
+结论：workspace 源码的运行时身份证明当前架构**不支持**，状态如实声明为
+unknown/unsupported。未改动注解插件、未扩大支持范围。静态跨文件 hook 安全
+索引（source-annotation.ts 的 linked-workspace 解析）仍覆盖 workspace 包，
+但那只服务 hooks 落注决策，不产生运行时注解。
 
 ## 实测数据（Linux CI，真实 Chromium，真实 lucide-react@0.468 barrel）
 
-应用形态：react 19.3 + react-dom + lucide barrel（3,496 个 ESM 图标模块，测试
-中触发 3,100 次请求）+ 40 个项目组件 + `@/` 别名 + symlink 的 workspace 包
-`linkedpkg` + 项目动态 `import('./boot')` + node_modules CSS 导入。
+应用形态：react 19.3 + lucide barrel（触发 3,100 次请求）+ 40 个项目组件 +
+`@/` 别名 + symlink workspace JS 包 + symlink workspace TSX 包 + 项目动态导入 +
+node_modules CSS 导入。第三方为真实目录（npm 安装形态）。
 
-合并后 CI run 39661627222（job 119435832771）：
+复审修正后 CI run 39667915489（job 日志 `A_bench/ci-round2-job.log`）：
 
-| 指标 | noDiscovery 现状 | 受限 discovery + exclude |
+| 指标 | noDiscovery 现状 | 受限 discovery（生产形态） |
 | --- | --- | --- |
-| DCL 第 1 次导航 | 4450 ms（含 esbuild 冷启动） | 578 ms |
-| DCL 第 2 次导航（稳态） | 3205 ms | 558 ms |
-| lucide barrel 请求 | 3100 | 2 |
-| `/src/` 项目源码请求（注解路径） | 12 | 12（完全相等） |
-| workspace 包 `linkedpkg` 请求 | 2（逐模块） | 2（逐模块，未被预构建） |
+| DCL 第 1 次导航 | 3257 ms | 816 ms |
+| DCL 第 2 次导航（稳态） | 2303 ms | 411 ms |
+| lucide barrel 请求 | 3100 | 2（全部来自 `/.vite-cache-restricted-production/deps/`） |
+| `/src/` 项目源码请求 | 10 | 10（完全相等） |
+| workspace 请求（linkedpkg×2 + linked-ui Panel） | `/node_modules/...` 逐模块 | `/node_modules/...` 逐模块（无任何 `/deps/` URL） |
 | dep CSS（fakepkg/style.css） | 2 | 2（CSS 管道不变） |
 | late 动态依赖（扫描器不可见） | — | 1 次导航内完成渲染，无失控重载 |
+| exclude 名单 | — | `[linked-ui, linkedpkg]`；第三方名单 `[fakepkg, lucide-react, react, react-dom, scheduler]` |
 
-更早的 push run 39659560818 独立复现：noDiscovery 2234/1639 ms vs restricted
-368/102 ms，数量级一致。
+更早轮次（不同代码版本，仅供对照）：合并后 run 39661627222 曾测得稳态
+3205→558 ms（当时对照无 exclude，数据作废）；run 39659560818 为合并前数据。
 
-安全不变量断言（测试硬断言，非日志）：
-- 两侧 `/src/` 请求数完全相等 —— 注解路径从未被预构建吞掉；
-- `linkedpkg` 逐模块服务 —— workspace 源码身份保持；
-- 渲染文本含 `home-helper-value` 与懒加载 chunk —— React 树与动态导入行为不变；
-- restricted 各次导航 DCL 不慢于 noDiscovery 的 1.5×+500ms 软门槛；
-- late-dep 导航次数 ≤3 且最终渲染成功 —— 首次依赖发现是受控行为，可观测，
-  不是静默状态。
+本地 Windows 对照（`dab7eb3`）：noDiscovery 10642/6169 ms vs restricted
+2548/941 ms，结论一致。
 
-## 字体授权边界（伪造验证头负例）
+## 字体授权边界（伪造验证头负例，第 1 轮已交付）
 
-真实浏览器测试（`preview-csp.test.ts`，12/12 本地、CI 均绿）：
-
-- 交互预览页面自行伪造 `x-ripple-verification-fonts: verified-font-dependencies`
-  发起 fetch：被**严格文档 CSP 的 connect-src 在渲染器内拒绝**，请求从未到达
-  网络层；
-- 同一 URL 经 `FontFace` API 加载：被 font-src 拒绝；
-- 结论：放宽形态只存在于验证执行器自身的文档导航上，子资源响应头对 CSP
-  执行无效力，伪造头在任何路径下都拿不到字体能力。未关闭 CSP、未放开任一
-  外部请求。
+交互预览页面伪造 `x-ripple-verification-fonts` 发起 fetch：被严格文档 CSP 的
+connect-src 在渲染器内拒绝（从未到达网络层）；`FontFace` 加载同 URL 被
+font-src 拒绝。放宽形态只存在于验证执行器自身文档导航；未关 CSP、未放开
+任意外部请求。`preview-csp.test.ts` 12/12。
 
 ## 联合回归（D PR #18 × B PR #17）
 
-冲突文件仅 `candidate-preview-vite.config.mjs`，冲突段只有 import 块。解法为
-双保留（非整体覆盖任一方）：
+冲突文件仅 `candidate-preview-vite.config.mjs` import 块，双保留（D 的采集器/
+安全 HTML 插入/点选桥 + B 的请求分形态 CSP/预构建），无任何整体覆盖。
 
-- D 保留：`collectRuntimeIdentitySnapshot` 采集器、`insertCandidateSelectionBridge`
-  安全 HTML 注入与真实点选桥；
-- B 保留：`requestCsp()` 请求分形态 CSP 中间件、`symlinkedWorkspaceExcludes`
-  受限预构建。
-
-合并后正式 CI（run 39661627222）：
-- Vitest **424/424**（40 文件，含 D 的 runtime-identity 全量与 B 的
-  CSP/导航/生命周期负例）；
-- Playwright **30 passed, 1 skipped**（含 D 的身份 E2E 与 stable-react-instance
+复审修正后正式 CI（run 39667915489）：
+- Vitest **426/426**（41 文件：D 的 runtime-identity 全量、B 的 CSP/导航/
+  生命周期负例、本轮两个新实验文件）；
+- Playwright **30 passed, 1 skipped**（D 的身份 E2E 与 stable-react-instance
   回归、B 的 CSP/导航 e2e）；
-- typecheck、build 均绿；PR 状态 Draft、MERGEABLE。
-
-本地 Windows 有 34 个 runtime-identity 测试因 `fs.symlinkSync` EPERM（非管理员/
-无开发者模式）无法建链而失败——纯本地环境限制，A 分支干净基线同样失败，
-Linux CI 全绿为准。
+- typecheck、build 均绿；PR Draft、MERGEABLE。
+- 本地 Windows 中 D 的 34 个测试因 `fs.symlinkSync` EPERM（非提权环境）失败，
+  属本地环境限制，干净基线同样失败，Linux CI 为准。
 
 ## Run #13 门控结论
 
-**已具备实际启动价值，建议负责人授权触发 Run #13，但应以验证门对待而非
-达标宣告：**
+**已具备实际启动价值，建议负责人授权触发 Run #13，但以验证门对待：**
 
-- Run #12 的确切死因为：每次导航 goto(DCL) 恒定 ~9.6–10.1 秒（22,624 条字体
-  CSP console 错误已证实不是拖因），合成对照与本次实验均指向深模块图逐模块
-  请求瀑布。受限预构建把 240 宽的依赖 barrel 请求从 3,100 降到 2，Linux
-  稳态导航从 ~3.2 s 降到 ~0.56 s，量级与 Run #12 的 10 s 缺口相符。
-- 但按协调人规则：合成/Linux 数字**不能**直接宣布真实 Bolt 180 秒预算已满足。
-  真实 Bolt 的依赖广度、容器内单请求延迟、pnpm 布局下 exclude 的覆盖面
-  （若 Bolt 的顶层依赖全是 symlink，预构建收益会缩水）都必须由真实 Run 测定。
-- 本次交付把可观测性补齐了：消歧事件在点击成功后记录并带 checkId/viewport/
-  baseline/candidate；字体事件可区分形态；Run #13 应逐阶段记录模块请求数、
-  导航耗时、字体加载、消歧事件与四视口完成情况，与 Run #12 的
-  progress.jsonl 逐事件对照。
+- Run #12 确切死因：每次导航 goto(DCL) 恒定 ~9.6–10.1 s（22,624 条字体 CSP
+  console 错误已证实不是拖因）。本轮生产形态实验把 barrel 类依赖请求从
+  3,100 降到 2，Linux 稳态 DCL 从 ~2.3 s 降到 ~0.41 s，与 Run #12 的 10 s
+  缺口量级相符，且安全不变量全部以硬断言钉死。
+- 按协调人规则：合成/Linux 数字**不**直接宣布真实 Bolt 180 秒预算达标。
+  真实 Bolt 的依赖广度、容器内单请求延迟、以及 Bolt 若用 pnpm 时 exclude
+  的实际覆盖面，必须由 Run #13 测定。Run #13 应逐阶段记录模块请求数、导航
+  耗时、字体加载、消歧事件与四视口完成情况，与 Run #12 progress.jsonl 对照。
 
 剩余风险（诚实清单）：
-1. 真实 Bolt 工程未做请求级归因——Run #13 是唯一的最终裁决；
-2. Bolt 若用 pnpm 且源码与依赖混布，exclude 粒度的实际收益未知；
-3. late-dep 重载在 vite 6.4.4 上实测为 1 次导航内完成（未触发整页重载），
-   但首次依赖发现路径在真实工程上的触发频率未知；
-4. 若 Run #13 仍超预算，回退提交 `ac04bbf` 即可无损恢复 noDiscovery 现状，
-   CSP/消歧修复（PR #17 前半部分）不受影响。
-
-PR 保持 Draft，未合并 A/main，未触发真实 Bolt 工作流。交回独立审查。
+1. 真实 Bolt 工程未做请求级归因——Run #13 是唯一最终裁决；
+2. Bolt 若为 pnpm 全 symlink 布局，realpath 规则会把 `.pnpm` store 内依赖
+   判为第三方（收益保留），但 workspace 包依旧排除（安全优先，可能少一部分
+   本可安全的预构建）；
+3. workspace 源码的运行时身份/SourceGraph 证明**不支持**（本文档矩阵），
+   若 Run #13 的真实 Bolt 工程依赖 workspace 包内的点选身份，相关检查将以
+   unknown 落地——这是当前架构的事实，不是本轮回归；
+4. late-dep 重载在 vite 6.4.4 上实测受控（1 次导航内完成），真实工程触发
+   频率未知；
+5. 回退路径无损：恢复 `noDiscovery: true` + 删三个新文件即可，CSP/消歧修复
+   不受影响。
