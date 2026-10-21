@@ -44,6 +44,42 @@ describe('viewport scope lifecycle', () => {
     expect(events.find(event => event.event === 'first-error')).toBeUndefined()
   })
 
+  it('counts a late page close that rejects only after close() had already returned as safe', async () => {
+    // The cleanup summary is immutable once returned, so a late failure must
+    // not retroactively change it — and it must not be silently dropped
+    // either: the scope keeps counting it, and the executor treats the
+    // unsettled count seen at return time as the fail-closed signal.
+    const { scope } = scopeFor()
+    const late = deferred<FakePage>()
+    const opening = scope.openPage({ newPage: () => late.promise }, 'candidate')
+    await expect(opening).rejects.toBeInstanceOf(DeadlineError)
+    const first = await scope.close({ graceMs: 50 })
+    expect(first).toMatchObject({ pagesOpened: 0, pagesClosed: 0, pagesLeaked: 0, closeFailures: 0, unsettled: 1 })
+    late.resolve({ closed: false, close: async () => { throw new Error('Target.close wedged') } })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    const recount = await scope.close({ graceMs: 50 })
+    expect(recount.closeFailures).toBe(1)
+    expect(recount.unsettled).toBe(0)
+  })
+
+  it('bounds a late page whose close hangs forever instead of dropping it', async () => {
+    const { scope } = scopeFor()
+    const late = deferred<FakePage>()
+    const opening = scope.openPage({ newPage: () => late.promise }, 'candidate')
+    await expect(opening).rejects.toBeInstanceOf(DeadlineError)
+    const first = await scope.close({ graceMs: 50 })
+    expect(first.unsettled).toBe(1)
+    late.resolve({ closed: false, close: () => new Promise(() => {}) })
+    await new Promise(resolve => setTimeout(resolve, 300))
+    const recount = await scope.close({ graceMs: 50 })
+    // The hung late close hit the 200 ms close deadline and was counted; its
+    // underlying promise never settles, so it stays visible as unsettled
+    // evidence instead of disappearing.
+    expect(recount.closeFailures).toBe(1)
+    expect(recount.pagesLeaked).toBe(0)
+    expect(recount.unsettled).toBeGreaterThan(0)
+  })
+
   it('reports work that never settles instead of hiding it', async () => {
     const { scope } = scopeFor()
     const never = new Promise<never>(() => {})
@@ -81,6 +117,23 @@ describe('viewport scope lifecycle', () => {
   it('applies no deadline to an unbounded wait and clears its timer', async () => {
     await expect(withDeadline(Promise.resolve(1), Infinity, 'x')).resolves.toBe(1)
     await expect(withDeadline(new Promise(() => {}), 5, 'stuck')).rejects.toThrow('stuck did not settle within 5ms')
+  })
+
+  it('counts rejected and hung page closes without leaking the page from its own accounting', async () => {
+    const { scope } = scopeFor()
+    const rejecting: FakePage = { closed: false, close: async () => { throw new Error('Target.close wedged') } }
+    const hanging: FakePage = { closed: false, close: () => new Promise(() => {}) }
+    await scope.openPage({ newPage: async () => rejecting }, 'candidate')
+    await scope.openPage({ newPage: async () => hanging }, 'baseline')
+    const summary = await scope.close({ graceMs: 50 })
+    // The rejecting close failed at once; the hung close hit the 200 ms close
+    // deadline. Both stay counted so the executor can fail the viewport closed.
+    expect(summary.closeFailures).toBe(2)
+    expect(summary.pagesClosed).toBe(0)
+    expect(summary.pagesLeaked).toBe(0)
+    expect(summary.unsettled).toBeGreaterThan(0)
+    expect(rejecting.closed).toBe(false)
+    expect(hanging.closed).toBe(false)
   })
 
   it('reads cgroup v2 pids and memory pressure when present', () => {

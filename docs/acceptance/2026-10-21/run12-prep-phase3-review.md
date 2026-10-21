@@ -1,0 +1,60 @@
+# Run #12 前置工程修复 · 阶段三审查记录（P2 审查与最终交付）
+
+日期：2026-10-21（Asia/Shanghai）
+性质：**开发者自检 / 内部复核**。独立审查、GitHub CI、私有 Bolt 真实验收与 Run #12：NOT RUN。
+
+## 1. 资源快照缺失时的断言（已修复，commit `05c0851`）
+
+- 审查结论：缺失资源被请求时，runner 记 blocked-* 浏览器错误 → browser-errors 为 RISK，receipt 另拒绝“PASS 含 blocked URL”，链路完整。
+- 确认的缺口：页面**未**请求缺失资源时，无 blocked、无错误，browser-errors 会随全视口通过而 PASS——资源降级的运行声称了干净的浏览器运行。
+- 修复：移植 DEV_HANDOFF 0.6 指定的 PR #10 单行语义——`unavailableResources` 非空时 browser-errors 一律 RISK 并在 detail 中点名降级。未改任何冻结契约字段（manifest v4 结构不变，仅断言结果语义）。
+- 测试：新增确定性执行器用例（运行完成、证据诚实、browser-errors 为 RISK 且点名降级、无迟到事件、页面账目干净）。19/19 通过。
+
+## 2. ERR_NETWORK_CHANGED 重试边界（审查结论：无确认问题，不改）
+
+两处恢复路径均为**有界单次重试、前置门控、失败闭合**：
+
+- `e2e/page-override-lifecycle.spec.ts` `loadBaselineHome`：仅当观测到 `net::ERR_NETWORK_CHANGED` 的 requestfailed 时重试一次；第二次必须出现 Home 标题，否则 expect 抛出；监听器 finally 移除；重试不再计数（第三次不可能）。
+- `e2e/project-workbench.spec.ts`：恢复前对**同一 relay** 逐路径探测必须全部 200，否则禁止 reload；reload 后页脚必须可见且不得出现新的失败请求；恢复证据写入 `bolt-resource-load-audit.json`；失败时附 Vite 转换诊断、浏览器错误、relay 账本与容器日志。
+
+记录发现 F4（不改）：`loadBaselineHome` 的恢复只覆盖“文档加载成功但标题未出现”分支；文档请求本身被 ERR_NETWORK_CHANGED 打挂时 `goto` 直接拒绝、不重试。结果仍是 fail-closed（测试失败），属测试路径的健壮性而非产品缺陷；修改无法本地执行的 Docker E2E 收益不足，留待独立审查与 CI 证据决定。
+
+## 3. 回归与自检
+
+- `npm run typecheck`：通过。`npm run build`：通过。`npm run acceptance:runtime-node`：通过。
+- 本环境可运行测试全绿：verification-execution 19/19、lifecycle 7/7、failure-diagnostics 3/3、error-accumulator 4/4、session 25/25、scope 8/8、verification-contract 5/5、bolt-workflow 7/7、candidate-preview 27/27、preview-resource-snapshot 20+1 跳过、page-overrides 2/2、project-config-resolver 4/4、project-viewports 1/1（合计 131 通过、2 跳过）。
+- 基线即失败的 Windows 环境项（非回归）：preview-resource-policy 2 项（临时目录 rmSync EPERM）、local-project-api 7 项、project（临时目录 git 挂起）——与基线表现一致，记为环境限制。
+- Docker Playwright E2E（含 project-workbench 合成闭环）：**NOT RUN**（本机无 Docker）。
+- 阶段一性能结论未被本阶段改动影响（仅断言求值多一次数组长度判断）。
+
+## 5. 独立交付审查轮修订（2026-10-21 晚间）
+
+- **P1 修正**：cleanup 失败语义由"单视口 failed-to-run、运行继续"改为"cleanup 未完成即中止运行"——`RunnerAborted` 在主循环内抛出，后续视口不启动。三个 close 类负例已改写并断言 `notStarted`、check-complete 清单与 completed:false 拒绝；执行器测试 19/19 通过（全量回归 124 s）。
+- 交付物与最终补丁文件清单以 `RIPPLE_A_HANDOFF.md` 与 `delivery/verify.log` 为准（此前报告中的文件数表述有误，更正：最终补丁为 10 个文件 = 4 源码 + 2 测试 + 3 份阶段记录 + 1 份交接文档，见交付清单）。
+
+## 6. 最终审查回流修订（2026-10-21 夜间，第三轮）
+
+阻断项两项，均已修复并新增确定性负例（详见阶段一记录 §2/§3 修订三）：
+
+- **P1 迟到 newPage 跨过 cleanup grace**：cleanup 中止条件扩为 `closeFailures > 0 || pagesLeaked > 0 || unsettled > 0`。宽限后仍 pending 的 promise 没有安全取消证明（被页面关闭可靠取消者会 reject 并在宽限内 settle），可能创建页面、运行或修改运行状态，一律 fail-closed。既有"继续运行"语义不受影响：`run-slow-open` 的慢 newPage 在 5 s 宽限内 settle（unsettled 0），hung 探针被页面关闭取消（grace 内 settle），均回归锁定。
+- **P1 最终 browser.close 失败后残留 execution.json**：新建 `verification-publish.mjs` 发布门（先验证 → 3 s 截止关闭浏览器 → 失败即抛且 completed 记录不落盘 → 原子硬链接发布且拒绝覆盖）；入口 catch 防御性 `rmSync`，finally 二次关闭吞错。不依赖进程退出码保证文件不被误用。总预算与 reserve（≤3 s browser close 本就在 reserve 内）不变。
+- 回归：verification-execution 21/21（约 138 s）、lifecycle 9/9、publish 5/5、contract 5/5、runner-failure 3/3，typecheck / build 通过。
+- 文件清单更正：最终补丁 12 个文件 = 5 源码 + 3 测试 + 3 份阶段记录 + 1 份交接文档（新增 `verification-publish.mjs` 与 `verification-publish.test.ts`）。
+- 性能结论维持保守口径，本轮改动不影响阶段二结论（发布门只是把 execution.json 的写入从"browser.close 之前"移到"之后"，JSON 序列化与硬链接为毫秒级，且发生在 reserve 内的 cleanup 时段）。
+
+## 7. 第三轮独立审查回流修订（2026-10-21 深夜，第四轮；P0 + 3×P1）
+
+- **P0 execution.json 被错误序列化**：发布门原样 `JSON.stringify(summary)`，使执行文件顶层变为 `{manifest, viewportDiagnostics, status}`，宿主 attestation 要求的 schemaVersion/completed 等顶层字段全部缺失。修复：先经 `executionManifestOf()` 结构校验（`manifest` 对象、`schemaVersion === 4`、`executor === 'playwright'`、`completed === true`、非空 `runId`、`checks` 为数组，否则拒绝发布），且落盘的是 `summary.manifest` 本身。新增集成测试：真实 `executeVerification()` 输出经真实发布门，断言写出的 JSON 顶层即 v4 ExecutionManifest（`viewportDiagnostics`/`status` 不得泄漏）、关闭恰好一次、无残留临时文件。
+- **P1 补丁无法应用到 GitHub 真实字节基线**：本地导入基线 `680098f` 有 5 个文件为 CRLF 而 GitHub A 原始 Blob 为 LF（`candidate-verification-runner.mjs`、`verification-execution.mjs`、`verification-execution.test.ts`、`verification-lifecycle.mjs`、`verification-lifecycle.test.ts`），旧补丁在真实 checkout 上五处均 `does not apply`。修复：直接从 GitHub 拉取 `10a808bb4845a0a947688080a7e97394095517a9` 精确字节树，重建交付分支 `feat/a-run12-cleanup-review-20261021`，重新导出补丁（基线即 GitHub SHA 本身）。**更正此前记录**："680098f 与 GitHub A 字节一致"的表述不实——两树文件路径集合完全一致，但 177 个文件的 Blob 因行尾不同而不同（经逐字节核验：177 个全部为纯 CRLF 差异、0 个真实内容差异），其中补丁触碰的 5 个文件（GitHub 为 LF）导致补丁在真实 checkout 上无法应用；`verification-runner.ts` 在 GitHub 上即为 CRLF，本地同为 CRLF，故该文件保持 CRLF（20 行语义 diff），其余按 GitHub 字节。逐文件 Blob SHA 已核对（5 个 LF 文件 + 1 个 CRLF 文件），在 `git archive` 解包的真实字节树上 `git apply --check` / `git apply` 通过，应用结果与最终 HEAD 树逐字节一致（`diff -r` exit 0，仅排除 .git）。**教训：附件 ZIP 工作区快照 ≠ Git 提交树，行尾核对必须以 Git Blob SHA 为准。**
+- **P1 不得删除不属于本次尝试的既有记录**：发布门与入口曾对 outputPath 无条件 `rmSync`。独立复现：预先存在的有效 execution.json 在本验证抛错后被删。修复：发布门只删除本运行自己创建的临时文件（文件名含 pid+nonce），任何失败路径都不触碰 outputPath；入口 catch 的防御性 `rmSync` 一并移除。no-clobber 语义不变（硬链接 EEXIST 拒绝覆盖）。新增负例：预先存在的记录 + 本次验证失败 → 文件原样保留、传播原错误、close 未被调用；预先存在的记录 + 本次发布 → 拒绝覆盖且字节不变。
+- **P1 发布后的二次 browser.close**：入口 finally 在发布门已关闭浏览器后会再关一次，若第二次失败会形成"exit 3 但 execution.json 存在"的矛盾状态。修复：入口建立明确的 final-close 状态机（`pending`/`closed`/`failed`）——发布门成功关闭后置 `closed`，finally 不再关闭；发布门关闭失败时错误携带 `browserCloseAttempted: true`，catch 置 `failed`，finally 不重试；验证/启动失败路径（`pending`）由 finally 执行唯一一次有界 3 s 关闭并保留首个错误。新增测试：成功路径 close 恰好调用一次；close 失败错误带状态标记；三路径（成功/验证失败/最终清理失败）均可明确判定可信记录是否存在。
+- 回归（重建分支上）：verification-execution 22/22（约 146 s，含新增集成测试）、publish 8/8、lifecycle 9/9、contract 5/5、runner-failure 3/3，typecheck / build / `node --check` 通过。补丁基线应用验证见上条。
+- 文件清单不变（12 个文件）；分支与 PR 信息见 `RIPPLE_A_HANDOFF.md`。
+
+## 4. 交付验证（补丁完整性）
+
+- 补丁基线：本地导入提交 `680098f`（== GitHub 10a808b 字节树）。
+- 导出：`git diff --binary 680098f..HEAD`（含新增/删除/二进制，文本补丁二进制安全）。
+- 在未改动的原始源码副本上验证：补丁完整应用（`git apply --check` 与应用均通过），应用后文件树与最终源码逐文件一致（diff -r 无差异）。
+- 补丁内容核验：不含 node_modules、.env、凭据或临时调试文件；新增文件（两份审查记录）包含在交付内；本阶段无删除或二进制文件变更。
+- 详见交付目录 `A_workspace/delivery/` 中的验证日志。
