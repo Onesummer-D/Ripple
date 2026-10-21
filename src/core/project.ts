@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
-import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeSourceMap, SourceGraph, SourceNode } from './model'
+import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeIdentityReason, RuntimePageContext, RuntimeSourceMap, SourceGraph, SourceNode } from './model'
 import { findPageOverrideMarkers, readPageOverrideRegistry } from './page-overrides'
 import type { ProjectConfigGraph } from './project-config-resolver.mjs'
 import { resolveProjectConfigGraph } from './project-config-resolver.mjs'
@@ -451,6 +451,15 @@ export function resolveJsxSourceElement(graph: SourceGraph, sourceRef: string): 
   return { element, editableText }
 }
 
+/** sha256 of one tracked project file, comparable with the runtime `sourceVersion` of its JSX. */
+export function sourceFileDigest(root: string, relative: string): string {
+  return sha256(fileBytes(gitRoot(root), relative))
+}
+
+// Only "the page did not report a version" is tolerated (navigation still works); every other
+// collection reason, including an ambiguous version history, blocks instance use.
+const blocksRuntimeInstance = (reason: RuntimeIdentityReason) => reason !== 'source-version-unavailable'
+
 export function createRuntimeSourceMap(graph: SourceGraph, observations: RuntimeElementObservation[]): RuntimeSourceMap {
   const nodes = new Map(graph.nodes.filter(node => node.kind === 'jsx-element').map(node => [node.id, node]))
   const ids = new Set<string>()
@@ -458,17 +467,49 @@ export function createRuntimeSourceMap(graph: SourceGraph, observations: Runtime
     if (!nodes.has(observation.sourceRef)) throw new ProjectReadError(`运行时元素引用了未映射的 JSX 源码：${observation.sourceRef}`)
     if (!observation.runtimeInstanceId || ids.has(observation.runtimeInstanceId)) throw new ProjectReadError('运行时实例标识缺失或重复')
     if (observation.certainty === 'unmapped' || observation.certainty === 'unknown') throw new ProjectReadError('未确认映射身份的运行时元素不能进入源码选择')
+    if (observation.reasons?.some(blocksRuntimeInstance)) throw new ProjectReadError('运行时实例身份在采集时已被降级，不能进入源码选择')
     ids.add(observation.runtimeInstanceId)
   }
-  return { graphId: graph.id, sourceDigest: graph.revision.sourceDigest, runtimeFingerprint: graph.revision.runtimeFingerprint, observations: observations.map(item => ({ ...item })) }
+  return { graphId: graph.id, sourceDigest: graph.revision.sourceDigest, runtimeFingerprint: graph.revision.runtimeFingerprint, observations: observations.map(item => ({ ...item, ...(item.pageContext ? { pageContext: { ...item.pageContext } } : {}), ...(item.reasons ? { reasons: [...item.reasons] } : {}) })) }
 }
 
-export function resolveRuntimeElement(graph: SourceGraph, selection: { sourceRef: string; runtimeInstanceId: string }, runtimeMap: RuntimeSourceMap): { element: SourceNode; runtimeInstanceId: string; editableText: SourceNode[] } {
+export interface RuntimeElementVerification {
+  /** Reads the digest of a file in the same revision as `graph`; requires a matching `sourceVersion`. */
+  fileDigest?: (file: string) => string | undefined
+  /** Requires the observation to carry exactly this page context. */
+  page?: RuntimePageContext
+}
+
+/**
+ * `verification: 'strict'` only when BOTH the source version (via fileDigest) and the page
+ * were checked. The legacy call without them still resolves for source navigation, but it
+ * reports 'navigation-only' and must never be treated as a proven runtime instance.
+ */
+export interface ResolvedRuntimeElement { element: SourceNode; runtimeInstanceId: string; editableText: SourceNode[]; verification: 'strict' | 'navigation-only' }
+
+export function resolveRuntimeElement(graph: SourceGraph, selection: { sourceRef: string; runtimeInstanceId: string }, runtimeMap: RuntimeSourceMap, verification: RuntimeElementVerification = {}): ResolvedRuntimeElement {
   if (!selection.runtimeInstanceId || selection.runtimeInstanceId === selection.sourceRef) throw new ProjectReadError('运行时实例标识必须与 JSX 源码锚点分离')
   if (runtimeMap.graphId !== graph.id || runtimeMap.sourceDigest !== graph.revision.sourceDigest || runtimeMap.runtimeFingerprint !== graph.revision.runtimeFingerprint) throw new ProjectReadError('运行时映射不再对应当前源码图或运行环境')
   const observation = runtimeMap.observations.find(item => item.runtimeInstanceId === selection.runtimeInstanceId)
   if (!observation || observation.sourceRef !== selection.sourceRef) throw new ProjectReadError('运行时实例与 JSX 源码锚点的双向映射不匹配')
-  if (observation.certainty === 'position-dependent' || observation.certainty === 'unknown') throw new ProjectReadError('列表实例身份不稳定，不能作为精准编辑目标')
+  if (observation.certainty === 'position-dependent' || observation.certainty === 'unknown' || observation.certainty === 'unmapped') throw new ProjectReadError('列表实例身份不稳定，不能作为精准编辑目标')
+  if (observation.reasons?.some(blocksRuntimeInstance)) throw new ProjectReadError('运行时实例身份在采集时已被降级，不能作为精准编辑目标')
+  if (verification.fileDigest) {
+    const file = /^jsx:(.+)#\d+$/.exec(observation.sourceRef)?.[1]
+    let expected: string | undefined
+    try { expected = file ? verification.fileDigest(file) : undefined } catch { expected = undefined }
+    if (!observation.sourceVersion || !expected || observation.sourceVersion !== expected) throw new ProjectReadError('运行时元素的源码版本与当前源码图不一致，旧身份不能继续使用')
+  }
+  if (verification.page) {
+    const page = observation.pageContext
+    if (!page || page.pathname !== verification.page.pathname || page.search !== verification.page.search || page.hash !== verification.page.hash) throw new ProjectReadError('运行时元素缺少或不匹配页面上下文')
+  }
   const resolved = resolveJsxSourceElement(graph, selection.sourceRef)
-  return { ...resolved, runtimeInstanceId: selection.runtimeInstanceId }
+  return { ...resolved, runtimeInstanceId: selection.runtimeInstanceId, verification: verification.fileDigest && verification.page ? 'strict' : 'navigation-only' }
+}
+
+/** Strict form for any future instance-level use: refuses to run without version and page evidence. */
+export function resolveRuntimeInstance(graph: SourceGraph, selection: { sourceRef: string; runtimeInstanceId: string }, runtimeMap: RuntimeSourceMap, verification: Required<RuntimeElementVerification>): ResolvedRuntimeElement {
+  if (typeof verification?.fileDigest !== 'function' || !verification.page) throw new ProjectReadError('实例级身份校验需要源码版本读取器和页面上下文')
+  return resolveRuntimeElement(graph, selection, runtimeMap, verification)
 }
