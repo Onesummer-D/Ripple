@@ -327,6 +327,13 @@ export default function ProjectWorkbench() {
           projectId: sourcePreview?.projectId, previewId, sourceDigest: sourcePreview?.sourceDigest, sourceRef: data.sourceRef,
         })
       void request.then(mapped => {
+        // Re-bind the asynchronous response to the same trusted candidate/preview.
+        // The iframe's reported candidate context is not accepted as authority.
+        if (kind === 'candidate' && (mapped.candidateId !== candidate?.id ||
+          mapped.patchHash !== candidate?.patchHash || mapped.sourceDigest !== candidate?.candidateTreeDigest)) return
+        if (kind === 'project' && (mapped.previewId !== sourcePreview?.previewId ||
+          mapped.projectId !== sourcePreview?.projectId || mapped.sourceDigest !== sourcePreview?.sourceDigest)) return
+        if (mapped.element.id !== data.sourceRef) return
         if (previewGeneration.current !== generation || frameRef.current?.contentWindow !== event.source ||
           selectionNonce !== data.token ||
           (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
