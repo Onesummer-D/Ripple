@@ -290,3 +290,52 @@ VerificationReceipt 公共契约（仅使用其既有 API）。
   PR #9 修复证据在 PR #9 CI #290；集成树为 `ripple-integration/`（已推送远端）。
 - 未合并任何 PR 到 main 或 B 的正式开发分支（PR #9 的 ff 提交是按协调人指示
   对失败回归的最小修复）。等 B 本人审核。
+
+---
+
+# 接力记录 v8——Issue #6 codescandy 第三方泛化进展（2026-10-21）
+
+## 一、新增代码（均在 PR #9 分支 `feat/thirdparty-dash-ui-20261019`，新 SHA `272506a`，已推送）
+
+1. `src/core/b-thirdparty-capability-repro.test.ts`（新增，150 行，5 用例全过）：
+   自包含最小真实工程复现，锁定三项真实能力边界，作为提交 A 的公共接口需求依据：
+   - react-router data router（`createBrowserRouter`）→ 0 route 节点，页面影响 fail-closed 为 unknown；
+   - root tsconfig 仅 references 时 alias 不生效；解析失败的裸导入**静默降级为自指 imports 边**
+     （component → 自身文件）且不进入 unresolved——比原假设更弱，已实测修正断言；
+   - SCSS 变量 → 0 token 节点，`.scss` 导入进 unresolved（保持 unsupported，不伪装 PASS）。
+   注意：本批用例曾按"未解析导入进入 unresolved"的假设编写，实测后按真实行为修正
+   （这是审查结论的一部分，不是 A 已实现 references 支持）。
+2. `scripts/thirdparty-acceptance.ts`（新增）：通用第三方验收脚本，
+   `node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs
+   scripts/thirdparty-acceptance.ts <projectRoot> [outDir]`，输出 SourceGraph 统计与能力边界 JSON。
+3. `docs/probes/codescandy-b700bbd-20261021.md` + `b-codescandy-acceptance-2026-10-21.json`
+   （新增）：冻结 SHA `b700bbd` 实测统计（4924 节点/5006 边、media 100、asset-consumer 61 条
+   source-proven、页面影响 100 条全部 unknown、route 0、token 0、unresolved 2）。
+
+## 二、审查结论（非代码）
+
+- **61 条 source-proven 消费边 ≠ 61 条页面影响证明**：消费关系成立但路由不可判定，
+  与协调人基线一致。
+- **TEXT 真实目标已双重定位**：首选 `literal:src/sub-components/profile/ProfileHeader.tsx#2691`
+  （值 "Overview"，ProfileHeader.tsx:72，图中唯一）；备选 `Current Plan Overview`
+  （CurrentPlan.tsx:114）。附带发现：JSX 属性字符串字面量（如
+  `<PageHeading heading="Overview" />`）当前不提取为 data 节点。
+- **闭环划分**：统计产出/目标定位/边界复现可由 B 侧完成；候选生成
+  （candidate.ts 要求 sourceProvenPageImpact 无 unresolved）与执行验收
+  （page-override/TEXT 执行器、VerificationRunner、Receipt）被 A 公共接口阻断，
+  最小前置依赖是 react-router data router 路由识别。未改 A 任何核心文件。
+- 另需提交 A：解析失败导入应 fail-closed 进 unresolved（当前静默自指边有误导性）。
+
+## 三、验证结果（本机 Windows，Linux CI 为权威）
+
+- 新增复现测试：5/5 通过。
+- typecheck ✅、build ✅、Vitest 全量零 AssertionError（失败均为已知 EPERM teardown/超时噪音）、
+  Playwright 5 过 4 跳过 1 失败（同为 EPERM teardown 噪音，用例体通过）。
+- 推送后 CI run 39542327549 已触发，结论以该 run 为准（见最终汇报）。
+
+## 四、交接注意
+
+- 与 B 原工作区可能冲突的文件：本批全部为新增文件，不触碰 B 既有 MEDIA 工件；
+  唯一共享路径是 `docs/probes/` 目录（纯新增）。PR #9 历史提交 `8c1ae2b`（CI #280 修复）
+  之前已在 v7 记录。
+- `_scratch/codescandy-dashui`（冻结检出）与 `_scratch/probe-codescandy-acceptance/` 可复验。
