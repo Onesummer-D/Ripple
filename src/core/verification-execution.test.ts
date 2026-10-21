@@ -49,6 +49,13 @@ const spaOptions = {
   // declared toggle ('菜单') opens it. dualToggle renders two visible toggles;
   // duplicateOverlay renders that page's overlay button twice.
   mobileMenu: false, dualToggle: false, duplicateOverlay: [] as string[], directMobileNav: false,
+  // Run #14 fixture shapes. footerNav renders a footer landmark with same-name
+  // page buttons (the pinned Bolt Footer); homeCtaNames renders extra in-body
+  // CTAs on the home page (the pinned Bolt HomePage '品牌故事' button).
+  // inertToggle makes the toggle click a no-op (menu open failed);
+  // toggleAriaControls gives the toggle aria-expanded/aria-controls wiring
+  // pointing at the rendered (possibly wrong/empty) region.
+  footerNav: false, homeCtaNames: [] as string[], inertToggle: false, toggleAriaControls: null as string | null,
   // wrong-route matrix: annotateHome annotates the home h1 with a
   // data-ripple-source ref; promoHome renders a home-page banner quoting
   // another page's marker text (sourceRef null = unannotated, inNav = inside
@@ -68,13 +75,13 @@ function spa(brand: string): string {
     ? `<style>${spaOptions.directMobileNav ? '' : '@media (max-width: 767px) { .desktop-nav { display: none } } '}@media (min-width: 768px) { .menu-toggle, .mobile-overlay { display: none } } .mobile-overlay { opacity: 0; pointer-events: none } .mobile-overlay.open { opacity: 1; pointer-events: auto }</style>`
     : ''
   const toggleMarkup = spaOptions.mobileMenu
-    ? '<button class="menu-toggle" aria-label="菜单">菜单</button>'.repeat(spaOptions.dualToggle ? 2 : 1)
+    ? `<button class="menu-toggle" aria-label="菜单"${spaOptions.toggleAriaControls ? ` aria-expanded="false" aria-controls="${spaOptions.toggleAriaControls}"` : ''}>菜单</button>`.repeat(spaOptions.dualToggle ? 2 : 1)
     : ''
   const overlayMarkup = spaOptions.mobileMenu
     ? `<div class="mobile-overlay">${(['autumn', 'products', 'story'] as const).map(tabName => {
         const label = tabName[0].toUpperCase() + tabName.slice(1)
         return `<button data-tab="${tabName}">${label}</button>`.repeat(spaOptions.duplicateOverlay.includes(tabName) ? 2 : 1)
-      }).join('')}</div>`
+      }).join('')}</div>${spaOptions.toggleAriaControls ? `<div id="${spaOptions.toggleAriaControls}"><p>Other menu</p></div>` : ''}`
     : ''
   return `<!doctype html><html><head><meta charset="utf-8"><title>spa</title>${mobileStyle}</head><body><div id="root"></div>${toggleMarkup}${overlayMarkup}<script>
   const markers = { home: 'Home page', autumn: 'Autumn page', products: 'Products page', story: 'Story page', cart: 'Cart page' }
@@ -101,9 +108,11 @@ function spa(brand: string): string {
     const promoHtml = promoHome && tab === 'home' ? '<p class="promo"' + (promoHome.sourceRef ? ' data-ripple-source="' + promoHome.sourceRef + '"' : '') + '>' + promoHome.marker + '</p>' : ''
     const heading = tab === 'home' && annotateHome ? '<h1 data-ripple-source="' + annotateHome + '">' + markers[tab] + '</h1>' : '<h1>' + markers[tab] + '</h1>'
     const navMarkup = '<nav><button data-tab="autumn">Autumn</button><button data-tab="products">Products</button><button data-tab="story">Story</button>' + (promoHome && promoHome.inNav ? promoHtml : '') + '</nav>'
+    const footerButtons = ${JSON.stringify(spaOptions.footerNav)} ? '<div class="footer-nav"><h4>Pages</h4><ul><li><button data-tab="home">Home</button></li><li><button data-tab="autumn">Autumn</button></li><li><button data-tab="products">Products</button></li><li><button data-tab="story">Story</button></li></ul></div>' : ''
+    const homeCtas = ${JSON.stringify(spaOptions.homeCtaNames)}.map(name => '<button class="cta">' + name + '</button>').join('')
     root.innerHTML = (${spaOptions.mobileMenu} ? '<div class="desktop-nav">' + navMarkup + '</div>' : navMarkup) + dualNav +
-      '<main>' + heading + (promoHome && !promoHome.inNav ? '<section class="promo-banner">' + promoHtml + '</section>' : '') + duplicateButtons + (tab === 'home' ? '<button id="browse">Browse items</button><div id="out"></div>' : '') + (tab === 'home' || tab === 'cart' ? cartView : '') + '</main>' +
-      '<footer><span data-ripple-source="${BRAND_REF}" data-ripple-instance="footer-brand">${brand}</span></footer>'
+      '<main>' + heading + (promoHome && !promoHome.inNav ? '<section class="promo-banner">' + promoHtml + '</section>' : '') + duplicateButtons + (tab === 'home' ? '<button id="browse">Browse items</button><div id="out"></div>' + homeCtas : '') + (tab === 'home' || tab === 'cart' ? cartView : '') + '</main>' +
+      '<footer><span data-ripple-source="${BRAND_REF}" data-ripple-instance="footer-brand">${brand}</span>' + footerButtons + '</footer>'
     for (const button of document.querySelectorAll('button[data-tab]')) button.onclick = () => { document.querySelector('.mobile-overlay')?.classList.remove('open'); render(button.dataset.tab) }
     const browse = document.getElementById('browse')
     // With introGate, the candidate's button only works once a 20 s entrance
@@ -127,7 +136,11 @@ function spa(brand: string): string {
     }
   }
   render(currentTab())
-  for (const toggle of document.querySelectorAll('.menu-toggle')) toggle.onclick = () => document.querySelector('.mobile-overlay')?.classList.add('open')
+  for (const toggle of document.querySelectorAll('.menu-toggle')) toggle.onclick = () => {
+    if (${spaOptions.inertToggle}) return
+    document.querySelector('.mobile-overlay')?.classList.add('open')
+    if (${JSON.stringify(spaOptions.toggleAriaControls)}) toggle.setAttribute('aria-expanded', 'true')
+  }
   var introDone = false
   if (${spaOptions.introGate}) {
     const intro = document.createElement('div')
@@ -780,6 +793,115 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
       spaOptions.mobileMenu = false
       spaOptions.dualToggle = false
       spaOptions.directMobileNav = false
+    }
+  }, 90_000)
+
+  it('proves the activated menu target inside the full Bolt conflict structure', async () => {
+    // Run #14: the real page keeps the footer nav (four same-name buttons,
+    // always actionable) and an in-body CTA on the home page alongside the
+    // collapsed overlay menu, so a page-wide post-open search finds 2-3
+    // visible matches for every declared target. The runner must bind the
+    // click to the match that became actionable BECAUSE of the menu open
+    // (the overlay buttons), never to the always-actionable footer/CTA
+    // chrome, on both mobile viewports x three pages x both sides.
+    spaOptions.mobileMenu = true
+    spaOptions.footerNav = true
+    spaOptions.homeCtaNames = ['Story']
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-bolt-shape', {}, {}, contract)
+      const { manifest } = outcome.result!
+      const menuEvents = outcome.events.filter(event => event.event === 'navigation-menu-disambiguated')
+      expect(menuEvents).toHaveLength(3 * 2 * 2)
+      expect(menuEvents.every(event => event.proof === 'activation-transition' && event.visibleMatches === 1)).toBe(true)
+      expect(menuEvents.every(event => event.menuControl === '菜单')).toBe(true)
+      expect(menuEvents.every(event => event.viewport.width === 375 || event.viewport.width === 390)).toBe(true)
+      // Footer buttons ('Story' on every page) and the home CTA ('Story')
+      // were actionable before the open; the proven target always has
+      // strictly more actionable matches after it than before it.
+      expect(menuEvents.every(event => event.postOpenActionable > event.preOpenActionable)).toBe(true)
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed'] ?? 0).toBe(0)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified' })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('pass')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.footerNav = false
+      spaOptions.homeCtaNames = []
+    }
+  }, 90_000)
+
+  it('keeps the route UNKNOWN when the menu open activates nothing provable', async () => {
+    // The toggle click is a no-op: no match transitions to actionable, so
+    // there is no provable activated menu region — the runner must refuse
+    // rather than click the always-actionable footer button.
+    spaOptions.mobileMenu = true
+    spaOptions.footerNav = true
+    spaOptions.inertToggle = true
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-no-transition', {}, {}, contract)
+      const { manifest } = outcome.result!
+      expect(outcome.events.find(event => event.event === 'navigation-menu-disambiguated')).toBeUndefined()
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(3 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          const expected = viewport.width < 768 ? 'missing' : 'verified'
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.footerNav = false
+      spaOptions.inertToggle = false
+    }
+  }, 90_000)
+
+  it('keeps the route UNKNOWN when the declared aria menu region does not hold the target', async () => {
+    // The toggle carries aria-expanded/aria-controls (a page-declared wiring),
+    // so the aria proof owns the decision: aria-controls resolves to a visible
+    // region that contains NO actionable target — a wrong-region match. The
+    // runner must refuse even though the transition proof would have found
+    // the overlay button.
+    spaOptions.mobileMenu = true
+    spaOptions.footerNav = true
+    spaOptions.toggleAriaControls = 'menu-panel'
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-wrong-aria-region', {}, {}, contract)
+      const { manifest } = outcome.result!
+      expect(outcome.events.find(event => event.event === 'navigation-menu-disambiguated')).toBeUndefined()
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(3 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          const expected = viewport.width < 768 ? 'missing' : 'verified'
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.footerNav = false
+      spaOptions.toggleAriaControls = null
     }
   }, 90_000)
 
