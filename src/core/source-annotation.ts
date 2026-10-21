@@ -1003,6 +1003,21 @@ export function sourceAnnotationPlugin(projectRoot: string): Plugin {
       // React built-ins that render their children directly (never inspect them).
       const reactDefaultNames = new Set<string>()
       const reactBuiltins = new Set<string>()
+      const trustedPageProviders = new Set<string>()
+      // Only the candidate generator's own page override provider is transparent:
+      // it forwards children unchanged via React Context.Provider. Arbitrary components
+      // with this name, or imports from another file, must still make identity unknown.
+      const overrideRuntime = path.join(root, '.ripple', 'overrides-runtime.js')
+      for (const statement of source.statements) {
+        if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+        const specifier = statement.moduleSpecifier.text
+        if (!specifier.startsWith('.') ||
+          path.resolve(path.dirname(file), specifier) !== overrideRuntime ||
+          !statement.importClause?.namedBindings || !ts.isNamedImports(statement.importClause.namedBindings)) continue
+        for (const item of statement.importClause.namedBindings.elements) {
+          if ((item.propertyName?.text ?? item.name.text) === 'RipplePageForState') trustedPageProviders.add(item.name.text)
+        }
+      }
       for (const statement of source.statements) {
         if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== 'react') continue
         const clause = statement.importClause
@@ -1013,7 +1028,7 @@ export function sourceAnnotationPlugin(projectRoot: string): Plugin {
         }
       }
       const isTransparentBuiltin = (tag: string) => {
-        if (reactBuiltins.has(tag)) return true
+        if (reactBuiltins.has(tag) || trustedPageProviders.has(tag)) return true
         const member = /^(\w+)\.(Fragment|StrictMode|Suspense|Profiler)$/.exec(tag)
         return !!member && reactDefaultNames.has(member[1])
       }

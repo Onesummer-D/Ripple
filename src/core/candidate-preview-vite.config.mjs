@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import { isIP } from 'node:net'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
+import { collectRuntimeIdentitySnapshot } from './runtime-identity.ts'
 
 const require = createRequire('/ripple/core/package.json')
 const ts = require('/ripple/node_modules/typescript')
@@ -37,11 +38,13 @@ const contentSecurityPolicy = [
 ].join('; ')
 
 function selectionBridge() {
-  const script = `<script>
+  const script = `<script type="module">
+const collectRuntimeIdentitySnapshot = ${collectRuntimeIdentitySnapshot.toString()};
 (() => {
   let active = false;
   let token = '';
   let previewId = '';
+  let candidateContext = null;
   let hovered = null;
   const style = document.createElement('style');
   style.textContent = '[data-ripple-select-hover="true"]{outline:2px solid #a8c477!important;outline-offset:2px!important;cursor:crosshair!important}';
@@ -66,6 +69,9 @@ function selectionBridge() {
     if (event.source !== window.parent || !data || data.type !== 'ripple:selection-mode') return;
     token = typeof data.token === 'string' ? data.token : '';
     previewId = typeof data.previewId === 'string' ? data.previewId : '';
+    candidateContext = data.candidateId === previewId && typeof data.patchHash === 'string' && typeof data.candidateTreeDigest === 'string'
+      ? { candidateId: data.candidateId, patchHash: data.patchHash, candidateTreeDigest: data.candidateTreeDigest }
+      : null;
     active = data.enabled === true && !!token && !!previewId;
     if (!active) clearHover();
     document.documentElement.style.cursor = active ? 'crosshair' : '';
@@ -84,11 +90,35 @@ function selectionBridge() {
     if (!target) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    // A collector pass considers the ENTIRE document when checking duplicate IDs.
+    // The temporary nonce associates the clicked DOM node with exactly one record;
+    // it never enters React's render tree or becomes an edit authorization.
+    const sourceRef = target.getAttribute('data-ripple-source');
+    const marker = crypto.randomUUID();
+    const correlation = 'data-ripple-collector-target';
+    let snapshot;
+    let record;
+    try {
+      target.setAttribute(correlation, marker);
+      snapshot = collectRuntimeIdentitySnapshot({ root: '[' + correlation + '="' + marker + '"]' });
+      if (snapshot.records.length === 1 && snapshot.records[0].sourceRef === sourceRef) record = snapshot.records[0];
+    } catch {
+      // Missing Fiber/collector support always reduces the observation to unknown.
+    } finally {
+      if (target.getAttribute(correlation) === marker) target.removeAttribute(correlation);
+    }
+    const pageContext = snapshot?.page ?? { pathname: location.pathname, search: location.search, hash: location.hash };
     window.parent.postMessage({
-      type: 'ripple:element-selected', token, previewId,
-      sourceRef: target.getAttribute('data-ripple-source'),
-      runtimeInstanceId: target.getAttribute('data-ripple-instance'),
-      identityCertainty: target.getAttribute('data-ripple-identity-certainty') || 'unknown',
+      type: 'ripple:element-selected', protocol: 'ripple-runtime-identity/v1',
+      token, previewId, ...(candidateContext || {}),
+      sourceRef,
+      runtimeInstanceId: record?.runtimeInstanceId,
+      identityCertainty: record?.certainty || 'unknown',
+      declaredCertainty: record?.declaredCertainty || 'unknown',
+      reasons: record?.reasons || ['instance-unavailable'],
+      sourceVersion: record?.sourceVersion,
+      pageContext, sameSourceCount: record?.sameSourceCount ?? 0,
+      domNode: record?.domNode,
       tagName: target.tagName.toLowerCase(), text: (target.textContent || '').trim().slice(0, 300)
     }, '*');
   }, true);
