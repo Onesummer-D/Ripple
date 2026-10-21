@@ -17,9 +17,11 @@
 //   3. close the browser under a deadline — a close that rejects or hangs
 //      throws before any completed record exists on disk, and is reported as
 //      a `browser-close-failed` progress event so it persists in
-//      progress.jsonl ahead of the runner diagnostic. The thrown error
-//      carries `browserCloseAttempted: true` so the caller's final-close
-//      state machine never closes a second time;
+//      progress.jsonl ahead of the runner diagnostic. The browser's final
+//      close state is tracked separately from publishing through the shared
+//      `browserCloseState` object (attempted/closed), so the caller never
+//      closes a second time even when the close succeeded and only the
+//      publish step failed;
 //   4. only then publish the manifest atomically (write a same-directory temp
 //      file unique to this run, link it into place), refusing to overwrite an
 //      existing file and keeping the original flag:'wx' no-clobber semantics
@@ -51,8 +53,11 @@ function executionManifestOf(summary) {
 }
 
 export async function runVerificationAndPublish({
-  browser, outputPath, runVerification, closeTimeoutMs = 3_000, progress = () => {},
+  browser, outputPath, runVerification, closeTimeoutMs = 3_000, progress = () => {}, browserCloseState,
 }) {
+  // The caller's view of the browser's final close, tracked independently of
+  // publishing: set on every path so no code path ever closes twice.
+  const closeState = browserCloseState ?? { closed: false, attempted: false }
   // A failure here means nothing of this run exists at outputPath yet, so
   // there is nothing of ours to delete: let the original error propagate.
   const summary = await runVerification()
@@ -61,7 +66,9 @@ export async function runVerificationAndPublish({
   // exists anywhere on disk. The rejection (or deadline) propagates, so the
   // caller writes only a completed:false diagnostic.
   try {
+    closeState.attempted = true
     await withDeadline(Promise.resolve().then(() => browser.close()), closeTimeoutMs, 'browser.close')
+    closeState.closed = true
   } catch (error) {
     progress({ event: 'browser-close-failed', error: describeError(error, 200) })
     if (error && typeof error === 'object') error.browserCloseAttempted = true

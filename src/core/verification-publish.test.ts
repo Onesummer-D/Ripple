@@ -159,4 +159,79 @@ describe('verification publish gate', () => {
     // No temp file of this run is left behind after the refused publish.
     expect(fs.readdirSync(path.dirname(outputPath))).toEqual(['execution.json'])
   })
+
+  it('never closes a second time when the browser closed but publishing failed', async () => {
+    // The browser's final close is tracked separately from publishing: the
+    // pre-existing outputPath makes the publish link fail with EEXIST after
+    // a successful close — the caller must see the close as done and never
+    // close again.
+    const { outputPath } = tempOutput()
+    fs.writeFileSync(outputPath, '{}')
+    const counter = { calls: 0 }
+    const closeState = { closed: false, attempted: false }
+    await expect(runVerificationAndPublish({
+      browser: countingBrowser(counter),
+      outputPath,
+      browserCloseState: closeState,
+      runVerification: async () => runSummary(),
+    })).rejects.toThrow()
+    expect(counter.calls).toBe(1)
+    expect(closeState).toEqual({ closed: true, attempted: true })
+    expect(fs.readFileSync(outputPath, 'utf8')).toBe('{}')
+    expect(fs.readdirSync(path.dirname(outputPath))).toEqual(['execution.json'])
+  })
+
+  it('publishes a full-contract v4 manifest with every host-read field intact', async () => {
+    // Positive contract test: the gate must accept and byte-faithfully
+    // publish a manifest carrying every field the host binds against, so a
+    // record the gate accepts is a record the host can read.
+    const { outputPath } = tempOutput()
+    const full = {
+      schemaVersion: 4, executor: 'playwright', completed: true,
+      runId: 'run-full', candidateId: 'candidate-1', scopeDecisionId: 'scope-1', scopeVersion: 1,
+      baseSourceDigest: 'base', patchHash: 'patch', candidateTreeDigest: 'tree', runtimeFingerprint: 'runtime',
+      verificationContractHash: 'contract',
+      viewports: [{ name: 'desktop', width: 1440, height: 900 }],
+      checks: [{ id: 'run-full-desktop', route: '/', viewport: { width: 1440, height: 900 }, state: 'rendered', passed: true }],
+      baselineComparisons: [{ route: '/', viewport: { width: 1440, height: 900 }, maskedOperationIds: [], matched: true }],
+      scopeObservations: [{ pageRef: 'page:home', route: '/', baselineRouteIdentity: 'verified', candidateRouteIdentity: 'verified' }],
+      interactionObservations: [{ interactionIndex: 0, baselinePassed: true, candidatePassed: true }],
+      assertions: [{ id: 'target-change', result: 'pass', detail: 'Every edited value appeared.' }],
+      evidence: [{ id: 'evidence-run-full-desktop', checkId: 'run-full-desktop', result: 'pass', artifactPath: 'run-full-desktop.png' }],
+      artifacts: [{ checkId: 'run-full-desktop', path: 'run-full-desktop.png', sha256: 'digest' }],
+      resourceSnapshots: [{ url: 'https://images.example.test/a.png', contentType: 'image/png', sha256: 'digest', artifactPath: 'resources/digest' }],
+      unavailableResources: [],
+      loadedExternalResourceUrls: ['https://images.example.test/a.png'],
+      blockedExternalResourceUrls: [],
+      browserErrorDetails: { total: 0, byCategory: {}, samples: [], truncated: false },
+    }
+    const summary = { manifest: full, viewportDiagnostics: [{ checkId: 'run-full-desktop' }], status: 'complete' }
+    await runVerificationAndPublish({
+      browser: { close: async () => {} },
+      outputPath,
+      runVerification: async () => summary,
+    })
+    const published = JSON.parse(fs.readFileSync(outputPath, 'utf8'))
+    // Round-trip integrity: every host-read field survives at the top level.
+    expect(published).toEqual(full)
+    expect(published.viewportDiagnostics).toBeUndefined()
+    expect(published.status).toBeUndefined()
+  })
+
+  it.each([
+    ['a non-object manifest', { manifest: null }],
+    ['a manifest with the wrong executor', { manifest: { schemaVersion: 4, executor: 'puppeteer', completed: true, runId: 'run-1', checks: [] } }],
+    ['a manifest with a stale schema version', { manifest: { schemaVersion: 3, executor: 'playwright', completed: true, runId: 'run-1', checks: [] } }],
+    ['a manifest whose checks are not an array', { manifest: { schemaVersion: 4, executor: 'playwright', completed: true, runId: 'run-1', checks: 'nope' } }],
+    ['a manifest without a runId', { manifest: { schemaVersion: 4, executor: 'playwright', completed: true, checks: [] } }],
+  ])('refuses to publish %s', async (_name, summary) => {
+    const { outputPath } = tempOutput()
+    const counter = { calls: 0 }
+    await expect(runVerificationAndPublish({
+      browser: countingBrowser(counter),
+      outputPath,
+      runVerification: async () => summary,
+    })).rejects.toThrow('did not return a valid v4 execution manifest')
+    expect(fs.existsSync(outputPath)).toBe(false)
+  })
 })
