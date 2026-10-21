@@ -134,7 +134,9 @@ const collectRuntimeIdentitySnapshot = ${collectRuntimeIdentitySnapshot.toString
       order: 'post',
       handler: (html) => html
         .replace(/<script\b(?=[^>]*\bsrc=["']\/@vite\/client["'])[^>]*>\s*<\/script>/g, '')
-        .replace('</body>', `${script}</body>`),
+        // Function replacer is mandatory: collector source contains React's "$'" fragment.
+        // A string replacer would inject the suffix of the HTML and break script syntax.
+        .replace('</body>', () => `${script}</body>`),
     },
   }
 }

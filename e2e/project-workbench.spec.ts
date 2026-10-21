@@ -162,6 +162,12 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     expect(new URL(sourcePreview.url).hostname).toMatch(/^(127\.0\.0\.1|localhost)$/)
     const projectFrame = page.frameLocator('iframe[data-testid="project-preview"]')
     await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
+    // The served script must contain the literal React Fiber field name. Calling
+    // String.replace with a string replacement expands "$'" to the HTML suffix,
+    // creating a syntax error which previously broke both preview and verification.
+    const previewHtml = await (await page.request.get(sourcePreview.url)).text()
+    expect(previewHtml).toContain("name.startsWith('__reactFiber$')")
+    expect(previewHtml).not.toContain('__reactFiber</html>')
     const firstFrameElement = await page.getByTestId('project-preview').elementHandle()
     await page.getByTestId('project-preview-reload').click()
     await expect(projectFrame.getByRole('heading', { name: 'Baseline title' })).toBeVisible({ timeout: 90_000 })
