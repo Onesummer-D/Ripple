@@ -73,12 +73,12 @@ describe('source annotation transform', () => {
 function HomePage(){ return <h1>Title</h1> }
 export function App(){ return <${local} state="home" pageRefs={{home:"page:home"}}>{<HomePage/>}</${local}> }`
     const trusted = transform(app('../.ripple/overrides-runtime.js'))
-    expect(trusted).toMatch(/component=\\{HomePage\\}/)
+    expect(trusted).toContain('component={HomePage}')
     const aliased = transform(app('../.ripple/overrides-runtime.js', 'GeneratedProvider'))
-    expect(aliased).toMatch(/component=\\{HomePage\\}/)
+    expect(aliased).toContain('component={HomePage}')
     for (const untrusted of ["../components/RipplePageForState", "../.ripple/malicious-runtime.js"]) {
       const output = transform(app(untrusted))
-      expect(output).not.toMatch(/component=\\{HomePage\\}/)
+      expect(output).not.toContain('component={HomePage}')
     }
   })
 
