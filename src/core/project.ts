@@ -498,7 +498,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     void importedModules
   }
 
-  const dataRouter = inspectDataRouter(snapshot.root, sourceFiles, importsByFile, components, checker)
+  const dataRouter = inspectDataRouter(snapshot.root, sourceFiles, importsByFile, components, checker, configGraph.entries)
   unresolved.push(...dataRouter.unresolved)
   if (dataRouter.incomplete) unresolved.push('route-coverage: 静态路由表存在无法证明的消费者或条件分支')
   for (const route of dataRouter.routes) {

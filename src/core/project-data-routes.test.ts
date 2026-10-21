@@ -10,7 +10,13 @@ const directories: string[] = []
 function project(files: Record<string, string>, config: Record<string, unknown> = { compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-agent-c-'))
   directories.push(root)
-  const contents = { 'package.json': JSON.stringify({ name: 'route-proof-test' }), 'tsconfig.json': JSON.stringify(config), ...files }
+  const contents = {
+    'package.json': JSON.stringify({ name: 'route-proof-test' }),
+    'tsconfig.json': JSON.stringify(config),
+    'index.html': '<script type="module" src="/src/main.tsx"></script>',
+    'src/main.tsx': `import {App} from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+    ...files,
+  }
   for (const [name, value] of Object.entries(contents)) {
     const target = path.join(root, name)
     fs.mkdirSync(path.dirname(target), { recursive: true })
@@ -326,4 +332,132 @@ describe('agent C P1 round 2: barrel provenance, JSX child and graph invariants'
     expect(sourceProvenPageImpact(graph,target.id).certainty).not.toBe('source-proven')
     expectSafeGraph(graph)
   })
+})
+
+
+describe('agent C P1: configured entry and reachable root proof', () => {
+  const app = `${routerImports}
+const router = createBrowserRouter([{ path:'/profile', Component: Profile }]);
+export const App=()=><RouterProvider router={router}/>;`
+  const scenarios: Array<{name:string;files:Record<string,string>;expected:'source-proven'|'unknown';diagnostic?:string}> = [
+  {
+    "name": "custom bootstrap is proven",
+    "files": {
+      "index.html": "<script type=\"module\" src=\"/src/bootstrap.tsx\"></script>",
+      "src/bootstrap.tsx": "import {App} from './App';import {createRoot} from 'react-dom/client';const root=createRoot(null);root.render(<App/>);"
+    },
+    "expected": "source-proven"
+  },
+  {
+    "name": "actual bootstrap mounts something else",
+    "files": {
+      "index.html": "<script type=\"module\" src=\"/src/bootstrap.tsx\"></script>",
+      "src/bootstrap.tsx": "import {createRoot} from 'react-dom/client';createRoot(null).render(<p>Other</p>);"
+    },
+    "expected": "unknown",
+    "diagnostic": "not proven reachable"
+  },
+  {
+    "name": "missing HTML module entry",
+    "files": {
+      "index.html": "<html><body></body></html>"
+    },
+    "expected": "unknown",
+    "diagnostic": "entry is missing"
+  },
+  {
+    "name": "missing source module entry",
+    "files": {
+      "index.html": "<script type=\"module\" src=\"/src/missing.tsx\"></script>"
+    },
+    "expected": "unknown",
+    "diagnostic": "not statically available"
+  },
+  {
+    "name": "two configured HTML entries are ambiguous",
+    "files": {
+      "index.html": "<script type=\"module\" src=\"/src/main.tsx\"></script><script type=\"module\" src=\"/src/other.tsx\"></script>",
+      "src/other.tsx": "export const ready=true"
+    },
+    "expected": "unknown",
+    "diagnostic": "ambiguous"
+  },
+  {
+    "name": "uninvoked bootstrap has no root proof",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import {createRoot} from 'react-dom/client';function unusedBootstrap(){createRoot(null).render(<App/>);}"
+    },
+    "expected": "unknown",
+    "diagnostic": "not proven reachable"
+  },
+  {
+    "name": "statically dead branch has no root proof",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import {createRoot} from 'react-dom/client';if(false){createRoot(null).render(<App/>);}"
+    },
+    "expected": "unknown",
+    "diagnostic": "not proven reachable"
+  },
+  {
+    "name": "shadowed createRoot does not prove mount",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import {createRoot} from 'react-dom/client';function unused(createRoot:any){createRoot(null).render(<App/>);}"
+    },
+    "expected": "unknown",
+    "diagnostic": "not proven reachable"
+  },
+  {
+    "name": "plain object render does not prove React root",
+    "files": {
+      "src/main.tsx": "import {App} from './App';const obj={render(x:unknown){return x}};obj.render(<App/>);"
+    },
+    "expected": "unknown",
+    "diagnostic": "not proven reachable"
+  },
+  {
+    "name": "top-level React Root direct render is proven",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import {createRoot} from 'react-dom/client';createRoot(null).render(<App/>);"
+    },
+    "expected": "source-proven"
+  },
+  {
+    "name": "top-level namespace React Root render is proven",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import * as DOM from 'react-dom/client';DOM.createRoot(null).render(<App/>);"
+    },
+    "expected": "source-proven"
+  },
+  {
+    "name": "composite wrapper with ignored children is not proven",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import {createRoot} from 'react-dom/client';const Discard=({children}:any)=><div>None</div>;createRoot(null).render(<Discard><App/></Discard>);"
+    },
+    "expected": "unknown",
+    "diagnostic": "not proven reachable"
+  },
+  {
+    "name": "React imported StrictMode wrapper preserves mount",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import {StrictMode} from 'react';import {createRoot} from 'react-dom/client';createRoot(null).render(<StrictMode><App/></StrictMode>);"
+    },
+    "expected": "source-proven"
+  },
+  {
+    "name": "App only inside JSX callback is not proven",
+    "files": {
+      "src/main.tsx": "import {App} from './App';import {createRoot} from 'react-dom/client';createRoot(null).render(<div onClick={()=><App/>}/>);"
+    },
+    "expected": "unknown",
+    "diagnostic": "not proven reachable"
+  }
+]
+  for (const scenario of scenarios) {
+    it(scenario.name, () => {
+      const graph = analyzeProject(project({...pages,'src/App.tsx':app,...scenario.files}))
+      expect(impact(graph,'Profile Title').certainty).toBe(scenario.expected)
+      if (scenario.diagnostic) expect(graph.unresolved.join('\n')).toContain(scenario.diagnostic)
+      if (scenario.expected === 'source-proven') expect(graph.nodes.some(node=>node.id==='page:/profile')).toBe(true)
+    })
+  }
 })

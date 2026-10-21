@@ -40,6 +40,7 @@ export function inspectDataRouter(
   importsByFile: Map<string, Map<string, StaticRouteImport>>,
   components: StaticRouteComponent[],
   checker: ts.TypeChecker,
+  configuredEntrypoints: string[],
 ): StaticRouteResult {
   const routes: StaticRouteResult['routes'] = []
   const unresolved: string[] = []
@@ -51,7 +52,12 @@ export function inspectDataRouter(
     unresolved.push(`data-router ${file}#${node.getStart()}: ${message}`)
   }
 
-  const candidateEntrypoints = [...sources].filter(([absolute]) => /(?:^|\/)(?:main|index)\.[cm]?[jt]sx?$/i.test(absolute))
+  // The HTML module entry is the executable root. Neither a conventional
+  // filename nor a component named App proves that the project mounts it.
+  // The bounded ProjectConfigGraph records explicit index.html module scripts.
+  const candidateEntrypoints = configuredEntrypoints
+    .map(entry => [path.resolve(entry), sources.get(path.resolve(entry))] as const)
+    .filter((entry): entry is readonly [string, ts.SourceFile] => Boolean(entry[1]))
 
   for (const [absolute, source] of sources) {
     const file = path.relative(root, absolute).replaceAll('\\', '/')
@@ -127,81 +133,94 @@ export function inspectDataRouter(
       return undefined
     })()
     if (!owner?.body) continue
-    // If an actual entrypoint exists, do not mistake an unrelated component
-    // merely *named* App for the one that createRoot(...).render() mounts.
-    if (candidateEntrypoints.length) {
-      const reachable = candidateEntrypoints.some(([entryAbsolute, entrySource]) => {
-        const imported = importsByFile.get(entryAbsolute) ?? new Map()
-        let mounted = false
-        // A method named `.render` is not proof of a React application root.
-        // Require the receiver to originate from react-dom/client createRoot.
-        const roots = new Set<ts.Symbol>()
-        const namespaces = new Set<ts.Symbol>()
-        for (const statement of entrySource.statements) {
-          if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
-              statement.moduleSpecifier.text !== 'react-dom/client') continue
-          const clause = statement.importClause
-          if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-            for (const element of clause.namedBindings.elements) {
-              if ((element.propertyName?.text ?? element.name.text) !== 'createRoot') continue
-              const sym = checker.getSymbolAtLocation(element.name)
-              if (sym) roots.add(sym)
-            }
-          }
-          if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-            const sym = checker.getSymbolAtLocation(clause.namedBindings.name)
-            if (sym) namespaces.add(sym)
-          }
-        }
-        const isCreateRoot = (expr: ts.Expression): boolean => {
-          const raw = unwrap(expr)
-          if (!ts.isCallExpression(raw)) return false
-          const callee = raw.expression
-          return ts.isIdentifier(callee) && roots.has(checker.getSymbolAtLocation(callee)!) ||
-            ts.isPropertyAccessExpression(callee) && callee.name.text === 'createRoot' &&
-            ts.isIdentifier(callee.expression) && namespaces.has(checker.getSymbolAtLocation(callee.expression)!)
-        }
-        const isReactRoot = (expr: ts.Expression): boolean => {
-          const raw = unwrap(expr)
-          if (isCreateRoot(raw)) return true
-          if (!ts.isIdentifier(raw)) return false
-          const binding = checker.getSymbolAtLocation(raw)
-          const declaration = binding?.declarations?.find(ts.isVariableDeclaration)
-          return Boolean(declaration?.initializer && ts.isVariableDeclarationList(declaration.parent) &&
-            declaration.parent.flags & ts.NodeFlags.Const && isCreateRoot(declaration.initializer))
-        }
-        const visit = (n: ts.Node): void => {
-          if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) &&
-              n.expression.name.text === 'render' && isReactRoot(n.expression.expression)) {
-            const isRendered = (child: ts.Node): void => {
-              if ((ts.isJsxSelfClosingElement(child) || ts.isJsxOpeningElement(child)) && ts.isIdentifier(child.tagName)) {
-                const target = imported.get(child.tagName.text)
-                if (target?.file === file &&
-                  (target.exportName === 'App' || target.exportName === 'default' && app.isDefaultExport)) {
-                  const importSymbol = checker.getSymbolAtLocation(child.tagName)
-                  const tagName = child.tagName.text
-                  const binding = entrySource.statements.filter(ts.isImportDeclaration)
-                    .flatMap(stmt => {
-                      const clause = stmt.importClause
-                      return [clause?.name, ...(clause?.namedBindings && ts.isNamedImports(clause.namedBindings)
-                        ? clause.namedBindings.elements.map(i => i.name) : [])].filter((id): id is ts.Identifier => Boolean(id))
-                    }).find(id => id.text === tagName)
-                  if (importSymbol && binding && importSymbol === checker.getSymbolAtLocation(binding)) mounted = true
-                }
-              }
-              child.forEachChild(isRendered)
-            }
-            for (const arg of n.arguments) isRendered(arg)
-          }
-          n.forEachChild(visit)
-        }
-        visit(entrySource)
-        return mounted
-      })
-      if (!reachable) {
-        fail(file, owner, 'App is not proven reachable from an entrypoint render call')
-        continue
+    // Require exactly one *configured* and statically available entry. An
+    // absent or ambiguous HTML entry cannot confer page-level source proof.
+    if (configuredEntrypoints.length !== 1 || candidateEntrypoints.length !== 1) {
+      fail(file, owner, 'application HTML module entry is missing, ambiguous or not statically available')
+      continue
+    }
+    const [entryAbsolute, entrySource] = candidateEntrypoints[0]
+    const imported = importsByFile.get(entryAbsolute) ?? new Map()
+    const roots = new Set<ts.Symbol>()
+    const namespaces = new Set<ts.Symbol>()
+    for (const statement of entrySource.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
+          statement.moduleSpecifier.text !== 'react-dom/client') continue
+      const names = statement.importClause?.namedBindings
+      if (names && ts.isNamedImports(names)) for (const element of names.elements) {
+        if ((element.propertyName?.text ?? element.name.text) !== 'createRoot') continue
+        const bound = checker.getSymbolAtLocation(element.name)
+        if (bound) roots.add(bound)
       }
+      if (names && ts.isNamespaceImport(names)) {
+        const bound = checker.getSymbolAtLocation(names.name)
+        if (bound) namespaces.add(bound)
+      }
+    }
+    const isCreateRoot = (expr: ts.Expression): boolean => {
+      const raw = unwrap(expr)
+      if (!ts.isCallExpression(raw)) return false
+      const callee = raw.expression
+      return ts.isIdentifier(callee) && roots.has(checker.getSymbolAtLocation(callee)!) ||
+        ts.isPropertyAccessExpression(callee) && callee.name.text === 'createRoot' &&
+        ts.isIdentifier(callee.expression) && namespaces.has(checker.getSymbolAtLocation(callee.expression)!)
+    }
+    const isReactRoot = (expr: ts.Expression): boolean => {
+      const raw = unwrap(expr)
+      if (isCreateRoot(raw)) return true
+      if (!ts.isIdentifier(raw)) return false
+      const declaration = checker.getSymbolAtLocation(raw)?.declarations?.find(ts.isVariableDeclaration)
+      return Boolean(declaration?.initializer && declaration.parent.parent.parent === entrySource &&
+        ts.isVariableDeclarationList(declaration.parent) && declaration.parent.flags & ts.NodeFlags.Const &&
+        isCreateRoot(declaration.initializer))
+    }
+    const isAppTag = (tag: ts.JsxTagNameExpression): boolean => {
+      if (!ts.isIdentifier(tag)) return false
+      const target = imported.get(tag.text)
+      if (target?.file !== file || !(target.exportName === 'App' || target.exportName === 'default' && app.isDefaultExport)) return false
+      const binding = checker.getSymbolAtLocation(tag)
+      return Boolean(binding && entrySource.statements.filter(ts.isImportDeclaration).some(stmt => {
+        const clause = stmt.importClause
+        const candidates = [clause?.name, ...(clause?.namedBindings && ts.isNamedImports(clause.namedBindings)
+          ? clause.namedBindings.elements.map(element => element.name) : [])]
+        return candidates.some(id => id?.text === tag.text && checker.getSymbolAtLocation(id) === binding)
+      }))
+    }
+    // Only a direct top-level invocation of a React root is unconditionally
+    // reachable. Do not descend into functions, classes, dead branches or
+    // callbacks; a generic JavaScript call-graph is intentionally unsupported.
+    const safeWrapper = (tag: ts.JsxTagNameExpression): boolean => {
+      if (ts.isIdentifier(tag) && /^[a-z]/.test(tag.text)) return true // intrinsic hosts render children
+      if (!ts.isIdentifier(tag) || tag.text !== 'StrictMode') return false
+      const usedSymbol = checker.getSymbolAtLocation(tag)
+      return entrySource.statements.some(statement => ts.isImportDeclaration(statement) &&
+        ts.isStringLiteral(statement.moduleSpecifier) && statement.moduleSpecifier.text === 'react' &&
+        statement.importClause?.namedBindings && ts.isNamedImports(statement.importClause.namedBindings) &&
+        statement.importClause.namedBindings.elements.some(item =>
+          (item.propertyName?.text ?? item.name.text) === 'StrictMode' &&
+          usedSymbol === checker.getSymbolAtLocation(item.name)))
+    }
+    const containsMountedApp = (node: ts.Node): boolean => {
+      if (ts.isJsxSelfClosingElement(node)) return isAppTag(node.tagName)
+      if (ts.isJsxElement(node)) return isAppTag(node.openingElement.tagName) ||
+        (safeWrapper(node.openingElement.tagName) && node.children.some(child => containsMountedApp(child)))
+      if (ts.isJsxFragment(node)) return node.children.some(child => containsMountedApp(child))
+      if (ts.isJsxExpression(node) && node.expression &&
+        (ts.isJsxElement(node.expression) || ts.isJsxSelfClosingElement(node.expression) || ts.isJsxFragment(node.expression))) {
+        return containsMountedApp(node.expression)
+      }
+      return false
+    }
+    const reachable = entrySource.statements.some(statement => {
+      if (!ts.isExpressionStatement(statement)) return false
+      const call = unwrap(statement.expression)
+      return ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression) &&
+        call.expression.name.text === 'render' && isReactRoot(call.expression.expression) &&
+        call.arguments.length === 1 && containsMountedApp(call.arguments[0])
+    })
+    if (!reachable) {
+      fail(file, owner, 'App is not proven reachable from an unconditional entrypoint React root render call')
+      continue
     }
     const returned: ts.Expression[] = []
     if (ts.isArrowFunction(owner) && !ts.isBlock(owner.body)) returned.push(owner.body)
