@@ -1,18 +1,50 @@
-# B 侧接力记录 v6（2026-10-21 下午）
+# B 侧接力记录 v7（2026-10-21 下午）
 
 接力分支：`feat/b-media-overnight-20261021`（最新含本文档）
+
+---
+
+## 〇、v7 增量——青野 MEDIA 第一阶段正式验收完成（归档）
+
+- **GitHub Actions Run：[`39536064634`](https://github.com/Onesummer-D/Ripple/actions/runs/39536064634)
+  SUCCESS**（workflow_dispatch @ main `5e1f909c`，job 用时约 99s）；
+- **真实验收基线**：Ripple `d01604c49103338d7aea5686fffd6b762ae88f1a` × 青野
+  `f7e4998a5c77ab4aeb3232dbc31e61196e9051a6`（与工作流内置常量一致，无审核外 SHA）；
+- **负责人已复核实际日志与 Artifact**：四视口双端验证、7 项 Verification 断言、
+  Approval、Apply、Rollback、原工程未改动检查全部通过；工件名
+  `ripple-qingye-media-39536064634`（acceptance.json、四视口截图、Verification 记录等，
+  retention 30 天）；
+- **支持范围声明（如实）**：当前通过的是**青野分类图 source-proven MEDIA asset-swap**
+  单操作闭环；动态商品图（类别筛选三元表达式 + 共享 ProductCard，静态不可证明）、
+  复杂 variants、SCSS Token 等仍为未验证/不支持能力，不得宣传为已支持；
+- **状态收束**：PR #7 保留独立开发状态（不合并 main）；暂停新增 MEDIA 功能，
+  仅当发现真实 P0/P1 或集成回归时恢复；
+- 阶段 D 要求工件（acceptance.json/补丁身份/未修改证明/截图/双端对照/四视口断言/
+  回滚后摘要/失败诊断）已由该 Run 的 Artifact 覆盖，无需重跑。
+
+## 下一阶段入口
+
+Issue #6 codescandy 第三方泛化（PR #9 `feat/thirdparty-dash-ui-20261019` @ `8c1ae2b`，
+冻结 SHA `b700bbd55b31a62fe04d4cd8210fc37232f0c9f0`）。详见本文件后续版本与
+PR #9 提交记录。
+
+---
+
+## 历史版本（v6 及之前）
+
+接力分支：`feat/b-media-overnight-20261021`
+- v6：`2360777`（PR #8 合并确认、dispatch 权限阻断、两盏红灯与 A 通知记录）
+- v5：`ca4b880`（CI 有 page-override-lifecycle 红灯，见 v6 记录）
 - **PR #8 已由负责人合并进 main**（merge commit `5e1f909c`，main HEAD 确认）
 - `Qingye real-project MEDIA acceptance` 工作流已在 main 注册（id 391233712，state active，
   配置 = 合并的 `7b56438`：固定 Ripple `d01604c` + 青野 `f7e4998`，无自由输入）
-- **真实验收尚未运行**：workflow_dispatch 返回 "Must have admin rights"，当前凭据
-  无 admin 权限（该凭据可 git push 但 REST 写操作一律 401，已实测 /user 与评论端点）。
-  **请负责人在 Actions 页手动 Run workflow**（无需参数，SHA 已内置固定）。
+- **真实验收已运行**：Run 39536064634 SUCCESS（见「〇、v7 增量」）
 - 两盏新增红灯如实记录（见下）。**A 已通知**：PR #2 评论因凭据 401 无法代发，
   通知内容见本节末尾，请协调人转达或让 A 直接读本文件。
 
 ---
 
-## 〇、v6 增量——合并后状态与红灯记录
+## v6 增量——合并后状态与红灯记录
 
 ### 红灯 1：B 侧交接提交 `ca4b880` 的 CI #39533615647 failure
 - 失败用例：`e2e/page-override-lifecycle.spec.ts` 浏览器测试（协调人已定性为
