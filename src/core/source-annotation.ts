@@ -1012,7 +1012,50 @@ export function sourceAnnotationPlugin(projectRoot: string): Plugin {
           for (const item of clause.namedBindings.elements) if (['Fragment', 'StrictMode', 'Suspense', 'Profiler'].includes(item.propertyName?.text ?? item.name.text)) reactBuiltins.add(item.name.text)
         }
       }
+      // A's candidate generator writes one exact React context provider that merely
+      // forwards children. A composite JSX parent is otherwise opaque: granting trust
+      // by the name RipplePageForState alone would let an app spoof this exception.
+      // Require BOTH the canonical generated runtime bytes and the precise named
+      // import in this module. A modified runtime or any shadowed binding fails closed.
+      const transparentCandidateProviders = new Set<string>()
+      const providerFile = path.join(root, '.ripple', 'overrides-runtime.js')
+      let canonicalProvider = false
+      try {
+        const stat = fs.lstatSync(providerFile)
+        canonicalProvider = stat.isFile() && !stat.isSymbolicLink() &&
+          fs.realpathSync(providerFile) === providerFile &&
+          createHash('sha256').update(fs.readFileSync(providerFile)).digest('hex') ===
+            '910b34dbb01740e72a4bc04fbb33b142049a63502dcbeb8c65201bb75e793815'
+      } catch { /* Without the exact candidate-owned provider, no JSX is transparent. */ }
+      if (canonicalProvider) {
+        for (const statement of source.statements) {
+          if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+          const spec = statement.moduleSpecifier.text
+          if (!spec.startsWith('.') || path.resolve(path.dirname(file), spec) !== providerFile) continue
+          const bindings = statement.importClause?.namedBindings
+          if (!bindings || !ts.isNamedImports(bindings)) continue
+          for (const item of bindings.elements) {
+            if ((item.propertyName?.text ?? item.name.text) === 'RipplePageForState') {
+              transparentCandidateProviders.add(item.name.text)
+            }
+          }
+        }
+      }
+      // A local variable/parameter may shadow even a genuine import. Conservatively
+      // disable the exception for the whole file if any binding has that name.
+      if (transparentCandidateProviders.size) {
+        const checkShadow = (node: ts.Node) => {
+          if ((ts.isVariableDeclaration(node) || ts.isParameter(node) ||
+            ts.isBindingElement(node) || ts.isFunctionDeclaration(node) ||
+            ts.isClassDeclaration(node)) && node.name && ts.isIdentifier(node.name)) {
+            transparentCandidateProviders.delete(node.name.text)
+          }
+          node.forEachChild(checkShadow)
+        }
+        source.forEachChild(checkShadow)
+      }
       const isTransparentBuiltin = (tag: string) => {
+        if (transparentCandidateProviders.has(tag)) return true
         if (reactBuiltins.has(tag)) return true
         const member = /^(\w+)\.(Fragment|StrictMode|Suspense|Profiler)$/.exec(tag)
         return !!member && reactDefaultNames.has(member[1])
