@@ -4,6 +4,7 @@ import { VerificationContractEditor } from './VerificationContractEditor'
 import { ScopeEffectPreview } from './ScopeEffectPreview'
 import { buildScopeEffectPreview, type PageScopeChoice } from './scope-effect-preview'
 import { projectPreviewViewports } from '../core/project-viewports'
+import { assessPickerDisplayIdentity, isCurrentPickerEnvelope } from '../core/runtime-selection-bridge'
 import { createVerificationContractDraft, rebaseVerificationContractDraft, incompleteVerificationDeclarations, suggestVerificationPageMarkers, toBrowserVerificationContract, type VerificationContractDraft } from './verification-contract-form'
 import './project-workbench.css'
 
@@ -85,9 +86,13 @@ interface SourceSelection {
   previewId?: string
   patchHash?: string
   sourceDigest: string
+  sourceVersion?: string
   element: { id: string; label: string; location?: { path: string; start?: number; end?: number } }
   editableText: Array<{ id: string; label: string; value?: string; location?: { path: string; start?: number; end?: number }; impact: { pageRefs: string[]; unresolved: string[]; certainty: 'source-proven' | 'partial' | 'unknown' } }>
   runtimeInstanceId?: string
+  identityReasons?: string[]
+  sameSourceCount?: number
+  pageContext?: { pathname: string; search: string; hash: string }
   identityCertainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
   tagName: string
   text: string
@@ -157,6 +162,8 @@ function SourceSelectionDetails({ selection, kind, onUseText }: { selection: Sou
     <div><span className="eyebrow">{kind === 'project' ? 'PROJECT SOURCE MAPPING' : 'CANDIDATE SOURCE MAPPING'}</span><strong>{selection.element.label} · &lt;{selection.tagName}&gt;</strong><code data-testid="selected-jsx-source">{selection.element.location?.path}#{selection.element.location?.start}</code></div>
     <p>{selection.patchHash ? <>绑定候选 Patch <code>{selection.patchHash.slice(0, 16)}</code> 与源码摘要</> : <>绑定当前项目源码摘要</>} <code>{selection.sourceDigest.slice(0, 16)}</code>。这是本次预演的定位信息，不是验证证据。</p>
     <p>运行时实例：<code>{selection.runtimeInstanceId ?? '未提供'}</code> · 身份确定性：<strong>{selection.identityCertainty}</strong>{selection.identityCertainty === 'position-dependent' || selection.identityCertainty === 'unknown' || selection.identityCertainty === 'unmapped' ? ' · 不允许按唯一实例精准修改' : ' · 仅用于定位，不构成编辑授权'}</p>
+    {selection.sameSourceCount && selection.sameSourceCount > 1 ? <p>同源共享 {selection.sameSourceCount} 处；点选仅用于导航，不授予局部覆盖权限。</p> : null}
+    {selection.identityReasons?.length ? <small>身份校验原因：{selection.identityReasons.join('、')}</small> : null}
     <p>页面文本：{selection.text || '（无文本）'}</p>
     {selection.editableText.length > 0 ? <ul>{selection.editableText.map(item => <li key={item.id}><code>{item.location?.path}#{item.location?.start}</code> {item.label} · {item.impact.certainty}{item.impact.pageRefs.length ? ` · ${item.impact.pageRefs.map(ref => ref.replace('page:', '/')).join('、')}` : ''}{kind === 'project' && onUseText && item.value !== undefined && <button type="button" className="quiet-button" data-testid={`use-source-text-${item.id}`} aria-label={`编辑这段文字：${item.value}`} onClick={() => onUseText(item.id)}>编辑这段文字</button>}</li>)}</ul> : <small>此 JSX 元素没有直接映射到可编辑文本节点。</small>}
   </div>
@@ -309,26 +316,41 @@ export default function ProjectWorkbench() {
       const frame = frameRef.current
       const generation = previewGeneration.current
       const data = event.data as Record<string, unknown> | null
-      const certainties = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
-      if (!frame?.contentWindow || event.source !== frame.contentWindow || !data || data.type !== 'ripple:element-selected' ||
-        data.previewId !== previewId || data.token !== selectionNonce || typeof data.sourceRef !== 'string' ||
-        typeof data.identityCertainty !== 'string' || !certainties.includes(data.identityCertainty) ||
-        typeof data.tagName !== 'string' || typeof data.text !== 'string') return
+      if (!frame?.contentWindow || !isCurrentPickerEnvelope(data, {
+        eventSource: event.source, iframeSource: frame.contentWindow, previewId, token: selectionNonce,
+      })) return
       const request = kind === 'candidate'
         ? post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('candidate/source-selection', { candidateId: previewId, sourceRef: data.sourceRef })
         : post<Omit<SourceSelection, 'runtimeInstanceId' | 'identityCertainty' | 'tagName' | 'text'>>('project/source-selection', {
           projectId: sourcePreview?.projectId, previewId, sourceDigest: sourcePreview?.sourceDigest, sourceRef: data.sourceRef,
         })
       void request.then(mapped => {
+        // Re-bind the asynchronous response to the same trusted candidate/preview.
+        // The iframe's reported candidate context is not accepted as authority.
+        if (kind === 'candidate' && (mapped.candidateId !== candidate?.id ||
+          mapped.patchHash !== candidate?.patchHash || mapped.sourceDigest !== candidate?.candidateTreeDigest)) return
+        if (kind === 'project' && (mapped.previewId !== sourcePreview?.previewId ||
+          mapped.projectId !== sourcePreview?.projectId || mapped.sourceDigest !== sourcePreview?.sourceDigest)) return
+        if (mapped.element.id !== data.sourceRef) return
         if (previewGeneration.current !== generation || frameRef.current?.contentWindow !== event.source ||
           selectionNonce !== data.token ||
           (kind === 'candidate' ? candidate?.id !== previewId : sourcePreview?.previewId !== previewId)) return
+        const verdict = assessPickerDisplayIdentity(data, {
+          sourceRef: mapped.element.id,
+          sourceVersion: mapped.sourceVersion,
+          expectedPathname: new URL(frame.src, window.location.href).pathname,
+        })
+        // This is a display/navigation result, not an edit or Scope authorization.
         setSelection({
           ...mapped,
-          runtimeInstanceId: typeof data.runtimeInstanceId === 'string' ? data.runtimeInstanceId : undefined,
-          identityCertainty: data.identityCertainty as SourceSelection['identityCertainty'],
-          tagName: data.tagName as string,
-          text: data.text as string,
+          runtimeInstanceId: verdict.runtimeInstanceId,
+          identityCertainty: verdict.certainty,
+          identityReasons: verdict.reasons,
+          sourceVersion: typeof data.sourceVersion === 'string' ? data.sourceVersion : undefined,
+          pageContext: data.pageContext,
+          sameSourceCount: Number.isSafeInteger(data.sameSourceCount) && Number(data.sameSourceCount) > 0 ? Number(data.sameSourceCount) : undefined,
+          tagName: data.tagName,
+          text: data.text,
         })
         setSelectionKind(kind)
       }).catch(cause => setError(cause instanceof Error ? `元素没有可确认的 JSX 来源：${cause.message}` : '元素没有可确认的 JSX 来源'))

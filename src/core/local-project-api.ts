@@ -19,6 +19,22 @@ import type { CandidateOperationRegistry } from './candidate-operation-executors
 import { inspectProjectCapabilities } from './project-capabilities'
 
 interface OpenProject { root: string; graph: SourceGraph }
+
+/** Resolve the source version against the server's current trusted project/worktree.
+ * A page-provided digest can only be compared to this value, never authorize an edit.
+ */
+function sourceFileVersion(root: string, location?: { path: string }): string | undefined {
+  if (!location?.path) return undefined
+  try {
+    const realRoot = fs.realpathSync(root)
+    const absolute = path.resolve(realRoot, location.path)
+    if (!absolute.startsWith(realRoot + path.sep)) return undefined
+    const stat = fs.lstatSync(absolute)
+    if (!stat.isFile() || stat.isSymbolicLink()) return undefined
+    return createHash('sha256').update(fs.readFileSync(absolute)).digest('hex')
+  } catch { return undefined }
+}
+
 interface LiveCandidate { record: CandidateRecord; session: EditSession; lifecycle: CandidateLifecycle }
 
 const projects = new Map<string, OpenProject>()
@@ -321,6 +337,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
         previewId: body.previewId,
         sourceDigest: project.graph.revision.sourceDigest,
         element,
+        sourceVersion: sourceFileVersion(project.root, element.location),
         editableText: editableText.map(node => ({ ...node, impact: sourceProvenPageImpact(project.graph, node.id) })),
       }
     })
@@ -515,6 +532,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
       patchHash: live.record.patchHash,
       sourceDigest: graph.revision.sourceDigest,
       element,
+      sourceVersion: sourceFileVersion(live.record.candidateRoot!, element.location),
       editableText: editableText.map(node => ({ ...node, impact: sourceProvenPageImpact(graph, node.id) })),
     })
   }

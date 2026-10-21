@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { projectPreviewViewports } from '../src/core/project-viewports'
+import { collectRuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
@@ -264,6 +265,56 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toBeVisible({ timeout: 90_000 })
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toHaveAttribute('data-ripple-source', /jsx:src\/pages\/HomePage\.tsx#/)
+    // Diagnostic evidence from the real Docker candidate iframe. Preserve the existing
+    // stable-react-instance assertion: never downgrade the expectation to make CI green.
+    const candidateFrameUrl = await page.getByTestId('candidate-preview').getAttribute('src')
+    const candidateFrame = page.frames().find(frame => frame.url() === candidateFrameUrl)
+    expect(candidateFrame).toBeTruthy()
+    const runtimeDiagnosis = await candidateFrame!.evaluate(collector => {
+      const heading = document.querySelector('h1[data-ripple-source]')
+      const all = (0, eval)(`(${collector})`)({ label: 'data-testid' }) as {
+        records: Array<{ sourceRef: string; runtimeInstanceId?: string; certainty: string; reasons: string[]; sourceVersion?: string; sameSourceCount: number }>
+        page: { pathname: string; search: string; hash: string }
+      }
+      const sourceRef = heading?.getAttribute('data-ripple-source') ?? ''
+      return {
+        raw: {
+          sourceRef, instance: heading?.getAttribute('data-ripple-instance'),
+          certainty: heading?.getAttribute('data-ripple-identity-certainty'),
+        },
+        page: all.page,
+        collected: all.records.filter(record => record.sourceRef === sourceRef),
+      }
+    }, collectRuntimeIdentitySnapshot.toString())
+    console.log('RIPPLE_RUNTIME_IDENTITY_DIAG ' + JSON.stringify(runtimeDiagnosis))
+    const transformDiagnosis = await candidateFrame!.evaluate(async () => {
+      const modules = await Promise.all(['/src/main.tsx', '/src/App.tsx', '/src/pages/HomePage.tsx'].map(async address => {
+        const res = await fetch(address)
+        const body = await res.text()
+        const lines = body.split('\n')
+        return {
+          address, status: res.status, bytes: body.length,
+          hasBoundary: body.includes('RippleIdentity'),
+          hasUseIdentity: body.includes('__rippleUseIdentity'),
+          excerpts: lines.map((line, i) => ({ line: i + 1, text: line.slice(0, 400) }))
+            .filter(({ text }) => /RippleIdentity|__rippleUseIdentity|__rippleUseId|HomePage|createRoot|virtual:ripple/.test(text)).slice(0, 18),
+        }
+      }))
+      const heading = document.querySelector('h1[data-ripple-source]')
+      const fiberKey = heading && Object.keys(heading).find(key => key.startsWith('__reactFiber$'))
+      const fiber = fiberKey && (heading as unknown as Record<string, { type?: unknown; key?: unknown; return?: unknown }>)[fiberKey]
+      const chain: Array<{ type: string; key: string | null }> = []
+      let cursor: unknown = fiber
+      for (let depth = 0; depth < 16 && cursor && typeof cursor === 'object'; depth++) {
+        const current = cursor as { type?: unknown; key?: unknown; return?: unknown }
+        const type = typeof current.type === 'function' ? (current.type.name || '<anonymous>') : String(current.type)
+        chain.push({ type, key: typeof current.key === 'string' ? current.key : null })
+        cursor = current.return
+      }
+      return { modules, fiberChain: chain }
+    })
+    console.log('RIPPLE_COMPONENT_BOUNDARY_DIAG ' + JSON.stringify(transformDiagnosis))
+
     await page.getByTestId('toggle-element-selection').click()
     await preview.getByRole('heading', { name: 'Candidate title' }).click()
     await expect(page.getByTestId('selected-source')).toBeVisible({ timeout: 15_000 })
