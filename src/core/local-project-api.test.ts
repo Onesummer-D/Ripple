@@ -112,6 +112,9 @@ describe('loopback Project API', () => {
     const mapped = await mappedResponse.json() as { candidateId: string; patchHash: string; sourceDigest: string; element: { id: string; location: { path: string } }; editableText: Array<{ value: string }> }
     expect(mapped).toMatchObject({ candidateId: candidate.candidate.id, patchHash: candidate.candidate.patchHash, sourceDigest: candidate.candidate.candidateTreeDigest, element: { id: candidateHeading.id, location: { path: 'src/pages/HomePage.tsx' } } })
     expect(mapped.editableText.map(item => item.value)).toContain('Candidate title')
+    expect((mapped as typeof mapped & { runtimeIdentity?: { instanceIdentityProven: boolean; identityCertainty: string } }).runtimeIdentity).toMatchObject({
+      instanceIdentityProven: false, identityCertainty: 'unknown',
+    }) // Legacy candidate lookup is source navigation ONLY, without instance authority.
     const forgedProjectSelection = await fetch(`${baseUrl}/__ripple/api/project/source-selection`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify({
       projectId: analysis.revision.projectId, previewId: 'project-preview-forged', sourceDigest: analysis.revision.sourceDigest, sourceRef: candidateHeading.id,
     }) })

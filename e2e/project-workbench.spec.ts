@@ -303,6 +303,16 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     await expect(page.getByTestId('selected-source')).toContainText('Patch')
     await expect(page.getByTestId('selected-source')).toContainText('stable-react-instance')
     await expect(page.getByTestId('selected-source')).toContainText('仅用于定位，不构成编辑授权')
+    const originalSourceDisplay = await page.getByTestId('selected-jsx-source').innerText()
+    // Even the CURRENT iframe cannot replay an earlier nonce or preview session.
+    await candidateFrameForIdentity!.evaluate(() => {
+      for (const [previewId, token] of [['stale-preview', 'old-nonce'], ['stale-preview', '']]) {
+        window.parent.postMessage({ type: 'ripple:element-selected', protocol: 'ripple-runtime-identity/v1',
+          previewId, token, sourceRef: 'jsx:forged.tsx#0', identityCertainty: 'stable-react-instance',
+          tagName: 'h1', text: 'forged' }, '*')
+      }
+    })
+    await expect(page.getByTestId('selected-jsx-source')).toHaveText(originalSourceDisplay)
     const selectionApi = 'http://127.0.0.1:4173/__ripple/api/candidate/source-selection'
     const staleSource = await page.request.post(selectionApi, { data: { ...selectionPayload,
       runtimeIdentity: { ...selectionPayload.runtimeIdentity, record: { ...selectionPayload.runtimeIdentity.record,
