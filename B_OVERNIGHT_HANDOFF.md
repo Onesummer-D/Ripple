@@ -1,15 +1,57 @@
-# B 侧接力记录 v4（2026-10-21 上午）
+# B 侧接力记录 v5（2026-10-21 中午）
 
 接力分支：`feat/b-media-overnight-20261021`
-- v4 当前：`d01604c4`（见「〇、v4 增量」；CI run 39510512023 success）
-- 历史：v1 `8492aaf` → v2 `1f5ee58` → v3 `919d40d` → v4 `d01604c`（均基于 PR #7 HEAD `f51719d`）
-- PR #8 分支：`chore/media-acceptance-workflow` `b438096 → 9b618b0`（ff，无强推）
-- PR #9 分支：`d5764e7 → 8c1ae2b`（ff，CI #290 success，本轮无改动）
-- A/B 集成分支：`integration/b-media-x-a-20261021` @ `5fd6e80`（按 A `caa2eaa` 快照；A 已推进至 `44e45887`，Bolt acceptance 在其 `73bb9bd0` 有已知失败，属 A 的 TEXT Run #11 并行 Scope 验证器问题，与 B 无关）
+- v5 当前：`6d6e735`（= v4 `d01604c` + handoff v4 文档；CI #297/#298 success）
+- **PR #7 分支 `feat/b-media-executor-20261019` 已 ff 同步至 `6d6e735`**（f51719d..6d6e735，无强推），**CI run 39530636927 success**——正式 PR 已包含全部恢复/来源映射/目录隔离模块
+- PR #8 分支：`b438096 → 9b618b0 → 7b56438`（ff）
+- A/B 最新集成分支：`integration/b-media-x-a-20261021-v2` @ `c3619a3`（= A `44e45887` + B `6d6e735` 干净合并，零文本冲突）
 
 ---
 
-## 〇、v4 增量——独立审查 P0/P1 全部修复（以远端实际代码为准）
+## 〇、v5 增量——复审指令执行结果
+
+### 1. PR #8 SHA 授权边界（复审 P1）✅ `7b56438`
+- 移除 `ripple_sha` 自由 dispatch 输入，改为 workflow 固定常量 `RIPPLE_REVIEWED_SHA=d01604c4…`；
+- 检出前白名单门控：40 位小写 hex 格式 + 白名单成员校验，env 传递不插入 shell；
+- 门控逻辑本机 bash 实测 5 路径（合法/短值/非 hex/未审核值/注入尝试）全部正确拒绝或接受；
+- 检出后仍校验实际 HEAD=审核常量；青野固定 SHA、凭据不持久化断言、双端 SHA 记录不变；
+- **待负责人复审后合并**。
+
+### 2. PR #7 正式同步 ✅ `6d6e735`
+- ff 前核对远端分支仍为 `f51719d`（B 无新推送）；Diff 卫生检查：仅 9 个预期文件
+（MEDIA 模块 + 测试 + 本文档），无密钥/私有素材/临时文件；
+- `git push origin 6d6e735:feat/b-media-executor-20261019` 安全 ff；
+- 新 HEAD CI run 39530636927 success（不是引用 overnight 的 CI，是 PR #7 分支实跑）。
+
+### 3. A/B 最新集成复验 ✅ `c3619a3`
+- `integration/b-media-x-a-20261021-v2`：A `44e45887` + B `6d6e735`，**零文本冲突**；
+- B 侧相对 A 的改动 = 全新 MEDIA 文件 + `project.ts`（narrowMediaByReceiverType 收窄，
+  已审查 fail-closed）+ 其测试 + `tsconfig.node.json` 一行（scripts TS 纳入）；
+- 本机全量门：typecheck 绿；Vitest 核心 199 用例零断言失败（仅 Windows 已知 EPERM/超时
+  噪音）、非核心 57/57 全过；build 绿；Playwright 4 passed 5 skipped + 2 个本机环境性失败
+  （`spec:586` MEDIA 建议用例在 **A 纯分支 44e45887 本机同样失败**——非集成引入，
+  A 的 Linux CI 通过，属 Windows 本机差异，已用 A 纯分支对照证明；`spec:762` 为 Bolt TEXT
+  用例 teardown EPERM，用例体通过）；
+- 接口关注点（执行器注册、SourceGraph/Scope、补丁与暂存字节、VerificationRun/Receipt、
+  Apply/Rollback、二进制资产回滚、故障现场、四视口证据绑定）均有对应测试且通过；
+- CI 触发说明：ci.yml 只匹配 `feat/**`，integration 分支不自动跑；已推别名分支
+  `feat/b-media-x-a-integration-check`（同提交 `c3619a3`）触发权威 Linux CI，
+  **run 39533129216 success**——A/B 最新组合语义兼容，无冲突残留风险。
+  别名分支与本地集成树用毕已清理，远端保留 `integration/b-media-x-a-20261021-v2`。
+
+---
+
+## 历史版本（v4 及之前）
+
+接力分支：`feat/b-media-overnight-20261021`
+- v4 当前：`d01604c4`（见「一、v4 增量」；CI run 39510512023 success）
+- 历史：v1 `8492aaf` → v2 `1f5ee58` → v3 `919d40d` → v4 `d01604c`（均基于 PR #7 HEAD `f51719d`）
+- PR #9 分支：`d5764e7 → 8c1ae2b`（ff，CI #290 success）
+- 旧集成分支：`integration/b-media-x-a-20261021` @ `5fd6e80`（A `caa2eaa` 快照，已被 v2 取代）
+
+---
+
+## 一、v4 增量——独立审查 P0/P1 全部修复（以远端实际代码为准）
 
 ### 审查结论 → 修复映射
 
