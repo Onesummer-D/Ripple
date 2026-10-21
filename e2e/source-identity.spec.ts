@@ -93,7 +93,7 @@ test('keeps keyed identities stable and marks unkeyed component and raw list pos
 // Snapshots are assessed against a real SourceGraph built from a Git copy of the
 // fixture, so sourceRefs, source versions and page context are checked end to end.
 // ---------------------------------------------------------------------------
-const fixtureFiles = ['index.html', 'main.jsx', 'runtime.html', 'runtime.jsx', 'repeat.js', 'roots.html', 'roots.jsx', 'getters.html', 'getters.jsx', 'cross.html', 'CrossApp.tsx', 'Row.tsx', 'Cell.tsx', 'cells.ts', 'Badge.tsx', 'memo.html', 'memo.jsx']
+const fixtureFiles = ['index.html', 'main.jsx', 'runtime.html', 'runtime.jsx', 'repeat.js', 'roots.html', 'roots.jsx', 'getters.html', 'getters.jsx', 'cross.html', 'CrossApp.tsx', 'Row.tsx', 'Cell.tsx', 'cells.tsx', 'Badge.tsx', 'memo.html', 'memo.jsx']
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-C', cwd, '-c', 'user.email=fixture@ripple.local', '-c', 'user.name=Ripple fixture', '-c', 'commit.gpgsign=false', ...args], { encoding: 'utf8' })
 const snapshot = (page: Page): Promise<RuntimeIdentitySnapshot> => page.evaluate(collectRuntimeIdentitySnapshot, { label: 'data-testid' })
 const all = (snap: RuntimeIdentitySnapshot, label: string) => snap.records.filter(record => record.label === label)
