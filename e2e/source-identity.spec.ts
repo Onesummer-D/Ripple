@@ -2,13 +2,13 @@ import { expect, test, type Page } from '@playwright/test'
 import react from '@vitejs/plugin-react'
 import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import { createServer, type ViteDevServer } from 'vite'
 import type { SourceGraph } from '../src/core/model'
 import { analyzeProject, createRuntimeSourceMap, resolveRuntimeElement, sourceFileDigest } from '../src/core/project'
 import { assessRuntimeIdentity, collectRuntimeIdentitySnapshot, compareRuntimeSnapshots, selectableRuntimeObservations, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { sourceAnnotationPlugin } from '../src/core/source-annotation'
+import { makeFixtureRoot, removeTree } from '../src/core/test-fixture-dir'
 
 const fixtureRoot = path.join(process.cwd(), 'e2e', 'source-identity-fixture')
 let server: ViteDevServer
@@ -118,14 +118,14 @@ test.describe('runtime instance identity', () => {
   const pinnedRenders = (page: Page) => page.evaluate(() => (window as unknown as { __pinnedRenders: number }).__pinnedRenders)
 
   test.beforeAll(() => {
-    projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-runtime-identity-'))
+    projectRoot = makeFixtureRoot('ripple-runtime-identity')
     for (const file of fixtureFiles) fs.copyFileSync(path.join(fixtureRoot, file), path.join(projectRoot, file))
     git(projectRoot, 'init', '-q')
     git(projectRoot, 'add', '-A')
     git(projectRoot, 'commit', '-qm', 'fixture')
     graph = analyzeProject(projectRoot)
   })
-  test.afterAll(() => { if (projectRoot) fs.rmSync(projectRoot, { recursive: true, force: true }) })
+  test.afterAll(() => { if (projectRoot) removeTree(projectRoot) })
 
   test('keyed list reorder keeps business identity, DOM node and a provable instance', async ({ page }) => {
     await openRuntime(page)
@@ -462,7 +462,7 @@ test.describe('runtime instance identity', () => {
     const target = one(before, 'keyed-p1')
     expect(target.sourceVersion).toBe(digest('runtime.jsx'))
     // A revision that keeps every JSX offset (comment appended): only the digest differs.
-    const changedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-runtime-identity-hmr-'))
+    const changedRoot = makeFixtureRoot('ripple-runtime-identity-hmr')
     try {
       for (const file of fixtureFiles) fs.copyFileSync(path.join(fixtureRoot, file), path.join(changedRoot, file))
       fs.appendFileSync(path.join(changedRoot, 'runtime.jsx'), '\n// revised\n')
@@ -487,7 +487,7 @@ test.describe('runtime instance identity', () => {
       expect(assessment.reasons).toContain('source-version-ambiguous')
       expect(() => createRuntimeSourceMap(changedGraph, [{ sourceRef: stale.sourceRef, runtimeInstanceId: stale.runtimeInstanceId!, certainty: stale.certainty, pageContext: after.page, reasons: stale.reasons }])).toThrow(/降级/)
       expect(selectableRuntimeObservations(after).some(observation => observation.sourceRef === stale.sourceRef)).toBe(false)
-    } finally { fs.rmSync(changedRoot, { recursive: true, force: true }) }
+    } finally { removeTree(changedRoot) }
   })
 
   test('annotation causes no extra attribute writes and keeps deep-equal memo bail-outs', async ({ page, browser }) => {
@@ -592,7 +592,7 @@ test.describe('runtime instance identity', () => {
     const map = createRuntimeSourceMap(graph, selectableRuntimeObservations(snap))
     expect(resolveRuntimeElement(graph, { sourceRef: target.sourceRef, runtimeInstanceId: target.runtimeInstanceId! }, map, { fileDigest: digest }).element.id).toBe(target.sourceRef)
 
-    const changedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-runtime-identity-changed-'))
+    const changedRoot = makeFixtureRoot('ripple-runtime-identity-changed')
     try {
       for (const file of fixtureFiles) fs.copyFileSync(path.join(fixtureRoot, file), path.join(changedRoot, file))
       fs.writeFileSync(path.join(changedRoot, 'runtime.jsx'), `// shifted\n${fs.readFileSync(path.join(fixtureRoot, 'runtime.jsx'), 'utf8')}`)
@@ -610,6 +610,6 @@ test.describe('runtime instance identity', () => {
       const staleTarget = staleObservations.find(observation => observation.certainty.startsWith('stable'))!
       expect(() => resolveRuntimeElement(changedGraph, staleTarget, staleMap, { fileDigest: changedDigest })).toThrow(/源码版本/)
       expect(() => resolveRuntimeElement(graph, { sourceRef: target.sourceRef, runtimeInstanceId: target.runtimeInstanceId! }, { ...map, sourceDigest: changedGraph.revision.sourceDigest })).toThrow(/不再对应/)
-    } finally { fs.rmSync(changedRoot, { recursive: true, force: true }) }
+    } finally { removeTree(changedRoot) }
   })
 })

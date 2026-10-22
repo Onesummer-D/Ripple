@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { createHash } from 'node:crypto'
 import { sourceAnnotationPlugin } from './source-annotation'
+import { removeTree } from './test-fixture-dir'
 
 // Copied exactly from the generator in candidate.ts; keep the hash in the
 // annotation plugin synchronized with the generator, never weaken the check.
@@ -43,7 +44,7 @@ export function App() { ${shadow} return <${alias} state="home" pageRefs={{ home
     expect(output).toBeTruthy()
     return output!
   } finally {
-    fs.rmSync(root, { recursive: true, force: true })
+    removeTree(root)
   }
 }
 

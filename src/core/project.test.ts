@@ -18,6 +18,7 @@ import { sourceBindings } from './verification-runner'
 import { verificationContractHash } from './verification-contract'
 import { inspectProjectCapabilities } from './project-capabilities'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
+import { removeTree } from './test-fixture-dir'
 
 const temporaryRoots: string[] = []
 const temp = () => {
@@ -155,7 +156,7 @@ function mediaSwapFixture(graph: ReturnType<typeof analyzeProject>) {
 }
 
 afterEach(() => {
-  for (const root of temporaryRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
+  for (const root of temporaryRoots.splice(0)) removeTree(root)
 })
 
 describe('real project graph and candidate executor', () => {

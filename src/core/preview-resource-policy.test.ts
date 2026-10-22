@@ -5,6 +5,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { previewResourceCspSources, referencedPreviewResourceUrls, saveTrustedPreviewResourceUrls, trustedPreviewResourceUrls, validatePreviewResourceUrls } from './preview-resource-policy'
+import { removeTree } from './test-fixture-dir'
 
 const originalStateRoot = process.env.RIPPLE_WORKBENCH_STATE_DIR
 let stateRoot = ''
@@ -13,8 +14,8 @@ let projectRoot = ''
 afterEach(() => {
   if (originalStateRoot === undefined) delete process.env.RIPPLE_WORKBENCH_STATE_DIR
   else process.env.RIPPLE_WORKBENCH_STATE_DIR = originalStateRoot
-  if (stateRoot) fs.rmSync(stateRoot, { recursive: true, force: true })
-  if (projectRoot) fs.rmSync(projectRoot, { recursive: true, force: true })
+  if (stateRoot) removeTree(stateRoot)
+  if (projectRoot) removeTree(projectRoot)
   stateRoot = ''
   projectRoot = ''
 })
