@@ -220,19 +220,32 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
 
   /** 最近一次预演清理失败的诊断（如实记录，绝不把清理失败误报为成功）。 */
   let lastCleanupFailure = ''
+  /**
+   * 清理失败但服务端仍可能持有的预演会话：保留完整会话身份（projectId+previewId），
+   * 在下次切换/刷新/关闭时由 retryPendingCleanup() 可验证地重试停止，绝不丢弃引用。
+   */
+  const pendingCleanup: PreviewSession[] = []
 
   /**
    * 停止一个预演会话：与 A 服务端合同兼容的尽力清理。
-   * 失败时记录诊断（服务端可能仍持有该会话；dispose/下一次 openProject/refresh
-   * 会再次尝试清理），不阻断主流程，也绝不静默伪装成清理成功。
+   * 成功：从待清理列表移除；失败：保留会话身份并入列待重试，同时记录诊断，
+   * 不阻断主流程，也绝不静默伪装成清理成功。
    */
   async function stopPreview(session: PreviewSession): Promise<void> {
     try {
       await post('project/preview/stop', { projectId: session.projectId, previewId: session.previewId })
       lastCleanupFailure = ''
+      const index = pendingCleanup.findIndex(item => item.previewId === session.previewId)
+      if (index >= 0) pendingCleanup.splice(index, 1)
     } catch (error) {
-      lastCleanupFailure = `预演会话 ${session.previewId} 停止失败：${error instanceof Error ? error.message : '未知错误'}（服务端可能仍持有该会话，下次切换/刷新/关闭时会重试清理）`
+      if (!pendingCleanup.some(item => item.previewId === session.previewId)) pendingCleanup.push(session)
+      lastCleanupFailure = `预演会话 ${session.previewId} 停止失败：${error instanceof Error ? error.message : '未知错误'}（已保留会话身份，将在下次切换/刷新/关闭时重试清理；当前待清理 ${pendingCleanup.length} 个会话）`
     }
+  }
+
+  /** 尽力重试全部待清理会话：按身份逐个停止，成功者移除，失败者保留身份等待下一轮。 */
+  async function retryPendingCleanup(): Promise<void> {
+    for (const session of [...pendingCleanup]) await stopPreview(session)
   }
 
   /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
@@ -537,6 +550,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         const oldSession = previewSession
         resetForProject()
         projectRoot = root
+        // 先重试历史失败会话，再停止当前会话——本轮刚失败的会话留待下一轮重试
+        await retryPendingCleanup()
         if (oldSession) await stopPreview(oldSession)
         // 停止期间被更新的请求接管：立即按过期处理，不得继续 analyze
         stale(gen)
@@ -553,6 +568,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         // 重拉前停止旧预演会话（refresh 会重建 preview 会话）
         const oldSession = previewSession
         previewSession = undefined
+        // 先重试历史失败会话，再停止当前会话——本轮刚失败的会话留待下一轮重试
+        await retryPendingCleanup()
         if (oldSession) await stopPreview(oldSession)
         stale(gen)
         await loadProjectState(gen)
@@ -568,6 +585,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       if (session) {
         await stopPreview(session)
       }
+      // 关闭是最后一次清理机会：连同历史失败会话一并按身份重试
+      await retryPendingCleanup()
     },
 
     /** C 来源关系数据挂点：真实数据到达前一律不传，缺页保持未证明。 */

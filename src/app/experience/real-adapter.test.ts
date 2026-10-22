@@ -470,4 +470,34 @@ describe('Real Adapter · 合并前修订（停止挂起竞态 / 清理失败诊
     expect(cleanup.summary).toContain('preview-1')
     expect(cleanup.summary).toContain('会话不存在')
   })
+
+  it('清理失败保留会话身份并可验证重试：下一轮 refresh 重试成功后风险项移除', async () => {
+    let stopCalls = 0
+    let previewSeq = 0
+    const { fetchImpl, calls } = mockFetch({
+      analyze: ANALYSIS,
+      history: HISTORY_NOT_RUN,
+      'project/preview': () => Promise.resolve({ status: 200, body: { projectId: 'proj-acme', previewId: `preview-${++previewSeq}`, sourceDigest: 'd', url: 'http://127.0.0.1:9999/' } }),
+      'project/preview/stop': () => {
+        stopCalls += 1
+        // 第一次停止失败，之后成功——验证重试确实带同一身份再次发出
+        return Promise.resolve(stopCalls === 1 ? { status: 500, body: { error: '会话不存在' } } : { status: 200, body: { stopped: true } })
+      },
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    expect(loaded.projectStatus).toBe('ready')
+    // 第一次 refresh：停止 preview-1 失败——风险项出现且保留会话身份
+    const failed = await adapter.refresh!(loaded)
+    const risk = evidence(failed, 'ev:cleanup')
+    expect(risk.state).toBe('risk')
+    expect(risk.summary).toContain('preview-1')
+    // 第二次 refresh：先按身份重试 preview-1（成功，移出待清理），再停止 preview-2——风险项消失
+    const retried = await adapter.refresh!(failed)
+    expect(retried.projectStatus).toBe('ready')
+    expect(retried.evidence.find(item => item.id === 'ev:cleanup')).toBeUndefined()
+    // 可验证：preview-1 的停止请求确实带了同一 previewId 发了两次（失败一次 + 重试成功一次）
+    const stopsForPreview1 = calls.filter(call => call.path === 'project/preview/stop' && (call.body as { previewId: string }).previewId === 'preview-1')
+    expect(stopsForPreview1).toHaveLength(2)
+  })
 })

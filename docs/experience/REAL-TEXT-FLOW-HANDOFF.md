@@ -11,17 +11,18 @@
 
 ## 1. A 真实接口清单（`src/core/local-project-api.ts`）
 
-所有路由挂在 `/__ripple/api/` 前缀下，除 `history` 与 `preview/resources` 外均为 POST（JSON）。
-F 侧统一通过 `real-adapter.ts` 的 `post()` / `get()` 访问，禁止界面组件直接发请求。
+所有路由挂在 `/__ripple/api/` 前缀下。GET 路由仅四个：`/history`、`/project/preview/report`（query 参数 `projectId`+`previewId`）、
+`/candidate/{candidateId}/evidence/{evidenceId}`（截图证据，服务端哈希校验）、`/candidate/{candidateId}/runs/{runId}`（浏览器执行记录）；
+其余均为 POST（JSON）。F 侧统一通过 `real-adapter.ts` 的 `post()` / `get()` 访问，禁止界面组件直接发请求。
 
 | 路由 | 方法 | 请求体关键字段 | 响应关键字段 | 状态 |
 |---|---|---|---|---|
 | `/analyze` | POST | `projectRoot`（必填）、`previousCandidateId?` | `projectRoot, revision{projectId,sourceDigest,gitCommit,runtimeFingerprint}, graphId, unresolved[], routes[], targets[], relationCounts` | 【已稳定】409 = 分析期间源码变化，必须重新读取 |
-| `/history` | GET | — | `history[]`（`candidateId, projectId, lifecycle, patchHash, updatedAt, verification{state,runId,patchHash,scopeVersion,assertions[],evidence[]}`） | 【已稳定】 |
+| `/history` | GET | —（query 可带 `projectId`） | `history[]`（`candidateId, projectId, lifecycle, patchHash, updatedAt, verification{state,runId,patchHash,scopeVersion,assertions[],evidence[]}`） | 【已稳定】 |
 | `/project/preview` | POST | `projectId` | `projectId, previewId, sourceDigest, url` | 【已稳定】 |
 | `/project/preview/stop` | POST | `projectId, previewId` | `stopped` | 【已稳定】尽力清理，失败不阻断 |
-| `/project/source-selection` | POST | 点选桥信封（见 §2） | 运行时身份观察 | 【待冻结】D 合同 |
-| `/preview/resources` | GET | — | 预览资源授权清单 | 【已稳定】 |
+| `/project/source-selection` | POST | `projectId, previewId, sourceDigest, sourceRef` | `element, sourceVersion, editableText[]`（含 sourceProven 页面影响） | 【待冻结】D 合同 |
+| `/preview/resources` | POST | `projectId, urls[]` | `previewResources{referencedUrls, authorizedUrls}`；未分析工程返回 409 | 【已稳定】 |
 | `/candidate` | POST | `projectId, rawIntent, operations[], scope, verificationContract?, previousCandidateId?` | `sessionId, status, candidate{candidateId,...}, verification, workflow` | 【已稳定】 |
 | `/candidate/preview` | POST | `candidateId` | `candidateId, url, verification` | 【已稳定】 |
 | `/candidate/preview/stop` | POST | `candidateId` | `stopped, candidateId` | 【已稳定】 |
@@ -32,7 +33,9 @@ F 侧统一通过 `real-adapter.ts` 的 `post()` / `get()` 访问，禁止界面
 | `/candidate/source-selection` | POST | `candidateId` + 点选桥信封 | 候选画布上的运行时身份观察 | 【待冻结】D 合同 |
 | `/candidate/restore` | POST | `candidateId` | 恢复证据/历史详情 | 【已稳定】 |
 | `/discard` | POST | `candidateId` | 丢弃结果 | 【已稳定】 |
-| `/project/preview/report` | POST | 预演诊断上报 | — | 【已稳定】 |
+| `/candidate/{id}/evidence/{evId}` | GET | — | PNG 截图（sha256 与记录不符返回 409） | 【已稳定】 |
+| `/candidate/{id}/runs/{runId}` | GET | — | 浏览器执行记录 JSON（同样哈希校验） | 【已稳定】 |
+| `/project/preview/report` | GET | —（query：`projectId`+`previewId`） | 预演诊断 | 【已稳定】 |
 
 身份授权规则（A 侧强制，F 不得在前端另建模拟状态机）：
 
@@ -101,7 +104,7 @@ attachSourceRelations({ provenUnaffectedRefs, pageRelations })
 | selectElement（切换目标） | 旧目标的草稿与全部 Scope 意向清除；默认 Scope 完全由新目标的来源证明生成 | 不存在的目标 id 一律拒绝，返回原模型 |
 | setPage（浏览页） | 只影响画布展示，**绝不参与页面关系投影** | — |
 | 候选生命周期 | 服务端为权威：前端不得本地模拟 approved/applied 状态；stale 退役后界面必须回到「无活跃候选」 | CandidateError 文案直接呈现给用户 |
-| dispose（关闭工作台/真实画布） | 停止项目预演会话并取消在途请求 | 尽力清理；失败留待下次切换/刷新/关闭重试 |
+| dispose（关闭工作台/真实画布） | 停止项目预演会话并取消在途请求 | 尽力清理；清理失败保留会话身份入列，下次切换/刷新/关闭按身份重试；dispose 是最后一次重试机会 |
 
 ## 6. E2E 测试场景（第二阶段验收用例）
 
