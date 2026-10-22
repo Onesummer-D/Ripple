@@ -578,6 +578,21 @@ describe('agent C P1 round 3: mutable route table aliases fail closed', () => {
     expect(graph.unresolved.join('\n')).toContain('mutated by assignment')
   })
 
+  it('fails closed when a route object is selected through a non-numeric index before a property write', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      declare const key: number;
+      const selected = routes[key];
+      selected.Component = Home;
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    // The runtime table element is mutated through an unprovable index: the
+    // proof must degrade instead of keeping the stale Component binding.
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(impact(graph, 'Home Title').pageRefs).not.toContain('page:/profile')
+    expect(graph.unresolved.join('\n')).toContain('route-coverage:')
+  })
+
   it('fails closed when a route table alias is reassigned', () => {
     const root = project({ ...pages, 'src/App.tsx': `${routerImports}
       ${declared}
