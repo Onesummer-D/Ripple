@@ -4,7 +4,9 @@
 // 证据截图输出到 test-results/cd-shared-footer-*.png。
 import { expect, test, type Page } from '@playwright/test'
 import react from '@vitejs/plugin-react'
+import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { createServer, type ViteDevServer } from 'vite'
 import type { SourceGraph } from '../src/core/model'
@@ -21,9 +23,28 @@ const evidenceDir = path.join(process.cwd(), 'test-results')
 let server: ViteDevServer
 let baseUrl: string
 let graph: SourceGraph
+let projectRoot: string
 
 test.beforeAll(async () => {
-  graph = analyzeProject(fixtureRoot)
+  // 与 e2e/source-identity.spec.ts 相同的模式：分析针对临时副本运行
+  // （仓库内夹具向上可达 node_modules，会触发 TS checker 深层解析路径），
+  // vite 仍服务仓库内的真实夹具以获得模块解析与源码标注。
+  projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-cd-shared-footer-'))
+  const copyTree = (relative: string) => {
+    const from = path.join(fixtureRoot, relative)
+    const to = path.join(projectRoot, relative)
+    if (fs.statSync(from).isDirectory()) {
+      fs.mkdirSync(to, { recursive: true })
+      for (const entry of fs.readdirSync(from)) copyTree(path.join(relative, entry))
+    } else {
+      fs.copyFileSync(from, to)
+    }
+  }
+  for (const entry of fs.readdirSync(fixtureRoot)) copyTree(entry)
+  execFileSync('git', ['init', '-q'], { cwd: projectRoot })
+  execFileSync('git', ['add', '.'], { cwd: projectRoot })
+  execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'baseline'], { cwd: projectRoot })
+  graph = analyzeProject(projectRoot)
   server = await createServer({
     configFile: false,
     root: fixtureRoot,
@@ -37,7 +58,21 @@ test.beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${address.port}`
 })
 
-test.afterAll(async () => { await server?.close() })
+test.afterAll(async () => {
+  await server?.close()
+  // Windows 上 git 临时仓库含只读对象文件：先清属性再删，失败重试。
+  const makeWritable = (target: string) => {
+    let stat: fs.Stats
+    try { stat = fs.lstatSync(target) } catch { return }
+    try { fs.chmodSync(target, 0o777) } catch { /* ignore */ }
+    if (stat.isDirectory() && !stat.isSymbolicLink()) {
+      for (const entry of fs.readdirSync(target)) makeWritable(path.join(target, entry))
+    }
+  }
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try { makeWritable(projectRoot); fs.rmSync(projectRoot, { recursive: true, force: true }); break } catch { /* retry */ }
+  }
+})
 
 const snapshot = (page: Page): Promise<RuntimeIdentitySnapshot> => page.evaluate(collectRuntimeIdentitySnapshot, { label: 'data-testid' })
 const footerRecord = (snap: RuntimeIdentitySnapshot) => {
@@ -73,7 +108,7 @@ test('real pick on two pages → sourceRef → SourceGraph → page consumption 
   // --- sourceRef → SourceGraph 节点 ---
   const element = graph.nodes.find(node => node.id === homeFooter.sourceRef)
   expect(element, 'sourceRef resolves into the SourceGraph').toBeDefined()
-  expect(element!.location?.path).toBe('main.tsx')
+  expect(element!.location?.path).toBe('components/Footer.tsx')
 
   // --- SourceGraph → 页面消费关系 → Scope 证据 ---
   const footerText = graph.nodes.find(node => node.kind === 'data' && node.value === 'Shared footer text')
@@ -96,7 +131,7 @@ test('real pick on two pages → sourceRef → SourceGraph → page consumption 
   // --- D 的采集期评估：版本+页面双证据齐备时实例身份才被证明 ---
   const pageContext = { pathname: new URL(baseUrl).pathname, search: '', hash: '' }
   const assessment = assessRuntimeIdentity(graph, home, homeFooter, {
-    fileDigest: file => sourceFileDigest(fixtureRoot, file),
+    fileDigest: file => sourceFileDigest(projectRoot, file),
     expectedPage: pageContext,
   })
   expect(assessment.locatable).toBe(true)
@@ -104,7 +139,7 @@ test('real pick on two pages → sourceRef → SourceGraph → page consumption 
   expect(assessment.reasons).toEqual([])
   // 版本漂移（候选修订后旧采集）→ 拒绝且保留原因
   const stale = assessRuntimeIdentity(graph, home, { ...homeFooter, sourceVersion: '0'.repeat(64) }, {
-    fileDigest: file => sourceFileDigest(fixtureRoot, file),
+    fileDigest: file => sourceFileDigest(projectRoot, file),
     expectedPage: pageContext,
   })
   expect(stale.instanceIdentityProven).toBe(false)

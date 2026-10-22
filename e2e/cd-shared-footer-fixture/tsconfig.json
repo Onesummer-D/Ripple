@@ -1,1 +1,1 @@
-{"compilerOptions":{"jsx":"preserve","moduleResolution":"Bundler"},"include":["*.tsx","*.html"]}
+{"compilerOptions":{"jsx":"preserve","moduleResolution":"Bundler"},"include":["**/*.tsx","*.tsx","index.html"]}
