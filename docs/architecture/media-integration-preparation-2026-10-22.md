@@ -52,11 +52,22 @@ create-only 资产写入限制、sourceEdit 精确落在 target.location 区间�
 
 ## 3. 最新 SHA 与 CI
 
-- 分支 HEAD：`aa0ae0f`（变基后；= 移植 + 四视口场景 + 本文档 + 缓存清理）；基线已同步至 A 最新 `16e737c1`（PR #23 合并后；其相对 2525092 仅触碰 e2e 文件，与本分支零交集）
-- 审查回流（协调人 2026-10-22）：**P2 已修**——`tsconfig.node.tsbuildinfo` 恢复为 A 基线字节（`tsc -b` 编译缓存，非 MEDIA 功能文件），PR diff 现仅含新增文件 + `tsconfig.node.json` 一行；**P1 维持原判**——`narrowMediaByReceiverType` 继续留待 C+D 联合集成任务处理
-- 分支 CI（Linux，权威）：run [`39794609650`](https://github.com/Onesummer-D/Ripple/actions/runs/39794609650)（移植）**success**、run [`39795652882`](https://github.com/Onesummer-D/Ripple/actions/runs/39795652882)（场景）**success**、run [`39796791980`](https://github.com/Onesummer-D/Ripple/actions/runs/39796791980)（文档）**success**；变基后新 run 以 aa0ae0f 为准（见 Actions 页面）
-- Draft PR：[#26](https://github.com/Onesummer-D/Ripple/pull/26) → base `feat/project-first-core-20261018`（A），**保持 Draft 等 C**
-- 本机门禁（Windows；Linux CI 为权威）：typecheck ✅、build ✅、MEDIA 6 文件 62 用例**零断言失败**（14 个失败全部是 `node_modules/.tmp` 临时目录删除的已知 EPERM teardown 噪音，已用独立探针证明重试即成功，用例体全过）；candidate/session/scope 回归 33/33 ✅
+- 分支 HEAD：`6a988e8`（= 移植 + 四视口场景 + 审查返工；变基后基线 A `16e737c1`）
+- 分支 CI（Linux，权威）：移植 `39794609650` / 场景 `39795652882` / 文档 `39796791980` / 缓存清理 `39808476957` / 审查返工 [`39815985632`](https://github.com/Onesummer-D/Ripple/actions/runs/39815985632)（6a988e8 HEAD）全部 **success**
+- Draft PR：[#26](https://github.com/Onesummer-D/Ripple/pull/26) → base `feat/project-first-core-20261018`（A），**保持 Draft 等 C+D 合同稳定**
+- 本机门禁（Windows；Linux CI 为权威）：typecheck ✅、build ✅、MEDIA 用例零断言失败（EPERM teardown 为已知环境噪音）；返工后 viewport-evidence 30/30 ✅、staging 嗅探/反斜杠负例新增 ✅、四视口 Fixture 端到端复跑 ✅
+
+## 3.5 工程复审记录（协调人第二轮，2026-10-23，提交 `6a988e8`）
+
+七项审查结论（细节见 PR #26 评论）：
+
+1. **来源/路径/类型/身份**：SHA-256 全链 + assetRef 白名单 + 路径越界拒绝 + 截图 PNG 魔数 + dual 哈希回验原本齐备；**返工补齐文件类型验证**——`assertImageBytes` 魔数嗅探（jpeg/png/webp/gif/avif），青野验收下载入口接入，非图字节不再能以图片扩展名进入项目 public。
+2. **生命周期**：暂存（临时文件+lstat 符号链接检查+原子 rename）、应用恢复三态、run 目录隔离、现场清单、成功路径清理均完备。已记录残留（不返工）：SIGKILL 可能遗留 `.tmp` 孤儿（内容寻址不受影响，手动清理即可）。
+3. **多页面共享消费识别**：双端每视口消费实例计数恰为 1 的 URL 级唯一性证明，fail-closed；**真实边界如实声明**——多页面场景与 CSS 背景图消费未覆盖（CSS url 不进 A SourceGraph 媒体节点），属 C+D 联合集成项。
+4. **CSS 背景图/组件属性/不同布局**：组件属性消费覆盖（fixture 三容器四视口实证）；CSS 背景图明确 unsupported；object-position 关键字/四值语法为已知边界（真实 Chromium computed style 序列化为百分比，不可达；沿用 B 既有登记）。
+5. **路径遍历/符号链接/中断/部分写入**：服务层越界与出 root 符号链接拒绝有测试；**返工加固**——`resolveAssetRefToRelativePath` 显式拒绝反斜杠（Windows 分隔符重解释可逃逸 publicDir）；部分写入由树摘要比对兜底。已记录残留：run 目录分配的理论竞态（本地单运行器场景，P3）。
+6. **四视口证据与资源版本一致性**：候选身份四元组绑定 + 四视口缺一即报错 + 基线截图内容哈希 + currentSrc 规范化匹配；**返工补齐** evidence.json 内容哈希回验（与 dual.json 对称）。
+7. **重复代码/过度防御**：**返工清理**——提取 `attachPageErrorHooks`（保持候选/基线语义差异）、删除无效三元、evidence/dual 解析一次复用。原样保留的"防御"均有安全语义（哈希复核、计数恰为 1、场景保留），非过度。
 
 ## 4. 接口表（SourceGraph / Candidate / E / F）
 
