@@ -4,6 +4,7 @@
 > 分支：`docs/competition-delivery-20261022`（基于 A 主线 `feat/project-first-core-20261018 @ 2525092`）
 > 性质：**纯文档交付**。不修改 A 的任何核心源码、验证器或真实工程资产；全部内容以只读方式核对 GitHub 远端、本地工作区与已提交交接文档后编写。
 > 状态纪律：所有功能按三种状态标注——【已验证】已由真实工程/真实浏览器证据验证；【已合成】已由合成测试证明但未完成真实案例验收；【未接入】尚未接入或仍在开发。后两种不得写成已完成。
+> 修订历史：6a1a51d（初稿）→ 7bcc838（Run #15–#17 阶段级更正）→ 本轮（Run #18 整轮通过后最终事实修订 + 参赛材料评委语言重构）。
 
 ## 文档清单
 
@@ -18,24 +19,23 @@
 | 07 | [competition-materials-draft.md](./competition-materials-draft.md) | 参赛材料内容初稿（作品概述 / 背景 / 需求 / 功能 / 架构 / 创新 / 技术路线 / 测试验证 / 应用价值 / 不足与计划 / PPT 页面建议） | 六 |
 | 08 | [evidence-gap-checklist.md](./evidence-gap-checklist.md) | 缺失截图与待补证据清单 | 五·6 / 七·8 |
 
-## 当前真实验收状态摘要（截至 2026-10-22 晚）
+## 当前真实验收状态摘要（截至 2026-10-22 晚，Run #18 后）
 
-| 案例 | 真实验收状态（阶段级） |
+| 案例 | 真实验收状态 |
 | --- | --- |
-| 青野 TEXT（Bolt real-project acceptance） | 整轮 workflow 尚未通过（Runs #1–#17 结论均 failure），**但阶段级结果已大幅推进**（协调人据 Run #15–#17 日志核实）：工程分析→资源快照→点选→候选生成→**四视口验证七断言 PASSED**→范围决策→**审批成功**→**补丁应用成功**（应用后 Footer.tsx 含新文案、HEAD 不变）→应用预览启动、新 footer 可见（Run #16/#17）；尚未走通：应用后三页桌面导航（Run #16 @83ddff5 spec.ts:1122、Run #17 @736a029 spec.ts:1131，PR #23 修复中）、回滚与历史恢复（NOT RUN）。 |
+| 青野 TEXT（Bolt real-project acceptance） | **整轮通过（Run #18，2026-10-22，A @ 16e737c）**：工程分析→资源快照→点选→候选生成→四视口验证（七断言全 pass）→范围决策→审批→应用→应用后三页导航→回滚（原工程未改动证明）→历史恢复，全链路真实走通并留证（execution.json v4、四视口 PNG 哈希绑定、applied-site/history-restored 截图均在工件 `ripple-bolt-workbench-39808500782` 中）。历史：Runs #1–#17 结论均 failure，逐次归因修复（资源快照→pids→导航成本→导航契约→应用预览挂载），Run #15–#17 阶段级先行通过验证/审批/应用。 |
 | 青野 MEDIA（Qingye real-project MEDIA acceptance） | Run `39536064634`（2026-10-21）**SUCCESS**：四视口双端验证、7 项断言、Approval/Apply/Rollback、原工程未改动检查通过。仅限「青野分类图 source-proven MEDIA asset-swap」单操作。 |
 | 栖光 MEDIA | 工作台 Fixture/演示层可用（本地图片上传、三容器裁切对照）；**真实工程 MEDIA 验收未在栖光工程上运行**，E 视觉差异模块未接入 VerificationRunner。 |
 | 第三方（codescandy dashui @ b700bbd） | 能力盘点与缺口复现完成（4924 节点/5006 边；61 条 source-proven 消费边；100 条页面影响全 unknown；route 0、token 0）；TEXT 全生命周期 NOT RUN；Issue #6 不关闭。 |
 
-> 注：workflow 整轮 Failure 与某阶段 NOT RUN 不能等同。Run #15–#17 的失败点均在应用之后；验证、审批、应用阶段在真实 Bolt 工程上已通过。各文档已按此逐阶段修订。
-
 ## 关键证据链接（全部已实际核对）
 
-- 普通 CI（Ripple CI）：<https://github.com/Onesummer-D/Ripple/actions?query=workflow%3ARipple+CI>（A 主线 2525092 对应 CI #478 success；PR #23 分支在跑）
-- Bolt 真实工程验收：<https://github.com/Onesummer-D/Ripple/actions/workflows/bolt-acceptance.yml>（整轮 Runs #1–#17 结论 failure；阶段级进展见上表与矩阵）
+- **Bolt Run #18 @ 16e737c（整轮 SUCCESS，主案例真实闭环通过）**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>
+- Bolt 真实工程验收（历史 Runs #1–#17 结论均 failure，逐次归因修复）：<https://github.com/Onesummer-D/Ripple/actions/workflows/bolt-acceptance.yml>
 - Bolt Run #15 @ a4ac547（验证/审批/应用阶段通过）：<https://github.com/Onesummer-D/Ripple/actions/runs/39724024971>
 - Bolt Run #16 @ 83ddff5（应用预览启动通过、导航超时）：<https://github.com/Onesummer-D/Ripple/actions/runs/39761298824>
-- Bolt Run #17 @ 736a029（导航点击超时，PR #23 修复中）：<https://github.com/Onesummer-D/Ripple/actions/runs/39774721394>
+- Bolt Run #17 @ 736a029（导航点击超时）：<https://github.com/Onesummer-D/Ripple/actions/runs/39774721394>
+- 普通 CI（Ripple CI）：<https://github.com/Onesummer-D/Ripple/actions?query=workflow%3ARipple+CI>（A 主线 2525092 对应 CI #478 success）
 - 青野 MEDIA 验收 Run：<https://github.com/Onesummer-D/Ripple/actions/runs/39536064634>
 - A+D Runtime Identity 集成 CI：<https://github.com/Onesummer-D/Ripple/actions/runs/39650178433>（Vitest 408/408、Playwright 30/30）
 - PR #17 受限预构建实验 CI：<https://github.com/Onesummer-D/Ripple/actions/runs/39667915489>（426/426、30 passed/1 skipped）

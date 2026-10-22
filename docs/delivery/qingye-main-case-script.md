@@ -8,9 +8,9 @@
 存在两条执行轨道，演示与验收不能混用：
 
 - **轨道 A · 演示轨道**：A 的 Project-first 工作台（`npm run dev` 后 http://localhost:4173 ，`project-path` 指向青野工程克隆）或 F 的体验工作台演示入口（`experience.html`，演示数据全程 DEMO/SIMULATED 标注）。本机 Windows 可运行工作台 UI 与本地 Fixture；**Docker 隔离预演与四视口真实验证在本机不可用**（无 Linux Docker）。
-- **轨道 B · 真实验收轨道**：GitHub Actions「Bolt real-project acceptance」（workflow_dispatch，固定 `BOLT_REPO_REF=f7e4998a`）。截至 2026-10-22，整轮 workflow 结论 Runs #1–#17 均 failure，但**阶段级结果不同**（协调人已据 Run #15–#17 日志核实）：真实工程上「分析→快照→点选→候选生成→四视口验证七断言 PASSED→范围决策→审批→应用」已经走通（Run #15 @ a4ac547、#16 @ 83ddff5、#17 @ 736a029）；尚未走通的是「应用后三页桌面导航」（Run #16/#17 在导航点击处失败，PR #23 修复中）以及「回滚、历史恢复」（NOT RUN）。下文逐步骤标注【演示可录】【真实已过 Run #15–#17】【待验收】三种状态。
+- **轨道 B · 真实验收轨道**：GitHub Actions「Bolt real-project acceptance」（workflow_dispatch，固定 `BOLT_REPO_REF=f7e4998a`）。**已于 Run #18（2026-10-22，A @ 16e737c）整轮通过**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>（1.4 分钟，唯一用例 passed）。历史 Runs #1–#17 结论均 failure，逐次归因修复；Run #15–#17 阶段级先行通过（验证/审批/应用）。下文逐步骤标注【演示可录】【真实已过 Run #18】两种状态。
 
-两种标记贯穿全文：【演示可录】= 现在就能真实录屏；【待验收】= 真实工程尚未通过，录屏时须配旁白说明或改用 DEMO 标注画面。
+每步标注【演示可录】（本地可真实录屏）与【真实已过 Run #18】（真实验收已通过，证据在 Run #18 工件中）两种状态。
 
 ## 1. 十步演示路线
 
@@ -59,41 +59,30 @@
 ### 步骤 8 · 审批及应用
 - 界面：「批准候选」（`approve-candidate`，仅 PASSED 可点）→「应用候选」（`apply-candidate`）；应用预览（PR #15/#21）：以候选身份启动已应用版本预览，桌面导航三个页面验证 footer 标记保持可见。
 - 数据：同一份 CandidatePatch 应用；应用前基线检查；应用后 Footer.tsx 含新文案、HEAD 不变。
-- 证据：应用后 `Footer.tsx` 含「山野器物 · Ripple UI验收」、HEAD 不变的断言在 Run #15–#17 全部真实通过；bolt-workbench-applied-site.png 因后续导航未走通**尚未拍到**。
-- 状态：【真实已过 Run #15–#17】——审批成功（候选进入「已批准」）、应用成功（同补丁、基线检查通过）。应用预览接口 Run #15 曾失败（spec.ts:1102，PR #21 修复），Run #16/#17 已能启动。
+- 证据：Run #18 工件（bolt-workbench-candidate.png 等）；应用后 `Footer.tsx` 含「山野器物 · Ripple UI验收」、HEAD 不变的断言真实通过。
+- 状态：【真实已过 Run #18】——审批成功（候选进入「已批准」）、应用成功（同补丁、基线检查通过）。
 
 ### 步骤 9 · 查看应用结果
 - 界面：应用预览 iframe（1280 桌面视口）逐页导航；工作台状态 chip「applied」。
 - 数据：三页 H1 断言（秋日手作节/器物全集/从山野，到日常）+ footer 新文案可见。
-- 证据：Run #16/#17 中应用预览已启动且新 footer 文案可见（断言通过）；但桌面导航点击未走通——Run #16 @83ddff5（spec.ts:1122，900 s 超时）、Run #17 @736a029（spec.ts:1131，15 s 超时）。
-- 状态：【待验收】——预览启动与 footer 可见【真实已过】，三页导航【真实 FAIL，PR #23 修复中】。
+- 证据：bolt-workbench-applied-site.png 已在 Run #18 工件（ripple-bolt-workbench-39808500782）中；三页导航与每页 footer 新文案保持可见的断言全部通过。
+- 状态：【真实已过 Run #18】。
 
 ### 步骤 10 · 回滚与版本恢复
 - 界面：「回滚候选」（`rollback-candidate`）→ 状态「rolled-back」；「版本历史」行「恢复记录」。
-- 数据：Footer.tsx 恢复原文（`山野器物</span>` 且无 "Ripple UI验收"）；原工程 HEAD/status 逐字节不变；历史记录 lifecycle=rolled-back、patchHash 一致。
-- 证据：bolt-workbench-history-restored.png（预期）。
-- 状态：【待验收 · NOT RUN（真实）】——Run #15–#17 的测试均在步骤 9 导航处退出，回滚与历史恢复断言未执行到。（MEDIA 线在青野真实验收 Run 39536064634 已有同构回滚证明，可作佐证并标注来源。）
+- 数据：Footer.tsx 恢复原文（`山野器物</span>` 且无 "Ripple UI验收"）；应用 worktree 与原工程 HEAD/status 逐字节不变；历史记录 lifecycle=rolled-back、patchHash 一致；恢复后候选 ID/patchHash/验证状态 PASSED 一致。
+- 证据：bolt-workbench-history-restored.png 已在 Run #18 工件中。
+- 状态：【真实已过 Run #18】。
 
-## 2. 演示建议（如何在不虚构的前提下讲完整故事）
+## 2. 演示建议
 
-1. 步骤 1–8 已有真实证据支撑（Run #15–#17 工件）：录屏可直接引用真实运行结果，旁白口径为「真实工程验证已通过验证、审批与应用阶段」。
-2. 步骤 9 的导航后半段与步骤 10 真实证据仍缺（PR #23 修复后需下一次 Run 走通），二选一：
-   - 用 F 体验工作台演示流走完（审批按钮文案「演示审批（不写入真实工程）」原样出镜， DEMO 角标保留）；
-   - 或直接展示 Bolt 工作流页面 + Run #15–#17 的阶段级诊断（验证/审批/应用已过、导航超时失败行），把「最后一公里」作为诚实叙事的一部分（推荐：评委重视工程严谨性）。
-3. 任何概念走位画面（C 的 kanva 状态稿）只作分镜参照，投屏时保留其「概念效果示意 · 非浏览器实测截图」标注。
+全部 10 步均已有真实证据（Run #18 整轮通过 + 工件齐备）。录屏直接引用真实运行结果与真实界面即可，不再需要「待验收」过渡素材。保留两条纪律：
 
-## 3. 复验清单
+1. 凡数据来自 Fixture/演示适配器的镜头，画面角落保留 DEMO/FIXTURE 标识（F 工作台顶栏常驻 DEMO chip）。
+2. 概念走位画面（C 的 kanva 状态稿）只作分镜参照，投屏时保留其「概念效果示意 · 非浏览器实测截图」标注。
 
-**已可从 Run #15–#17 工件归档的证据**（bolt-workbench-execution.json、四视口 PNG、resource-snapshots 已在失败 Run 的工件中保存，if:always() 上传）：
+## 3. 证据归档清单（Run #18 已完成，归档即可）
 
-- [ ] 下载并归档 Run #15–#17 工件；核对 execution.json 中 SHA-256 与 artifactHash 绑定、七断言全 PASS、四视口 scopeObservations 齐全、blockedExternalResourceUrls=[]。
-- [ ] 截取验证 PASSED 面板与四视口截图作为录屏/ PPT 素材（标注来源 Run 编号与 SHA）。
-
-**待下一次 Run（PR #23 合并并走通后）执行**：
-
-- [ ] 确认应用后三页桌面导航通过并拍到 bolt-workbench-applied-site.png。
-- [ ] 确认 Rollback 断言：Footer.tsx 恢复原文、原工程 HEAD/status 不变。
-- [ ] 确认历史恢复后 bolt-workbench-history-restored.png 齐全。
-- [ ] 更新 acceptance-matrix.md 1.9–1.11 与本文步骤 9/10 状态。
-- [ ] 更新 acceptance-matrix.md 案例一 1.4–1.10 状态与 CI 链接；同步更新本脚本步骤 6/8/9/10 标记。
-- [ ] 录屏补拍真实证据镜头（见 video-storyboard-full.md 镜头 6/9/11）。
+- [ ] 归档 Run #18 工件 ripple-bolt-workbench-39808500782：bolt-workbench-execution.json（v4 manifest，七断言 pass）、四视口 PNG（SHA-256 与 artifactHash 已核对一致）、analysis/candidate/applied-site/history-restored.png、bolt-resource-load-audit.json、resource-snapshots、progress.jsonl。
+- [ ] 录屏/PPT 引用上述素材时标注来源：Run #18 @ 16e737c × 青野 f7e4998a，2026-10-22。
+- [ ] 历史 Runs #1–#17 的失败日志保留在 _scratch，用于「失败驱动修复」叙事（可选）。

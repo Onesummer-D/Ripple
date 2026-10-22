@@ -1,8 +1,9 @@
 # 三案例统一验收矩阵
 
-> 日期：2026-10-22。基线：A 主线 `feat/project-first-core-20261018 @ 2525092`（CI #478 success）。
+> 日期：2026-10-22（当晚按 Run #18 最终修订）。基线：A 主线 `feat/project-first-core-20261018`（文档起草 @ 2525092；Bolt 验收通过时 A @ `16e737c`）。
 > 状态取值：PASS / RISK / UNKNOWN / NOT RUN。标【已合成】的通过仅为合成工程或 Fixture 证据，不代表真实案例验收。
 > “实际运行结果”列只写真实运行过的内容；没有真实运行的写 NOT RUN 并说明阻断。
+> **主案例真实验收已于 Run #18（2026-10-22，A @ 16e737c）整轮通过**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>。
 
 ## 案例一：青野文创 · 秋日灵感季（TEXT 主案例）
 
@@ -14,25 +15,23 @@
 | 1.2 | 网页点选 Footer 品牌文字定位源码 | `Footer.tsx` 实例 | D 点选桥（PR #18） | 返回 `jsx:src/components/Footer.tsx#…` 与可证明实例身份 | 真实 Vite 身份 E2E 21 项 + stable-react-instance 断言保留 | 真实 Bolt 中点选 footer 品牌文字并定位到 Footer.tsx 成功（Run #15–#17 均执行通过） | PASS（真实 Run #15–#17） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971) / [CI 39650178433](https://github.com/Onesummer-D/Ripple/actions/runs/39650178433) | 实例级精准编辑仍 navigation-only（不授权精准编辑） | D / A |
 | 1.3 | 外部资源授权与内容寻址快照 | Pexels 图、Google Fonts | A `verification-runner.ts` | 仅授权 URL 被快照（SHA-256） | 合成 + Run #10 真实快照 221 个/12.4MB/unavailable:0 | 真实快照成功（Run #10、#11 均 unavailableResources=0） | PASS | [Run #10](https://github.com/Onesummer-D/Ripple/actions/runs/39484983941) | 无 | A |
 | 1.4 | 生成文字修改候选（intent → EditOperation → 隔离 worktree diff） | `Footer.tsx` 单文件 diff | A `candidate.ts` | 真实源码 diff + patchHash + tree digest | 合成全链路 + 工作台 UI 真实可用 | 真实 Bolt 候选生成走通（Run #15–#17：候选 ID、patchHash/treeDigest 绑定、diff 含新文案均断言通过） | PASS（真实 Run #15–#17） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971) | 无 | A |
-| 1.5 | 四视口预演验证（1440×900 / 768×1024 / 375×812 / 390×844） | 4 页 × 4 视口 | A `candidate-verification-runner.mjs` 等 | target-change / scope-propagation / non-target-preserved / interaction / responsive-layout / source-mapping / browser-errors 七断言 | 合成工程全 PASS（Linux CI 30/30，1 跳过为私有专项） | 真实 Bolt 四视口验证通过：Run #15–#17 终止状态 PASSED、七项断言全部 PASS、execution.json 与四视口截图随工件保存（SHA-256 绑定）；早期 Run #10 预算超时、#11 pids 超限、#12 导航 ~10 s、#13 RISKS 的失败均已逐项修复并在此后运行中越过 | PASS（真实 Run #15–#17 @ a4ac547 / 83ddff5 / 736a029） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971)、[Run #16](https://github.com/Onesummer-D/Ripple/actions/runs/39761298824)、[Run #17](https://github.com/Onesummer-D/Ripple/actions/runs/39774721394) | 无（该阶段） | A |
+| 1.5 | 四视口预演验证（1440×900 / 768×1024 / 375×812 / 390×844） | 4 页 × 4 视口 | A `candidate-verification-runner.mjs` 等 | target-change / scope-propagation / non-target-preserved / interaction / responsive-layout / source-mapping / browser-errors 七断言 | 合成工程全 PASS（Linux CI 30/30，1 跳过为私有专项） | 真实 Bolt 通过：Run #18 七项断言全部 pass、四视口与 16 条 scopeObservations 齐全、221 个资源快照、截图哈希绑定一致（Run #15–#17 阶段级先行通过；早期 #10 预算、#11 pids、#12 导航 ~10 s、#13 RISKS 已逐项修复） | PASS（真实 Run #18 @16e737c；亦过 #15–#17） | [Run #18](https://github.com/Onesummer-D/Ripple/actions/runs/39808500782) | 无（该阶段） | A |
 | 1.6 | 范围决策（4 页 include / exclude） | ScopeDecision v1 | A `scope.ts` | 页级 Scope 与候选绑定 | 合成测试过 | 真实 Bolt 中 4 页 include 决策随候选创建执行并通过（Run #15–#17） | PASS（真实 Run #15–#17） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971) | 无（该阶段） | A |
 | 1.7 | 审批（Approval 门控） | 候选 + Receipt | A | 仅 PASSED Receipt 可审批 | 合成测试过；负例（completed:false 拒绝）钉死 | 真实 Bolt 审批成功（Run #15–#17：候选状态进入「已批准」） | PASS（真实 Run #15–#17） | 同上 | 无（该阶段） | A |
 | 1.8 | 应用同一份补丁到可丢弃 worktree | 同 patchHash | A `apply.ts` | 应用后 Footer.tsx 含新文案、HEAD 不变 | 合成测试过 | 真实 Bolt 应用成功：应用后 Footer.tsx 含「山野器物 · Ripple UI验收」、HEAD 不变（Run #15–#17 断言通过）；应用预览接口 Run #15 失败（spec.ts:1102，PR #21 修复），Run #16/#17 已能启动 | PASS（应用，真实 Run #15–#17） | 同上 | 应用预览导航见 1.9 | A |
-| 1.9 | 应用后预览逐页导航确认 | 应用预览 iframe | A（PR #15/#16 应用预览） | 桌面导航秋日手作节/商品专题/品牌故事三页，新 footer 保持可见 | 合成 e2e 过 | Run #16/#17 应用预览已启动、新 footer 可见；但桌面导航点击未走通（Run #16 @83ddff5 spec.ts:1122 点击 900 s 超时；Run #17 @736a029 spec.ts:1131 点击 15 s 超时）——PR #23 修复中 | RISK | [Run #17](https://github.com/Onesummer-D/Ripple/actions/runs/39774721394)；[PR #23](https://github.com/Onesummer-D/Ripple/pull/23) | 应用预览内同名按钮消歧/视口挂载（PR #23，CI #480 进行中） | A |
-| 1.10 | 回滚 + 原工程未改动证明 | Footer.tsx / git status | A `apply.ts` | rolled-back、原工程 HEAD 与 status 不变 | 合成测试过；B 在 MEDIA 线有真实回滚证明范式（Run 39536064634） | 真实 TEXT 线：Run #15–#17 均未执行到回滚断言（测试在 1.9 导航处已失败退出） | NOT RUN | 同上 | 依赖 1.9 走通后的下一次运行 | A |
-| 1.11 | 版本历史恢复 | `/__ripple/api/history` | A | 历史记录恢复后候选/哈希/验证状态一致 | 合成测试过 | 真实 TEXT 线 NOT RUN（同 1.10 阻断） | NOT RUN | 同上 | 同上 | A |
+| 1.9 | 应用后预览逐页导航确认 | 应用预览 iframe | A（PR #15/#16/#23 应用预览） | 桌面导航秋日手作节/商品专题/品牌故事三页，新 footer 保持可见 | 合成 e2e 过 | 真实 Bolt 通过：三页 H1 断言 + 每页 footer 新文案可见（Run #18 @16e737c），bolt-workbench-applied-site.png 已入工件 | PASS（真实 Run #18） | [Run #18](https://github.com/Onesummer-D/Ripple/actions/runs/39808500782) | 无 | A |
+| 1.10 | 回滚 + 原工程未改动证明 | Footer.tsx / git status | A `apply.ts` | rolled-back、原工程 HEAD 与 status 不变 | 合成测试过；MEDIA 线同构真实证明（Run 39536064634） | 真实 Bolt 通过：Footer.tsx 恢复原文、无 "Ripple UI验收"、应用 worktree 与原工程 HEAD/status 逐字节不变（Run #18） | PASS（真实 Run #18） | 同上 | 无 | A |
+| 1.11 | 版本历史恢复 | `/__ripple/api/history` | A | 历史记录恢复后候选/哈希/验证状态一致 | 合成测试过 | 真实 Bolt 通过：历史 lifecycle=rolled-back、patchHash 一致；恢复后候选 ID/patchHash/验证状态 PASSED 一致，bolt-workbench-history-restored.png 已入工件（Run #18） | PASS（真实 Run #18） | 同上 | 无 | A |
 | 1.12 | 体验层演示流（画布优先工作台） | `experience.html` | F（PR #14） | 打开→选标题→改文案→关系→范围→对照→证据→历史 17 步连续可操作 | 单测 40/40、e2e 15/15、xp-1..4 真实 Chromium 截图 | 演示数据 DEMO/SIMULATED 全程标注；真实审批未接入（设计如此） | PASS【已合成·演示】 | [CI #475/#478](https://github.com/Onesummer-D/Ripple/actions?query=workflow%3ARipple+CI)；`docs/experience/HANDOFF.md` | 接 real-adapter 需各 Agent 提供接口（F HANDOFF §4） | F / 集成方 |
 
-**主案例结论**：整轮 Bolt 验收（Run #15–#17）的 workflow 结论均为 failure，但**阶段级结果不同，不能等同为 NOT RUN**（协调人已据真实日志核实）：
+**主案例结论**：**真实 TEXT 全闭环已于 Run #18（2026-10-22，A @ `16e737c`，青野 @ f7e4998a）整轮通过**，从工程分析到历史恢复全链路在真实工程、真实浏览器中走通并留证：
 
-| 阶段 | 阶段级状态（真实） | 依据 |
-| --- | --- | --- |
-| 工程分析 → 资源授权快照 → 网页点选 → 候选生成 → 四视口验证（七断言 PASSED）→ 范围决策 → 审批 → 应用 | **PASS**（Run #15–#17 @ a4ac547 / 83ddff5 / 736a029） | 各 Run 日志：失败点均在此之后 |
-| 应用预览启动 + 修改后 footer 可见 | **PASS**（Run #16/#17） | Run #16 日志 1120 行断言通过 |
-| 应用后三页桌面导航 | **FAIL**（Run #16 @1122 超时；Run #17 @1131 超时） | PR #23 修复中 |
-| 回滚、原工程未改动证明、历史恢复 | **NOT RUN**（Run #15–#17 均未执行到） | 待导航走通后的下一次运行 |
+- 整轮运行 1.4 分钟，唯一用例 `runs the Bolt shared TEXT workflow` passed（<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>）。
+- 执行记录 `bolt-workbench-execution.json`（v4 manifest，completed:true）：七项断言（target-change / non-target-preserved / scope-propagation / interaction / responsive-layout / source-mapping / browser-errors）**全部 pass**；四视口 1440×900 / 768×1024 / 375×812 / 390×844；16 条 scopeObservations（4 页 × 4 视口）；221 个资源快照、unavailable=0、blockedExternalResourceUrls=[]；四视口截图 SHA-256 与 artifactHash 逐一致（已核对）。
+- 工件 `ripple-bolt-workbench-39808500782`（retention 30 天）含：execution.json、四视口 PNG、bolt-workbench-analysis/candidate/applied-site/history-restored.png、resource-load-audit.json、resource-snapshots 与 progress.jsonl 诊断。
+- 历史过程如实保留：Runs #1–#17 结论均 failure，逐次归因（资源快照→pids 超限→导航 ~10 s→导航契约→应用预览挂载），每次修复带确定性负例；Run #15–#17 阶段级通过（验证/审批/应用已过），Run #18 在 PR #23 修复后整轮通过。
 
-因此：整轮闭环尚未通过 ≠ 全链路未运行。录屏与参赛文案涉及已通过阶段时可引用 Run #15–#17 工件（execution.json、四视口截图已在失败 Run 的工件中保存）；涉及回滚/历史恢复时仍须标注「真实 TEXT 线 NOT RUN」（MEDIA 线 Run 39536064634 的同构证明可作佐证并标注来源）。
+录屏与参赛文案现可引用 Run #18 真实证据，不再需要「待验收」标注；仅 E 视觉模块接入、第三方全生命周期等仍按各自状态标注。
 
 ## 案例二：栖光艺术节 · 媒体替换（MEDIA 辅助案例）
 
