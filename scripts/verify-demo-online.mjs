@@ -2,9 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
 
-// 公网线上验收（Cloudflare Workers）：https://ripple-demo.dengtongxin1215.workers.dev/
+// 公网线上验收：默认腾讯云主地址，可用 DEMO_BASE 环境变量切换（如 Cloudflare 备用地址）。
 // 桌面 + 手机双视口：交互、?adapter=real 屏蔽、Console/Network 审计、公网截图。
-const BASE = 'https://ripple-demo.dengtongxin1215.workers.dev'
+const BASE = (process.env.DEMO_BASE ?? 'http://81.70.40.146:8082').replace(/\/$/, '')
+const TAG = process.env.DEMO_TAG ?? 'cn'
 const outDir = path.resolve(process.cwd(), 'docs', 'experience', 'public-demo')
 fs.mkdirSync(outDir, { recursive: true })
 
@@ -39,7 +40,7 @@ try {
   check('桌面：前后对照同步', (await desktop.getByTestId('compare-candidate').textContent()).includes('冬日茶器市集'))
   await desktop.getByTestId('open-history').click()
   check('桌面：版本历史（生命周期）', (await desktop.getByTestId('version-v:3').textContent()).includes('已回滚'))
-  await desktop.screenshot({ path: path.join(outDir, 'online-desktop-history.png') })
+  await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-history.png`) })
   await desktop.getByTestId('close-filmstrip').click()
   await desktop.getByTestId('page-item-page:home').click()
   await desktop.getByTestId('canvas-el-el:hero-title').click()
@@ -48,7 +49,7 @@ try {
   if (await desktop.getByTestId('scope-exclude-page:seasonal').count()) await desktop.getByTestId('scope-exclude-page:seasonal').click()
   await desktop.getByTestId('demo-approve').click()
   check('桌面：演示审批（未执行真实应用）', (await desktop.getByTestId('approve-feedback').textContent()).includes('未执行真实应用'))
-  await desktop.screenshot({ path: path.join(outDir, 'online-desktop-approved.png') })
+  await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-approved.png`) })
   check('桌面：无打开真实工程入口', (await desktop.getByTestId('open-project-form').count()) === 0)
   check('桌面：Console 无错误', dConsole.length === 0, dConsole.join(' | ') || 'clean')
   check('桌面：无 /__ripple/api 请求', dApi.length === 0, dApi.join(',') || 'none')
@@ -57,7 +58,7 @@ try {
   resp = await desktop.goto(`${BASE}/?adapter=real`, { waitUntil: 'networkidle', timeout: 45_000 })
   check('桌面：?adapter=real 仍强制 DEMO', resp.status() === 200 && await desktop.getByTestId('demo-badge').isVisible())
   check('桌面：?adapter=real 无真实工程入口', (await desktop.getByTestId('open-project-form').count()) === 0)
-  await desktop.screenshot({ path: path.join(outDir, 'online-desktop-adapter-real-blocked.png') })
+  await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-adapter-real-blocked.png`) })
 
   // ---------- 移动端 ----------
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })
@@ -78,7 +79,7 @@ try {
   check('手机：前后对照同步', (await mobile.getByTestId('compare-candidate').textContent()).includes('冬日茶器市集'))
   await mobile.getByTestId('open-history').tap()
   check('手机：版本历史可操作', (await mobile.getByTestId('version-v:3').textContent()).includes('已回滚'))
-  await mobile.screenshot({ path: path.join(outDir, 'online-mobile-full.png'), fullPage: true })
+  await mobile.screenshot({ path: path.join(outDir, `${TAG}-mobile-full.png`), fullPage: true })
   check('手机：无打开真实工程入口', (await mobile.getByTestId('open-project-form').count()) === 0)
   check('手机：Console 无错误', mConsole.length === 0, mConsole.join(' | ') || 'clean')
   check('手机：无 /__ripple/api 请求', mApi.length === 0, mApi.join(',') || 'none')
