@@ -500,4 +500,39 @@ describe('Real Adapter · 合并前修订（停止挂起竞态 / 清理失败诊
     const stopsForPreview1 = calls.filter(call => call.path === 'project/preview/stop' && (call.body as { previewId: string }).previewId === 'preview-1')
     expect(stopsForPreview1).toHaveLength(2)
   })
+
+  it('多会话部分成功不误清风险：preview-1 持续失败期间 preview-2 清理成功，ev:cleanup 仍保留 preview-1 诊断', async () => {
+    let previewSeq = 0
+    let failPreview1 = true
+    const { fetchImpl, calls } = mockFetch({
+      analyze: ANALYSIS,
+      history: HISTORY_NOT_RUN,
+      'project/preview': () => Promise.resolve({ status: 200, body: { projectId: 'proj-acme', previewId: `preview-${++previewSeq}`, sourceDigest: 'd', url: 'http://127.0.0.1:9999/' } }),
+      'project/preview/stop': () => {
+        const body = calls.at(-1)?.body as { previewId?: string } | undefined
+        const failing = failPreview1 && body?.previewId === 'preview-1'
+        return Promise.resolve(failing ? { status: 500, body: { error: '预览容器无响应' } } : { status: 200, body: { stopped: true } })
+      },
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    expect(loaded.projectStatus).toBe('ready')
+    // 第一轮 refresh：停止 preview-1 失败——入列待重试
+    const round1 = await adapter.refresh!(loaded)
+    expect(evidence(round1, 'ev:cleanup').summary).toContain('preview-1')
+    // 第二轮 refresh：重试 preview-1 仍失败；同时 preview-2（上一轮新建）清理成功。
+    // 回归点：preview-2 的成功绝不允许误清空 preview-1 的风险提示
+    const round2 = await adapter.refresh!(round1)
+    expect(round2.projectStatus).toBe('ready')
+    const risk = evidence(round2, 'ev:cleanup')
+    expect(risk.state).toBe('risk')
+    expect(risk.summary).toContain('preview-1')
+    expect(risk.summary).toContain('预览容器无响应')
+    expect(risk.summary).toContain('待清理 1 个会话')
+    // 第三轮：preview-1 恢复可清理，重试成功——全部待清理清空，风险项消失
+    failPreview1 = false
+    const round3 = await adapter.refresh!(round2)
+    expect(round3.projectStatus).toBe('ready')
+    expect(round3.evidence.find(item => item.id === 'ev:cleanup')).toBeUndefined()
+  })
 })
