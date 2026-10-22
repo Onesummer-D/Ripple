@@ -77,6 +77,38 @@ export function createStagedAssetStore(root: string): StagedAssetStore {
   }
 }
 
+/** 常见光栅图格式的魔数嗅探（仅识别，不解码）。MEDIA v1 只支持图片素材替换。 */
+export type SniffedImageFormat = 'jpeg' | 'png' | 'webp' | 'gif' | 'avif'
+
+export function sniffImageFormat(bytes: Uint8Array): SniffedImageFormat | undefined {
+  if (bytes.byteLength >= 12 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg'
+  if (bytes.byteLength >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'png'
+  if (bytes.byteLength >= 12 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'webp'
+  if (bytes.byteLength >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return 'gif'
+  // AVIF/HEIF：ftyp box 在第 4-8 字节，brand 'avif' 或 'avis'
+  if (bytes.byteLength >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70 &&
+      ((bytes[8] === 0x61 && bytes[9] === 0x76 && bytes[10] === 0x69 && bytes[11] === 0x66) ||
+       (bytes[8] === 0x61 && bytes[9] === 0x76 && bytes[10] === 0x69 && bytes[11] === 0x73))) return 'avif'
+  return undefined
+}
+
+/**
+ * 素材文件类型验证：确认字节确是受支持的图片格式。
+ * 暂存 store 本身保持内容寻址的通用字节语义（测试与未来的非图资产仍可存取）；
+ * 真实素材入口（验收脚本/未来的媒体库 UI）在写入暂存前必须经此校验，
+ * 防止把可执行/SVG 脚本等内容以图片扩展名放进项目 public 目录。
+ */
+export function assertImageBytes(bytes: Uint8Array, context = '媒体素材'): SniffedImageFormat {
+  if (!isByteArray(bytes) || !bytes.byteLength) throw new MediaAssetStagingError(`${context}必须是非空字节`)
+  const format = sniffImageFormat(bytes)
+  if (!format) {
+    throw new MediaAssetStagingError(
+      `${context}不是受支持的图片格式（按魔数识别 jpeg/png/webp/gif/avif）；拒绝以图片扩展名写入项目。`,
+    )
+  }
+  return format
+}
+
 /**
  * 把 assetRef（写入源码的 URL 引用）映射为候选 worktree 内的相对路径。
  * - 以 / 开头：按 public 目录资源处理（Vite/Bolt 约定，publicDir 可配）。
@@ -85,6 +117,9 @@ export function createStagedAssetStore(root: string): StagedAssetStore {
  */
 export function resolveAssetRefToRelativePath(assetRef: string, consumerFile: string, options: { publicDir?: string } = {}): string {
   if (!assetRef || typeof assetRef !== 'string') throw new MediaAssetStagingError('assetRef 必须是非空字符串')
+  // 反斜杠防御：Windows 下游 path.join 会把返回值中的 '\' 重新解释为分隔符，
+  // 使 'public/..\\x' 逃逸 public 目录（即便仍在 worktree 内也违背写入意图）。
+  if (assetRef.includes('\\')) throw new MediaAssetStagingError(`assetRef 不允许包含反斜杠：${assetRef}`)
   if (assetRef.startsWith('/')) {
     // 先拒绝原始引用中的 .. 段：join/normalize 会把 '/../x' 折叠成 'x'，事后检查形同虚设
     if (assetRef.split('/').includes('..')) throw new MediaAssetStagingError(`assetRef 不允许包含 .. 段：${assetRef}`)

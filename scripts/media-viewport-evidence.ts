@@ -285,28 +285,37 @@ async function collectBaselineObservation(page: import('playwright').Page, input
   }
 }
 
+/**
+ * 双端共用的页面错误挂钩装配（D 复审返工：消除重复接线）。
+ * label 区分警告来源；assetRef 仅候选端传入——基线端所有资源加载失败都降级为警告，
+ * 候选端仅把与目标资产无关的第三方资源失败降级（目标资产失败仍进 errors）。
+ */
+function attachPageErrorHooks(page: import('playwright').Page, errors: string[], warnings: string[], label: 'candidate' | 'baseline', assetRef?: string): void {
+  page.on('pageerror', error => errors.push(`pageerror: ${error.message}`))
+  page.on('console', message => {
+    if (message.type() !== 'error') return
+    const text = message.text()
+    const url = message.location().url ?? ''
+    if (text.startsWith('Failed to load resource') && (assetRef === undefined || !url.includes(assetRef))) {
+      warnings.push(`${label} resource warning: ${text}${url ? ` (${url})` : ''}`)
+      return
+    }
+    errors.push(`console: ${text}${url ? ` (${url})` : ''}`)
+  })
+  if (assetRef !== undefined) {
+    page.on('requestfailed', request => {
+      if (request.url().includes(assetRef)) errors.push(`asset request failed: ${request.url()} ${request.failure()?.errorText ?? ''}`)
+    })
+  }
+}
+
 async function collectDualViewport(browser: import('playwright').Browser, input: RunnerInput, viewport: { name: string; width: number; height: number }, outputDir: string): Promise<{ observation: MediaViewportObservation; dual: MediaDualEndpointViewport }> {
   const errors: string[] = []
   const warnings: string[] = []
   // —— 候选端 ——
   const candidatePage = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } })
   const candidateErrors: string[] = []
-  candidatePage.on('pageerror', error => candidateErrors.push(`pageerror: ${error.message}`))
-  candidatePage.on('console', message => {
-    if (message.type() !== 'error') return
-    const text = message.text()
-    const url = message.location().url ?? ''
-    // 与本目标无关的第三方资源加载失败（CDN 抖动/字体/广告）降级为警告：
-    // 目标资产本身的加载由 media-loaded 断言与 requestfailed 钩子负责。
-    if (text.startsWith('Failed to load resource') && !url.includes(input.assetRef)) {
-      warnings.push(`candidate resource warning: ${text}${url ? ` (${url})` : ''}`)
-      return
-    }
-    candidateErrors.push(`console: ${text}${url ? ` (${url})` : ''}`)
-  })
-  candidatePage.on('requestfailed', request => {
-    if (request.url().includes(input.assetRef)) candidateErrors.push(`asset request failed: ${request.url()} ${request.failure()?.errorText ?? ''}`)
-  })
+  attachPageErrorHooks(candidatePage, candidateErrors, warnings, 'candidate', input.assetRef)
   let candidateNav = { worksPageReached: false, markerVisible: false, markerMatchCount: 0 }
   let observation: MediaViewportObservation | undefined
   let candidateMasked: { ok: boolean; snapshot?: string; reason?: string } = { ok: false, reason: 'candidate page was not visited' }
@@ -331,16 +340,7 @@ async function collectDualViewport(browser: import('playwright').Browser, input:
   // —— 基线端 ——
   const baselinePage = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } })
   const baselineErrors: string[] = []
-  baselinePage.on('pageerror', error => baselineErrors.push(`pageerror: ${error.message}`))
-  baselinePage.on('console', message => {
-    if (message.type() !== 'error') return
-    const text = message.text()
-    if (text.startsWith('Failed to load resource')) {
-      warnings.push(`baseline resource warning: ${text}${message.location().url ? ` (${message.location().url})` : ''}`)
-      return
-    }
-    baselineErrors.push(`console: ${text}${message.location().url ? ` (${message.location().url})` : ''}`)
-  })
+  attachPageErrorHooks(baselinePage, baselineErrors, warnings, 'baseline')
   let baselineNav = { worksPageReached: false, markerVisible: false, markerMatchCount: 0 }
   let baseline: MediaDualEndpointViewport['baseline'] = { pageUrl: input.baselineUrl, worksPageReached: false, markerVisible: false, markerMatchCount: 0, imageFound: false, imageMatchCount: 0, currentSrc: '', errors: ['baseline page was not visited'] }
   let baselineMasked: { ok: boolean; snapshot?: string; reason?: string } = { ok: false, reason: 'baseline page was not visited' }

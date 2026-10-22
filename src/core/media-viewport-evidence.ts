@@ -119,7 +119,7 @@ export function computeCropGeometry(observation: MediaViewportObservation, focal
     return {
       scaleMode: 'unsupported-fit', scale: NaN,
       visibleSourceRect: { x: NaN, y: NaN, width: NaN, height: NaN },
-      focalVisible: focalPoint ? 'not-applied' : 'not-applied',
+      focalVisible: 'not-applied',
       boxAspect, sourceAspect,
     }
   }

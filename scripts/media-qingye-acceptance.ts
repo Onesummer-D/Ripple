@@ -42,7 +42,7 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from '../src/core/project'
 import { assertCandidateCurrent, createCandidate, removeCandidate, type CandidateRecord } from '../src/core/candidate'
-import { createStagedAssetStore } from '../src/core/media-asset-staging'
+import { createStagedAssetStore, assertImageBytes } from '../src/core/media-asset-staging'
 import { mediaAssetSwapExecutors } from '../src/core/media-asset-swap'
 import { rollbackAppliedCandidate } from '../src/core/apply'
 import { approve, chooseScope, openSession, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from '../src/core/session'
@@ -54,6 +54,7 @@ import {
   assetUrlMatches,
   mediaDualEndpointSha256,
   mediaEvidenceSummary,
+  mediaViewportEvidenceSha256,
   resolveSourceMappingAssertion,
   type MediaDualEndpointCollection,
   type MediaDualEndpointViewport,
@@ -356,6 +357,8 @@ async function main(): Promise<void> {
   let evidenceSha = ''
   let evidenceSummaryState: 'pass' | 'risks' | 'failed' = 'failed'
   let dualSha = ''
+  let mediaReport: MediaViewportEvidenceReport | undefined
+  let dualCollection: MediaDualEndpointCollection | undefined
   const qingyeCommit = run('git', ['-C', qingyeRoot, 'rev-parse', 'HEAD']).trim()
   const rippleHead = run('git', ['-C', rippleRoot, 'rev-parse', 'HEAD']).trim()
   // 故障注入（仅测试/演练）：RIPPLE_MEDIA_ACCEPTANCE_FAULT=post-apply,tree-digest-mismatch,rollback-failure
@@ -408,11 +411,13 @@ async function main(): Promise<void> {
   // 2. 新图字节（真实下载）进暂存
   const imageUrl = process.env.MEDIA_SWAP_IMAGE_URL ?? 'https://images.pexels.com/photos/8952094/pexels-photo-8952094.jpeg?auto=compress&cs=tinysrgb&h=650&w=940'
   const bytes = await downloadBytes(imageUrl)
+  // 文件类型验证（D 复审返工）：魔数嗅探，拒绝以图片扩展名把非图字节写进项目 public 目录
+  const imageFormat = assertImageBytes(bytes, '替换图片')
   const store = createStagedAssetStore(path.join(workDir, 'staged-assets'))
   const assetHash = store.store(bytes)
   const extension = path.extname(new URL(imageUrl).pathname) || '.jpeg'
   const assetRef = `/media/qingye-category-swap${extension}`
-  steps.assetStaging = { imageUrl, sha256: assetHash, bytes: bytes.byteLength, assetRef }
+  steps.assetStaging = { imageUrl, sha256: assetHash, bytes: bytes.byteLength, assetRef, format: imageFormat }
 
   // 3. Scope + 操作 + A 核心候选
   const scope: ScopeDecision = {
@@ -489,7 +494,11 @@ async function main(): Promise<void> {
         runner.once('close', code => resolve(code ?? 1))
       })
       if (exitCode !== 0) throw new AcceptanceError(`四视口 Evidence 采集未通过（exit ${exitCode}）`)
+      // D 复审返工：evidence.json 与 dual.json 同样做内容哈希回验（对称 P2-3），
+      // 防止篡改采集输出操纵断言输入；解析一次后全链复用，不再重复读盘。
       const evidenceFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: MediaViewportEvidenceReport; sha256: string }
+      if (mediaViewportEvidenceSha256(evidenceFile.report) !== evidenceFile.sha256) throw new AcceptanceError('evidence.json 内容哈希不匹配，采集数据可能被篡改，拒绝继续')
+      mediaReport = evidenceFile.report
       const evidenceSummary = mediaEvidenceSummary(evidenceFile.report)
       if (evidenceSummary !== 'pass') throw new AcceptanceError(`媒体 Evidence 汇总为 ${evidenceSummary}，拒绝进入审批`)
       evidenceSummaryState = evidenceSummary
@@ -498,6 +507,7 @@ async function main(): Promise<void> {
       const dualFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'dual.json'), 'utf8')) as { collection: MediaDualEndpointCollection; sha256: string }
       // 独立审查 P2-3：哈希回验，防止篡改 dual.json 操纵断言输入
       if (mediaDualEndpointSha256(dualFile.collection) !== dualFile.sha256) throw new AcceptanceError('dual.json 内容哈希不匹配，采集数据可能被篡改，拒绝继续')
+      dualCollection = dualFile.collection
       dualSha = dualFile.sha256
       steps.dualEndpoint = {
         sha256: dualFile.sha256,
@@ -517,10 +527,10 @@ async function main(): Promise<void> {
     }
 
     // 6. 审批门控（真实双端证据）→ 应用 → 回滚
+    if (!mediaReport || !dualCollection) throw new AcceptanceError('四视口采集结果缺失（evidence/dual 未通过哈希回验），拒绝进入审批')
     const verificationRun = trustedRun(candidate, scope, productsRoute.id, graph.revision.runtimeFingerprint, path.join(workDir, 'verification'), {
       sha256: evidenceSha, summary: evidenceSummaryState, dir: evidenceDir, dualSha256: dualSha,
-    }, (JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: MediaViewportEvidenceReport }).report,
-       (JSON.parse(fs.readFileSync(path.join(evidenceDir, 'dual.json'), 'utf8')) as { collection: MediaDualEndpointCollection }).collection)
+    }, mediaReport, dualCollection)
     if (verificationRun.status !== 'passed') throw new AcceptanceError(`VerificationRun 状态为 ${verificationRun.status}，存在未通过断言，拒绝进入审批（见 verification/browser-execution.json）`)
     const executors = mediaAssetSwapExecutors()
     let session = recordSourceGraph(openSession('qingye-media-session', graph.revision, 'Replace products-page category image with staged asset', [], contractFor(productsRoute.id)), graph.id, graph.revision.sourceDigest)

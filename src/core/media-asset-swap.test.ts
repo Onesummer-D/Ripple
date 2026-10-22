@@ -5,7 +5,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from './project'
 import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidate } from './candidate'
-import { createStagedAssetStore, resolveAssetRefToRelativePath, MediaAssetStagingError, type StagedAssetStore } from './media-asset-staging'
+import { assertImageBytes, createStagedAssetStore, resolveAssetRefToRelativePath, sniffImageFormat, MediaAssetStagingError, type StagedAssetStore } from './media-asset-staging'
 import { createMediaAssetSwapExecutor, mediaAssetSwapExecutor, type MediaAssetSwapOperation } from './media-asset-swap'
 import { applyApprovedCandidate, rollbackAppliedCandidate } from './apply'
 import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
@@ -159,6 +159,29 @@ describe('media-asset-staging', () => {
     expect(() => resolveAssetRefToRelativePath('https://cdn.example.com/a.jpg', 'src/x.tsx')).toThrow(MediaAssetStagingError)
     expect(() => resolveAssetRefToRelativePath('../../../etc/passwd.jpg', 'src/x.tsx')).toThrow(MediaAssetStagingError)
     expect(() => resolveAssetRefToRelativePath('/../src/App.tsx', 'src/x.tsx')).toThrow(/不允许包含 \.\. 段/)
+    // 反斜杠防御：Windows 下游 path.join 会把 '\' 重新解释为分隔符，使 'public/..\\x' 逃逸 public 目录
+    expect(() => resolveAssetRefToRelativePath('/media/..\\escape.jpg', 'src/x.tsx')).toThrow(/反斜杠/)
+    expect(() => resolveAssetRefToRelativePath('..\\assets\\x.jpg', 'src/x.tsx')).toThrow(/反斜杠/)
+  })
+
+  it('sniffImageFormat/assertImageBytes：魔数识别图片格式，非图字节拒绝（D 复审返工）', () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01])
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d])
+    const webp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20])
+    const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00])
+    const avif = new Uint8Array([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0x00, 0x00, 0x00, 0x00])
+    expect(sniffImageFormat(jpeg)).toBe('jpeg')
+    expect(sniffImageFormat(png)).toBe('png')
+    expect(sniffImageFormat(webp)).toBe('webp')
+    expect(sniffImageFormat(gif)).toBe('gif')
+    expect(sniffImageFormat(avif)).toBe('avif')
+    // 伪装成图片的可执行/SVG 脚本字节：全部拒绝
+    expect(sniffImageFormat(new TextEncoder().encode('<svg onload="alert(1)"/>'))).toBeUndefined()
+    expect(sniffImageFormat(new TextEncoder().encode('MZ\x90\x00executable'))).toBeUndefined()
+    expect(sniffImageFormat(new Uint8Array([0x89, 0x50]))).toBeUndefined() // 太短
+    expect(assertImageBytes(jpeg)).toBe('jpeg')
+    expect(() => assertImageBytes(new TextEncoder().encode('<svg onload="alert(1)"/>'))).toThrow(/不是受支持的图片格式/)
+    expect(() => assertImageBytes(new Uint8Array())).toThrow(/非空字节/)
   })
 
   it('staged asset store：存取一致、缺失与篡改 fail-closed、身份格式校验', () => {
