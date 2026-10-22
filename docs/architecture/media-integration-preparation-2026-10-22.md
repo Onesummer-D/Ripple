@@ -1,6 +1,6 @@
 # D 任务交付：B MEDIA 独立成果集成准备与素材替换验收（2026-10-22）
 
-分支：`feat/integration-media-preparation-20261022`（基线 = 最新 A `25250925`）
+分支：`feat/integration-media-preparation-20261022`（基线 = 最新 A `16e737c1`）
 定位：独立模块移植 + 兼容性验证 + 接口准备。**未合入任何 PR 全部修改、未动
 A/main、未动 `project.ts` / `scope.ts`、未触发 Bolt 或 MEDIA 专项正式验收。**
 
@@ -52,10 +52,33 @@ create-only 资产写入限制、sourceEdit 精确落在 target.location 区间�
 
 ## 3. 最新 SHA 与 CI
 
-- 分支 HEAD：`6a988e8`（= 移植 + 四视口场景 + 审查返工；变基后基线 A `16e737c1`）
-- 分支 CI（Linux，权威）：移植 `39794609650` / 场景 `39795652882` / 文档 `39796791980` / 缓存清理 `39808476957` / 审查返工 [`39815985632`](https://github.com/Onesummer-D/Ripple/actions/runs/39815985632)（6a988e8 HEAD）全部 **success**
+- 分支 HEAD：`d8b5b4d`（= 移植 + 四视口场景 + 两轮审查返工 + 终审返工 + Fixture 定向
+  workflow Node 版本修复；基线 A `16e737c1`）
+- 分支 CI（Linux，权威）：6a988e8 全量 [`39815985632`](https://github.com/Onesummer-D/Ripple/actions/runs/39815985632)、
+  6c01714 全量 `39821448438`、6c01714 Fixture 首跑（Node 20 失败，环境问题见 §3.7）、
+  d8b5b4d 全量 `39822455068` + Fixture 重跑 `39822445778` 全部 **success**
 - Draft PR：[#26](https://github.com/Onesummer-D/Ripple/pull/26) → base `feat/project-first-core-20261018`（A），**保持 Draft 等 C+D 合同稳定**
-- 本机门禁（Windows；Linux CI 为权威）：typecheck ✅、build ✅、MEDIA 用例零断言失败（EPERM teardown 为已知环境噪音）；返工后 viewport-evidence 30/30 ✅、staging 嗅探/反斜杠负例新增 ✅、四视口 Fixture 端到端复跑 ✅
+- 本机门禁（Windows；Linux CI 为权威）：typecheck ✅、build ✅、MEDIA 用例零断言失败（EPERM teardown 为已知环境噪音）；终审返工后 asset-swap/staging 负例全绿、四视口 Fixture 端到端复跑（含产物核验与失败路径负例）✅
+
+## 3.7 终审返工记录（协调人第三轮 · 最终复审，提交 `6c01714`，workflow 修复 `d8b5b4d`）
+
+复审三项（细节见 PR #26 评论）及处理：
+
+1. **P1 图片字节校验统一入口**：新增 `media-asset-staging.ts` `assertMediaSwapAsset(bytes,
+   assetRef)`（格式头嗅探 + 扩展名一致性 + 必须有扩展名；PNG 全 8 字节签名、GIF 仅
+   87a/89a、RIFF+WEBP、ftyp avif），执行器 plan 内调用——绕过验收脚本直接驱动
+   执行器也无法写入未校验字节；青野验收脚本改走同一入口。已如实注释边界：头识别
+   ≠完整有效性，真实解码由浏览器证据链兜底。新增负例：扩展名不一致 / 缺扩展名 /
+   伪造头边界声明 / 执行器绕过（非图字节、PNG 字节配 .webp）。
+2. **P2 证据信任边界注释**：青野脚本哈希回验处注明——哈希一致性 ≠ 来源真实性，
+   候选身份四元组由 A 的 attest/Receipt 复核。
+3. **P1 Fixture 纳入正式回归**：`run-scenario.ts` 正例后产物完整性核验（evidence/dual
+   哈希回验、4 视口、8 截图 PNG 魔数、comparison 恰 24 条观测）+ 失败路径负例
+   （tampered assetRef 必须非零退出）；新增定向 workflow
+   `media-fixture-regression.yml`（paths 过滤 + dispatch，Node 22 与 ci.yml 对齐——
+   首跑因误配 Node 20 报 `bad option: --experimental-transform-types`，`d8b5b4d` 修复）。
+4. **真实工程形态 Lab（非本 PR）**：栖光 React/Vite 多页 Lab 独立分支
+   `prep/qiguang-media-lab-20261023`（`6b49156`），见 §6.5。
 
 ## 3.5 工程复审记录（协调人第二轮，2026-10-23，提交 `6a988e8`）
 
@@ -111,6 +134,18 @@ verification-receipt.ts / ProjectWorkbench.tsx / e2e / ci.yml / bolt-acceptance.
   test/fixtures/media-orientation-swap/run-scenario.ts <outDir>`；
 - Fixture 无交互声明，`dual.json` 中 `baselinePassed/candidatePassed=false` 为预期
   （未声明 navigateBy/interaction），不影响 pass 结论。
+
+## 6.5 栖光 React/Vite 多页面 Lab（独立准备分支，不入本 PR）
+
+分支 `prep/qiguang-media-lab-20261023`（`6b49156`，从 `d8b5b4d` 切出）：
+真实工程形态的 MEDIA 集成准备 Lab——React 19 + Vite 6 扁平多页
+（`test/qiguang-lab/`），共享媒体唯一编辑点 `SharedFestivalImage.tsx`
+（`/media/qiguang-hero-wide.jpg`）被三页三个容器消费：首页 Hero（16:9 cover
+center）、节目页展墙（4:3 cover 50% 20%）、购票卡片（3:4 cover top）；竖版候选
+900×1125。本机真实 Chromium 采集（2026-10-23）：三页四视口采集器全 pass，
+每页 evidence/dual 哈希 + 8 截图；非目标资源断言通过（档案图/首页本地图双端字节
+一致、档案页双端渲染零共享消费）。`build-variants.mjs` 构建双变体并强制还原源
+文件。定位与边界同 §6：消费关系由工程结构显式声明，非 SourceGraph 证明。
 
 ## 7. 尚未具备真实集成条件的部分
 
