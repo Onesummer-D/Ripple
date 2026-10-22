@@ -189,3 +189,35 @@ center）、节目页展墙（4:3 cover 50% 20%）、购票卡片（3:4 cover to
 5. C+D+E+F 联合验收会：SourceGraph 消费证明 → Scope 传播 → staging → 候选补丁 →
    四视口双端证据 → E 截图/几何判定 → F 前后对比 → Approval/Apply/Rollback，
    逐项签署，未运行环节不记 PASS。
+
+## 9. PR #28（C+D 联合集成）接口核对与差异表（2026-10-23，HEAD `1dbaa53`）
+
+已阅读 PR #28 最新源码（`project.ts` / `scope.ts` / `project-data-routes.ts` /
+`model.ts` / `sourcegraph-runtime-identity.test.ts`），不另起重复工作线。要点：
+
+1. **媒体消费证明能力**：PR #28 `project.ts` 提取 JSX `src` 字面量与
+   /src|srcSet|image|cover|poster|thumbnail|heroImage|avatar/i 属性赋值为 `media`
+   节点（imageLike 过滤）；asset-consumer 边三分——精确字面量解析（source-proven）、
+   属性名候选池（semantic-candidate）、JSX src 精确匹配（source-proven）。
+   `scope.ts` `sourceProvenPageImpact` 已为 media 特设遍历（mediaConsumerRelations，
+   从 asset-consumer 而非 imports 出发），非 source-proven 边一律 unresolved。
+2. **narrowMediaByReceiverType 接入点**：PR #28 的 `if (!linked)` 候选池循环与 B 原版
+   调用点逐字兼容；重放 diff = 函数体 ~42 行 + 辅助 `annotationNamesType` ~6 行
+   （PR #28 尚无）+ 调用点一行（`narrowMediaByReceiverType(node, pool) ?? pool`）。
+   语义注意：C 已改 project.ts +110 行，重放前需按最新文件核对插入点与 checker 生命周期。
+3. **栖光 Lab 自动化的现实约束**：PR #28 的页面（route）节点仅来自
+   `inspectDataRouter`（React Router/data-router）。Lab 是 Vite 扁平 MPA、无路由——
+   按现合同三页消费关系的页面级证明为 unknown（fail-closed，不误放）。
+   联合案例路径： Lab 增加 data-router 形态变体（或另选有路由的真实工程），
+   使组件→page 映射可自动产出；否则维持 Lab 结构声明边界。
+4. **fail-closed 现状对齐**：来源未知/动态 src（非字面量）→ 图中无 media 节点 →
+   unknown；CSS 背景图不进 media 节点（PR #28 仅扫描 CSS 的 token/cascade）→
+   unknown；semantic-candidate 边 → unresolved。均与 B MEDIA 验收门的既有结论一致，
+   联合集成无需新造门，只需把媒体节点接到既有 PageImpact→候选门链路上。
+5. **A 生命周期接口**：无变化——`stageOperations(executors=[mediaAssetSwapExecutors])`
+   → candidate 核心 → scope 门（sourceProvenPageImpact）→ 四视口证据 →
+   Approval/Apply/Rollback（media-acceptance-apply）。PR #28 未触碰
+   candidate/session/apply/executors seam，`MediaAssetSwapPayload` 保持 A 侧形态。
+6. **验收标准分工**：青野 = 正式回归（真实工程双端构建 + 完整生命周期，
+   BOLT_REPO_TOKEN dispatch，固定 SHA，工件留存）；栖光 = 联合案例（SourceGraph
+   自动证明驱动，先解决路由形态约束），Lab CI 仅作可复现采集验收，不充当正式验收。
