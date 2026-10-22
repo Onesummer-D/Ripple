@@ -204,12 +204,19 @@ center）、节目页展墙（4:3 cover 50% 20%）、购票卡片（3:4 cover to
 2. **narrowMediaByReceiverType 接入点**：PR #28 的 `if (!linked)` 候选池循环与 B 原版
    调用点逐字兼容；重放 diff = 函数体 ~42 行 + 辅助 `annotationNamesType` ~6 行
    （PR #28 尚无）+ 调用点一行（`narrowMediaByReceiverType(node, pool) ?? pool`）。
-   语义注意：C 已改 project.ts +110 行，重放前需按最新文件核对插入点与 checker 生命周期。
-3. **栖光 Lab 自动化的现实约束**：PR #28 的页面（route）节点仅来自
-   `inspectDataRouter`（React Router/data-router）。Lab 是 Vite 扁平 MPA、无路由——
+   语义注意：C 已改 project.ts +110 行，重放前需按最新文件核对插入点与 checker
+   生命周期。重放在 A 协调下进行，并补保守负例：来源不完整（未解析导入落在受影响
+   子图）、动态资源（非字面量 src）、非目标页面不得出现、跨页 Scope 传播只含可证明
+   页面。
+3. **栖光 Lab 自动化的现实约束（已按协调人第五轮修正表述）**：PR #28 的页面
+   （route）节点有两个来源——① `inspectDataRouter`（React Router/data-router
+   路由表）；② **App 页面状态映射**：App 组件文件内 `pageState === '字面量'` 与
+   `&&` 条件渲染的 JSX 标签产出 `page:<state>` 节点与 `page-render` 边。
+   Lab 是 Vite 扁平 MPA（4 个 html 入口 + dataset 分发），两种机制均不覆盖——
    按现合同三页消费关系的页面级证明为 unknown（fail-closed，不误放）。
-   联合案例路径： Lab 增加 data-router 形态变体（或另选有路由的真实工程），
-   使组件→page 映射可自动产出；否则维持 Lab 结构声明边界。
+   联合案例路径：待 A 提供含 PR #28 的稳定集成基线后，另增 data-router 变体
+   （原始 MPA Lab 及其 CI 保留作回归基准），验证 SourceGraph 能否自动证明
+   三页共享媒体消费；否则维持 Lab 结构声明边界。
 4. **fail-closed 现状对齐**：来源未知/动态 src（非字面量）→ 图中无 media 节点 →
    unknown；CSS 背景图不进 media 节点（PR #28 仅扫描 CSS 的 token/cascade）→
    unknown；semantic-candidate 边 → unresolved。均与 B MEDIA 验收门的既有结论一致，
