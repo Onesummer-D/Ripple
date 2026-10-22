@@ -1,0 +1,63 @@
+# 栖光 data-router 变体 · SourceGraph 来源证明 CI（协调人第六轮 P1）
+#
+# 与 qiguang-lab-ci.yml（MPA 浏览器采集）分工：本工作流只做**静态来源证明**——
+# 固定 C+D 合同 SHA 的 analyzeProject / sourceProvenPageImpact 实测，
+# 不跑浏览器、不采集截图（MPA 的 24 张四视口截图不归属本变体）。
+# 任何证明失败 → 非零退出。A 正式稳定集成基线发布后，更新 PINNED_CD_SHA 复跑。
+name: Qiguang SourceGraph Proof
+
+on:
+  push:
+    branches:
+      - prep/qiguang-media-lab-20261023
+    paths:
+      - 'test/qiguang-lab/router-variant/**'
+      - '.github/workflows/qiguang-sourcegraph-proof.yml'
+
+env:
+  # PR #28（C+D 联合集成）已核实最新 HEAD；含动态下标别名链 P1 修复
+  PINNED_CD_SHA: 43f2ea24d83ad86b519502354ef3775e1e505967
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Lab branch
+        uses: actions/checkout@v4
+        with:
+          path: lab
+      - name: Checkout pinned C+D contract
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PINNED_CD_SHA }}
+          path: cd-contract
+      - name: Verify pinned C+D SHA
+        run: |
+          ACTUAL=$(git -C cd-contract rev-parse HEAD)
+          echo "pinned=${{ env.PINNED_CD_SHA }} actual=$ACTUAL"
+          test "$ACTUAL" = "${{ env.PINNED_CD_SHA }}"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cd-contract/package-lock.json
+      - name: Install C+D contract deps
+        working-directory: cd-contract
+        run: npm ci
+      - name: Install Lab deps + router dep (lock untouched)
+        working-directory: lab
+        run: |
+          npm ci
+          npm install react-router-dom@7.18.4 --no-save --no-package-lock --no-audit --no-fund
+      - name: Root package.json / lock byte-unchanged assertions
+        run: |
+          git -C lab diff --exit-code -- package.json package-lock.json
+          git -C cd-contract diff --exit-code -- package.json package-lock.json
+      - name: Build router-variant wide/tall (asset + byte checks inside)
+        working-directory: lab
+        run: node test/qiguang-lab/router-variant/scripts/build-variants.mjs
+      - name: Run SourceGraph proof harness against pinned contract
+        working-directory: cd-contract
+        run: |
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
+            ../lab/test/qiguang-lab/router-variant/scripts/verify-sourcegraph-proof.ts --core .
