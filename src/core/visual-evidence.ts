@@ -298,7 +298,7 @@ function normalizeExpected(value: unknown): ExpectedCandidateIdentity | null {
     if (typeof item !== 'string' || !item || item.length > 512) throw new RangeError(`expected.${field} must be a non-empty string`)
     return item
   }
-  if (!Number.isInteger(source.scopeVersion)) throw new RangeError('expected.scopeVersion must be an integer')
+  if (!Number.isInteger(source.scopeVersion) || (source.scopeVersion as number) < 0) throw new RangeError('expected.scopeVersion must be a non-negative integer')
   // projectId is optional on the legacy contract; carry it through only when
   // the caller actually declares it, so old inputs keep their exact semantics.
   const projectId = source.projectId === undefined || source.projectId === null ? undefined
@@ -310,14 +310,25 @@ function normalizeExpected(value: unknown): ExpectedCandidateIdentity | null {
   }
 }
 
-/** Digest of a geometry input as validated (never of the raw value, which may be huge, cyclic or contain BigInt). */
-function geometryDigest(raw: unknown, side: VisualSide, limits: GeometryLimits): string | null {
-  if (raw === undefined || raw === null) return null
+type PreparsedGeometry = { digest: string | null; result: ReturnType<typeof parseDomGeometrySample> | null }
+
+/**
+ * Parses each geometry sample exactly once for the whole analysis: the parsed
+ * result feeds both the side report and the evidence id digest, so a malformed
+ * or hostile sample is validated a single time.
+ */
+function parseGeometryOnce(raw: unknown, side: VisualSide, limits: GeometryLimits): PreparsedGeometry {
+  if (raw === undefined || raw === null) return { digest: null, result: null }
   try {
-    const parsed = parseDomGeometrySample(raw, side, limits)
-    return sha256Hex(parsed.ok ? JSON.stringify(parsed.sample) : `rejected:${parsed.detail}`)
+    const result = parseDomGeometrySample(raw, side, limits)
+    return { digest: sha256Hex(result.ok ? JSON.stringify(result.sample) : `rejected:${result.detail}`), result }
   } catch (error) {
-    return sha256Hex(`unreadable:${String((error as Error)?.message ?? error).slice(0, 200)}`)
+    // Keep both historical strings byte-identical: the id digest used the raw
+    // message, the side report prefixed it.
+    return {
+      digest: sha256Hex(`unreadable:${String((error as Error)?.message ?? error).slice(0, 200)}`),
+      result: { ok: false, detail: `Geometry sample could not be read: ${String((error as Error)?.message ?? error).slice(0, 200)}` },
+    }
   }
 }
 
@@ -400,10 +411,8 @@ function screenshotRecord(descriptor: VisualCaptureDescriptor, input: Screenshot
 
 interface AcceptedGeometry { sample: DomGeometrySample; mapping: ScreenshotMapping; screenshotBound: boolean }
 
-function sideGeometry(raw: unknown, side: VisualSide, descriptor: VisualCaptureDescriptor, png: DecodedPng, limits: GeometryLimits): { report: SideGeometryReport; accepted: AcceptedGeometry | null } {
-  if (raw === undefined || raw === null) return { report: { status: 'missing', detail: null, elementCount: 0, screenshotBound: false }, accepted: null }
-  let parsed: ReturnType<typeof parseDomGeometrySample>
-  try { parsed = parseDomGeometrySample(raw, side, limits) } catch (error) { parsed = { ok: false, detail: `Geometry sample could not be read: ${String((error as Error)?.message ?? error).slice(0, 200)}` } }
+function sideGeometry(parsed: PreparsedGeometry['result'], descriptor: VisualCaptureDescriptor, png: DecodedPng): { report: SideGeometryReport; accepted: AcceptedGeometry | null } {
+  if (parsed === null) return { report: { status: 'missing', detail: null, elementCount: 0, screenshotBound: false }, accepted: null }
   if (!parsed.ok) return { report: { status: 'rejected', detail: parsed.detail, elementCount: 0, screenshotBound: false }, accepted: null }
   const bound = bindGeometryToCapture(parsed.sample, descriptor, png)
   if (!bound.ok) return { report: { status: 'rejected', detail: bound.detail, elementCount: parsed.sample.elements.length, screenshotBound: false }, accepted: null }
@@ -414,6 +423,8 @@ function sideGeometry(raw: unknown, side: VisualSide, descriptor: VisualCaptureD
 }
 
 const round6 = (value: number) => Math.round(value * 1e6) / 1e6
+/** Locale-independent string order (Turkish-i and ICU locale differences must not reorder evidence). */
+const compareText = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0
 const cap = <T>(items: T[], limit: number) => ({ items: items.slice(0, limit), truncated: items.length > limit })
 
 function emptyGeometry(status: GeometryReport['status'], declaredRefs: string[]): GeometryReport {
@@ -437,6 +448,10 @@ export function analyzeVisualDifference(request: VisualComparisonRequest): Visua
   const c = safeDescriptor(request.candidate?.descriptor, 'candidate')
   const bShot = screenshotRecord(b.descriptor, request.baseline?.screenshot, parameters.png, parameters.mergeDistanceCssPx)
   const cShot = screenshotRecord(c.descriptor, request.candidate?.screenshot, parameters.png, parameters.mergeDistanceCssPx)
+  // Each geometry sample is parsed exactly once and shared by the side report
+  // and the evidence id digest.
+  const bGeometry = parseGeometryOnce(request.baseline?.geometry, 'baseline', parameters.geometry)
+  const cGeometry = parseGeometryOnce(request.candidate?.geometry, 'candidate', parameters.geometry)
   const rawRefs: unknown = request.targets?.sourceRefs
   const declaredRefs = [...new Set((Array.isArray(rawRefs) ? rawRefs : []).filter((ref): ref is string => typeof ref === 'string' && ref.length > 0 && ref.length <= 512))].sort().slice(0, parameters.maxListedItems)
   const identity = assessIdentity(subject, expected, b.descriptor, c.descriptor)
@@ -478,7 +493,7 @@ export function analyzeVisualDifference(request: VisualComparisonRequest): Visua
     targetMarginPx = Math.ceil(parameters.targetMarginCssPx * dpr)
     const diff = diffPixels(baselinePng.data, candidatePng.data, candidatePng.width, candidatePng.height, { threshold: parameters.threshold, includeAA: parameters.includeAA, mergeDistancePx })
     const reportedIndexes = selectReportedRegions(diff, parameters.maxRegions)
-    const analysed = analyseGeometry(request, b.descriptor, c.descriptor, baselinePng, candidatePng, diff, reportedIndexes, declaredRefs, parameters, targetMarginPx)
+    const analysed = analyseGeometry(bGeometry, cGeometry, b.descriptor, c.descriptor, baselinePng, candidatePng, diff, reportedIndexes, declaredRefs, parameters, targetMarginPx)
     geometry = analysed.report
     if (geometry.status === 'unavailable') limitations.push({ code: 'geometry-unavailable', detail: 'No DOM geometry sample was supplied; changed regions cannot be related to elements or targets.' })
     if (!baselinePng.opaque || !candidatePng.opaque) limitations.push({ code: 'transparent-pixels', detail: 'A screenshot has non-opaque pixels; pixelmatch compares them blended over a checkerboard.', baseline: baselinePng.opaque, candidate: candidatePng.opaque })
@@ -592,7 +607,7 @@ export function analyzeVisualDifference(request: VisualComparisonRequest): Visua
   const id = `visual-${sha256Hex(JSON.stringify({
     checkId: request.checkId ?? null, subject, expected,
     baseline: { descriptor: b.descriptor, sha256: bShot.record.sha256 }, candidate: { descriptor: c.descriptor, sha256: cShot.record.sha256 },
-    geometry: [geometryDigest(request.baseline?.geometry, 'baseline', parameters.geometry), geometryDigest(request.candidate?.geometry, 'candidate', parameters.geometry)],
+    geometry: [bGeometry.digest, cGeometry.digest],
     targets: declaredRefs, parameters: parameterRecord,
   })).slice(0, 32)}`
 
@@ -620,11 +635,11 @@ function selectReportedRegions(diff: PixelDiff, limit: number): number[] {
 }
 
 function analyseGeometry(
-  request: VisualComparisonRequest, bDesc: VisualCaptureDescriptor, cDesc: VisualCaptureDescriptor, bPng: DecodedPng, cPng: DecodedPng,
+  bGeometry: PreparsedGeometry, cGeometry: PreparsedGeometry, bDesc: VisualCaptureDescriptor, cDesc: VisualCaptureDescriptor, bPng: DecodedPng, cPng: DecodedPng,
   diff: PixelDiff, reportedIndexes: number[], declaredRefs: string[], parameters: VisualDiffParameters, targetMarginPx: number,
 ): { report: GeometryReport; regions: VisualRegion[] } {
-  const bGeo = sideGeometry(request.baseline?.geometry, 'baseline', bDesc, bPng, parameters.geometry)
-  const cGeo = sideGeometry(request.candidate?.geometry, 'candidate', cDesc, cPng, parameters.geometry)
+  const bGeo = sideGeometry(bGeometry.result, bDesc, bPng)
+  const cGeo = sideGeometry(cGeometry.result, cDesc, cPng)
   const accepted = [bGeo.accepted, cGeo.accepted].filter((item): item is AcceptedGeometry => !!item)
   const anyProvided = bGeo.report.status !== 'missing' || cGeo.report.status !== 'missing'
   const status: GeometryReport['status'] = accepted.length === 2 ? 'mapped' : accepted.length === 1 ? 'partial' : anyProvided ? 'rejected' : 'unavailable'
@@ -721,7 +736,9 @@ function analyseGeometry(
     }).filter(item => item.overlap > 0)
       // Most specific first: smallest element box, then largest overlap, then a stable order.
       .sort((l, r) => l.box.area - r.box.area || r.overlap - l.overlap || (l.box.side < r.box.side ? -1 : l.box.side > r.box.side ? 1 : 0) ||
-        String(l.box.sourceRef).localeCompare(String(r.box.sourceRef)) || String(l.box.runtimeInstanceId).localeCompare(String(r.box.runtimeInstanceId)) || l.box.rect.y - r.box.rect.y || l.box.rect.x - r.box.rect.x)
+        // Code-point order (not localeCompare): element order feeds the evidence id,
+        // so it must not vary with the host ICU locale.
+        compareText(String(l.box.sourceRef), String(r.box.sourceRef)) || compareText(String(l.box.runtimeInstanceId), String(r.box.runtimeInstanceId)) || l.box.rect.y - r.box.rect.y || l.box.rect.x - r.box.rect.x)
     const insideTargetPixels = targetMask ? inside[region.index] : null
     const classification: RegionClassification = insideTargetPixels === null ? 'unattributed'
       : insideTargetPixels === region.changedPixels ? 'target' : insideTargetPixels === 0 ? 'non-target' : 'mixed'

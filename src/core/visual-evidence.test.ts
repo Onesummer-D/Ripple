@@ -135,6 +135,25 @@ describe('visual difference evidence: comparison outcomes', () => {
     expect(evidence.observation).toBeNull()
   })
 
+  it('refuses to compare viewport-only captures taken at different scroll positions', () => {
+    const scrolled = { capture: { fullPage: false, scroll: { x: 0, y: 300 } } }
+    const evidence = analyze(request({ capture: { fullPage: false, scroll: { x: 0, y: 0 } } }, { ...scrolled, bytes: png(baseScene) }))
+    expect(evidence.result).toBe('unknown')
+    expect(reasonCodes(evidence)).toContain('scroll-mismatch')
+    expect(evidence.observation).toBeNull()
+  })
+
+  it('ignores scroll differences for full-page captures (the whole document is covered)', () => {
+    const evidence = analyze(request({ capture: { scroll: { x: 0, y: 40 } } }, { capture: { scroll: { x: 0, y: 120 } }, bytes: png(baseScene) }))
+    expect(reasonCodes(evidence)).not.toContain('scroll-mismatch')
+    expect(evidence.result).toBe('unknown')
+    expect(evidence.observation).not.toBeNull()
+  })
+
+  it('rejects a negative expected scopeVersion', () => {
+    expect(() => analyzeVisualDifference(request({}, {}, { expected: { ...expected, scopeVersion: -1 } }))).toThrow(RangeError)
+  })
+
   it('rejects a screenshot whose size contradicts its declared viewport × DPR', () => {
     const evidence = analyze(request({ descriptor: { devicePixelRatio: 2 } }, { descriptor: { devicePixelRatio: 2 } }))
     expect(reasonCodes(evidence)).toEqual(['image-viewport-inconsistent', 'image-viewport-inconsistent'])

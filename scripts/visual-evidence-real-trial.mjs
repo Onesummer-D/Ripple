@@ -103,9 +103,17 @@ async function capture(side, route, html, options = {}) {
     return document.fonts.status === 'loaded'
   }, awaitFonts).catch(() => null)
   const geometry = await tab.evaluate(sampleDomGeometryInPage, { side, interactionState: state })
+  // Stability is MEASURED, never asserted: two consecutive full-page captures
+  // must be byte-identical (animations disabled) for the capture to count as
+  // stable; this feeds the trusted-risk provenance requirement.
   let bytes = null
-  if (screenshot === 'full') bytes = new Uint8Array(await tab.screenshot({ fullPage: true, animations: 'disabled' }))
-  else if (screenshot === 'corrupt') bytes = (new Uint8Array(await tab.screenshot({ fullPage: true, animations: 'disabled' }))).slice(0, 64)
+  let stable = null
+  if (screenshot === 'full' || screenshot === 'corrupt') {
+    const first = new Uint8Array(await tab.screenshot({ fullPage: true, animations: 'disabled' }))
+    const second = new Uint8Array(await tab.screenshot({ fullPage: true, animations: 'disabled' }))
+    stable = sha(first) === sha(second)
+    bytes = screenshot === 'corrupt' ? second.slice(0, 64) : second
+  }
   const declaredSha256 = bytes ? sha(bytes) : null
   const observed = await tab.evaluate(() => ({ dpr: window.devicePixelRatio, url: location.href, path: `${location.pathname}${location.search}${location.hash}` }))
   return {
@@ -113,7 +121,7 @@ async function capture(side, route, html, options = {}) {
       side, route: observed.path, pageUrl: observed.url, viewport: tab.viewportSize(), devicePixelRatio: observed.dpr,
       browser: { name: 'chromium', version: browser.version() }, runtimeFingerprint: RUNTIME_FINGERPRINT, interactionState: state,
       sourceDigest,
-      capture: { completed: bytes !== null, stable: true, fullPage: true, animationsDisabled: true, fontsReady: observedFontsReady ?? fontsReady, capturedAt: new Date().toISOString(), scroll: { x: 0, y: 0 } },
+      capture: { completed: bytes !== null, stable, fullPage: true, animationsDisabled: true, fontsReady: observedFontsReady ?? fontsReady, capturedAt: new Date().toISOString(), scroll: { x: 0, y: 0 } },
       screenshot: { declaredSha256 },
     },
     screenshot: bytes,

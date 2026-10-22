@@ -292,6 +292,7 @@ export type ComparabilityCode =
   | 'browser-mismatch'
   | 'capture-incomplete' | 'capture-completion-unknown' | 'capture-unstable'
   | 'capture-extent-mismatch'
+  | 'scroll-mismatch'
   | 'image-size-mismatch' | 'image-viewport-inconsistent'
 
 export type LimitationCode =
@@ -361,6 +362,15 @@ export function assessComparability(
   if (extentKnown && baseline.capture.fullPage !== candidate.capture.fullPage) pair('capture-extent-mismatch', 'One screenshot is full-page and the other is viewport-only.', baseline.capture.fullPage, candidate.capture.fullPage)
   else if (!extentKnown) limitations.push({ code: 'capture-extent-unknown', detail: 'Whether the screenshots cover the full page or only the viewport was not recorded; DOM geometry cannot be mapped and unchecked page areas are unknown.', baseline: baseline.capture.fullPage, candidate: candidate.capture.fullPage })
   else if (baseline.capture.fullPage === false) limitations.push({ code: 'viewport-only-capture', detail: 'Only the visible viewport was captured; content outside it was not compared.' })
+  // For viewport-only captures the scroll offset selects which document region
+  // is shown; different offsets make a pixel-for-pixel comparison meaningless
+  // even when viewport, DPR and state match. (Full-page captures cover the
+  // whole document, so their scroll positions do not affect comparability.)
+  if (extentKnown && baseline.capture.fullPage === false && candidate.capture.fullPage === false &&
+    baseline.capture.scroll && candidate.capture.scroll &&
+    (baseline.capture.scroll.x !== candidate.capture.scroll.x || baseline.capture.scroll.y !== candidate.capture.scroll.y)) {
+    pair('scroll-mismatch', 'Viewport-only captures were taken at different scroll positions, so they show different document regions.', baseline.capture.scroll, candidate.capture.scroll)
+  }
   for (const [flag, falseCode, nullCode, label] of [
     ['animationsDisabled', 'animations-not-disabled', 'animations-state-unknown', 'Animations'],
     ['fontsReady', 'fonts-not-ready', 'fonts-state-unknown', 'Font loading'],
