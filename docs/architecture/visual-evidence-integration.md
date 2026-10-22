@@ -112,23 +112,46 @@ E 视觉结果只作为补充证据：视觉模块**不能独立决定候选 PAS
 SHA-256 与展示 URL）。视图永不重算、永不产出 `pass`、对同一证据幂等。
 F 工作台应只通过该视图消费视觉证据。
 
-## 5. 后续正式 VerificationRunner 接入方案（待审查，未实施）
+## 5. 正式 VerificationRunner 接入（已实施，分支 `feat/e-visual-verification-integration-20261023`）
 
-以下仅为接口方案提案，供负责人审查；本轮不实施，避免影响 B 的 Bolt Run #18。
+设计原则不变：容器只采集，宿主分析；视觉证据只读、辅助、永不 PASS；
+Receipt 合同与审批门控零改动。
 
-1. **触发点**：`verification-execution.mjs` 在现有浏览器断言完成后，对
-   每个 `VerificationCheck` 的 (route, viewport, state) 复用同一隔离预览
-   上下文采集 baseline（基线源预览）与 candidate（候选预览）截图 + 几何。
-2. **数据流**：采集器输出第 2 节描述符；`analyzeVisualDifference` 以
-   `expected = expectedIdentityFor(candidate, revision)` 运行；证据经
-   `toVerificationEvidence`（已存在）挂到 run 的补充证据列表，** Receipt
-   增加 `visualEvidences` 只读数组字段，不参与 PASS/FAIL 计算**。
-3. **门控**：Receipt 状态机不变；视觉 `risk` 只在审批界面以“需人工复核”
-   呈现，不回写任何状态。审批门控读取 Receipt 的代码不新增视觉分支。
-4. **资源隔离**：视觉分析复用 E 的资源上限（PNG 尺寸/字节、元素数、
-   区域数）；采集失败一律记 `not-run`/`failed-to-run`，不得使 run 失败。
-5. **未实现边界**：真实项目基线预览与候选预览的配对采集尚未对 Ripple
-   自身工程跑通；四视口矩阵覆盖、Receipt 字段评审、F 侧复核 UI 均未实施。
+1. **触发点（容器侧）**：`verification-execution.mjs` 在全部视口检查完成、
+   断言计算之前，对每个视口在根路由 `/` 上以全新 baseline/candidate 页对
+   执行采集（scope checkId 命名空间 `-visual`，生命周期事件不与已验证
+   视口混淆）。预算不足 `VISUAL_CAPTURE_MIN_BUDGET_MS`（8s）时跳过并记
+   missing；单次采集有 30s 任务期限，失败、超时或清理不可证明完成一律
+   记 missing，绝不影响 run 结果。
+2. **采集（`src/core/visual-capture-executor.mjs`，纯 ESM）**：每侧两次
+   连续整页截图测量稳定性（不再断言）、`sampleDomGeometryInPage` 采样
+   DOM 几何并与截图 SHA-256 绑定、描述符按第 2 节合同记录。工件写入
+   `<evidence>/visual/<viewport>/`，manifest 新增 `visualCaptures`，
+   记录描述符 + 每个工件的相对路径与 SHA-256。
+3. **分析（宿主侧 `src/core/visual-verification-attach.ts`）**：校验
+   manifest 记录（路径白名单 `visual/<dir>/{baseline,candidate}.{png,-geometry.json}`、
+   哈希、JSON 结构）→ 以 `expectedIdentityFor(candidate, revision)` 运行
+   `analyzeVisualDifference` → diff 图与证据 JSON 写入
+   `<run>/visual-analysis/<n>/` → 以 `toVisualEvidenceView` 生成 F 只读视图
+   → 附加到 `run.visualEvidences`（attestation 之前）。manifest 记录与
+   文件哈希不一致、路径逃逸、身份失配分别落到 `failed-to-run` /
+   `stale`，缺失采集落到 `not-run`；任何视觉问题都不会使 run 失败。
+4. **门控**：`VerificationRun.visualEvidences` 为可选附加字段，
+   `validateRunRecord` 不读取它；断言、状态机、Receipt、审批门控均无
+   视觉分支。视觉 `risk` 仅供 F 以“需人工复核”呈现。
+5. **测试**：`visual-verification-attach.test.ts` 以真实 Chromium 端到端
+   驱动 `executeVerification` → 宿主 attach，锁定 compared→`unknown`、
+   missing→`not-run`、篡改字节→`failed-to-run`、错误来源树→`stale`、
+   路径逃逸→拒绝六条保守语义；`verification-execution` 35 例全绿
+   （页面装载计数按附加采集对已更新）。
+6. **真实 React/Vite 样例**：`scripts/visual-evidence-vite-trial.mjs`
+   用真实 Vite 构建（React 19）+ 真实 Chromium 走完整采集-分析链，
+   产出 text-change（`unknown`）与 button-overlap（`risk`）两组
+   baseline/candidate/diff 三图及证据 JSON（SHA-256 记录）。
+7. **待验收**：Docker 容器端到端（本机无 Docker，容器路径由
+   `verification-execution` 单测同 harness 覆盖）；F 工作台消费 UI；
+   C+D sourceRef 与 `targetBindings.sourceRefs` 的精确对齐（当前取
+   并集，未命中时按 `target-not-mapped` 保守降级）。
 
 ## 6. 回归基线
 
