@@ -276,6 +276,150 @@ describe('real project graph and candidate executor', () => {
     })
   })
 
+  it('narrows member-access media candidates by the receiver declared type and keeps the name-level fallback for untyped receivers', () => {
+    const { root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'catalog.ts'), `export interface Product { image: string }
+export const products: Product[] = [
+  { image: '/images/p1.webp' },
+  { image: '/images/p2.webp' },
+]
+export const categories = [
+  { image: '/images/cat.webp' },
+]
+// 未标注（类型推断）绑定：接收方类型解析存在时也不能被静默排除
+export const seasonal = [
+  { image: '/images/seasonal.webp' },
+]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/catalog'
+export function ProductCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'LooseCard.tsx'), `export function LooseCard({ item }: { item: never }) {
+  return <img src={(item as { image: string }).image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { products, categories } from '../data/catalog'
+import { ProductCard } from '../components/ProductCard'
+import { LooseCard } from '../components/LooseCard'
+export function HomePage() {
+  return (
+    <main>
+      <h1 className="text-ink-900">Home title</h1>
+      {products.map((product) => <ProductCard key={product.image} product={product} />)}
+      {categories.map((cat) => <img key={cat.image} src={cat.image} />)}
+      <LooseCard item={undefined as never} />
+    </main>
+  )
+}`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add typed and untyped media member consumers')
+
+    const graph = analyzeProject(root)
+    const mediaByValue = new Map(graph.nodes.filter(node => node.kind === 'media' && node.location?.path === 'src/data/catalog.ts').map(node => [node.value, node.id]))
+    const productOne = mediaByValue.get('/images/p1.webp')!
+    const productTwo = mediaByValue.get('/images/p2.webp')!
+    const categoryImage = mediaByValue.get('/images/cat.webp')!
+    const seasonalImage = mediaByValue.get('/images/seasonal.webp')!
+
+    const card = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!
+    const cardCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === card.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    // 接收方声明为 Product：候选只保留 Product[] 绑定内的媒体，categories 图片不再被误挂。
+    // 混合标注边界（已记录）：未标注绑定（seasonal）在类型化消费路径上不生成候选边，
+    // 方向 fail-closed——其媒体的影响保持 unknown/被候选门拒绝，不会被误放。
+    expect(cardCandidateTargets.sort()).toEqual([productOne, productTwo].sort())
+    expect(cardCandidateTargets).not.toContain(categoryImage)
+    expect(cardCandidateTargets).not.toContain(seasonalImage)
+    const seasonalImpact = sourceProvenPageImpact(graph, seasonalImage)
+    expect(seasonalImpact.certainty).toBe('unknown')
+    expect(seasonalImpact.unresolved.some(item => item.includes('没有可证明的页面消费者'))).toBe(true)
+
+    // 未标注/无法解析接收方类型的回退路径保持原名级候选（fail-closed 不降级）
+    const loose = graph.nodes.find(node => node.kind === 'component' && node.label === 'LooseCard')!
+    const looseCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === loose.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    expect(looseCandidateTargets.length).toBeGreaterThanOrEqual(3)
+
+    // 分类图经 categories.map 直接消费可证明到首页；
+    // 唯一未解析关系来自 LooseCard 回退候选（fail-closed 如实保留，不误升级）
+    const categoryImpact = sourceProvenPageImpact(graph, categoryImage)
+    expect(categoryImpact.pageRefs).toEqual(['page:home'])
+    expect(categoryImpact.certainty).toBe('partial')
+    expect(categoryImpact.unresolved).toHaveLength(1)
+    expect(categoryImpact.unresolved[0]).toContain('LooseCard')
+    // 商品图因共享组件/页面级 map 保持 candidate/unknown（页面归属不被误提升）
+    expect(sourceProvenPageImpact(graph, productOne).certainty).toBe('unknown')
+  })
+
+  it('混合显式类型与类型推断绑定：显式 interface 精确收窄，typeof 别名推断绑定经字面量解析直连', () => {
+    const { root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'mixed.ts'), `export interface Featured { image: string; badge: string }
+export const featured: Featured[] = [
+  { image: '/images/featured.webp', badge: 'new' },
+]
+// 类型推断绑定：元素类型经 typeof 别名被消费者引用
+export const deals = [
+  { image: '/images/deal.webp' },
+]
+export type Deal = (typeof deals)[number]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'FeaturedCard.tsx'), `import type { Featured } from '../data/mixed'
+export function FeaturedCard({ item }: { item: Featured }) {
+  return <img src={item.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'DealCard.tsx'), `import type { Deal } from '../data/mixed'
+export function DealCard({ item }: { item: Deal }) {
+  return <img src={item.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { featured, deals } from '../data/mixed'
+import { FeaturedCard } from '../components/FeaturedCard'
+import { DealCard } from '../components/DealCard'
+export function HomePage() {
+  return (
+    <main>
+      <h1 className="text-ink-900">Home title</h1>
+      {featured.map((item) => <FeaturedCard key={item.image} item={item} />)}
+      {deals.map((item) => <DealCard key={item.image} item={item} />)}
+    </main>
+  )
+}`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add mixed explicit and inferred binding consumers')
+
+    const graph = analyzeProject(root)
+    const mediaByValue = new Map(graph.nodes.filter(node => node.kind === 'media' && node.location?.path === 'src/data/mixed.ts').map(node => [node.value, node.id]))
+    const featuredImage = mediaByValue.get('/images/featured.webp')!
+    const dealImage = mediaByValue.get('/images/deal.webp')!
+
+    // 显式标注（Featured）：接收方类型可解析到 interface，候选精确收窄到该绑定区间
+    const featuredCard = graph.nodes.find(node => node.kind === 'component' && node.label === 'FeaturedCard')!
+    const featuredTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === featuredCard.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    expect(featuredTargets).toEqual([featuredImage])
+
+    // 类型推断绑定（deals）经 typeof 别名被引用：TS checker 把属性符号解析回 deals
+    // 字面量初始化区间 → 直接生成 source-proven 消费边（类型定向的字面量解析），
+    // 页面影响可证明到首页；未标注绑定在类型化消费路径上的 fail-closed 边界由
+    // 上一个用例（seasonal）覆盖，两类混合场景都有明确语义。
+    const dealCard = graph.nodes.find(node => node.kind === 'component' && node.label === 'DealCard')!
+    const dealTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === dealCard.id)
+      .map(edge => edge.to)
+    expect(dealTargets).toContain(dealImage)
+    const dealImpact = sourceProvenPageImpact(graph, dealImage)
+    expect(dealImpact.certainty).toBe('source-proven')
+    expect(dealImpact.pageRefs).toEqual(['page:home'])
+  })
+
   it('does not execute a structured action through the literal candidate replacement path', () => {
     const { container, root } = sampleProject()
     const graph = analyzeProject(root)
