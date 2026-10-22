@@ -299,8 +299,13 @@ function normalizeExpected(value: unknown): ExpectedCandidateIdentity | null {
     return item
   }
   if (!Number.isInteger(source.scopeVersion)) throw new RangeError('expected.scopeVersion must be an integer')
+  // projectId is optional on the legacy contract; carry it through only when
+  // the caller actually declares it, so old inputs keep their exact semantics.
+  const projectId = source.projectId === undefined || source.projectId === null ? undefined
+    : typeof source.projectId === 'string' && source.projectId.length > 0 && source.projectId.length <= 512 ? source.projectId
+    : (() => { throw new RangeError('expected.projectId must be a non-empty string') })()
   return {
-    candidateId: text('candidateId'), patchHash: text('patchHash'), baseSourceDigest: text('baseSourceDigest'), candidateTreeDigest: text('candidateTreeDigest'),
+    candidateId: text('candidateId'), projectId, patchHash: text('patchHash'), baseSourceDigest: text('baseSourceDigest'), candidateTreeDigest: text('candidateTreeDigest'),
     runtimeFingerprint: text('runtimeFingerprint'), scopeDecisionId: text('scopeDecisionId'), scopeVersion: source.scopeVersion as number,
   }
 }

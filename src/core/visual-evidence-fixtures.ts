@@ -20,6 +20,7 @@ const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 export const FIXTURE_ANALYZED_AT = '2026-10-21T00:00:00.000Z'
 export const FIXTURE_IDENTITY: ExpectedCandidateIdentity = Object.freeze({
   candidateId: 'candidate-fixture-1',
+  projectId: 'project-fixture-1',
   patchHash: sha('ripple-visual-fixture:patch'),
   baseSourceDigest: sha('ripple-visual-fixture:base-source'),
   candidateTreeDigest: sha('ripple-visual-fixture:candidate-tree'),

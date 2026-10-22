@@ -9,6 +9,7 @@
   "checkId": "fixture-target-text-change",
   "subject": {
     "candidateId": "candidate-fixture-1",
+    "projectId": "project-fixture-1",
     "patchHash": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
     "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
     "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
@@ -19,6 +20,7 @@
   },
   "expected": {
     "candidateId": "candidate-fixture-1",
+    "projectId": "project-fixture-1",
     "patchHash": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
     "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
     "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",

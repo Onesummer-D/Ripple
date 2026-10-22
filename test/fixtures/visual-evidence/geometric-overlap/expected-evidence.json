@@ -1,12 +1,13 @@
 {
   "schema": "ripple-visual-difference/v1",
-  "id": "visual-329bc255abc080d70658efb576daa43c",
+  "id": "visual-e95b3d281da459d8881e1bbad337b4fb",
   "checkId": "fixture-geometric-overlap",
   "analyzedAt": "2026-10-21T00:00:00.000Z",
   "result": "risk",
   "resultReason": "2 explicit geometry rule finding(s): new-overlap.",
   "subject": {
     "candidateId": "candidate-fixture-1",
+    "projectId": "project-fixture-1",
     "patchHash": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
     "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
     "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
@@ -23,6 +24,12 @@
         "field": "subject.candidateId",
         "observed": "candidate-fixture-1",
         "expected": "candidate-fixture-1",
+        "status": "match"
+      },
+      {
+        "field": "subject.projectId",
+        "observed": "project-fixture-1",
+        "expected": "project-fixture-1",
         "status": "match"
       },
       {

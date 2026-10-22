@@ -1,12 +1,13 @@
 {
   "schema": "ripple-visual-difference/v1",
-  "id": "visual-315b7ee0779b1febbe2d158e54cd71a0",
+  "id": "visual-6e5de46a01130d0b1cfafe21d7438042",
   "checkId": "fixture-identity-stale",
   "analyzedAt": "2026-10-21T00:00:00.000Z",
   "result": "stale",
   "resultReason": "Inputs are bound to a different candidate, source digest or runtime than expected; no comparison was made.",
   "subject": {
     "candidateId": "candidate-fixture-1",
+    "projectId": "project-fixture-1",
     "patchHash": "6a4dc9a97482c2e26bed61a6e314528eed1d24c138a0f13815513fdc09703f04",
     "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
     "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
@@ -23,6 +24,12 @@
         "field": "subject.candidateId",
         "observed": "candidate-fixture-1",
         "expected": "candidate-fixture-1",
+        "status": "match"
+      },
+      {
+        "field": "subject.projectId",
+        "observed": "project-fixture-1",
+        "expected": "project-fixture-1",
         "status": "match"
       },
       {

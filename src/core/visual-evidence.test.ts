@@ -14,7 +14,7 @@ import { encodePng, readPng, sha256Hex } from './visual-png'
 
 const CSS_W = 100, CSS_H = 80
 const expected: ExpectedCandidateIdentity = {
-  candidateId: 'cand-1', patchHash: 'p'.repeat(64), baseSourceDigest: 'b'.repeat(64), candidateTreeDigest: 't'.repeat(64),
+  candidateId: 'cand-1', projectId: 'proj-1', patchHash: 'p'.repeat(64), baseSourceDigest: 'b'.repeat(64), candidateTreeDigest: 't'.repeat(64),
   runtimeFingerprint: 'runtime-1', scopeDecisionId: 'scope-1', scopeVersion: 3,
 }
 type Fill = (x: number, y: number, w: number, h: number, color: [number, number, number]) => void
@@ -173,6 +173,7 @@ describe('visual difference evidence: comparison outcomes', () => {
     const cases: Array<[Partial<VisualComparisonRequest>, SideOptions, SideOptions, string]> = [
       [{ subject: { ...expected, patchHash: 'old'.padEnd(64, '0') } }, {}, {}, 'subject.patchHash'],
       [{ subject: { ...expected, candidateId: 'cand-0' } }, {}, {}, 'subject.candidateId'],
+      [{ subject: { ...expected, projectId: 'proj-0' } }, {}, {}, 'subject.projectId'],
       [{ subject: { ...expected, scopeVersion: 2 } }, {}, {}, 'subject.scopeVersion'],
       [{}, { descriptor: { sourceDigest: 'x'.repeat(64) } }, {}, 'baseline.sourceDigest'],
       [{}, {}, { descriptor: { sourceDigest: 'y'.repeat(64) } }, 'candidate.sourceDigest'],
@@ -192,6 +193,22 @@ describe('visual difference evidence: comparison outcomes', () => {
     expect(evidence.identity).toMatchObject({ status: 'unverified', expectedProvided: false })
     expect(limitationCodes(evidence)).toContain('candidate-identity-unverified')
     expect(evidence.result).toBe('unknown')
+  })
+
+  it('downgrades to unverified when only one side declares projectId', () => {
+    // Subject declares a project, the expected identity carries none: the
+    // binding cannot be checked, so identity must degrade conservatively.
+    const evidence = analyze(request({}, {}, { expected: { ...expected, projectId: undefined } }))
+    expect(evidence.identity.checks.find(item => item.field === 'subject.projectId')).toMatchObject({ status: 'unknown' })
+    expect(evidence.identity.status).toBe('unverified')
+    expect(evidence.result).toBe('unknown')
+  })
+
+  it('ignores projectId entirely on legacy inputs where neither side declares it', () => {
+    const legacy = { ...expected, projectId: undefined }
+    const evidence = analyze(request({}, {}, { subject: { ...legacy, runId: 'run-1' }, expected: legacy }))
+    expect(evidence.identity.checks.some(item => item.field === 'subject.projectId')).toBe(false)
+    expect(evidence.identity.status).toBe('consistent')
   })
 
   it('refuses mismatched or unknown route, viewport, interaction state, browser and capture state', () => {

@@ -62,6 +62,8 @@ export interface DescriptorIssue { field: string; problem: 'missing' | 'invalid'
 
 export interface VisualComparisonSubject {
   candidateId: string | null
+  /** Project the captures claim to belong to; compared against expected.projectId when either side declares it. */
+  projectId: string | null
   patchHash: string | null
   baseSourceDigest: string | null
   candidateTreeDigest: string | null
@@ -74,6 +76,8 @@ export interface VisualComparisonSubject {
 /** The identity of the candidate a caller wants evidence for (its current CandidatePatch). */
 export interface ExpectedCandidateIdentity {
   candidateId: string
+  /** Project revision id the candidate belongs to; optional for callers on legacy contracts. */
+  projectId?: string
   patchHash: string
   baseSourceDigest: string
   candidateTreeDigest: string
@@ -85,6 +89,7 @@ export interface ExpectedCandidateIdentity {
 export function expectedIdentityFor(candidate: CandidatePatch, revision: ProjectRevision): ExpectedCandidateIdentity {
   return {
     candidateId: candidate.id,
+    projectId: revision.projectId,
     patchHash: candidate.patchHash,
     baseSourceDigest: candidate.baseSourceDigest,
     candidateTreeDigest: candidate.candidateTreeDigest,
@@ -213,6 +218,7 @@ export function normalizeVisualSubject(value: unknown): VisualComparisonSubject 
   const text = (field: string) => typeof source[field] === 'string' && (source[field] as string).length > 0 && (source[field] as string).length <= 512 ? source[field] as string : null
   return {
     candidateId: text('candidateId'),
+    projectId: text('projectId'),
     patchHash: text('patchHash'),
     baseSourceDigest: text('baseSourceDigest'),
     candidateTreeDigest: text('candidateTreeDigest'),
@@ -250,6 +256,11 @@ export function assessIdentity(subject: VisualComparisonSubject, expected: Expec
   if (expected) {
     checks.push(
       check('subject.candidateId', subject.candidateId, expected.candidateId),
+      // Only bind projectId when at least one side declares it; legacy inputs
+      // carry no projectId and must not silently downgrade to 'unverified'.
+      ...(subject.projectId !== null || expected.projectId !== undefined
+        ? [check('subject.projectId', subject.projectId, expected.projectId ?? null)]
+        : []),
       check('subject.patchHash', subject.patchHash, expected.patchHash),
       check('subject.baseSourceDigest', subject.baseSourceDigest, expected.baseSourceDigest),
       check('subject.candidateTreeDigest', subject.candidateTreeDigest, expected.candidateTreeDigest),
