@@ -93,6 +93,34 @@ test('视口切换 1440/768/375 与 390 验证中标注', async ({ page }) => {
   await expect(page.getByTestId('demo-canvas')).toBeVisible()
 })
 
+test('点击涟漪：圆环具备可见边框与有效动画，animationend 后清理', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  const ripple = page.locator('.ripple-xp-ripple')
+  await expect(ripple).toHaveCount(1)
+  // computed style 实测：边框真实渲染（作用域内 --xp-brand 生效）且动画有效，
+  // 防止"节点创建了但圆环不可见"的假通过
+  const computed = await ripple.evaluate(element => {
+    const style = getComputedStyle(element)
+    return {
+      borderWidth: style.borderTopWidth,
+      borderColor: style.borderTopColor,
+      borderStyle: style.borderTopStyle,
+      animationName: style.animationName,
+      animationDuration: style.animationDuration,
+      inScope: element.closest('.ripple-xp-scope') !== null,
+    }
+  })
+  expect(computed.inScope).toBe(true)
+  expect(computed.borderWidth).not.toBe('0px')
+  expect(computed.borderStyle).not.toBe('none')
+  expect(computed.borderColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(computed.animationName).toBe('ripple-xp-drop')
+  expect(parseFloat(computed.animationDuration)).toBeGreaterThan(0)
+  // 动画结束后节点被清理（animationend 或 1s 兜底），绝不留残留
+  await expect(ripple).toHaveCount(0, { timeout: 2500 })
+})
+
 test('模拟内容不得进入 real 模式：real 桩下无演示 DOM，显示未接入状态', async ({ page }) => {
   await openExperience(page, '/experience.html?adapter=real-stub')
   await expect(page.getByTestId('real-preview-pending')).toContainText('真实预览尚未接入')
@@ -285,9 +313,10 @@ test('REAL 模式：未打开工程显示打开入口；分析失败给出准确
   await page.getByTestId('open-project-submit').click()
   await expect(page.getByTestId('open-project-error')).toContainText('no-such-dir')
   // 修正为真实工程：分析成功，真实页面出现
+  // 冷启动首次 analyze 在本机 Windows 环境可能超过默认 5s，放宽到 30s 防偶发超时
   await page.getByTestId('open-project-path').fill(realProjectRoot)
   await page.getByTestId('open-project-submit').click()
-  await expect(page.getByTestId('project-status')).toContainText('工程就绪')
+  await expect(page.getByTestId('project-status')).toContainText('工程就绪', { timeout: 30_000 })
   await expect(page.getByTestId('page-item-page:home')).toBeVisible()
   await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
 })

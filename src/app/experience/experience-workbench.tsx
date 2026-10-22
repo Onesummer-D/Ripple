@@ -29,22 +29,30 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [openProjectBusy, setOpenProjectBusy] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
   const modelRef = useRef<ExperienceViewModel | undefined>(undefined)
+  const scopeRef = useRef<HTMLDivElement>(null)
 
-  // 点击涟漪：产品名 Ripple 的核心触感。任何点击在落点扩散一枚茶青圆环；
-  // 动效纯视觉、挂载在 body，不干扰事件流；减少动态偏好时完全关闭。
+  // 点击涟漪：产品名 Ripple 的核心触感。任何点击在落点扩散一枚茶青圆环。
+  // 涟漪节点必须挂在 .ripple-xp-scope 作用域内（--xp-brand 只在该作用域定义）；
+  // 动效纯视觉、不拦截事件；animationend 清理 + 超时兜底，绝不留残留节点；
+  // 减少动态偏好时完全关闭。
   useEffect(() => {
     if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const host = scopeRef.current
+    if (!host) return
     const onClick = (event: MouseEvent) => {
       const drop = document.createElement('span')
       drop.className = 'ripple-xp-ripple'
       drop.style.left = `${event.clientX}px`
       drop.style.top = `${event.clientY}px`
-      document.body.appendChild(drop)
-      drop.addEventListener('animationend', () => drop.remove(), { once: true })
+      host.appendChild(drop)
+      const remove = () => { drop.remove() }
+      drop.addEventListener('animationend', remove, { once: true })
+      // 兜底：动画事件未触发的极端环境下 1s 后强制清理
+      window.setTimeout(remove, 1000)
     }
-    document.addEventListener('click', onClick)
-    return () => document.removeEventListener('click', onClick)
-  }, [])
+    host.addEventListener('click', onClick)
+    return () => host.removeEventListener('click', onClick)
+  }, [model !== undefined])
 
   // 滚动浮现：分区进入视口时上浮入场（reveal → in-view），减少动态偏好时由 CSS 直接可见
   useEffect(() => {
@@ -136,7 +144,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
     setModel(next)
   }
 
-  return <div className="ripple-xp-scope ripple-xp-workbench">
+  return <div ref={scopeRef} className="ripple-xp-scope ripple-xp-workbench">
     <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} />
     {model.dataProvenance === 'real' && model.projectStatus === 'unavailable' && activeAdapter.openProject && (
       // 真实模式：尚未打开工程时提供"打开工程"入口；失败原因如实显示

@@ -4,12 +4,12 @@ import { LifecyclePill } from './status-pill'
 
 /** 版本配图：胶片条使用编辑式茶器摄影，悬停缩放；无图版本回退首图。 */
 const FILM_ART: Record<string, string> = {
-  'v:1': '/demo-assets/workshop.jpg',
-  'v:2': '/demo-assets/vessels.jpg',
-  'v:3': '/demo-assets/seasonal.jpg',
-  'candidate-real-1': '/demo-assets/hero-market.jpg',
+  'v:1': 'demo-assets/workshop.jpg',
+  'v:2': 'demo-assets/vessels.jpg',
+  'v:3': 'demo-assets/seasonal.jpg',
+  'candidate-real-1': 'demo-assets/hero-market.jpg',
 }
-const FILM_ART_FALLBACK = '/demo-assets/hero-market.jpg'
+const FILM_ART_FALLBACK = 'demo-assets/hero-market.jpg'
 
 /**
  * 版本胶片：候选 / 已应用 / 已回滚 / 已失效 + 修改摘要 + 证据可用性。

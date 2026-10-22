@@ -51,7 +51,7 @@
 .ripple-xp-ripple {
   position: fixed; z-index: 99; pointer-events: none;
   width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid var(--xp-brand);
+  border: 2px solid var(--xp-brand, #2e5941);
   animation: ripple-xp-drop 0.6s ease-out forwards;
 }
 
@@ -274,7 +274,6 @@
 }
 .ripple-xp-demo-card:hover .ripple-xp-demo-thumb { transform: scale(1.04); }
 .ripple-xp-demo-card strong { padding: 0 4px; font-size: 14px; }
-.ripple-xp-demo-card.is-promo .ripple-xp-demo-thumb { background-image: url("/demo-assets/seasonal.jpg"); }
 .ripple-xp-demo-page.is-placeholder { padding: 56px 28px; }
 .ripple-xp-demo-page.is-placeholder h2 { margin-top: 0; color: var(--xp-ink); font-family: var(--xp-serif); font-size: 26px; }
 .ripple-xp-demo-page.is-placeholder p { color: var(--xp-ink-soft); font-size: 15px; }

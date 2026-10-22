@@ -55,6 +55,26 @@ async function verifyFlow(page, label) {
   // 版本历史可操作
   await page.getByTestId('open-history').click()
   check(`${label}：版本胶片（生命周期标注）`, (await page.getByTestId('version-v:3').textContent()).includes('已回滚'))
+  // 图片资源验收：HTTP 实际状态 + 内容类型 + 浏览器解码（naturalWidth/Height），
+  // 防止资源 404 但 Console 无报错时静默通过；路径相对 document.baseURI，子路径部署同样生效
+  const assets = await page.evaluate(async () => {
+    const urls = ['demo-assets/hero-market.jpg', 'demo-assets/workshop.jpg', 'demo-assets/vessels.jpg', 'demo-assets/seasonal.jpg']
+    const http = []
+    for (const u of urls) {
+      const response = await fetch(new URL(u, document.baseURI), { cache: 'no-store' })
+      http.push({ url: u, status: response.status, type: response.headers.get('content-type') ?? '' })
+    }
+    const hero = document.querySelector('.ripple-xp-demo-hero-media')
+    const film = document.querySelector('.ripple-xp-film-img')
+    const dims = img => (img ? { w: img.naturalWidth, h: img.naturalHeight } : null)
+    return { http, hero: dims(hero), film: dims(film) }
+  })
+  check(`${label}：图片资源 HTTP 200 且内容类型正确`,
+    assets.http.every(a => a.status === 200 && a.type.includes('image')),
+    assets.http.map(a => `${a.url} ${a.status} ${a.type || 'no-content-type'}`).join('；'))
+  check(`${label}：hero 与版本图片实际解码（naturalWidth/Height）`,
+    Boolean(assets.hero?.w && assets.film?.w),
+    `hero ${assets.hero ? `${assets.hero.w}x${assets.hero.h}` : '缺失'}，film ${assets.film ? `${assets.film.w}x${assets.film.h}` : '缺失'}`)
   await page.getByTestId('version-v:3').click()
   check(`${label}：历史定位页面`, (await page.getByTestId('page-item-page:products').getAttribute('aria-current')) === 'page')
   await page.getByTestId('close-filmstrip').click()

@@ -107,7 +107,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
         <span>首页</span><span>全部商品</span><span>品牌故事</span><span>联系我们</span>
       </header>
       <section className="ripple-xp-demo-hero">
-        <img className="ripple-xp-demo-hero-media" src="/demo-assets/hero-market.jpg" alt="" aria-hidden />
+        <img className="ripple-xp-demo-hero-media" src="demo-assets/hero-market.jpg" alt="" aria-hidden />
         <div className="ripple-xp-demo-hero-overlay">
           {heroTitle && renderElement(heroTitle, <h1>{heroTitle.currentText}</h1>)}
           {heroSubtitle && renderElement(heroSubtitle, <p className="ripple-xp-demo-sub">{heroSubtitle.currentText}</p>)}
@@ -119,16 +119,16 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
       </section>
       <section className="ripple-xp-demo-grid">
         {([
-          ['柴烧茶壶', '/demo-assets/workshop.jpg'],
-          ['素白陶碗', '/demo-assets/vessels.jpg'],
-          ['手作风铃', '/demo-assets/seasonal.jpg'],
+          ['柴烧茶壶', 'demo-assets/workshop.jpg'],
+          ['素白陶碗', 'demo-assets/vessels.jpg'],
+          ['手作风铃', 'demo-assets/seasonal.jpg'],
         ] as const).map(([name, art]) => (
           <div key={name} className="ripple-xp-demo-card">
             <span className="ripple-xp-demo-thumb" style={{ backgroundImage: `url(${art})` }} />
             <strong>{name}</strong>
           </div>
         ))}
-        {promo && renderElement(promo, <div className="ripple-xp-demo-card is-promo"><span className="ripple-xp-demo-thumb" /><strong>{promo.currentText}</strong></div>)}
+        {promo && renderElement(promo, <div className="ripple-xp-demo-card is-promo"><span className="ripple-xp-demo-thumb" style={{ backgroundImage: 'url(demo-assets/seasonal.jpg)' }} /><strong>{promo.currentText}</strong></div>)}
       </section>
     </div>
   )
