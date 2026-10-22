@@ -39,10 +39,12 @@ pageContext 匹配、采集/评估 reasons 为空、sourceRef 属于当前有效
    `runtimeInstanceId` 等值，双侧 certainty 均为稳定档
    （`stable-keyed-instance` / `stable-react-instance`，C+D `isStable`
    同口径），两侧 `sourceRef` 指向同一文件，双侧采样共享 route 与
-   location suffix，声明的 sourceVersion 不冲突，且双侧均无 C+D
-   blocking 采集期 reason。**这是运行时标注能支持的最强配对，但它
-   只是候选配对**——在 `scope.missingEvidence` 清空且完成 C+D 级评估
-   之前，不得对外表述为“实例身份已证明”。
+   location suffix，任一侧的采集版本都不与该侧自己的图谱预期摘要
+   矛盾，且双侧均无 C+D blocking 采集期 reason。两侧是不同修订，按
+   文件的版本哈希**不同是合法事实**，不构成任何降级。**这是运行时
+   标注能支持的最强配对，但它只是候选配对**——在
+   `scope.missingEvidence` 清空且取得显式 C+D 评估结果之前，不得对外
+   表述为“实例身份已证明”。
 2. **same-sourceRef-observed**：两侧 `sourceRef` **字符串精确等值**，
    但没有实例级证据，或实例证据被非冲突类原因降级（身份不稳定、
    blocking reason 等）。**注意**：sourceRef 含字符偏移，不同版本在
@@ -53,10 +55,13 @@ pageContext 匹配、采集/评估 reasons 为空、sourceRef 属于当前有效
    `different-source-file`、`identity-not-stable`、
    `position-dependent-identity`、`unmapped-owner`、
    `source-not-in-graph`、**`different-page-context`**（双侧 route 或
-   location suffix 不同）、**`source-version-mismatch`**（双侧都声明了
-   sourceVersion 且不相等）、**`blocking-identity-reason`**（任一侧带
-   C+D blocking 采集期 reason）。后三类是**主动矛盾**：即使字符串
-   相同也压到 unproven，不允许停留在观察级。
+   location suffix 不同）、**`source-version-mismatch`**（仅当某一侧
+   采集版本与该侧自己的图谱预期摘要矛盾；两侧版本不同是合法修订
+   差异，绝不构成 mismatch）、**`blocking-identity-reason`**（任一侧
+   带 C+D blocking 采集期 reason）。后三类是**主动矛盾**：即使字符串
+   相同也压到 unproven，不允许停留在观察级。另有第四种状态
+   **未核验**（未提供预期摘要）：保留在 `scope.missingEvidence` 的
+   `source-version` 中，但绝不单独降级配对。
 
 **显式禁用**：任何文本相似度、DOM 位置、URL/路由的推断配对；
 无实例 ID 的多元素同 sourceRef 场景**禁止按数组顺序推定**逐元素
@@ -69,7 +74,8 @@ pageContext 匹配、采集/评估 reasons 为空、sourceRef 属于当前有效
 crossVersion: {
   scope: {
     level: 'annotation-pairing',          // 本配对的性质
-    strictInstanceProofAvailable: false,   // missingEvidence 非空恒 false
+    strictInstanceProofAvailable: false,   // 空 missingEvidence 是必要不充分条件；
+                                         // 还须显式 C+D 评估（identityAssessment）为真
     missingEvidence: ['source-version', 'page-context', 'collection-reasons', 'graph-membership']
   },
   instanceCandidate / sameSourceRefObserved / unproven: 计数 + 有界 pairs,
@@ -86,8 +92,9 @@ crossVersion: {
 |---|---|---|
 | `instance-proven` | `instance-candidate` | 旧名暗示 C+D 级实例证明；新名明确只是标注支持的候选配对，`scope.strictInstanceProofAvailable=false` |
 | `source-file-proven` | `same-sourceRef-observed` | 旧名暗示来源身份已证明；新名明确只是字符串观察，offset 漂移后可对应不同 JSX 节点 |
-| `unproven` | `unproven`（不变） | 新增 `different-page-context` / `source-version-mismatch` / `blocking-identity-reason` 三个主动矛盾原因 |
+| `unproven` | `unproven`（不变） | 主动矛盾原因：`different-page-context` / `blocking-identity-reason`；`source-version-mismatch` 语义修正为仅“该侧采集版本 vs 该侧图谱预期摘要”矛盾 |
 | （无） | `scope` 块 | 新增：声明配对性质与缺失的严格证明输入，F 不得自行升级措辞 |
+| 采样级单哈希 `sourceVersion` | 按文件映射 `sourceFileVersions` | 页面多文件元素不能用单一页面哈希代表；配对入参新增每侧 `expectedSourceVersions` 与 `identityAssessment` |
 
 字段级向后兼容：计数字段 `instanceProven`/`sourceFileProven` 更名为
 `instanceCandidate`/`sameSourceRefObserved`；该结构自 91dd54d 引入、
@@ -134,18 +141,20 @@ crossVersion: {
 
 ## 6. 验证
 
-`src/core/visual-dual-targets.test.ts` 20 例：
+`src/core/visual-dual-targets.test.ts` 21 例：
 
 - 原 8 对照场景（位置偏移 / 共享 Footer 重复实例 / 同源不同实例 /
   RouterProvider unknown / 来源不一致 / 跨页消费者 / 无目标变化 /
   版本失效）；
-- 审查新增 P1 负例：① sourceRef 相同但 sourceVersion 不同；
-  ② 实例 id 相同但 pageContext 不同；③ 实例 id 相同但 sourceVersion
-  失效；④ 同 sourceRef 多次渲染且无稳定身份不配对；⑤ 多无 ID 元素
-  同 sourceRef 禁止数组顺序推定；⑥ blocking 采集期 reason 禁止实例
-  候选；⑦ RouterProvider unknown 与 source-only 两例**端到端断言最终
-  Evidence/ViewModel 可见等级**（scope、proofLabel、计数），不允许只
-  查内部配对数组。
+- 审查新增 P1 负例：① 两侧合法修订版本不同（H1≠H2 均有效）**不得
+  仅因不同标记失效**（未核验保留在 scope）；② 实例 id 相同但
+  pageContext 不同；③ 采集版本与该侧图谱预期摘要矛盾（唯一合法的
+  source-version-mismatch）；④ 同 sourceRef 多次渲染且无稳定身份不
+  配对；⑤ 多无 ID 元素同 sourceRef 禁止数组顺序推定；⑥ blocking
+  采集期 reason 禁止实例候选；⑦ RouterProvider unknown 与 unproven
+  两例**端到端断言最终 Evidence/ViewModel 可见等级**（scope、
+  proofLabel、计数），不允许只查内部配对数组；⑧ 严格证明开关收紧
+  （空 missingEvidence + 显式评估仍因其余输入未清而为 false）。
 
 固件字节零变化（golden fixture 未触碰）。旧输入路径（非 dual）逐字节
 不变。

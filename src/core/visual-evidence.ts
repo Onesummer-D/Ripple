@@ -375,7 +375,7 @@ function parseGeometryOnce(raw: unknown, side: VisualSide, limits: GeometryLimit
 
 /**
  * Canonical JSON for the evidence id digest. The additive identity fields
- * (`sourceVersion`, element `identityReasons`) are omitted from the
+ * (`sourceFileVersions`, element `identityReasons`) are omitted from the
  * serialization when they carry no data, so samples collected before those
  * fields existed keep their historical digest byte-for-byte; once a field is
  * populated the digest naturally changes, which is the desired hash-binding
@@ -383,8 +383,8 @@ function parseGeometryOnce(raw: unknown, side: VisualSide, limits: GeometryLimit
  */
 function digestSampleJson(sample: DomGeometrySample): string {
   const stripElement = ({ identityReasons: _omit, ...element }: DomGeometrySample['elements'][number]) => element
-  if (sample.sourceVersion === null && sample.elements.every(element => element.identityReasons === null)) {
-    const { sourceVersion: _omit, ...rest } = sample
+  if (sample.sourceFileVersions === null && sample.elements.every(element => element.identityReasons === null)) {
+    const { sourceFileVersions: _omit, ...rest } = sample
     return JSON.stringify({ ...rest, elements: rest.elements.map(stripElement) })
   }
   return JSON.stringify({ ...sample, elements: sample.elements.map(stripElement) })

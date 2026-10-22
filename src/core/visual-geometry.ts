@@ -57,11 +57,13 @@ export interface DomGeometrySample {
   /** SHA-256 of the screenshot taken together with this sample; binds the two. */
   screenshotSha256: string | null
   /**
-   * SHA-256 of the served source file this sample's annotations were collected
-   * from (C+D `sourceVersion` semantics). Null until the sampler wires it in;
-   * pairing treats a null as "version evidence unavailable", never as a match.
+   * Served-file SHA-256 per annotated source file (`sourceFile → sha256`,
+   * C+D `sourceVersion` semantics). A page renders elements from many files,
+   * so a single page-level hash can never stand in for every element's
+   * provenance. Null (or a missing file key) until the sampler wires it in:
+   * pairing then treats that file's version as UNVERIFIED, never as valid.
    */
-  sourceVersion: string | null
+  sourceFileVersions: Record<string, string> | null
   elements: DomElementGeometry[]
 }
 
@@ -106,9 +108,11 @@ export function parseDomGeometrySample(value: unknown, side: VisualSide, limits:
   const screenshotSha256 = value.screenshotSha256 === undefined || value.screenshotSha256 === null ? null
     : typeof value.screenshotSha256 === 'string' && /^[a-f0-9]{64}$/.test(value.screenshotSha256) ? value.screenshotSha256 : undefined
   if (screenshotSha256 === undefined) return fail('Geometry sample screenshotSha256 is invalid.')
-  const sourceVersion = value.sourceVersion === undefined || value.sourceVersion === null ? null
-    : typeof value.sourceVersion === 'string' && /^[a-f0-9]{64}$/.test(value.sourceVersion) ? value.sourceVersion : undefined
-  if (sourceVersion === undefined) return fail('Geometry sample sourceVersion is invalid.')
+  const sourceFileVersions = value.sourceFileVersions === undefined || value.sourceFileVersions === null ? null
+    : record(value.sourceFileVersions) && Object.keys(value.sourceFileVersions).length <= 64
+      && Object.entries(value.sourceFileVersions).every(([file, digest]) => typeof file === 'string' && file.length <= 512 && typeof digest === 'string' && /^[a-f0-9]{64}$/.test(digest))
+      ? { ...(value.sourceFileVersions as Record<string, string>) } : undefined
+  if (sourceFileVersions === undefined) return fail('Geometry sample sourceFileVersions is invalid.')
   if (!Array.isArray(value.elements)) return fail('Geometry sample elements must be an array.')
   if (value.elements.length > limits.maxElements) return fail(`Geometry sample has ${value.elements.length} elements; the limit is ${limits.maxElements}.`)
   const elements: DomElementGeometry[] = []
@@ -154,7 +158,7 @@ export function parseDomGeometrySample(value: unknown, side: VisualSide, limits:
       schema: DOM_GEOMETRY_SCHEMA, side, route, locationSuffixSha256,
       viewport: { width: value.viewport.width as number, height: value.viewport.height as number },
       devicePixelRatio: value.devicePixelRatio, interactionState: value.interactionState, coordinateSpace: value.coordinateSpace,
-      scroll: { x: value.scroll.x as number, y: value.scroll.y as number }, documentSize, screenshotSha256, sourceVersion, elements,
+      scroll: { x: value.scroll.x as number, y: value.scroll.y as number }, documentSize, screenshotSha256, sourceFileVersions, elements,
     },
   }
 }
@@ -345,9 +349,42 @@ export interface CrossVersionPairingScope {
    * (sourceVersion / pageContext / collection reasons / graph membership).
    */
   level: 'annotation-pairing'
-  /** True only when missingEvidence is empty AND a C+D-grade assessment ran. */
+  /**
+   * True only when missingEvidence is empty AND an explicit C+D full identity
+   * assessment with a positive result was supplied by the caller. An empty
+   * missingEvidence list alone is NECESSARY BUT NOT SUFFICIENT — wiring must
+   * not be able to flip this to true by merely collecting more fields.
+   */
   strictInstanceProofAvailable: boolean
   missingEvidence: CrossVersionMissingEvidence[]
+}
+
+/**
+ * The explicit C+D full identity assessment result required before
+ * `strictInstanceProofAvailable` may become true. Supplied by A-integration
+ * code that actually ran the C+D assessment (e.g. resolveRuntimeElement);
+ * the pairing itself never performs or invents it.
+ */
+export interface CrossVersionIdentityAssessment {
+  /** What ran the assessment, e.g. 'c+d-resolve-runtime-element'. */
+  assessedBy: string
+  /** The assessment outcome: instance identity proven under the C+D contract. */
+  strictInstanceProof: boolean
+}
+
+export interface CrossVersionPairingOptions {
+  /**
+   * Per-side expected served-file digests from each revision's SourceGraph
+   * (`sourceFile → expected sha256`). The ONLY source of truth for
+   * `source-version-mismatch`: a side's collected version is invalid when it
+   * disagrees with that side's own expected digest. Absent (or missing the
+   * file key) means UNVERIFIED — the versions simply were not checked, which
+   * is a very different fact from a clash and keeps 'source-version' in
+   * scope.missingEvidence.
+   */
+  expectedSourceVersions?: { baseline?: Record<string, string> | null; candidate?: Record<string, string> | null } | null
+  /** Explicit C+D identity assessment; required (with a true result) for strictInstanceProofAvailable. */
+  identityAssessment?: CrossVersionIdentityAssessment | null
 }
 
 export interface CrossVersionPair {
@@ -402,25 +439,36 @@ const UNSTABLE_REASON: Record<IdentityCertainty, string | null> = {
  * Proof ladder (never skipped, never guessed):
  * - `instance-candidate`: both sides carry the same `runtimeInstanceId`, each
  *   exactly once per side, both certainties stable, both sourceRefs parse to
- *   the same source file, both samples share route/location suffix, the
- *   declared sourceVersions do not clash, and neither element carries a C+D
- *   blocking identity reason. This is the strongest level the runtime
- *   annotation alone can support; it remains a CANDIDATE until C+D-grade
- *   version/page-context/reason evidence is wired in (see pairing.scope).
+ *   the same source file, both samples share route/location suffix, neither
+ *   side's collected source version is INVALID against its own expected
+ *   digest, and neither element carries a C+D blocking identity reason.
+ *   Baseline and candidate are different revisions: their served-file digests
+ *   are EXPECTED to differ, and a mere difference is no downgrade. This is
+ *   the strongest level the runtime annotation alone can support; it remains
+ *   a CANDIDATE until C+D-grade verification is wired in (pairing.scope).
  * - `same-sourceRef-observed`: exact `sourceRef` string equality (same file
  *   AND offset) without the instance evidence above. Offset drift means the
  *   string can label a different JSX node in the other version, so the level
  *   is observation, not provenance.
  * - `unproven`: everything else that still pairs (duplicated instance ids,
- *   unstable certainty, different source file, page-context or version clash)
- *   — recorded with its reasons.
+ *   unstable certainty, different source file, page-context clash, or a side
+ *   whose collected version contradicts its OWN expected digest — a genuine
+ *   `source-version-mismatch`) — recorded with its reasons.
  * - Elements that pair with nothing are reported per side, not dropped.
+ *
+ * Version semantics, precisely:
+ * - collected == expected (per side) → that side's version is verified;
+ * - expected digest supplied but collected missing or different → INVALID,
+ *   the pair lands at unproven with `source-version-mismatch`;
+ * - no expected digest supplied (or none for that file) → UNVERIFIED, which
+ *   keeps 'source-version' in scope.missingEvidence but never downgrades a
+ *   pair by itself.
  *
  * Elements without a runtime instance id pair by exact sourceRef equality
  * ONLY when each side has exactly one such element; with several, array order
  * is never used to infer a correspondence (that would be position inference).
  */
-export function pairCrossVersionElements(baseline: DomGeometrySample, candidate: DomGeometrySample): CrossVersionPairing {
+export function pairCrossVersionElements(baseline: DomGeometrySample, candidate: DomGeometrySample, options: CrossVersionPairingOptions = {}): CrossVersionPairing {
   const usable = (element: DomElementGeometry) => element.sourceRef !== null && element.identityCertainty !== null && element.identityCertainty !== 'unmapped'
   const byInstance = (sample: DomGeometrySample) => {
     const groups = new Map<string, DomElementGeometry[]>()
@@ -432,13 +480,40 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   }
   // Sample-level deterministic facts. Route + location suffix are the
   // page-context subset E actually collects; a mismatch proves the two
-  // samples describe different pages. sourceVersion is the served-file
-  // sha256: both sides declaring it MUST agree, and a missing declaration is
-  // "version evidence unavailable", never a match.
+  // samples describe different pages.
   const samePageContext = baseline.route === candidate.route && baseline.locationSuffixSha256 === candidate.locationSuffixSha256
-  const versionClash = baseline.sourceVersion !== null && candidate.sourceVersion !== null && baseline.sourceVersion !== candidate.sourceVersion
+  /**
+   * Per-side version verification against that side's OWN expected digest.
+   * `invalid` is a real contradiction (collected vs the same side's graph
+   * revision); `unverified` only means no expected digest was supplied.
+   * Comparing baseline's digest against candidate's is MEANINGLESS — they
+   * are two different revisions and are expected to differ.
+   */
+  const versionStatus = (file: string | null): { invalid: boolean; unverified: boolean } => {
+    if (file === null) return { invalid: false, unverified: true }
+    const check = (sample: DomGeometrySample, expected?: Record<string, string> | null) => {
+      const want = expected?.[file]
+      if (want === undefined) return { invalid: false, unverified: true }
+      const got = sample.sourceFileVersions?.[file]
+      return { invalid: got !== want, unverified: got === undefined }
+    }
+    const b = check(baseline, options.expectedSourceVersions?.baseline ?? null)
+    const c = check(candidate, options.expectedSourceVersions?.candidate ?? null)
+    return { invalid: b.invalid || c.invalid, unverified: b.unverified || c.unverified }
+  }
   const missingEvidence: CrossVersionMissingEvidence[] = []
-  if (baseline.sourceVersion === null || candidate.sourceVersion === null) missingEvidence.push('source-version')
+  // Version evidence is unverified when either sample collected no map at
+  // all, or any source file involved in the pairing lacks a per-side
+  // expected-digest comparison. Only a per-side CONTRADICTION is a mismatch
+  // (checked per pair in sharedBlockers); unverified never downgrades alone.
+  const involvedFiles = new Set<string>()
+  for (const element of [...baseline.elements, ...candidate.elements]) {
+    const file = sourceFileFromSourceRef(element.sourceRef)
+    if (file !== null) involvedFiles.add(file)
+  }
+  const versionUnverified = baseline.sourceFileVersions === null || candidate.sourceFileVersions === null
+    || [...involvedFiles].some(file => versionStatus(file).unverified)
+  if (versionUnverified) missingEvidence.push('source-version')
   // Route/suffix are collected, but C+D's full RuntimePageContext (pathname
   // namespace, route identity) is not — the strict proof input stays missing.
   missingEvidence.push('page-context', 'collection-reasons', 'graph-membership')
@@ -453,7 +528,8 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   const sharedBlockers = (b: DomElementGeometry, c: DomElementGeometry): string[] => {
     const reasons: string[] = []
     if (!samePageContext && !reasons.includes('different-page-context')) reasons.push('different-page-context')
-    if (versionClash && !reasons.includes('source-version-mismatch')) reasons.push('source-version-mismatch')
+    const sharedFile = b.sourceRef !== null && b.sourceRef === c.sourceRef ? sourceFileFromSourceRef(b.sourceRef) : null
+    if (versionStatus(sharedFile).invalid && !reasons.includes('source-version-mismatch')) reasons.push('source-version-mismatch')
     const blocking = [...(b.identityReasons ?? []), ...(c.identityReasons ?? [])].filter(reason => BLOCKING_IDENTITY_REASONS.includes(reason))
     if (blocking.length && !reasons.includes('blocking-identity-reason')) reasons.push('blocking-identity-reason')
     return reasons
@@ -525,8 +601,14 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   }
 
   const rest = (sample: DomGeometrySample, consumed: Set<string>) => sample.elements.filter(element => usable(element) && !consumed.has(element.id))
+  // Empty missingEvidence is NECESSARY BUT NOT SUFFICIENT for the strict
+  // flag: an explicit C+D identity assessment with a positive result must
+  // also have been supplied. Wiring more fields in can never flip this on
+  // its own.
+  const assessment = options.identityAssessment ?? null
+  const strictInstanceProofAvailable = missingEvidence.length === 0 && assessment !== null && assessment.assessedBy.length > 0 && assessment.strictInstanceProof === true
   return {
-    scope: { level: 'annotation-pairing', strictInstanceProofAvailable: missingEvidence.length === 0, missingEvidence },
+    scope: { level: 'annotation-pairing', strictInstanceProofAvailable, missingEvidence },
     instanceCandidate, sameSourceRefObserved, unproven,
     baselineOnly: rest(baseline, consumedBaseline),
     candidateOnly: rest(candidate, consumedCandidate),

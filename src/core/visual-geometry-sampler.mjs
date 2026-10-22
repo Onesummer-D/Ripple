@@ -100,10 +100,11 @@ export function sampleDomGeometryInPage(options) {
     scroll: { x: scrollX, y: scrollY },
     documentSize: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight },
     screenshotSha256: null,
-    // Served-file sha256 of the annotated source (C+D sourceVersion). Not yet
-    // collected: null means "version evidence unavailable" for pairing, never
-    // a match. Wiring contract: docs/architecture/visual-sampler-identity-rfc.md
-    sourceVersion: null,
+    // Served-file sha256 per annotated source file (C+D sourceVersion).
+    // Not yet collected: null means every file's version is UNVERIFIED for
+    // pairing (never valid, never a clash by itself). Wiring contract:
+    // docs/architecture/visual-sampler-identity-rfc.md
+    sourceFileVersions: null,
     elements,
   }
 }

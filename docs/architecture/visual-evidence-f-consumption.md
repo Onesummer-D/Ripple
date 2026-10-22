@@ -32,8 +32,11 @@ E 的内部模块，不得从 view 推导正式验证状态。
 crossVersion: {
   scope: {
     level: 'annotation-pairing',            // 恒为该值
-    strictInstanceProofAvailable: boolean,  // false 时禁止任何“实例级已证明”表述
-    missingEvidence: string[]               // 缺失的严格证明输入
+    strictInstanceProofAvailable: boolean,  // false 时禁止任何“实例级已证明”表述；
+                                           // 即使 true 也只表示 E 侧输入齐备且 C+D
+                                           // 评估通过，F 仍按本说明渲染，不自行扩写
+    missingEvidence: string[]               // 缺失的严格证明输入；'source-version' 表示
+                                           // 版本未核验（≠失效），不单独影响配对等级
   },
   counts: { instanceCandidate, sameSourceRefObserved, unproven, baselineOnly, candidateOnly },
   pairs: [{ sourceRef: {baseline, candidate}, runtimeInstanceId, proof, proofLabel, reasons }]

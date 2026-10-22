@@ -247,20 +247,19 @@ describe('P1 negative cases: strict-proof downgrades', () => {
   const V1 = '1'.repeat(64)
   const V2 = '2'.repeat(64)
 
-  it('反例1 两侧 sourceRef 相同但源码版本不同: offset 漂移可指向不同 JSX 节点，不高于 unproven', () => {
-    // Same ref string, different served-file versions: the string observation
-    // cannot be read as "same source element" — C+D would refuse the stale
-    // identity outright (resolveRuntimeElement version check).
-    const baseline = sample('baseline', [el('x', 'jsx:src/App.tsx#120', [0, 0, 20, 10], { runtimeInstanceId: null })], null)
-    const candidate = sample('candidate', [el('y', 'jsx:src/App.tsx#120', [0, 0, 20, 10], { runtimeInstanceId: null })], null)
-    const withVersions = (s: DomGeometrySample, v: string): DomGeometrySample => ({ ...s, sourceVersion: v })
+  it('反例1 两侧合法修订版本不同(H1!=H2 均有效): 不得仅因版本不同标记失效', () => {
+    // Baseline App.tsx hash H1 matches its own revision; candidate hash H2
+    // matches candidate's revision. Different revisions are EXPECTED to
+    // differ — without per-side expected digests the version evidence is
+    // UNVERIFIED (stays in scope.missingEvidence) but must NOT downgrade.
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const candidate = sample('candidate', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const withVersions = (s: DomGeometrySample, v: string): DomGeometrySample => ({ ...s, sourceFileVersions: { 'src/App.tsx': v } })
     const pairing = pairCrossVersionElements(withVersions(baseline, V1), withVersions(candidate, V2))
-    expect(pairing.instanceCandidate).toHaveLength(0)
-    expect(pairing.sameSourceRefObserved).toHaveLength(0)
-    expect(pairing.unproven).toHaveLength(1)
-    expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
-    // Both sides DID declare a version, so the scope must not list it as missing.
-    expect(pairing.scope.missingEvidence).not.toContain('source-version')
+    expect(pairing.instanceCandidate).toHaveLength(1)
+    expect(pairing.unproven).toHaveLength(0)
+    // 未核验 ≠ 失效：没有各自图谱预期摘要时保留未核验状态。
+    expect(pairing.scope.missingEvidence).toContain('source-version')
     expect(pairing.scope.strictInstanceProofAvailable).toBe(false)
   })
 
@@ -274,13 +273,44 @@ describe('P1 negative cases: strict-proof downgrades', () => {
     expect(pairing.unproven[0].reasons).toContain('different-page-context')
   })
 
-  it('反例3 runtimeInstanceId 相同但 sourceVersion 已失效: 实例路径同样拒绝', () => {
+  it('反例3 采集版本与该侧图谱预期摘要不符: 真正的 source-version-mismatch', () => {
+    // Candidate served V2, but candidate's own SourceGraph revision expects
+    // V3 for App.tsx — a per-side contradiction, the only valid source of
+    // source-version-mismatch. Baseline collected V1 == expected V1.
+    const V3 = '3'.repeat(64)
     const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
     const candidateRaw = sample('candidate', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
-    const pairing = pairCrossVersionElements({ ...baseline, sourceVersion: V1 }, { ...candidateRaw, sourceVersion: V2 })
+    const pairing = pairCrossVersionElements(
+      { ...baseline, sourceFileVersions: { 'src/App.tsx': V1 } },
+      { ...candidateRaw, sourceFileVersions: { 'src/App.tsx': V2 } },
+      { expectedSourceVersions: { baseline: { 'src/App.tsx': V1 }, candidate: { 'src/App.tsx': V3 } } },
+    )
     expect(pairing.instanceCandidate).toHaveLength(0)
     expect(pairing.unproven).toHaveLength(1)
     expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
+  })
+
+  it('严格证明开关: missingEvidence 为空也不 sufficient，必须显式 C+D 评估结果', () => {
+    // Even with verified versions AND a positive assessment claim, the
+    // remaining strict-proof inputs (page-context, collection-reasons,
+    // graph-membership) keep the flag false; and an assessment alone with
+    // unverified versions is likewise insufficient.
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const candidate = sample('candidate', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const verified = pairCrossVersionElements(
+      { ...baseline, sourceFileVersions: { 'src/App.tsx': V1 } },
+      { ...candidate, sourceFileVersions: { 'src/App.tsx': V2 } },
+      {
+        expectedSourceVersions: { baseline: { 'src/App.tsx': V1 }, candidate: { 'src/App.tsx': V2 } },
+        identityAssessment: { assessedBy: 'c+d-resolve-runtime-element', strictInstanceProof: true },
+      },
+    )
+    expect(verified.scope.missingEvidence).not.toContain('source-version')
+    // 版本已核验且评估为真，但 page-context / collection-reasons / graph-membership 未清。
+    expect(verified.scope.strictInstanceProofAvailable).toBe(false)
+    const unverified = pairCrossVersionElements(baseline, candidate, { identityAssessment: { assessedBy: 'c+d-resolve-runtime-element', strictInstanceProof: true } })
+    expect(unverified.scope.missingEvidence).toContain('source-version')
+    expect(unverified.scope.strictInstanceProofAvailable).toBe(false)
   })
 
   it('反例4 同一 sourceRef 多次渲染且无稳定实例身份: 不配对', () => {
@@ -347,15 +377,18 @@ describe('P1 negative cases: strict-proof downgrades', () => {
     expect(view.state).not.toBe('pass' as never)
   })
 
-  it('source-only 证据端到端: 只有来源级观察时 F 侧等级与文案禁止实例归属', () => {
-    // Same stable instance id BUT a version clash: the pairing collapses to
-    // unproven, so the view must not let a pixel change read as one specific
-    // instance's certain edit.
-    const baseline = sideInput('baseline', [h1(H1_BASELINE)], baselinePng(), { sourceVersion: V1 })
-    const candidate = sideInput('candidate', [h1(H1_CANDIDATE)], candidatePngInTarget(), { sourceVersion: V2 })
+  it('unproven 证据端到端: ViewModel 等级与文案禁止实例归属', () => {
+    // Same stable instance id but the candidate element moved to a DIFFERENT
+    // source file: the pair collapses to unproven (different-source-file),
+    // so the view must not let a pixel change read as one specific instance's
+    // certain edit. (Legal per-revision version differences downgrade to
+    // nothing — see 反例1.)
+    const moved = el('h1', 'jsx:src/Moved.tsx#9', [4, 4, 50, 20])
+    const baseline = sideInput('baseline', [h1(H1_BASELINE)], baselinePng())
+    const candidate = sideInput('candidate', [moved], candidatePngInTarget())
     const outcome = analyzeVisualDifference({
       checkId: 'dual-source-only', subject: IDENTITY, expected: IDENTITY,
-      targets: { sourceRefs: [H1_BASELINE, H1_CANDIDATE], dual: { baseline: [H1_BASELINE], candidate: [H1_CANDIDATE] } },
+      targets: { sourceRefs: [H1_BASELINE, 'jsx:src/Moved.tsx#9'], dual: { baseline: [H1_BASELINE], candidate: ['jsx:src/Moved.tsx#9'] } },
       baseline, candidate, diffArtifactPath: 'dual-source-only/diff.png',
     })
     const view = toVisualEvidenceView(outcome.evidence)
