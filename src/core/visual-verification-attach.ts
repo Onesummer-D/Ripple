@@ -34,7 +34,17 @@ const CAPTURE_PATH = /^visual\/[a-z0-9-]{1,32}\/(baseline|candidate)(\.png|-geom
 
 interface CaptureFileRef { path: string; sha256: string }
 
-function readBoundedRegularFile(absolute: string): Buffer | undefined {
+function readBoundedRegularFile(absolute: string, root?: string): Buffer | undefined {
+  if (root !== undefined) {
+    // Confine to the evidence root, resolving symbolic links in parent
+    // directories too: a symlinked parent must not let the manifest's
+    // recorded path read outside the root (same rule readScreenshotFile
+    // applies to screenshots).
+    let parent: string, rootReal: string
+    try { parent = fs.realpathSync(path.dirname(path.resolve(absolute))); rootReal = fs.realpathSync(root) } catch { return undefined }
+    const relative = path.relative(rootReal, parent)
+    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return undefined
+  }
   let fd: number
   try { fd = fs.openSync(absolute, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0) | (fs.constants.O_NONBLOCK ?? 0)) } catch { return undefined }
   try {
@@ -55,6 +65,8 @@ function validateRef(value: unknown): CaptureFileRef | undefined {
   if (typeof ref.sha256 !== 'string' || !HEX64.test(ref.sha256)) return undefined
   return { path: ref.path, sha256: ref.sha256 }
 }
+
+const diagnostic = (error: unknown) => String((error as Error | null | undefined)?.message ?? error).slice(0, 300)
 
 interface CaptureSide { descriptor: unknown; screenshot: unknown; geometry: unknown; failure: string | null }
 interface CaptureEntry {
@@ -123,96 +135,135 @@ export function attachVisualEvidence(
   targetSourceRefs: string[],
   analyzedAt = new Date().toISOString(),
 ): VerificationRun {
-  if (!Array.isArray(manifest.visualCaptures)) return run
+  const attached: VisualRunEvidence[] = []
+  // Reading the manifest itself goes through the isolation boundary: a hostile
+  // manifest (e.g. a throwing getter) becomes a failed-to-run entry, not a
+  // thrown error.
+  let captures: unknown
+  try {
+    captures = manifest.visualCaptures
+  } catch (error) {
+    attached.push(syntheticEntry('visual-attach', '/', { width: 0, height: 0 }, 'rendered', 'failed-to-run', `Visual evidence manifest could not be read: ${diagnostic(error)}`))
+    run.visualEvidences = attached
+    return run
+  }
+  if (!Array.isArray(captures)) return run
   const expected = expectedIdentityFor(candidate, revision)
   const subject = {
     candidateId: run.candidateId, projectId: revision.projectId, patchHash: run.patchHash,
     baseSourceDigest: run.baseSourceDigest, candidateTreeDigest: run.candidateTreeDigest,
     runtimeFingerprint: run.runtimeFingerprint, scopeDecisionId: run.scopeDecisionId, scopeVersion: run.scopeVersion, runId: run.id,
   }
-  const attached: VisualRunEvidence[] = []
-  manifest.visualCaptures.forEach((raw, index) => {
-    const validated = validateCaptureEntry(raw)
-    if (!validated.ok) {
-      attached.push(syntheticEntry(`visual-${index}`, '/', { width: 0, height: 0 }, 'rendered', 'failed-to-run', `Visual capture record is invalid: ${validated.detail}.`))
-      return
+  const loadSide = (entry: CaptureEntry, side: 'baseline' | 'candidate') => {
+    const record = entry[side]
+    if (record.failure) return { ok: false as const, failure: record.failure }
+    const screenshotRef = validateRef(record.screenshot)
+    const geometryRef = validateRef(record.geometry)
+    const screenshot: ScreenshotInput = screenshotRef ? readScreenshotFile(path.join(artifactRoot, screenshotRef.path), { root: artifactRoot, maxBytes: DEFAULT_PNG_LIMITS.maxFileBytes }) : null
+    if (screenshotRef && screenshot instanceof Uint8Array) {
+      // The manifest-recorded hash and the descriptor's declared hash must both
+      // match the bytes on disk; a record that only matches one is unbound.
+      const actual = createHash('sha256').update(screenshot).digest('hex')
+      if (actual !== screenshotRef.sha256) return { ok: false as const, failure: `Screenshot bytes do not match the manifest-recorded SHA-256 (${side}).` }
+      const declared = (record.descriptor as { screenshot?: { declaredSha256?: unknown } } | null)?.screenshot?.declaredSha256
+      if (typeof declared === 'string' && HEX64.test(declared) && actual !== declared) return { ok: false as const, failure: `Screenshot bytes do not match the declared SHA-256 (${side}).` }
     }
-    const { entry } = validated
+    let geometry: unknown = null
+    if (geometryRef) {
+      const bytes = readBoundedRegularFile(path.join(artifactRoot, geometryRef.path), artifactRoot)
+      const actual = bytes ? createHash('sha256').update(bytes).digest('hex') : null
+      if (!bytes || actual !== geometryRef.sha256) return { ok: false as const, failure: `Geometry sample bytes do not match the recorded SHA-256 (${side}).` }
+      try { geometry = JSON.parse(bytes.toString('utf8')) } catch { return { ok: false as const, failure: `Geometry sample is not valid JSON (${side}).` } }
+    }
+    // Corrupt or unreadable screenshots stay visible to the analysis, which
+    // pins the invalid-input conservative semantics.
+    return { ok: true as const, screenshot, geometry }
+  }
 
-    // A capture that was never made (missing side descriptor) is not-run —
-    // absence must never count as pass.
-    if (entry.baseline.descriptor === null || entry.candidate.descriptor === null) {
-      const reason = entry.baseline.failure ?? entry.candidate.failure ?? 'capture was never recorded'
-      attached.push(syntheticEntry(entry.checkId, entry.route, entry.viewport, entry.state, 'not-run', `Visual capture was not made: ${reason}.`))
-      return
-    }
-
-    const loadSide = (side: 'baseline' | 'candidate') => {
-      const record = entry[side]
-      if (record.failure) return { ok: false as const, failure: record.failure }
-      const screenshotRef = validateRef(record.screenshot)
-      const geometryRef = validateRef(record.geometry)
-      const screenshot: ScreenshotInput = screenshotRef ? readScreenshotFile(path.join(artifactRoot, screenshotRef.path), { root: artifactRoot, maxBytes: DEFAULT_PNG_LIMITS.maxFileBytes }) : null
-      let geometry: unknown = null
-      if (geometryRef) {
-        const bytes = readBoundedRegularFile(path.join(artifactRoot, geometryRef.path))
-        const actual = bytes ? createHash('sha256').update(bytes).digest('hex') : null
-        if (!bytes || actual !== geometryRef.sha256) return { ok: false as const, failure: `Geometry sample bytes do not match the recorded SHA-256 (${side}).` }
-        try { geometry = JSON.parse(bytes.toString('utf8')) } catch { return { ok: false as const, failure: `Geometry sample is not valid JSON (${side}).` } }
-      }
-      // Screenshot bytes are re-hashed inside analyzeVisualDifference; the
-      // declared-vs-actual binding is enforced there (hash-mismatch → failed).
-      return { ok: true as const, screenshot, geometry }
-    }
-    const baseline = loadSide('baseline')
-    const cand = loadSide('candidate')
-    if (!baseline.ok || !cand.ok) {
-      attached.push(syntheticEntry(entry.checkId, entry.route, entry.viewport, entry.state, 'failed-to-run', `Visual capture failed integrity checks: ${!baseline.ok ? baseline.failure : (cand as { failure: string }).failure}.`))
-      return
-    }
-
+  // Everything after integrity checks — directory creation, analysis, diff and
+  // evidence writes, serialization, read-only view generation — sits inside one
+  // failure-isolation boundary: any exception becomes a failed-to-run entry
+  // with bounded diagnostics, never a thrown error and never a run failure.
+  const analyseAndAttach = (entry: CaptureEntry, index: number): VisualRunEvidence => {
     const outDir = path.join(artifactRoot, VISUAL_ANALYSIS_DIR, String(index))
-    fs.mkdirSync(outDir, { recursive: true })
-    const diffRel = `${VISUAL_ANALYSIS_DIR}/${index}/diff.png`
-    let outcome: { evidence: VisualDifferenceEvidence; diffPng: Uint8Array | null }
     try {
-      outcome = analyzeVisualDifference({
-        checkId: entry.checkId, subject, expected, targets: { sourceRefs: targetSourceRefs },
-        baseline: { descriptor: entry.baseline.descriptor, screenshot: baseline.screenshot, geometry: baseline.geometry },
-        candidate: { descriptor: entry.candidate.descriptor, screenshot: cand.screenshot, geometry: cand.geometry },
-        analyzedAt, diffArtifactPath: diffRel,
-      })
+      const baseline = loadSide(entry, 'baseline')
+      const cand = loadSide(entry, 'candidate')
+      if (!baseline.ok || !cand.ok) {
+        return syntheticEntry(entry.checkId, entry.route, entry.viewport, entry.state, 'failed-to-run', `Visual capture failed integrity checks: ${!baseline.ok ? baseline.failure : (cand as { failure: string }).failure}.`)
+      }
+
+      fs.mkdirSync(outDir, { recursive: true })
+      const diffRel = `${VISUAL_ANALYSIS_DIR}/${index}/diff.png`
+      let outcome: { evidence: VisualDifferenceEvidence; diffPng: Uint8Array | null }
+      try {
+        outcome = analyzeVisualDifference({
+          checkId: entry.checkId, subject, expected, targets: { sourceRefs: targetSourceRefs },
+          baseline: { descriptor: entry.baseline.descriptor, screenshot: baseline.screenshot, geometry: baseline.geometry },
+          candidate: { descriptor: entry.candidate.descriptor, screenshot: cand.screenshot, geometry: cand.geometry },
+          analyzedAt, diffArtifactPath: diffRel,
+        })
+      } catch (error) {
+        const reason = error instanceof VisualResourceLimitError || error instanceof RangeError
+          ? `Visual analysis exceeded its bounded resource budget: ${(error as Error).message}`
+          : `Visual analysis failed to run: ${diagnostic(error)}`
+        return syntheticEntry(entry.checkId, entry.route, entry.viewport, entry.state, 'failed-to-run', reason)
+      }
+      const { evidence, diffPng } = outcome
+      const serialized = serializeVisualEvidence(evidence)
+      fs.writeFileSync(path.join(outDir, 'evidence.json'), serialized.bytes)
+      const baselineRef = validateRef(entry.baseline.screenshot)
+      const candidateRef = validateRef(entry.candidate.screenshot)
+      const diffImage = evidence.observation?.diffImage ?? null
+      const diff = diffPng && diffImage
+        ? (() => {
+          const absolute = path.join(outDir, 'diff.png')
+          fs.writeFileSync(absolute, diffPng)
+          return { path: absolute, sha256: diffImage.sha256, pixelSha256: diffImage.pixelSha256 }
+        })()
+        : null
+      return {
+        checkId: entry.checkId, route: entry.route, viewport: entry.viewport, state: entry.state,
+        result: evidence.result, resultReason: evidence.resultReason,
+        evidence, view: toVisualEvidenceView(evidence),
+        artifacts: {
+          baseline: baselineRef ? { path: path.join(artifactRoot, baselineRef.path), sha256: baselineRef.sha256 } : null,
+          candidate: candidateRef ? { path: path.join(artifactRoot, candidateRef.path), sha256: candidateRef.sha256 } : null,
+          diff,
+          evidenceJson: { path: path.join(outDir, 'evidence.json'), sha256: serialized.sha256 },
+        },
+      }
     } catch (error) {
-      const reason = error instanceof VisualResourceLimitError || error instanceof RangeError
-        ? `Visual analysis exceeded its bounded resource budget: ${(error as Error).message}`
-        : `Visual analysis failed to run: ${String((error as Error)?.message ?? error).slice(0, 300)}`
-      attached.push(syntheticEntry(entry.checkId, entry.route, entry.viewport, entry.state, 'failed-to-run', reason))
-      return
+      // Best-effort removal of partially written host artifacts so a failed
+      // attachment never leaves a misleading half-analysis behind.
+      try { fs.rmSync(outDir, { recursive: true, force: true }) } catch { /* cleanup must never mask the original problem */ }
+      return syntheticEntry(entry.checkId, entry.route, entry.viewport, entry.state, 'failed-to-run', `Visual evidence attachment failed: ${diagnostic(error)}`)
     }
-    const { evidence, diffPng } = outcome
-    const serialized = serializeVisualEvidence(evidence)
-    fs.writeFileSync(path.join(outDir, 'evidence.json'), serialized.bytes)
-    const baselineRef = validateRef(entry.baseline.screenshot)
-    const candidateRef = validateRef(entry.candidate.screenshot)
-    const diffImage = evidence.observation?.diffImage ?? null
-    const diff = diffPng && diffImage
-      ? (() => {
-        const absolute = path.join(outDir, 'diff.png')
-        fs.writeFileSync(absolute, diffPng)
-        return { path: absolute, sha256: diffImage.sha256, pixelSha256: diffImage.pixelSha256 }
-      })()
-      : null
-    attached.push({
-      checkId: entry.checkId, route: entry.route, viewport: entry.viewport, state: entry.state,
-      result: evidence.result, resultReason: evidence.resultReason,
-      evidence, view: toVisualEvidenceView(evidence),
-      artifacts: {
-        baseline: baselineRef ? { path: path.join(artifactRoot, baselineRef.path), sha256: baselineRef.sha256 } : null,
-        candidate: candidateRef ? { path: path.join(artifactRoot, candidateRef.path), sha256: candidateRef.sha256 } : null,
-        diff,
-        evidenceJson: { path: path.join(outDir, 'evidence.json'), sha256: serialized.sha256 },
-      },
-    })
+  }
+
+  captures.forEach((raw, index) => {
+    try {
+      const validated = validateCaptureEntry(raw)
+      if (!validated.ok) {
+        attached.push(syntheticEntry(`visual-${index}`, '/', { width: 0, height: 0 }, 'rendered', 'failed-to-run', `Visual capture record is invalid: ${validated.detail}.`))
+        return
+      }
+      const { entry } = validated
+
+      // A capture that was never made (missing side descriptor) is not-run —
+      // absence must never count as pass.
+      if (entry.baseline.descriptor === null || entry.candidate.descriptor === null) {
+        const reason = entry.baseline.failure ?? entry.candidate.failure ?? 'capture was never recorded'
+        attached.push(syntheticEntry(entry.checkId, entry.route, entry.viewport, entry.state, 'not-run', `Visual capture was not made: ${reason}.`))
+        return
+      }
+
+      attached.push(analyseAndAttach(entry, index))
+    } catch (error) {
+      // A hostile record (e.g. a throwing getter) must not abort the remaining
+      // captures; record the failure and continue with the next entry.
+      attached.push(syntheticEntry(`visual-${index}`, '/', { width: 0, height: 0 }, 'rendered', 'failed-to-run', `Visual capture record could not be read: ${diagnostic(error)}`))
+    }
   })
   run.visualEvidences = attached
   return run

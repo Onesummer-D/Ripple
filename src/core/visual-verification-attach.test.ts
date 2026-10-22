@@ -165,4 +165,73 @@ describe('visual evidence attached to a verification run', () => {
     expect(run.visualEvidences![0].result).toBe('failed-to-run')
     expect(run.visualEvidences![0].resultReason).toContain('invalid')
   }, 90_000)
+
+  it('rejects a manifest-recorded screenshot hash tampered without touching the PNG bytes', async () => {
+    const { manifest, evidenceRoot } = await execute(input())
+    // Only the manifest record changes; the PNG bytes stay exactly what the
+    // container delivered. The record is unbound and must not produce a
+    // conclusion.
+    manifest.visualCaptures[0].candidate.screenshot.sha256 = sha('tampered-manifest-hash')
+    const run = attachVisualEvidence(runStub(), manifest, evidenceRoot, candidateStub, revisionStub, [])
+    expect(run.visualEvidences![0].result).toBe('failed-to-run')
+    expect(run.visualEvidences![0].resultReason).toContain('manifest-recorded SHA-256')
+  }, 90_000)
+
+  it('rejects a declared screenshot hash that disagrees with the untouched bytes', async () => {
+    const { manifest, evidenceRoot } = await execute(input())
+    manifest.visualCaptures[0].candidate.descriptor.screenshot.declaredSha256 = sha('tampered-declared-hash')
+    const run = attachVisualEvidence(runStub(), manifest, evidenceRoot, candidateStub, revisionStub, [])
+    expect(run.visualEvidences![0].result).toBe('failed-to-run')
+    expect(run.visualEvidences![0].resultReason).toContain('declared SHA-256')
+  }, 90_000)
+
+  it('converts a host write failure into failed-to-run and leaves the formal run untouched', async () => {
+    const { manifest, evidenceRoot } = await execute(input())
+    // Occupy the analysis directory path with a regular file: mkdir throws.
+    fs.writeFileSync(path.join(evidenceRoot, VISUAL_ANALYSIS_DIR), 'occupied')
+    const stub = runStub()
+    const formalBefore = JSON.stringify({ checks: stub.checks, assertions: stub.assertions, status: stub.status, evidence: stub.evidence })
+    const run = attachVisualEvidence(stub, manifest, evidenceRoot, candidateStub, revisionStub, [])
+    expect(run.visualEvidences).toHaveLength(1)
+    expect(run.visualEvidences![0].result).toBe('failed-to-run')
+    expect(run.visualEvidences![0].resultReason).toContain('Visual evidence attachment failed')
+    expect(run.visualEvidences![0].artifacts.evidenceJson).toBeNull()
+    expect(run.visualEvidences![0].artifacts.diff).toBeNull()
+    // The formal verification record is byte-identical: a supplementary
+    // failure must never be mistaken for, or leak into, the formal result.
+    expect(JSON.stringify({ checks: run.checks, assertions: run.assertions, status: run.status, evidence: run.evidence })).toBe(formalBefore)
+  }, 90_000)
+
+  it('survives a hostile manifest and records the abort instead of throwing', () => {
+    const hostile = { get visualCaptures() { throw new Error('hostile manifest') } }
+    const run = attachVisualEvidence(runStub(), hostile, '/nonexistent', candidateStub, revisionStub, [])
+    expect(run.visualEvidences).toHaveLength(1)
+    expect(run.visualEvidences![0].result).toBe('failed-to-run')
+    expect(run.visualEvidences![0].resultReason).toContain('could not be read')
+  })
+
+  it('isolates a hostile capture record and continues with the remaining captures', async () => {
+    const { manifest, evidenceRoot } = await execute(input())
+    manifest.visualCaptures.unshift({ get checkId() { throw new Error('hostile record') } })
+    const run = attachVisualEvidence(runStub(), manifest, evidenceRoot, candidateStub, revisionStub, [])
+    expect(run.visualEvidences).toHaveLength(2)
+    expect(run.visualEvidences![0].result).toBe('failed-to-run')
+    expect(run.visualEvidences![0].resultReason).toContain('could not be read')
+    // The genuine capture still analyses normally after the hostile one.
+    expect(run.visualEvidences![1].result).toBe('unknown')
+    expect(run.visualEvidences![1].checkId).toBe('run-attach-desktop')
+  }, 90_000)
+
+  it('does not follow a parent-directory symlink outside the evidence root for geometry', async () => {
+    if (process.platform === 'win32') return // symlink creation privilege
+    const { manifest, evidenceRoot } = await execute(input())
+    const dir = path.join(evidenceRoot, 'visual', 'desktop')
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-visual-outside-'))
+    fs.cpSync(dir, outside, { recursive: true })
+    fs.rmSync(dir, { recursive: true, force: true })
+    fs.symlinkSync(outside, dir, 'dir')
+    const run = attachVisualEvidence(runStub(), manifest, evidenceRoot, candidateStub, revisionStub, [])
+    expect(run.visualEvidences![0].result).toBe('failed-to-run')
+    expect(run.visualEvidences![0].resultReason).toContain('Geometry sample bytes do not match')
+  }, 90_000)
 })

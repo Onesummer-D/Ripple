@@ -474,7 +474,19 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   // Failures degrade to not-run / failed-to-run entries and never fail the run.
   const visualTargetRefs = [...new Set(sourceBindings(candidate, baseGraph, candidateGraph, session)
     .flatMap(binding => [...binding.sourceRefs, ...binding.baselineSourceRefs]))].sort()
-  attachVisualEvidence(run, manifest, artifactRoot, candidate, session.projectRevision, visualTargetRefs)
+  // Hard isolation boundary: even an unexpected throw from the supplementary
+  // attach path (never expected — attach converts problems into failed-to-run
+  // entries itself) must not fail the formal verification.
+  try {
+    attachVisualEvidence(run, manifest, artifactRoot, candidate, session.projectRevision, visualTargetRefs)
+  } catch (error) {
+    try {
+      fs.writeFileSync(path.join(artifactRoot, 'visual-attach-failure.json'), JSON.stringify({
+        phase: 'visual-evidence-attach', at: new Date().toISOString(),
+        detail: String((error as Error | null | undefined)?.message ?? error).slice(0, 300),
+      }, null, 2))
+    } catch { /* diagnostics must never mask the verification result */ }
+  }
   return attestBrowserExecution(run, recordPath)
 }
 
