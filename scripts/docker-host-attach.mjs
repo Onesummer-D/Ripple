@@ -11,6 +11,9 @@ import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { attachVisualEvidence } from '../src/core/visual-verification-attach.ts'
+import { readPng } from '../src/core/visual-png.ts'
+
+const sha256Hex = bytes => createHash('sha256').update(bytes).digest('hex')
 
 const dir = process.argv[2]
 if (!dir) { console.error('usage: docker-host-attach.mjs <exported-dir>'); process.exit(2) }
@@ -47,11 +50,36 @@ if (attached) {
   if (attached.view?.state !== 'unknown') problems.push(`view.state=${attached.view?.state}`)
   if (attached.artifacts?.evidenceJson) {
     const bytes = fs.readFileSync(attached.artifacts.evidenceJson.path)
-    if (createHash('sha256').update(bytes).digest('hex') !== attached.artifacts.evidenceJson.sha256) {
+    if (sha256Hex(bytes) !== attached.artifacts.evidenceJson.sha256) {
       problems.push('host evidence.json sha256 mismatch')
     }
   } else {
     problems.push('host evidence.json artifact missing')
+  }
+  // The host-written diff PNG must exist, hash-match its recorded bindings and
+  // decode to the recorded pixel digest — a summary must never report success
+  // while the actual artifact is missing or substituted.
+  const diff = attached.artifacts?.diff
+  if (diff) {
+    if (!fs.existsSync(diff.path)) {
+      problems.push(`host diff.png missing at ${diff.path}`)
+    } else {
+      const bytes = fs.readFileSync(diff.path)
+      if (sha256Hex(bytes) !== diff.sha256) problems.push('host diff.png sha256 mismatch')
+      const decoded = readPng(bytes)
+      if (!decoded.ok) {
+        problems.push(`host diff.png does not decode (${decoded.code})`)
+      } else if (decoded.png.pixelSha256 !== diff.pixelSha256) {
+        problems.push('host diff.png pixel digest mismatch')
+      }
+    }
+    const resolvedRoot = path.resolve(evidenceRoot)
+    const resolvedDiff = path.resolve(diff.path)
+    if (resolvedDiff !== resolvedRoot && !resolvedDiff.startsWith(resolvedRoot + path.sep)) {
+      problems.push('host diff.png path escapes the evidence root')
+    }
+  } else {
+    problems.push('host diff.png artifact missing')
   }
 }
 
@@ -59,7 +87,7 @@ const summary = { host: { node: process.version, platform: `${process.platform}/
   result: attached.result,
   stateLabel: attached.view?.stateLabel,
   summary: attached.view?.summary,
-  diffArtifact: attached.artifacts?.diffPng?.path ?? null,
+  diffArtifact: attached.artifacts?.diff?.path ?? null,
   evidenceJson: attached.artifacts?.evidenceJson?.path ?? null,
 } : null, problems, ok: problems.length === 0 }
 console.log(JSON.stringify(summary, null, 2))

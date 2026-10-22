@@ -9,7 +9,7 @@ import { analyzeProject } from './project'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type BrowserErrorDetails, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
-import { attachVisualEvidence } from './visual-verification-attach'
+import { attachVisualEvidenceSafely } from './visual-verification-attach'
 import { expectedTextForPage, sourceProvenPageImpact } from './scope'
 import { verificationContractHash } from './verification-contract'
 import { projectPreviewViewports } from './project-viewports'
@@ -474,19 +474,11 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   // Failures degrade to not-run / failed-to-run entries and never fail the run.
   const visualTargetRefs = [...new Set(sourceBindings(candidate, baseGraph, candidateGraph, session)
     .flatMap(binding => [...binding.sourceRefs, ...binding.baselineSourceRefs]))].sort()
-  // Hard isolation boundary: even an unexpected throw from the supplementary
-  // attach path (never expected — attach converts problems into failed-to-run
-  // entries itself) must not fail the formal verification.
-  try {
-    attachVisualEvidence(run, manifest, artifactRoot, candidate, session.projectRevision, visualTargetRefs)
-  } catch (error) {
-    try {
-      fs.writeFileSync(path.join(artifactRoot, 'visual-attach-failure.json'), JSON.stringify({
-        phase: 'visual-evidence-attach', at: new Date().toISOString(),
-        detail: String((error as Error | null | undefined)?.message ?? error).slice(0, 300),
-      }, null, 2))
-    } catch { /* diagnostics must never mask the verification result */ }
-  }
+  // Hard isolation boundary (attachVisualEvidenceSafely): even an unexpected
+  // throw from the supplementary attach path must not fail the formal
+  // verification; it degrades to an explicit failed-to-run visual entry plus a
+  // best-effort diagnostic file.
+  attachVisualEvidenceSafely(run, manifest, artifactRoot, candidate, session.projectRevision, visualTargetRefs)
   return attestBrowserExecution(run, recordPath)
 }
 

@@ -13,7 +13,7 @@ import { chromium, type Browser } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { CandidateRecord } from './candidate'
 import type { ProjectRevision, VerificationRun } from './model'
-import { attachVisualEvidence, VISUAL_ANALYSIS_DIR } from './visual-verification-attach'
+import { attachVisualEvidence, attachVisualEvidenceSafely, VISUAL_ANALYSIS_DIR } from './visual-verification-attach'
 
 const CANDIDATE_HOST = '127.0.0.24'
 const BASELINE_HOST = '127.0.0.25'
@@ -233,5 +233,34 @@ describe('visual evidence attached to a verification run', () => {
     const run = attachVisualEvidence(runStub(), manifest, evidenceRoot, candidateStub, revisionStub, [])
     expect(run.visualEvidences![0].result).toBe('failed-to-run')
     expect(run.visualEvidences![0].resultReason).toContain('Geometry sample bytes do not match')
+  }, 90_000)
+
+  it('runner boundary: an unexpected attach throw keeps the formal run and records a failed-to-run diagnostic', () => {
+    // A proxy that passes Array.isArray but has no callable forEach drives the
+    // REAL attachVisualEvidence into a TypeError. The runner-level boundary
+    // must absorb it: formal record untouched, explicit failed-to-run visual
+    // diagnostic, bounded diagnostic file.
+    const hostile = { visualCaptures: new Proxy([], { get: (target, prop) => (prop === 'forEach' ? undefined : Reflect.get(target, prop)) }) }
+    const evidenceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-visual-safe-'))
+    const stub = runStub()
+    const formalBefore = JSON.stringify({ checks: stub.checks, assertions: stub.assertions, status: stub.status, evidence: stub.evidence })
+    const run = attachVisualEvidenceSafely(stub, hostile, evidenceRoot, candidateStub, revisionStub, [])
+    expect(run.visualEvidences).toHaveLength(1)
+    expect(run.visualEvidences![0].checkId).toBe('visual-attach')
+    expect(run.visualEvidences![0].result).toBe('failed-to-run')
+    expect(run.visualEvidences![0].resultReason).toContain('failed unexpectedly')
+    expect(run.visualEvidences![0].evidence).toBeNull()
+    expect(JSON.stringify({ checks: run.checks, assertions: run.assertions, status: run.status, evidence: run.evidence })).toBe(formalBefore)
+    const diagnostic = JSON.parse(fs.readFileSync(path.join(evidenceRoot, 'visual-attach-failure.json'), 'utf8'))
+    expect(diagnostic.phase).toBe('visual-evidence-attach')
+    expect(typeof diagnostic.detail).toBe('string')
+  })
+
+  it('runner boundary: a healthy manifest passes through with normal semantics', async () => {
+    const { manifest, evidenceRoot } = await execute(input())
+    const run = attachVisualEvidenceSafely(runStub(), manifest, evidenceRoot, candidateStub, revisionStub, ['src/App.tsx#h1'])
+    expect(run.visualEvidences).toHaveLength(1)
+    expect(run.visualEvidences![0].result).toBe('unknown')
+    expect(fs.existsSync(path.join(evidenceRoot, 'visual-attach-failure.json'))).toBe(false)
   }, 90_000)
 })

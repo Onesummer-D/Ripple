@@ -268,3 +268,37 @@ export function attachVisualEvidence(
   run.visualEvidences = attached
   return run
 }
+
+/**
+ * The runner-level hard isolation boundary around attachVisualEvidence. Attach
+ * already converts capture/analysis problems into failed-to-run entries and is
+ * not expected to throw; this wrapper covers the residual "must never happen"
+ * case (a hostile manifest shape, a future regression) so that supplementary
+ * visual evidence can NEVER fail the formal verification. On an unexpected
+ * throw the formal run is returned untouched, an explicit failed-to-run
+ * diagnostic is appended to run.visualEvidences, and a bounded diagnostic file
+ * is written best-effort next to the other run artifacts.
+ */
+export function attachVisualEvidenceSafely(
+  run: VerificationRun,
+  manifest: { visualCaptures?: unknown },
+  artifactRoot: string,
+  candidate: CandidateRecord,
+  revision: ProjectRevision,
+  targetSourceRefs: string[],
+): VerificationRun {
+  try {
+    return attachVisualEvidence(run, manifest, artifactRoot, candidate, revision, targetSourceRefs)
+  } catch (error) {
+    const entry = syntheticEntry('visual-attach', '/', { width: 0, height: 0 }, 'rendered', 'failed-to-run', `Visual evidence attachment failed unexpectedly: ${diagnostic(error)}`)
+    try {
+      run.visualEvidences = [...(run.visualEvidences ?? []), entry]
+    } catch { /* a hostile run record must still not fail the formal verification */ }
+    try {
+      fs.writeFileSync(path.join(artifactRoot, 'visual-attach-failure.json'), JSON.stringify({
+        phase: 'visual-evidence-attach', at: new Date().toISOString(), detail: diagnostic(error),
+      }, null, 2))
+    } catch { /* diagnostics must never mask the verification result */ }
+    return run
+  }
+}
