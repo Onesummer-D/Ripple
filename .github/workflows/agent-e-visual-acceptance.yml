@@ -1,0 +1,68 @@
+name: Agent E visual acceptance
+
+on:
+  push:
+    branches:
+      - feat/agent-e-visual-evidence-20261021
+      - feat/integration-e-visual-evidence-20261022
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Golden fixture metadata records this exact Node build and zlib version.
+          # Pin only the standalone reproducibility job; leave the main CI untouched.
+          node-version: '22.22.0'
+          cache: npm
+      - name: Install repository-locked dependencies
+        id: dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Report official dependencies
+        run: |
+          node -e "const fs=require('fs'); for(const n of ['pixelmatch','pngjs','vitest','typescript','@playwright/test']) {const p=JSON.parse(fs.readFileSync('node_modules/'+n+'/package.json','utf8')); console.log(n+' '+p.version)}"
+      - name: Validate merge-distance boundary in official Vitest
+        run: npx vitest run src/core/visual-evidence.test.ts --no-file-parallelism
+      - name: Regenerate and byte-check all 12 synthetic fixture cases
+        id: fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/agent-e-original" acceptance-artifacts
+          cp -a test/fixtures/visual-evidence "${RUNNER_TEMP}/agent-e-original/visual-evidence"
+          npm run fixtures:visual-evidence 2>&1 | tee acceptance-artifacts/fixtures-generator.log
+          node scripts/check-visual-fixture-regeneration.mjs "${RUNNER_TEMP}/agent-e-original/visual-evidence" test/fixtures/visual-evidence | tee acceptance-artifacts/fixtures-compare.json
+          git diff --exit-code -- test/fixtures/visual-evidence
+          test -z "$(git ls-files --others --exclude-standard test/fixtures/visual-evidence)"
+      - name: Five benchmarks with locked pixelmatch/pngjs
+        id: resource_benchmarks
+        if: always() && steps.dependencies.outcome == 'success'
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p acceptance-artifacts/benchmarks
+          failures=0
+          for scenario in large-many-regions dense-near-cap grid-limit component-limit header-limit; do
+            echo "Starting: $scenario"
+            /usr/bin/time -v -o "acceptance-artifacts/benchmarks/${scenario}.time.log" timeout 300s node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/benchmark-visual-evidence.mjs "$scenario" > "acceptance-artifacts/benchmarks/${scenario}.stdout.log" 2> "acceptance-artifacts/benchmarks/${scenario}.stderr.log"
+            rc=$?
+            echo "$rc" > "acceptance-artifacts/benchmarks/${scenario}.exit-code"
+            echo "Scenario $scenario exit $rc"
+            if [ "$rc" -ne 0 ]; then failures=1; fi
+          done
+          exit "$failures"
+      - name: Preserve reproduction logs and measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-e-official-acceptance-${{ github.run_id }}
+          path: acceptance-artifacts/
+          if-no-files-found: warn
+          retention-days: 30

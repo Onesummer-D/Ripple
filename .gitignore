@@ -11,3 +11,4 @@ playwright-report/
 coverage/
 *.log
 
+acceptance-artifacts/
