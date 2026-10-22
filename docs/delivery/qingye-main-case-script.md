@@ -8,7 +8,7 @@
 存在两条执行轨道，演示与验收不能混用：
 
 - **轨道 A · 演示轨道**：A 的 Project-first 工作台（`npm run dev` 后 http://localhost:4173 ，`project-path` 指向青野工程克隆）或 F 的体验工作台演示入口（`experience.html`，演示数据全程 DEMO/SIMULATED 标注）。本机 Windows 可运行工作台 UI 与本地 Fixture；**Docker 隔离预演与四视口真实验证在本机不可用**（无 Linux Docker）。
-- **轨道 B · 真实验收轨道**：GitHub Actions「Bolt real-project acceptance」（workflow_dispatch，固定 `BOLT_REPO_REF=f7e4998a`）。**已于 Run #18（2026-10-22，A @ 16e737c）整轮通过**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>（1.4 分钟，唯一用例 passed）。历史 Runs #1–#17 结论均 failure，逐次归因修复；Run #15–#17 阶段级先行通过（验证/审批/应用）。下文逐步骤标注【演示可录】【真实已过 Run #18】两种状态。
+- **轨道 B · 真实验收轨道**：GitHub Actions「Bolt real-project acceptance」（workflow_dispatch，固定 `BOLT_REPO_REF=f7e4998a`）。**已于 Run #18（2026-10-22，A @ 16e737c）整轮通过**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>（浏览器用例 1.4 分钟，整轮工作流约 2.7 分钟，唯一用例 passed）。历史 Runs #1–#17 结论均 failure，逐次归因修复；Run #15–#17 阶段级先行通过（验证/审批/应用）。下文逐步骤标注【演示可录】【真实已过 Run #18】两种状态。
 
 每步标注【演示可录】（本地可真实录屏）与【真实已过 Run #18】（真实验收已通过，证据在 Run #18 工件中）两种状态。
 

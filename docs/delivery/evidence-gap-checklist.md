@@ -42,7 +42,7 @@
 
 | # | 缺失证据 | 采集条件 | 责任方 | 用于 |
 | --- | --- | --- | --- | --- |
-| D1 | 120 s 版与完整版最终录屏（按 video-outline-120s / video-storyboard-full 镜头表） | 主案例素材 A1–A5 归档后即可开录（镜 6/8/9 用 Run #18 真实证据）；栖光镜 10 仍为本地演示镜头 | 录屏执行人 | 比赛视频 |
+| D1 | 120 s 版与完整版最终录屏（按 video-voiceover-120s / video-voiceover-full 逐镜执行表） | 素材分类 **A–E**（A 已有真实操作录像／B 已有截图或 JSON 可动画／C 需补录真实操作／D 演示界面待采／E 概念或 Fixture）已逐镜标注：B 类（Run #18 归档证据）已就绪可直接剪辑；C/D/E 类按 `video-recording-setup.md` 环境清单录采；镜 5/6/7 与完整版镜 6/8/9 的连续交互画面为可选补采任务 C-α/β/γ，不做合成点击 | 录屏执行人 | 比赛视频 |
 | D2 | xp-1..4 之后的体验层新截图（若 F 层有改动） | 有视觉变化时重跑 scripts/xp-screenshot.mjs | F | PPT |
 | D3 | E-REF/E-VIEW 占位符全局替换记录（C 纪律：替换前不进正式录屏） | B 真实 Evidence 接入后 | C / 集成方 | 录屏合规 |
 | D4 | 参赛 PPT 成稿（按 competition-materials-draft 评委版 §十 页面建议） | D1 素材就绪后 | 材料负责人 | 提交 |

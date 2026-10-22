@@ -1,7 +1,7 @@
 # Ripple 比赛交付文档（docs/delivery/）
 
 > 日期：2026-10-23（Asia/Shanghai）
-> 分支：`docs/competition-delivery-20261022`（基于 A 主线 `feat/project-first-core-20261018 @ 2525092`）
+> 分支：`docs/competition-delivery-20261022`。**两条基线分开记**：①文档分支原始基线＝A 主线 `feat/project-first-core-20261018 @ 2525092`（本文档与 F 体验工作台所在，分叉点已核实）；②正式验收基线＝`16e737c16d95a26879d1aee813b85fb472fd8215`（Run #18 Bolt 验收时的 A 主线，含 PR #15/#16/#23 应用预览修复；**不在**本分支内，引用以远端与归档证据为准）。
 > 性质：**纯文档交付 + Run #18 原始证据归档**（`evidence/run18/`，29 MB）。不修改 A 的任何核心源码、验证器或真实工程资产；文档以只读方式核对 GitHub 远端与本地工作区后编写。
 > 状态纪律：所有功能按三种状态标注——【已验证】已由真实工程/真实浏览器证据验证；【已合成】已由合成测试证明但未完成真实案例验收；【未接入】尚未接入或仍在开发。后两种不得写成已完成。
 > 修订历史：6a1a51d（初稿）→ 7bcc838（Run #15–#17 阶段级更正）→ 66fb241b（Run #18 整轮通过后最终事实修订 + 参赛材料评委语言重构）→ 本轮（最终复审：能力边界三层划分、证据对应关系、视频来源标注、栖光 390 范围更正、Run #18 证据归档、逐镜口播执行表）。
@@ -20,7 +20,8 @@
 | 08 | [evidence-gap-checklist.md](./evidence-gap-checklist.md) | 缺失截图与待补证据清单 | 五·6 / 七·8 |
 | 09 | [video-voiceover-120s.md](./video-voiceover-120s.md) | 120 秒版 8 镜逐镜口播词与录屏执行表 | 五 |
 | 10 | [video-voiceover-full.md](./video-voiceover-full.md) | 3:30 完整版 13 镜逐镜口播词与录屏执行表 | 五 |
-| — | [evidence/run18/](./evidence/run18/INDEX.md) | Run #18 原始证据归档（238 文件 + 逐文件 SHA-256 索引） | — |
+| 11 | [video-recording-setup.md](./video-recording-setup.md) | 录屏环境可执行清单（F DEMO / A 工作台 / 归档证据三类，含 ZIP 获取与隐私要求） | 五 |
+| — | [evidence/run18/](./evidence/run18/INDEX.md) | Run #18 原始证据归档（238 文件 + SHA256SUMS 全量校验 + 审核结论） | — |
 
 ## 当前真实验收状态摘要（截至 2026-10-23，Run #18 后，证据已归档）
 

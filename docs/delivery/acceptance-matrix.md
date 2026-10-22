@@ -26,7 +26,7 @@
 
 **主案例结论**：**真实 TEXT 全闭环已于 Run #18（2026-10-22，A @ `16e737c`，青野 @ f7e4998a）整轮通过**，从工程分析到历史恢复全链路在真实工程、真实浏览器中走通并留证：
 
-- 整轮运行 1.4 分钟，唯一用例 `runs the Bolt shared TEXT workflow` passed（<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>）。
+- 浏览器验收用例耗时 1.4 分钟（整轮工作流约 2.7 分钟），唯一用例 `runs the Bolt shared TEXT workflow` passed（<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>）。
 - 执行记录 `bolt-workbench-execution.json`（v4 manifest，completed:true）：七项断言（target-change / non-target-preserved / scope-propagation / interaction / responsive-layout / source-mapping / browser-errors）**全部 pass**；四视口 1440×900 / 768×1024 / 375×812 / 390×844；16 条 scopeObservations（4 页 × 4 视口）；221 个资源快照、unavailable=0、blockedExternalResourceUrls=[]；四视口截图 SHA-256 与 artifactHash 逐一致（已核对）。
 - 工件 `ripple-bolt-workbench-39808500782`（retention 30 天）含：execution.json、四视口 PNG、bolt-workbench-analysis/candidate/applied-site/history-restored.png、resource-load-audit.json、resource-snapshots 与 progress.jsonl 诊断；**2026-10-23 已完整解压归档**至 `docs/delivery/evidence/run18/`（238 个文件与远端逐字节一致，ZIP SHA-256 与逐文件哈希见 `evidence/run18/INDEX.md`）。
 - 审批通过的真实证明是工作台状态断言（候选进入「已批准」）；回滚的证明是 Footer 源码恢复 + 应用 worktree 与原工程 HEAD/status 逐字节不变断言；历史恢复是恢复选中历史候选及其验证状态展示，均见 INDEX.md「使用边界」。
