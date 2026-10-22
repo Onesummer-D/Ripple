@@ -21,10 +21,12 @@ process.env.RIPPLE_WORKBENCH_STATE_DIR = apiStateRoot
 let server: ViteDevServer | undefined
 let baseUrl = ''
 
-/** Some Git files are read-only; clear the read-only bit before removing (keep directories traversable). */
+/** Some Git files are read-only; clear the read-only bit before removing. Never chmod or
+ * follow symbolic links — their targets may live outside the temporary tree. */
 function removeTree(root: string): void {
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue
       const target = path.join(dir, entry.name)
       try { fs.chmodSync(target, entry.isDirectory() ? 0o777 : 0o666) } catch { /* keep walking */ }
       if (entry.isDirectory()) walk(target)

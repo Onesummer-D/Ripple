@@ -12,10 +12,12 @@ const roots: string[] = []
 const tempParent = path.join(process.cwd(), 'node_modules', '.tmp')
 fs.mkdirSync(tempParent, { recursive: true })
 
-/** Some Git files are read-only; clear the read-only bit before removing (keep directories traversable). */
+/** Some Git files are read-only; clear the read-only bit before removing. Never chmod or
+ * follow symbolic links — their targets may live outside the temporary tree. */
 function removeTree(root: string): void {
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue
       const target = path.join(dir, entry.name)
       try { fs.chmodSync(target, entry.isDirectory() ? 0o777 : 0o666) } catch { /* keep walking */ }
       if (entry.isDirectory()) walk(target)
@@ -83,6 +85,30 @@ describe('assertAppliedCandidatePreviewable', () => {
     fs.writeFileSync(path.join(root, 'src', 'b.txt'), 'new tracked file\n')
     execFileSync('git', ['-C', root, 'add', 'src/b.txt'], { stdio: 'pipe' })
     execFileSync('git', ['-C', root, '-c', 'user.email=ripple-test@example.invalid', '-c', 'user.name=Ripple apply test', 'commit', '-qm', 'moved head'], { stdio: 'pipe' })
+    expect(() => assertAppliedCandidatePreviewable(session, candidate)).toThrow(/拒绝预览/)
+  })
+
+  it('rejects symlink swaps, unexpected symlinks and index-only additions on the applied tree', () => {
+    const { root, session, candidate } = makeAppliedFixture()
+    const aPath = path.join(root, 'src', 'a.txt')
+    const original = fs.readFileSync(aPath, 'utf8')
+    let canSymlink = true
+    try { fs.symlinkSync('probe-target', path.join(root, '.probe-link')); fs.rmSync(path.join(root, '.probe-link')) } catch { canSymlink = false }
+
+    if (canSymlink) {
+      fs.rmSync(aPath)
+      fs.symlinkSync('outside-the-project', aPath)
+      expect(() => assertAppliedCandidatePreviewable(session, candidate)).toThrow(/拒绝预览/)
+      fs.rmSync(aPath)
+      fs.writeFileSync(aPath, original)
+
+      fs.symlinkSync('anywhere', path.join(root, 'linked-unexpected.txt'))
+      expect(() => assertAppliedCandidatePreviewable(session, candidate)).toThrow(/拒绝预览/)
+      fs.rmSync(path.join(root, 'linked-unexpected.txt'))
+    }
+
+    fs.writeFileSync(path.join(root, 'staged-only.txt'), 'staged after apply\n')
+    execFileSync('git', ['-C', root, 'add', 'staged-only.txt'], { stdio: 'pipe' })
     expect(() => assertAppliedCandidatePreviewable(session, candidate)).toThrow(/拒绝预览/)
   })
 })
