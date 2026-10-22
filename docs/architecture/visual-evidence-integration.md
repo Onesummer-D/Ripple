@@ -148,10 +148,19 @@ Receipt 合同与审批门控零改动。
    用真实 Vite 构建（React 19）+ 真实 Chromium 走完整采集-分析链，
    产出 text-change（`unknown`）与 button-overlap（`risk`）两组
    baseline/candidate/diff 三图及证据 JSON（SHA-256 记录）。
-7. **待验收**：Docker 容器端到端（本机无 Docker，容器路径由
-   `verification-execution` 单测同 harness 覆盖）；F 工作台消费 UI；
-   C+D sourceRef 与 `targetBindings.sourceRefs` 的精确对齐（当前取
-   并集，未命中时按 `target-not-mapped` 保守降级）。
+7. **Docker 容器端到端（已验收，2026-10-23）**：在
+   `mcr.microsoft.com/playwright:v1.64.0-noble`（Node v24.21.0 linux/x64、
+   Chromium 156）内以纯 ESM 驱动真实 `executeVerification`，容器侧自校验
+   全部通过：`visualCaptures` 1 条（`run-docker-e2e-desktop`），四个工件
+   路径符合宿主白名单，manifest 记录 SHA-256 与磁盘字节逐一相符，
+   双端 `stable=true`。产物经共享卷导出到 Windows 宿主后走真实
+   `attachVisualEvidence` 宿主分析： compared→`unknown`（"视觉未知"，
+   831 变化像素/1 区域），evidence.json/diff.png 写入
+   `<run>/visual-analysis/0/` 且哈希相符。驱动脚本：
+   `scripts/docker-container-e2e.mjs`（容器侧采集+自校验）与
+   `scripts/docker-host-attach.mjs`（宿主侧分析+语义锁定）。
+   **待验收**：F 工作台消费 UI；C+D sourceRef 与 `targetBindings.sourceRefs`
+   的精确对齐（当前取并集，未命中时按 `target-not-mapped` 保守降级）。
 
 ## 6. 回归基线
 
