@@ -17,6 +17,7 @@
  * 不得把本场景结果当作 C+D 联合实测或真实 MEDIA 验收 PASS。
  */
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -79,7 +80,9 @@ async function measureEnd(browser: import('playwright').Browser, url: string, en
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
-/** 回归加固（D 最终复审 P1）：采集产物完整性核验——哈希回验、四视口齐全、截图存在且确为 PNG、比较报告 24 条观测。 */
+const sha256 = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex')
+
+/** 回归加固（D 最终复审 P1 + 协调人第四轮 P1）：采集产物完整性核验——哈希回验、四视口齐全、截图存在且确为 PNG、双端截图内容哈希逐项回验、比较报告 24 条观测。 */
 function verifyArtifacts(dir: string): void {
   const evidenceFile = JSON.parse(fs.readFileSync(path.join(dir, 'evidence.json'), 'utf8')) as { report: Parameters<typeof mediaViewportEvidenceSha256>[0]; sha256: string }
   if (mediaViewportEvidenceSha256(evidenceFile.report) !== evidenceFile.sha256) throw new Error('evidence.json 内容哈希不匹配')
@@ -95,10 +98,51 @@ function verifyArtifacts(dir: string): void {
       if (!fs.readFileSync(file).subarray(0, 8).equals(PNG_MAGIC)) throw new Error(`截图不是 PNG：${suffix}`)
     }
   }
+  // 截图内容哈希回验（协调人第四轮 P1）：字节级核对，防"头有效、体被篡改"——
+  // 候选端对照 evidence.json 观测的 screenshotSha256；基线端对照 dual.json 登记的
+  // baseline.screenshotSha256。两端登记值缺失即 fail-closed（采集器必须登记）。
+  for (const viewport of projectPreviewViewports) {
+    const observation = evidenceFile.report.observations.find(o => o.viewport.name === viewport.name)
+    const dualViewport = dualFile.collection.viewports.find(v => v.viewport.name === viewport.name)
+    const candidateHash = observation?.screenshotSha256
+    const baselineHash = dualViewport?.baseline.screenshotSha256
+    if (!candidateHash) throw new Error(`evidence.json 未登记候选端截图哈希：${viewport.name}`)
+    if (!baselineHash) throw new Error(`dual.json 未登记基线端截图哈希：${viewport.name}`)
+    const candidateFile = path.join(dir, `${viewport.name}.png`)
+    const baselineFile = path.join(dir, `${viewport.name}-baseline.png`)
+    if (sha256(fs.readFileSync(candidateFile)) !== candidateHash) throw new Error(`候选端截图内容哈希不匹配：${viewport.name}.png`)
+    if (sha256(fs.readFileSync(baselineFile)) !== baselineHash) throw new Error(`基线端截图内容哈希不匹配：${viewport.name}-baseline.png`)
+  }
   const comparison = JSON.parse(fs.readFileSync(path.join(dir, 'comparison.json'), 'utf8')) as { observations: unknown[] }
   const expected = 3 * projectPreviewViewports.length * 2
   if (comparison.observations.length !== expected) throw new Error(`comparison.json 观测数 ${comparison.observations.length} != ${expected}（3 容器 × ${projectPreviewViewports.length} 视口 × 双端）`)
-  console.log(`[scenario] 产物完整性核验通过：evidence/dual 哈希一致、${projectPreviewViewports.length} 视口截图成对且为 PNG、${expected} 条几何观测`)
+  console.log(`[scenario] 产物完整性核验通过：evidence/dual 哈希一致、${projectPreviewViewports.length} 视口截图成对（内容哈希回验）、${expected} 条几何观测`)
+}
+
+/** 负例（协调人第四轮 P1）：截图字节被篡改但 PNG 头仍有效时，verifyArtifacts 必须失败。 */
+function verifyTamperNegativeCase(dir: string): void {
+  const tamperedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'media-orientation-tamper-'))
+  try {
+    fs.cpSync(dir, tamperedDir, { recursive: true })
+    // 篡改候选端与基线端各一张截图：保留 8 字节 PNG 头，翻转文件中段一字节
+    for (const suffix of ['desktop.png', 'desktop-baseline.png']) {
+      const file = path.join(tamperedDir, suffix)
+      const bytes = fs.readFileSync(file)
+      bytes[bytes.length - 32] = bytes[bytes.length - 32] ^ 0xff
+      fs.writeFileSync(file, bytes)
+      if (!bytes.subarray(0, 8).equals(PNG_MAGIC)) throw new Error(`负例准备失败：${suffix} 头被破坏`)
+    }
+    let caught: string | null = null
+    try {
+      verifyArtifacts(tamperedDir)
+    } catch (error) {
+      caught = error instanceof Error ? error.message : String(error)
+    }
+    if (!caught) throw new Error('截图篡改负例未生效：头有效体被篡改的截图竟然核验通过，哈希回验链失效')
+    console.log(`[scenario] 截图篡改负例符合预期：verifyArtifacts 拒绝（${caught}）`)
+  } finally {
+    fs.rmSync(tamperedDir, { recursive: true, force: true })
+  }
 }
 
 function runEvidenceRunner(input: string, dir: string): Promise<number> {
@@ -123,7 +167,10 @@ async function main(): Promise<void> {
     console.log('[scenario] 静态服务就绪：baseline=4631 candidate=4632')
     runnerExit = await runEvidenceRunner(path.join(fixtureDir, 'input.json'), outputDir)
     console.log(`[scenario] 四视口证据采集退出码=${runnerExit}`)
-    if (runnerExit === 0) verifyArtifacts(outputDir)
+    if (runnerExit === 0) {
+      verifyArtifacts(outputDir)
+      verifyTamperNegativeCase(outputDir)
+    }
 
     // 失败路径负例（D 最终复审 P1）：assetRef 指向不存在资源时，采集器必须非零退出——
     // 若意外通过，说明四视口断言/截图/比较报告检查失效，本场景整体判失败。

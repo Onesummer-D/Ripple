@@ -26,12 +26,16 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
   test/fixtures/media-orientation-swap/run-scenario.ts test/fixtures/media-orientation-swap/evidence
 ```
 
-`run-scenario.ts` 在采集之外执行两项回归加固（D 最终复审 P1）：
+`run-scenario.ts` 在采集之外执行三项回归加固（D 最终复审 P1 + 协调人第四轮 P1）：
 
 1. **产物完整性核验**：evidence/dual 内容哈希回验、四视口缺一即败、8 张截图存在且
    魔数确为 PNG、comparison.json 必须恰有 24 条观测（3 容器 × 4 视口 × 双端）；
-2. **失败路径负例**：以指向缺失资源的 assetRef 重跑采集器，必须非零退出——
-   若意外通过即判定断言链失效，场景整体失败。
+2. **双端截图内容哈希回验**（协调人第四轮 P1）：采集器现登记候选端截图
+   sha256（`evidence.json` 观测字段）与基线端截图 sha256（`dual.json`），
+   核验时对 8 张截图重新计算哈希逐项比对；登记值缺失即 fail-closed；
+3. **两项负例**：① 截图字节被篡改但 PNG 头仍有效（翻转文件中段一字节）→
+   verifyArtifacts 必须拒绝；② 以指向缺失资源的 assetRef 重跑采集器必须非零退出——
+   任一对意外通过即判定断言链失效，场景整体失败。
 
 ## 正式回归入口
 

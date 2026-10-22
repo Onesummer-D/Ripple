@@ -64,6 +64,8 @@ export interface MediaViewportObservation {
   renderedBox: MediaViewportBox
   objectFit: string
   objectPosition: string
+  /** 候选端目标图元素截图（<viewport>.png）的内容哈希，可追溯；截图写入失败时为 undefined */
+  screenshotSha256?: string
   /** 浏览器报错/资源加载失败信息（无则空数组） */
   errors: string[]
 }
