@@ -15,7 +15,10 @@
     "acceptance:phase5": "node scripts/phase5-acceptance.mjs",
     "acceptance:codescandy": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/agent-c-codescandy-probe.mjs",
     "preview:static": "node scripts/preview-server.mjs",
-    "acceptance:runtime-node": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs"
+    "acceptance:runtime-node": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs",
+    "fixtures:visual-evidence": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/generate-visual-evidence-fixtures.mjs",
+    "trial:visual-evidence": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/visual-evidence-real-trial.mjs",
+    "trial:visual-vite": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/visual-evidence-vite-trial.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

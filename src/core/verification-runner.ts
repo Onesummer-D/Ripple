@@ -9,6 +9,7 @@ import { analyzeProject } from './project'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type BrowserErrorDetails, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
+import { attachVisualEvidenceSafely } from './visual-verification-attach'
 import { expectedTextForPage, sourceProvenPageImpact } from './scope'
 import { verificationContractHash } from './verification-contract'
 import { projectPreviewViewports } from './project-viewports'
@@ -131,6 +132,8 @@ interface ExecutionManifest {
   assertions: VerificationAssertion[]
   evidence: Array<Omit<VerificationEvidence, 'artifactPath'> & { artifactPath?: string }>
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
+  /** Supplementary visual captures (capture-only; analysed by the host, advisory only). */
+  visualCaptures?: unknown[]
   resourceSnapshots: PreviewResourceSnapshot[]
   unavailableResources: Array<{ url: string; reason: string }>
   loadedExternalResourceUrls: string[]
@@ -465,6 +468,24 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     checks, assertions: manifest.assertions, evidence, baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
     ...(manifest.browserErrorDetails ? { browserErrorDetails: manifest.browserErrorDetails } : {}),
   }
+  // Supplementary visual evidence: host-side analysis of the container's
+  // capture-only records. Attached before attestation; advisory, read-only,
+  // never part of assertions, status or the approval gate, and never 'pass'.
+  // Failures degrade to not-run / failed-to-run entries and never fail the run.
+  const visualBindings = sourceBindings(candidate, baseGraph, candidateGraph, session)
+  // Legacy flat union stays for traceability; the precise contract is per-side:
+  // baseline refs map against baseline geometry, candidate refs against
+  // candidate geometry (a JSX offset shift makes the union fail by design).
+  const visualTargetRefs = [...new Set(visualBindings.flatMap(binding => [...binding.sourceRefs, ...binding.baselineSourceRefs]))].sort()
+  const dualVisualTargetRefs = {
+    baseline: [...new Set(visualBindings.flatMap(binding => binding.baselineSourceRefs))].sort(),
+    candidate: [...new Set(visualBindings.flatMap(binding => binding.sourceRefs))].sort(),
+  }
+  // Hard isolation boundary (attachVisualEvidenceSafely): even an unexpected
+  // throw from the supplementary attach path must not fail the formal
+  // verification; it degrades to an explicit failed-to-run visual entry plus a
+  // best-effort diagnostic file.
+  attachVisualEvidenceSafely(run, manifest, artifactRoot, candidate, session.projectRevision, visualTargetRefs, dualVisualTargetRefs)
   return attestBrowserExecution(run, recordPath)
 }
 
