@@ -14,7 +14,8 @@
     "acceptance:phase4": "node scripts/phase4-acceptance.mjs",
     "acceptance:phase5": "node scripts/phase5-acceptance.mjs",
     "preview:static": "node scripts/preview-server.mjs",
-    "acceptance:runtime-node": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs"
+    "acceptance:runtime-node": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs",
+    "fixtures:visual-evidence": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/generate-visual-evidence-fixtures.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

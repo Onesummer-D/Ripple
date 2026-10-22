@@ -1,0 +1,144 @@
+{
+  "schema": "ripple-visual-fixture-manifest/v1",
+  "generator": "scripts/generate-visual-evidence-fixtures.mjs",
+  "source": "src/core/visual-evidence-fixtures.ts",
+  "provenance": "synthetic-scene-renderer (no browser, no fonts); not browser evidence, not project acceptance",
+  "cases": [
+    {
+      "name": "target-text-change",
+      "description": "Only the declared target text renders differently; the change is confined to the target box.",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "07e778bf5d10a223d45d9414a9fcbf34b2c4d8085ce43850291c036836e9367d",
+        "input.json": "ba5746d50c0cb60d405372ffbf392f41670595d1db2eb02db1a1676657625668",
+        "diff.png": "0475eaf34096eacbdc6f83bb9bb5c2f9c8117ae8f0ff61b933be04880a993346",
+        "expected-evidence.json": "b0e50603882f29bbac800ef18cf7ae8ab6e44aa4f7ab7b99b25744d7e8d56cee"
+      }
+    },
+    {
+      "name": "non-target-change",
+      "description": "The target text changes and, unexpectedly, the footer background changes too.",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "56eafe486d19ee909cc9e71af95444f65db4e54934c04edd7fe2e980493c2725",
+        "input.json": "1a7079a88a439894546cf22be9ff2470915859f55d95997045223e00120e5458",
+        "diff.png": "92a75c1875e06814a982ef5861f61beae051eb7cdf344dcc3650c495e87d38cc",
+        "expected-evidence.json": "abfdada48fab5a51e64e5f2b0ca6c220810728519ff6dc87e023e528904ef696"
+      }
+    },
+    {
+      "name": "geometric-overlap",
+      "description": "The longer target text wraps to four lines; its box now overlaps the paragraph and the call-to-action button.",
+      "result": "risk",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "18adfb8919f43c4a6623a5ded87fd1a293ab1c6c26cedc159454fb3f32e924e7",
+        "input.json": "f86c8925fb4c7e6e93b21d08b5f117dce5ef59b73a8b0eec811d9d996f2befec",
+        "diff.png": "b9e4ad665d0275d43c7eb336895429cf54e9ce29ca4a237668f5764f35a90b98",
+        "expected-evidence.json": "68d965f657b5035c25d494826d257a334f9356f89c8d23a170ad772cc6ea0d68"
+      }
+    },
+    {
+      "name": "dpr-mismatch",
+      "description": "Baseline was captured at device pixel ratio 1 and the candidate at 2.",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "ee91cfe7c5002f2104bb9869dda20ca2da308807559e401d6d9d7e701fbe4ad9",
+        "input.json": "09b56ff57a7a522a3331319fe819a94a9de5087069a1455888345687a914a043",
+        "expected-evidence.json": "9201be6de8e4cbeb8bf75cfc29e69f9c415921d068e34cf130effc021b021d33"
+      }
+    },
+    {
+      "name": "page-extent-changed",
+      "description": "Full-page captures of different heights (the footer moved down by 40 CSS px).",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "f1650606adf3bd2eba7e43b3046fab5d809c19ff236ae0f3bb61b7a47c96f106",
+        "input.json": "068e8d79bc60674a8305d2e86b56cdbf529c41d2a9d0ad44ae2e13d46e3008fd",
+        "expected-evidence.json": "f0a4281c76852d073743aac8c4fda526dde4ccea87b759895e25ef74afa8f1d8"
+      }
+    },
+    {
+      "name": "screenshot-missing",
+      "description": "The candidate screenshot was never produced.",
+      "result": "not-run",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "input.json": "100c02ec6985b3f6c7beebf21a526912eb53e74f5c72586b49f2dbfcba40be5a",
+        "expected-evidence.json": "a578d19025754bb83b801c6731623243ece3e45dbd7ae0cc08c7f081d74f4f72"
+      }
+    },
+    {
+      "name": "corrupt-png",
+      "description": "The candidate screenshot is truncated after 64 bytes.",
+      "result": "failed-to-run",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "ee657327ae336454cfc285a1b1d6d609a5bb006cf832f53c7f7d336c129dbe9b",
+        "input.json": "23afec4d8f5fffe3ff7d73b6802037c48640a0424a95c856cdd771e855ccfde4",
+        "expected-evidence.json": "b803d28c7eb5d644c0e0881aa91167bd764ca5b0d836b0590f9b893a1b82b16b"
+      }
+    },
+    {
+      "name": "interaction-state-mismatch",
+      "description": "Baseline shows the default state while the candidate shows the opened menu.",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "0f157f9724ed5cfc4d70bdf3775d60df4b8b813a3956cfa9472b186235c96dbb",
+        "input.json": "8ff2ba45382d31a3b1de7d531d071e6bed54b7a2bf5dcd64ab90548ed92484c5",
+        "expected-evidence.json": "5e2e4fe29e6f2e7b120d9e87f9ee87c0d999dcdcdf21163d54fba6bdcbc6c6f7"
+      }
+    },
+    {
+      "name": "unchanged-insufficient-evidence",
+      "description": "Pixel-identical screenshots without stability marker, recorded hashes or DOM geometry.",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "input.json": "aa4d7e8e7a0792937cb2cb1744cecaa0dfbeaab27d23a04f5b20a7e8cc6db3f2",
+        "expected-evidence.json": "9511f02c195c7f85404003f7823b81b09578ecb0c520de481427072e14f97918"
+      }
+    },
+    {
+      "name": "identity-stale",
+      "description": "The captures claim an older patch hash than the current candidate.",
+      "result": "stale",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "07e778bf5d10a223d45d9414a9fcbf34b2c4d8085ce43850291c036836e9367d",
+        "input.json": "19c7ad423718648b2e1d3b260eefbdba64ec96d37082b84679aec131046a307e",
+        "expected-evidence.json": "67463a091666f08f9629f83301e2ae773f4aaa8606fc21146c5b82014d149d59"
+      }
+    },
+    {
+      "name": "antialias-noise",
+      "description": "The only difference is a half-covered pixel column on the button edge.",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "66a86ab020408438865776fec4c265b7eaf7dc82515731afc6e267d715ecb193",
+        "input.json": "39a1e406553bf7dc59d9d7e7a920fb32a93a4d38cdc841ea730809f13eae5b32",
+        "diff.png": "99276d3f08ae6443936081e623230d6bc9587fdfa7a8b48472266389d6c91ec4",
+        "expected-evidence.json": "b4c1ecbaf592787481460ca95a497e79a467abab1cf063711c9bfe72dd4dcb69"
+      }
+    },
+    {
+      "name": "target-unmapped",
+      "description": "The target changes but the sampled DOM has no annotation for the target element.",
+      "result": "unknown",
+      "files": {
+        "baseline.png": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "candidate.png": "07e778bf5d10a223d45d9414a9fcbf34b2c4d8085ce43850291c036836e9367d",
+        "input.json": "1ebc211103c8be0964bf7283fe476ea682a300b5c19f1b1c66caeb113bb4125c",
+        "diff.png": "7b20226b7d491458831767c2ec6d03a593864932ea2e5ce7753b310b505596d8",
+        "expected-evidence.json": "622087ff160f0c9f1a239aea9b260e87f88578f934317221c93752c82d98849f"
+      }
+    }
+  ]
+}
