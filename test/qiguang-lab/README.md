@@ -87,22 +87,25 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
   内置 5 个突变体负例（多出意外页面、缺少预期页面、certainty 降级、impact unresolved 增加、
   graph unresolved 增加），任一通过即 harness 自败；不得靠删除 unresolved、跳过异常或
   按页面名称猜测通过。
-- **实测结果（2026-10-23 复验，宿主 = PR #28 最新 HEAD `43f2ea2` 检出，含动态下标
-  别名链 P1 修复）**：PASS——共享媒体 `media:src/components/SharedFestivalImage.tsx#430`
+- **实测结果（2026-10-23，宿主 = A 稳定基线 `3cc37c2`（PR #28 已合入 A），CI run
+  [39859399071](https://github.com/Onesummer-D/Ripple/actions/runs/39859399071) PASS）**——
+  共享媒体 `media:src/components/SharedFestivalImage.tsx#430`
   → source-proven `[page:/, page:/program, page:/tickets]`，unresolved 空；档案媒体
   `media:src/pages/Archive.tsx#204` → source-proven `[page:/archive]`；
   `graph.unresolved` 为空；5 个负例全部按预期拒绝。证明 PR #28 合同下 SourceGraph
   **能够**自动证明三页共享媒体消费——前提是路由形态对齐其识别模式（MPA 形态仍不可证明）。
-  （`1dbaa53` 上的手工 PASS 保留为历史证据，以 `43f2ea2` 复验为当前口径。）
+  （`1dbaa53` / `43f2ea2` 上的历史 PASS 保留为历史证据；src 树与 PR #28 HEAD
+  零差异，当前口径为 A 基线 `3cc37c2` 复验。）
 - **CI 分工**：浏览器截图证据仍属原 MPA Lab CI（`qiguang-lab-ci.yml`，24 张截图 /
   48 项断言）；来源证明由独立 workflow `qiguang-sourcegraph-proof.yml` 执行——
-  固定 `PINNED_CD_SHA`（当前 `43f2ea2`）checkout C+D 宿主，实际调用 `analyzeProject()`
+  固定 `PINNED_CD_SHA`（当前 `3cc37c2`，A 稳定基线）checkout C+D 宿主，实际调用 `analyzeProject()`
   与 `sourceProvenPageImpact()`，任一来源证明失败即非零退出，并输出双端 SHA、
   媒体节点、页面集合、certainty、unresolved 与最终 verdict。24 张截图**不归**本变体
   （该变体本轮仅做 SourceGraph 静态证明 + 构建验证）。
 - **构建加固（P2）**：`build-variants.mjs` 现断言 package.json / package-lock.json
   构建前后字节不变、双 dist 各含 4 个素材文件、共享媒体源文件还原后字节一致；
   依赖安装使用 `--no-save --no-package-lock`。
-- **边界**：此为合同形态验证，非 A 集成基线最终签署；A 正式稳定基线发布后更新
-  `PINNED_CD_SHA` 复跑同一 harness 为准。路由形态要求（命名导出 App、`Component`
-  路由属性、无条件挂载）记入本文档，联合集成时若真实工程形态不符将如实 fail-closed。
+- **边界**：此为合同形态验证；A 稳定基线 `3cc37c2` 发布后已更新 `PINNED_CD_SHA`
+  并复跑同一 harness（CI run 39859399071 PASS）。路由形态要求（命名导出 App、
+  `Component` 路由属性、无条件挂载）记入本文档，联合集成时若真实工程形态不符将如实
+  fail-closed；青野正式 MEDIA 全链验收仍待 A 确定接入时机、固定工程 SHA 与资源安排。
