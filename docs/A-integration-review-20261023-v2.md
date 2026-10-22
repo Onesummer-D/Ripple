@@ -123,3 +123,37 @@ export const App = () => <RouterProvider router={router} />;
 - #28 checks（1dbaa539，success）：https://github.com/Onesummer-D/Ripple/actions/runs/39828686217
 - #28 codescandy 探针（BLOCKED/exit 2）：https://github.com/Onesummer-D/Ripple/actions/runs/39828676169
 - A 基线 checks（16e737c）：commit check-runs 页
+
+---
+
+# v3 增补（2026-10-23 第二批任务）
+
+## P1 别名链复核（独立审查发现属实）
+
+- 未修复代码（a71dd73）实测复现：`const alias = selected; alias.Component = Home` 与两种 `let` 重绑定变体**均误返回 source-proven**；二级链元素写入 `alias2['Component']=…` 被既有逻辑拦截。
+- 修复改为写入点重推导谓词 `fuzzyWriteTarget`：别名链传播、`let` 重绑定保守降级、循环链有界遍历（环=无法证明=fail-closed），移除原符号缓存式登记。提交：`a08ba86`（预演分支）/ `43f2ea2`（#28 分支，内容相同）。
+- 路由反例测试 62/62（新增 5 个负例：别名转发、二级链、let 重绑定×2、循环链），数值下标正例全部保留。
+
+## CI 记录
+
+- 预演 CI #39843573062（HEAD `1485439`）：**SUCCESS**（2026-10-22 19:50→20:01 UTC，单 checks 作业含 typecheck/Vitest/build/Docker/test:browser 全部步骤）。
+- #28 同步后 CI（HEAD `43f2ea2`）：运行 39850415100。
+- 预演分支同步后 CI（HEAD `a08ba86`）：运行 39850441832。
+- codescandy 探针在新 HEAD 上仍 BLOCKED（exit 2 语义，如实登记，不改报）。
+
+## Windows 遗留 e2e 失败（独立待办，未登记为通过）
+
+1. `source-identity.spec.ts:588`：稳定复现条件 = Windows 本机 + Playwright；基线 A 同样失败（被 afterAll EPERM 掩盖），预演上去掩蔽后表现为 staleObservations=0。嫌疑根因：CRLF 行尾下前缀偏移的节点 id 匹配差异。Linux CI 通过（test:browser 含全部 e2e），不影响正式验收。
+2. `project-workbench.spec.ts:814`：EPERM 临时目录清理（afterEach），基线同源。Linux CI 通过。
+两案均单独立项修复，不阻断 Linux 集成。
+
+## 下一批顺序与依赖
+
+1. **F #25（01ca7a1）**：CI 通过后第一批并行并入；新增 d4e1264（清理诊断按会话隔离）+ 两个公网 demo 验收文档，DEMO/REAL 隔离口径未变。F 第二阶段真实 TEXT 工作台复用 A 核心 Bolt Run #18 生命周期。
+2. **E**：独立接入最新 `91dd54d`（双侧 sourceRef 已对齐）。**注意**：独立审查认定其 `instance-proven` 标签强于采集信息可支持的证明等级，A 不得将其等价于 `instanceIdentityProven=true`；待 E 修复证明等级后，再经只读接口进正式 VerificationRun。
+3. **MEDIA #26（b468f34a）**：C+D 合入后做消费来源证明的最小差异接入，不重复实现 SourceGraph；双证据格式走版本化适配器。
+
+## 稳定基线 SHA（供 F 第二阶段 / B 第三方工程验收）
+
+- A 稳定核心：`16e737c16d95a26879d1aee813b85fb472fd8215`
+- A + C+D（含 P1 别名链修复与合同文档，待负责人确认正式合并）：`43f2ea24…`（#28 分支）/ 等价 merge 预演 `a08ba86`（`feat/a-cd-rehearsal-20261023`）
