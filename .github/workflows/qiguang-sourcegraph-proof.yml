@@ -15,8 +15,8 @@ on:
       - '.github/workflows/qiguang-sourcegraph-proof.yml'
 
 env:
-  # PR #28（C+D 联合集成）已核实最新 HEAD；含动态下标别名链 P1 修复
-  PINNED_CD_SHA: 43f2ea24d83ad86b519502354ef3775e1e505967
+  # A 正式稳定集成基线（C+D PR #28 已合入 A）；协调人 2026-10-23 指定
+  PINNED_CD_SHA: 3cc37c2408caad6d3b8fd65d6c36a07980aeb94e
 
 jobs:
   proof:
