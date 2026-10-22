@@ -1,0 +1,66 @@
+# 栖光 Lab 定向验收（协调人第四轮 · 三）
+#
+# 触发：prep/qiguang-media-lab-20261023 分支上 Lab / workflow 自身变更（paths 过滤），
+# 仅做可复现的 Linux Chromium 采集验收，不触发正式 Bolt 验收。
+# 覆盖：双变体构建 → 源码字节恢复检查 → 三页四视口真实 Chromium 采集 →
+# 证据 JSON 与截图哈希核验 → 非目标媒体字节一致 → 档案页零共享消费。
+# 结果边界：Lab CI 通过 ≠ 真实工程 MEDIA 完整生命周期通过（消费关系由 Lab 结构显式
+# 声明，非 SourceGraph 证明）。
+name: Qiguang Lab CI
+
+on:
+  push:
+    branches:
+      - prep/qiguang-media-lab-20261023
+    paths:
+      - 'test/qiguang-lab/**'
+      - 'src/core/media-viewport-evidence.ts'
+      - 'src/core/media-acceptance-server.ts'
+      - 'scripts/media-viewport-evidence.ts'
+      - '.github/workflows/qiguang-lab-ci.yml'
+
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build dist-wide / dist-tall variants
+        run: node test/qiguang-lab/scripts/build-variants.mjs
+      - name: Verify shared component source restored byte-identical
+        run: git diff --exit-code -- test/qiguang-lab/src/components/SharedFestivalImage.tsx
+      - name: Collect 3-page 4-viewport dual-end evidence
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs test/qiguang-lab/scripts/collect-evidence.ts
+      - name: Report evidence counts (screenshots / assertions / per-page status)
+        run: |
+          node - <<'EOF'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const root = 'test/qiguang-lab/evidence'
+          let screenshots = 0, assertionTotal = 0
+          for (const page of ['home', 'program', 'tickets']) {
+            const dir = path.join(root, page)
+            const evidence = JSON.parse(fs.readFileSync(path.join(dir, 'evidence.json'), 'utf8'))
+            const shots = fs.readdirSync(dir).filter(f => f.endsWith('.png')).length
+            const assertions = evidence.report.observations.flatMap(o => o.assertions)
+            const failed = assertions.filter(a => a.result === 'failed').length
+            const unknown = assertions.filter(a => a.result === 'unknown').length
+            assertionTotal += assertions.length
+            screenshots += shots
+            console.log(`${page}: screenshots=${shots} assertions=${assertions.length} failed=${failed} unknown=${unknown}`)
+            if (failed > 0 || unknown > 0) process.exitCode = 1
+          }
+          console.log(`total: screenshots=${screenshots} assertions=${assertionTotal} (expect 24 screenshots, 48 assertions = 3 pages x 4 viewports x 4)`)
+          if (screenshots !== 24) { console.error('截图数量不符'); process.exitCode = 1 }
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qiguang-lab-evidence
+          path: test/qiguang-lab/evidence
+          retention-days: 30

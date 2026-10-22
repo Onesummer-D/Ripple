@@ -1,7 +1,7 @@
 {
   "report": {
     "schemaVersion": "ripple-media-viewport-evidence/v1",
-    "capturedAt": "2026-10-22T17:35:47.246Z",
+    "capturedAt": "2026-10-22T18:28:21.643Z",
     "browser": {
       "name": "chromium"
     },
@@ -35,6 +35,7 @@
         },
         "objectFit": "cover",
         "objectPosition": "50% 0%",
+        "screenshotSha256": "16dc217eaa22b5c3cb87d8dea9a98b1e6e90659e72524a017d7255ae0fa1f3cd",
         "errors": [],
         "geometry": {
           "scaleMode": "cover",
@@ -94,6 +95,7 @@
         },
         "objectFit": "cover",
         "objectPosition": "50% 0%",
+        "screenshotSha256": "16dc217eaa22b5c3cb87d8dea9a98b1e6e90659e72524a017d7255ae0fa1f3cd",
         "errors": [],
         "geometry": {
           "scaleMode": "cover",
@@ -153,6 +155,7 @@
         },
         "objectFit": "cover",
         "objectPosition": "50% 0%",
+        "screenshotSha256": "16dc217eaa22b5c3cb87d8dea9a98b1e6e90659e72524a017d7255ae0fa1f3cd",
         "errors": [],
         "geometry": {
           "scaleMode": "cover",
@@ -212,6 +215,7 @@
         },
         "objectFit": "cover",
         "objectPosition": "50% 0%",
+        "screenshotSha256": "16dc217eaa22b5c3cb87d8dea9a98b1e6e90659e72524a017d7255ae0fa1f3cd",
         "errors": [],
         "geometry": {
           "scaleMode": "cover",
@@ -251,5 +255,5 @@
       }
     ]
   },
-  "sha256": "4e95211dbfe5f7745aecd829336bdc04173bf0da4da85519ac6c2894f6fa6352"
+  "sha256": "9d63dea19283b4520be212e3604e325ba1bef9b1f068b90f4deaeaf714890a72"
 }

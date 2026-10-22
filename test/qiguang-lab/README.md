@@ -48,7 +48,12 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
 ## 观测结论（2026-10-23 本机 Chromium 一次采集，evidence/ 为证）
 
 - 三页四视口采集器退出码均为 0，`evidence.json` 四项断言全 pass；每页
-  `evidence.json` / `dual.json` 带内容哈希，8 张截图（4 视口 × 双端）齐备。
+  `evidence.json` / `dual.json` 带内容哈希，8 张截图（4 视口 × 双端）齐备——
+  **三页共 24 张截图**（3 页 × 4 视口 × 基线/候选双端），字节与 evidence/dual 登记的
+  截图 sha256 一一对应。
+- 口径边界（如实）：上述断言证明的是**目标图加载/换源/裁切几何/无浏览器错误**与
+  **非目标媒体字节一致**、档案页**关键 DOM 与媒体状态一致**；不构成完整页面逐像素
+  一致声明，也不构成 SourceGraph 自动证明或 A 正式 MEDIA 生命周期验收。
 - 候选端统一加载 900×1125 竖版源，进入三个不同容器：
   首页 Hero 1048×590（16:9）、节目展墙 720×540（4:3）、购票卡片 298×397（约 3:4）；
   object-position 分别 center / 50% 20% / top，裁切窗口逐页逐视口可查（`evidence.json`）。
