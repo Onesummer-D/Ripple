@@ -1,6 +1,16 @@
 # Ripple 产品体验工作台（F Agent）交接文档
 
-> 2026-10-22（三轮·最终状态一致性整改）· 分支 `feat/f-product-experience-20261021` · 已同步 A 基线 `feat/project-first-core-20261018 @ 83ddff5e`（普通 merge，保留 F 历史）
+> 2026-10-22（三轮审查后最终收束）· 分支 `feat/f-product-experience-20261021` · 已同步 A 基线 `feat/project-first-core-20261018 @ 736a029`（PR #22 已合并；普通 merge，保留 F 历史）
+
+## 0.5 三轮独立审查整改（2026-10-22 晚，最小修复）
+
+审查确认四项整改全部通过后仅剩一处来源确定性显示问题，已最小修复：
+
+| 缺陷 | 修复 | 回归 |
+| --- | --- | --- |
+| `projectPageRelations()` 把目标所属页无条件标记 source-proven，partial/unknown 元素的编辑页会被错误显示为"来源已证实" | 编辑页 `relationCertainty` 封顶为 `element.certainty`（min(元素确定性, source-proven)）；第三参语义明确为 `elementPageRef`（目标所属页，真实 Adapter 须由可信来源提供），与用户浏览页 `currentPageRef` 明确区分，浏览页不参与关系投影；审批阻断仍由 `approvalGate()` 元素确定性条件兜底，未动 | 新增负例 3 项：partial 元素编辑页=部分证明、unknown 元素编辑页=未知、目标所属页由元素数据决定与浏览位置无关 |
+
+同步：普通 merge A `736a029`（新增 e2e/applied-preview-navigation 两文件，与 F 无交集，无冲突）。
 
 ## 0. 三轮整改记录（最终一致性，2026-10-22）
 
@@ -20,13 +30,13 @@
 | 项 | 位置 | 状态 |
 | --- | --- | --- |
 | 体验工作台框架（画布优先布局） | `src/app/experience/experience-workbench.tsx` | 可用 |
-| ViewModel 契约 + 纯函数（范围汇总/审批门控/关系投影/反馈失效） | `src/app/experience/view-model.ts` | 20 项单测过 |
+| ViewModel 契约 + 纯函数（范围汇总/审批门控/关系投影/反馈失效） | `src/app/experience/view-model.ts` | 23 项单测过 |
 | 适配器接口 | `src/app/experience/adapter.ts` | 定义完成 |
 | 青野演示适配器（DEMO/SIMULATED 全程标记） | `src/app/experience/demo-adapter.ts` | 可用 |
 | 视觉组件（顶栏/页面导航/画布/范围/证据/对照/胶片） | `src/app/experience/components/` | 可用 |
 | 设计系统（ripple-xp- 命名空间） | `src/app/experience/ripple-xp.css` | 可用 |
 | 独立演示入口 | `experience.html` + `src/experience-main.tsx`（已加入 vite 构建输入） | 可用 |
-| 演示流测试（13 项连续操作，含三轮新增 4 项）+ ViewModel 测试（20 项） | `src/app/experience/*.test.tsx?` | 37/37 过 |
+| 演示流测试（17 项连续操作，含二轮新增 4 项）+ ViewModel 测试（23 项，含三轮新增 3 项） | `src/app/experience/*.test.tsx?` | 40/40 过 |
 | 浏览器 E2E（15 项：原有 11 项 + 三轮新增 4 项） | `e2e/experience.spec.ts` | 15/15 过 |
 | 界面截图 | `docs/experience/xp-1-initial.png` ~ `xp-4-history-mobile.png` | 真实 Chromium 截取 |
 | 截图脚本（可复录） | `scripts/xp-screenshot.mjs` | 可用 |
@@ -81,8 +91,8 @@
 
 ## 6. 测试与限制
 
-- `npm run typecheck`：通过（app + node，merge A 83ddff5e 后重验）。
-- 体验层定向：`view-model.test.ts` 20/20 + `experience-flow.test.tsx` 17/17 = 37/37 过。
+- `npm run typecheck`：通过（app + node，merge A 736a029 后重验）。
+- 体验层定向：`view-model.test.ts` 23/23 + `experience-flow.test.tsx` 17/17 = 40/40 过。
 - 全量本机 Windows `npx vitest run`：422 过 / 2 跳过；4 个失败文件全部位于 `src/core/*`（runtime-identity 34、project 21、preview-resource-policy 2、preview-csp hook 超时），失败原因均为已记录的本机环境限制（临时目录 EPERM——工作区中文路径在临时目录 mangling、loopback relay、需 Linux Chromium/live egress），与本轮改动无关——本轮未触碰任何 core 文件，Linux CI 为权威。体验层与全部 app 层测试零失败。
 - `npm run build`：通过（`dist/experience.html` 与 `dist/index.html` 双入口）。
 - `npx playwright test e2e/experience.spec.ts`：15/15 过（本机 Chromium headless shell，含新增 4 项）。
