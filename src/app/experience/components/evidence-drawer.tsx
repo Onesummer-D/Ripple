@@ -12,7 +12,7 @@ const SOURCE_KIND_LABEL: Record<EvidenceItemXp['sourceKind'], string> = {
  */
 export function EvidenceDrawer({ items, onClose }: { items: EvidenceItemXp[]; onClose: () => void }) {
   const [expanded, setExpanded] = useState<string>()
-  return <section className="ripple-xp-evidence" aria-label="验证证据" data-testid="evidence-drawer">
+  return <section className="ripple-xp-evidence reveal" aria-label="验证证据" data-testid="evidence-drawer">
     <SectionTitle aside={<button type="button" className="ripple-xp-quiet" onClick={onClose} data-testid="close-evidence">收起</button>}>
       证据与解释
     </SectionTitle>

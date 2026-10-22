@@ -48,7 +48,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
     </li>
   )
 
-  return <aside className="ripple-xp-scope" data-testid="scope-panel">
+  return <aside className="ripple-xp-scope reveal" data-testid="scope-panel">
     <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>选中位置</SectionTitle>
     {selected ? (
       <div className="ripple-xp-selection-block">
