@@ -292,3 +292,41 @@ E 采样合同字段（sourceVersion、identityReasons、pageContext 守卫）�
 2. 全量 Vitest + Playwright + typecheck + build。
 3. F 对未知来源遵循既有 fail-closed/降级合同——AC-P2a/b 与 E 完整身份 RFC 不构成 F 第一阶段接入前置。
 4. CI 绿后向负责人提交正式合并建议；不自行合并、不触发 Bolt。
+
+
+---
+
+# v7 第二批启动 + B-ENV-1 登记（2026-10-23）
+
+## 0. 主线状态
+
+- A 基线 `3cc37c2`（#28 已合并，合并后 CI SUCCESS）。
+- F #25 集成预演完成：工作树 `_scratch/wt-f25`，分支 `feat/a-f25-integration-20261023` = merge(3cc37c2, F 403ca81b)。typecheck ✓、build ✓、定向 Vitest 239/239 ✓（real-adapter + 三个身份/路由文件）。集成分支已推送，CI 为权威全量门。
+- E：457c0f9 双 CI 通过；新 P1（offset 漂移同侧版本失效负例）待补；PR #29 已要求改指 A 集成分支、保持 Draft、同步 3cc37c2。**暂缓 E 正式合并**。
+- D：Lab 5f60666，SourceGraph Proof CI #39857023106 与 MPA Lab CI #39857097577 均成功，栖光三页共享媒体 source-proven 已纳入独立 CI。D 将以 3cc37c2 重跑证明 + narrowMediaByReceiverType 最小重放；青野正式 MEDIA 全链回归由 A 协调安排（Lab 通过 ≠ 正式验收）。
+- B：4372873 完成门控加固与 CRLF/LF 固定复现；两处文件安全问题（候选门控自测可能递归删除非自有路径、EOL 复现脚本原地重置仓库）要求 B 优先修复，暂不列为可复用正式验收工具。
+
+## 1. B-ENV-1 登记：Windows Git 换行转换与候选副本字节一致性冲突
+
+- **编号**：B-ENV-1（独立兼容性问题，与 Issue #6 的 AC-P2a/AC-P2b 分开排期）。
+- **负责人**：A 协调；实现交 C+D 或协调人指定的工程 Agent。
+- **优先级**：P2。不阻塞 Linux 已验证 TEXT 闭环；**禁止**通过归一化安全哈希、忽略字节差异或放宽 Candidate 门控解决。
+- **最小复现**（B 已固定证据）：codescandy @ b700bbd；Git blob = LF 3517 B，Windows/autocrlf 工作树 = CRLF 3624 B；同一 Overview JSX 来源偏移 #2620 vs #2691；两种 git 状态均可视为 clean；Ripple 原项目按 CRLF 字节生成摘要，候选隔离 worktree 按 LF 字节检出 → 摘要不同 → 正确拒绝；autocrlf=true 的新 worktree 摘要与原 CRLF 快照仍不同（需逐文件差异定位）。
+
+### 代码事实（基线 3cc37c2 已核实）
+
+1. `src/core/candidate.ts:497`：隔离 worktree 以 `-c core.autocrlf=false git worktree add --detach <rev>` 检出。
+2. `candidate.ts:499`：`digestTrackedTree(candidateRoot) !== snapshot.revision.sourceDigest` 即抛 `CandidateError`（fail-closed，语义正确，保留）。
+3. 仓库根**无 `.gitattributes`**；`readProjectSnapshot` 的 `sourceDigest` 基于原工程**工作树实际字节**——Windows autocrlf 检出下即 CRLF 字节，与候选检出（LF）必然不一致。
+4. 源码范围 / sourceRef 偏移 / CandidatePatch 的绑定字节 = SourceGraph 解析所用文件内容的字节；解析基于工作树字节时，偏移随平台换行口径漂移。
+
+### 修复方向（待评审，不改安全语义）
+
+- 统一字节基准为 **git blob 字节（canonical）**：`sourceDigest` 改为对 revision tracked blob 的摘要（`git ls-files -s` / `cat-file --batch` 口径）；SourceGraph 解析输入与 sourceRef 偏移基于同一份 blob 字节采集；候选 worktree 维持 `autocrlf=false` 检出（其字节天然等于 blob 字节，除 smudge filter/LFS 例外）。快照与候选同源同字节，跨平台可复现。
+- 错误提示分级：摘要不匹配时逐文件比对 blob 字节与工作树字节，检出 EOL 签名差异则明确提示「EOL 不一致（CRLF/LF）」并给出建议操作（`core.autocrlf=false` 重新检出 / `.gitattributes` eol 固定 / 以规范字节重建快照），不再笼统报「摘要不匹配」。
+- 待确认：smudge/clean filter、LFS、既有 `.gitattributes` 项目的兼容口径；多文件页面快照粒度与 sourceVersion 粒度的关系（与 E RFC 第 2 点联动）。
+
+## 2. TEXT 工作台启动基线
+
+- 正式 TEXT 工作台开发基线 = `3cc37c2`；F 集成验证基线 = `feat/a-f25-integration-20261023`（merge 提交以推送后 CI 绿为准）。
+- 启动条件：F 集成 CI 绿 → 负责人批准 → F #25 以 merge 方式进 A（新 A HEAD 分发各线）→ F 第二阶段真实操作链路（统一接入正式候选、验证、审批、应用、回滚）开工。
