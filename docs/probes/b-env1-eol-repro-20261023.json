@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
-  "recordedAt": "2026-10-22T22:06:00.005Z",
+  "recordedAt": "2026-10-22T22:23:14.474Z",
   "sourceRepo": {
     "role": "read-only",
     "note": "传入检出仅执行 git 读命令；全部实验在脚本自有临时 clone 中进行。"
@@ -53,5 +53,27 @@
   "crlfSnapshotVsFreshAutocrlfTrueWorktree": {
     "explanation": "v2（clone 法）：CRLF 原工程摘要 a3d59740… 与新建 autocrlf=true worktree 摘要完全一致（differingFiles=0）——两者都经 git 同一换行过滤。v1（手工 sed 转换法）曾得到第三个摘要 bdb283ff…，原因是手工转换把 git 视为非文本的文件（部分 .svg 等）也转成了 CRLF，超出了 git 过滤器范围；该值是测量法伪影，已被 v2 取代。operative 不一致仅存在于 CRLF 快照（a3d59740…）与 Ripple 建候选用的 autocrlf=false worktree（016aee03…）之间。",
     "differingFiles": []
+  },
+  "selftest": {
+    "cases": [
+      {
+        "case": "dirty-source-read-only",
+        "pass": true,
+        "detail": {
+          "measureError": "项目工作树不干净；先提交或收起现有改动，再创建候选"
+        }
+      },
+      {
+        "case": "sentinel-byte-invariance",
+        "pass": true
+      }
+    ],
+    "postChecks": {
+      "sourceRepoHeadUnchanged": true,
+      "sourceRepoDigestUnchanged": true,
+      "sourceRepoPorcelainUnchanged": true,
+      "sourceRepoWorktreesUnchanged": true
+    },
+    "allPass": true
   }
 }

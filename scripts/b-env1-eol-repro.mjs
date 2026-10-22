@@ -90,8 +90,15 @@ const cloneInto = (dest, autocrlf) => {
     fs.rmSync(dest, { recursive: true, force: true })
     execFileSync('git', args, { stdio: 'inherit' })
   }
+  // Persist the policy INSIDE the clone: `git -c` only applies to the clone
+  // process itself. Without this, a CRLF clone on a host whose default
+  // autocrlf is false is reported DIRTY by subsequent git status calls
+  // (exactly what broke this step on Linux CI).
+  execFileSync('git', ['-C', dest, 'config', 'core.autocrlf', String(autocrlf)], { stdio: 'pipe' })
   console.error(`[env1] cloned ${autocrlf} -> ${dest}`)
   if (git(dest, ['rev-parse', 'HEAD']) !== expected) throw new Error(`clone HEAD mismatch in ${dest}`)
+  const dirty = porcelain(dest)
+  if (dirty !== '') throw new Error(`clone ${autocrlf} is dirty (${dirty.split('\n').length} paths):\n${dirty.split('\n').slice(0, 3).join('\n')}`)
 }
 
 const tempParent = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-b-env1-'))
