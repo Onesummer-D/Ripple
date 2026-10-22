@@ -60,20 +60,30 @@ Get-Content SHA256SUMS.txt | ForEach-Object {
 
 ## 其余内容
 
-- `resource-snapshots/`：221 个内容寻址（SHA-256 命名）外部资源快照，13 MB（202×WOFF2 字体 + 21×MP4 媒体 + 1×CSS，来源见下）。
-- `source-resource-snapshots/`：3 个源码侧资源快照。
+- `resource-snapshots/`：221 个内容寻址（SHA-256 命名）外部资源快照（202×WOFF2 字体 + 18×AVIF 图片 + 1×CSS，来源见下）。
+- `source-resource-snapshots/`：3 个源码侧 AVIF 图片快照（经 audit JSON 的 loadedImages 登记核对，与 resource-snapshots 中 3 个同源）。
 - `diagnostics/<runId>/`：progress.jsonl、resource-fetch-log.json、snapshot-timing.json 运行诊断。
+- 计数已复核：18 个 AVIF 的 ftyp 品牌标识全部为 `avif`（图片），**无视频文件**；早期「MP4」表述有误，以此为准。
 
 ## 2026-10-23 终审审核结果
 
 1. **敏感信息扫描（通过）**：对全部文本类文件扫描 token/secret/password/authorization、Windows 用户目录、Bearer、GitHub PAT 等模式——零命中。仅存在 `/home/runner/work/Ripple/...` 标准 CI 路径（公开仓库名，无个人信息）与 `127.0.0.1:4173` 回环测试地址，属正常构建元数据。
 2. **私有内容提示（负责人知悉项）**：8 张 PNG 为青野工程（私有仓）页面截图，含其品牌文案与带「Ripple UI验收」标记的修改后页脚；本目录随公开仓库发布即公开这些画面。比赛用途下视为可接受，最终对外口径由负责人确认。
-3. **资源快照许可（低风险，非零）**：快照来源经 `bolt-resource-load-audit.json` 追溯为 `images.pexels.com`（18 个授权 URL，Pexels License 允许再分发）与 `fonts.googleapis.com`（1 个，OFL 字体允许原样再分发）。「验证时允许获取」≠ 大赛语境下的再发布已逐项确认，但目前无任何素材来自限制再分发的来源；若保守起见可仅保留哈希清单、移出媒体字节（见推荐方案）。
+3. **资源快照许可（修正表述，Pexels 原样再分发受限）**：快照来源经 `bolt-resource-load-audit.json` 追溯为 `images.pexels.com`（18 个授权 URL，实测内容型别为 image/avif，18 个 AVIF 文件）与 `fonts.googleapis.com`（1 个 CSS，引出 202 个 WOFF2 字体文件）。逐项核对许可：
+   - **Pexels（18 个 AVIF + 3 个源码侧 AVIF）**：Pexels License 允许免费使用与修改，但**不允许出售、分发未经修改的副本**（"identical copies"），也不得以暗示背书的方式使用。验证时获准联网获取 ≠ 获准在公开仓库重新发布原始媒体字节。**结论：快照中的 Pexels 原始字节不应默认在公开仓库再分发。**
+   - **Google Fonts / SIL OFL（202 个 WOFF2 + 1 个 CSS）**：OFL 允许原样捆绑再分发字体（条件：不单独出售字体、保留许可证与版权声明、尊重 Reserved Font Name）；本目录为未修改原样快照，**再分发风险低**。
+   - 综合：「低风险」仅对 OFL 字体成立；Pexels 图片字节按受限处理——这构成方案 B 的独立理由（见下）。
 4. **体积统计**：239 文件共 28.4 MB（PNG 16.0 MB / 无扩展名快照 12.0 MB / JSON 0.2 MB）；最大单文件 history-restored.png 4.6 MB；已全部进入 Git 历史（提交 `40e0e19`）。
-5. **长期保存推荐方案（待负责人确认，未做任何删除）**：
-   - 方案 B（推荐）：公开仓库保留精简证据集（11 个关键文件 + diagnostics + 本索引与 SHA256SUMS，约 17 MB），224 个资源快照字节移出 Git 历史，完整 ZIP 另存负责人控制的归档位置（网盘/对象存储），以 ZIP SHA-256 登记衔接；快照可由固定 SHA 重跑复现，证据完整性不损失。
-   - 方案 A（维持现状）：全量 28.4 MB 留库，最简单、可复现性最强；代价是每次 clone 永久携带 12 MB 快照字节。
-   - 未获确认前不删除任何已提交文件、不改写 Git 历史。
+5. **长期保存方案（负责人已倾向方案 B；以下为安全迁移计划，未经批准不执行）**：
+   - **目标形态**：公开仓库保留精简证据集（11 个关键文件 + diagnostics + 本索引与 SHA256SUMS，约 17 MB）；224 个资源快照字节移出 Git（普通新提交，不改写历史）；完整 ZIP 由负责人控制的私有归档位置保存。
+   - **迁移步骤（ staged，每步可回退）**：
+     1. *转交*：将工作区 `_scratch/delivery-prep/run18-artifact.zip` **复制**（非移动）到负责人指定位置（私有网盘/对象存储/私有仓）。
+     2. *独立校验*：负责人在新位置计算 ZIP SHA-256，与登记值 `35668a23…ff2c44` 比对；解压后按本目录 `SHA256SUMS.txt` 复核 238 个工件文件。
+     3. *备份有效性确认*：抽查关键 PNG 可正常打开、execution.json 字段齐全（completed:true、七断言 pass），确认此时至少存在两个独立有效副本（本地工作区 + 新归档）。
+     4. *获批执行*：新建普通提交执行 `git rm -r` 两个快照目录，更新本索引、SHA256SUMS（移除对应条目）与 README，注明「快照字节已迁移至负责人归档（ZIP 哈希登记不变），可由 f7e4998a 固定配置重跑复现」。**接受 Git 历史体积保留**；如需进一步瘦身（history 清理）另行评估，代价是全员重新 clone。
+     5. *收尾验证*：推送后检查远端快照目录消失、索引链接更新，PR 合并前终审。
+   - **回退原则**：任何一步校验失败即停止，已提交内容保持原样；快照字节在公开仓库的删除仅以普通提交进行，绝不改写历史。
+   - 未获批准前：不删除任何已提交文件、不迁移、不改写 Git 历史。
 
 ## 使用边界
 

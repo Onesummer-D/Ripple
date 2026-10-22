@@ -20,7 +20,8 @@
 | 08 | [evidence-gap-checklist.md](./evidence-gap-checklist.md) | 缺失截图与待补证据清单 | 五·6 / 七·8 |
 | 09 | [video-voiceover-120s.md](./video-voiceover-120s.md) | 120 秒版 8 镜逐镜口播词与录屏执行表 | 五 |
 | 10 | [video-voiceover-full.md](./video-voiceover-full.md) | 3:30 完整版 13 镜逐镜口播词与录屏执行表 | 五 |
-| 11 | [video-recording-setup.md](./video-recording-setup.md) | 录屏环境可执行清单（F DEMO / A 工作台 / 归档证据三类，含 ZIP 获取与隐私要求） | 五 |
+| 11 | [video-recording-setup.md](./video-recording-setup.md) | 录屏环境可执行清单（F DEMO / A 工作台 / 归档证据三类，含 ZIP 获取、Docker 边界与隐私要求） | 五 |
+| 12 | [录屏任务分发表-A4.docx](./录屏任务分发表-A4.docx) / [录屏任务分发表-A4.pdf](./录屏任务分发表-A4.pdf) | 一页 A4 录屏任务分发表（每镜：执行人/操作/素材来源/必需可选/运行环境/完成状态） | 五 |
 | — | [evidence/run18/](./evidence/run18/INDEX.md) | Run #18 原始证据归档（238 文件 + SHA256SUMS 全量校验 + 审核结论） | — |
 
 ## 当前真实验收状态摘要（截至 2026-10-23，Run #18 后，证据已归档）
