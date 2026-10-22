@@ -1,0 +1,188 @@
+{
+  "collection": {
+    "capturedAt": "2026-10-22T14:24:26.111Z",
+    "viewports": [
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4631/",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 3,
+          "currentSrc": "http://127.0.0.1:4631/media/hero-landscape.jpg",
+          "screenshotSha256": "097f3c7b68cf343fd05747169b925df2bafce3796467efb0d855d2b9f2a4f6d2",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "candidateDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "baselineSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "candidateSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "maskedOperationIds": [
+            "fixture-orientation-swap"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4631/",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 3,
+          "currentSrc": "http://127.0.0.1:4631/media/hero-landscape.jpg",
+          "screenshotSha256": "7bd9a63f269af4040f06114573630ea1da5201fb4566e6b3d0018cb7895ad07d",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "candidateDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "baselineSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "candidateSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "maskedOperationIds": [
+            "fixture-orientation-swap"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-375",
+          "width": 375,
+          "height": 812
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4631/",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 3,
+          "currentSrc": "http://127.0.0.1:4631/media/hero-landscape.jpg",
+          "screenshotSha256": "74b89ec17a0925e7dcd9cac78dbd215eb905f987ce70a71d09a15c4597ff503a",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "candidateDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "baselineSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "candidateSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "maskedOperationIds": [
+            "fixture-orientation-swap"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-390",
+          "width": 390,
+          "height": 844
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4631/",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 3,
+          "currentSrc": "http://127.0.0.1:4631/media/hero-landscape.jpg",
+          "screenshotSha256": "cba98c8a9375d6e54e22c56b550534fcb8320bfb3eaf457d791cc917b65bf422",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "candidateDigest": "8906b5b4b8b72ef6e5c63e5e83dbc6eb96942605d73cd40cada448a5856a6dfd",
+          "baselineSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "candidateSnapshot": "<div id=\"root\">\n  <header class=\"site-header\"><h1>涟漪素材验收案例</h1></header>\n  <section class=\"hero\" data-container=\"home-hero\">\n    <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"hero\" data-consumer=\"home-hero\">\n    <p class=\"hero-caption\">首页 Hero · 16:9 容器 · object-fit: cover · position: center</p>\n  </section>\n  <section class=\"activity\" data-container=\"activity-banner\">\n    <div class=\"activity-box\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"activity\" data-consumer=\"activity-banner\">\n    </div>\n    <p>活动页面图片区域 · 4:3 容器 · object-fit: cover · position: 50% 20%</p>\n  </section>\n  <section class=\"cards\">\n    <div class=\"product-card\" data-container=\"product-card\">\n      <img src=\"__RIPPLE_TARGET_fixture-orientation-swap__\" alt=\"product\" data-consumer=\"product-card\">\n      <span>商品卡片 · 240×240 · object-fit: cover · position: top</span>\n    </div>\n  </section>\n</div>",
+          "maskedOperationIds": [
+            "fixture-orientation-swap"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      }
+    ]
+  },
+  "sha256": "5bf26e43d0fbc3b843a6fe8122d637206f9f226f1af54c2ec0863b0cbf15e2b3"
+}

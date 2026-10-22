@@ -1,0 +1,416 @@
+{
+  "generatedAt": "2026-10-22T14:24:29.524Z",
+  "viewports": [
+    {
+      "name": "desktop",
+      "label": "桌面",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "label": "平板",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile-375",
+      "label": "手机 · 375",
+      "width": 375,
+      "height": 812
+    },
+    {
+      "name": "mobile-390",
+      "label": "手机 · 390",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "note": "独立模块验证 Fixture：不依赖真实工程 SourceGraph 消费证明，不代表 C+D 联合实测或真实 MEDIA 验收 PASS。",
+  "observations": [
+    {
+      "container": "home-hero",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 1408,
+        "height": 520,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "desktop",
+      "end": "baseline"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 718,
+        "height": 538,
+        "x": 17,
+        "y": 647
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "desktop",
+      "end": "baseline"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 1245
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "desktop",
+      "end": "baseline"
+    },
+    {
+      "container": "home-hero",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 736,
+        "height": 432,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "tablet",
+      "end": "baseline"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 527.90625,
+        "height": 395.421875,
+        "x": 17,
+        "y": 559
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "tablet",
+      "end": "baseline"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 1014.421875
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "tablet",
+      "end": "baseline"
+    },
+    {
+      "container": "home-hero",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 343,
+        "height": 210.9375,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "mobile-375",
+      "end": "baseline"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 244.953125,
+        "height": 183.203125,
+        "x": 17,
+        "y": 355.9375
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "mobile-375",
+      "end": "baseline"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 617.140625
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "mobile-375",
+      "end": "baseline"
+    },
+    {
+      "container": "home-hero",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 358,
+        "height": 219.375,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "mobile-390",
+      "end": "baseline"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 255.75,
+        "height": 191.3125,
+        "x": 17,
+        "y": 364.375
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "mobile-390",
+      "end": "baseline"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-landscape.jpg",
+      "naturalWidth": 1600,
+      "naturalHeight": 900,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 633.6875
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "mobile-390",
+      "end": "baseline"
+    },
+    {
+      "container": "home-hero",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 1408,
+        "height": 520,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "desktop",
+      "end": "candidate"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 718,
+        "height": 538,
+        "x": 17,
+        "y": 647
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "desktop",
+      "end": "candidate"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 1245
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "desktop",
+      "end": "candidate"
+    },
+    {
+      "container": "home-hero",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 736,
+        "height": 432,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "tablet",
+      "end": "candidate"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 527.90625,
+        "height": 395.421875,
+        "x": 17,
+        "y": 559
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "tablet",
+      "end": "candidate"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 1014.421875
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "tablet",
+      "end": "candidate"
+    },
+    {
+      "container": "home-hero",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 343,
+        "height": 210.9375,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "mobile-375",
+      "end": "candidate"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 244.953125,
+        "height": 183.203125,
+        "x": 17,
+        "y": 355.9375
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "mobile-375",
+      "end": "candidate"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 617.140625
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "mobile-375",
+      "end": "candidate"
+    },
+    {
+      "container": "home-hero",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 358,
+        "height": 219.375,
+        "x": 16,
+        "y": 68
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 50%",
+      "viewport": "mobile-390",
+      "end": "candidate"
+    },
+    {
+      "container": "activity-banner",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 255.75,
+        "height": 191.3125,
+        "x": 17,
+        "y": 364.375
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 20%",
+      "viewport": "mobile-390",
+      "end": "candidate"
+    },
+    {
+      "container": "product-card",
+      "src": "/media/hero-portrait.jpg",
+      "naturalWidth": 900,
+      "naturalHeight": 1600,
+      "renderedBox": {
+        "width": 238,
+        "height": 238,
+        "x": 17,
+        "y": 633.6875
+      },
+      "objectFit": "cover",
+      "objectPosition": "50% 0%",
+      "viewport": "mobile-390",
+      "end": "candidate"
+    }
+  ]
+}

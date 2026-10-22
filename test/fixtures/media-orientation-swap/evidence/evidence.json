@@ -1,0 +1,255 @@
+{
+  "report": {
+    "schemaVersion": "ripple-media-viewport-evidence/v1",
+    "capturedAt": "2026-10-22T14:24:26.111Z",
+    "browser": {
+      "name": "chromium"
+    },
+    "candidate": {
+      "candidateId": "fixture-media-orientation-swap",
+      "baseSourceDigest": "fixture-baseline-digest-not-a-real-candidate",
+      "patchHash": "fixture-patch-hash-not-a-real-candidate",
+      "candidateTreeDigest": "fixture-tree-digest-not-a-real-candidate"
+    },
+    "targetRef": "media:fixture/home-hero#hero-landscape.jpg",
+    "observations": [
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "pageUrl": "http://127.0.0.1:4632/",
+        "selector": "img[alt=\"hero\"]",
+        "assetRef": "/media/hero-portrait.jpg",
+        "currentSrc": "http://127.0.0.1:4632/media/hero-portrait.jpg",
+        "matchCount": 3,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1600,
+        "renderedBox": {
+          "x": 16,
+          "y": 68,
+          "width": 1408,
+          "height": 520
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 1.5644444444444445,
+          "visibleSourceRect": {
+            "x": 0,
+            "y": 633.8068181818182,
+            "width": 900,
+            "height": 332.3863636363636
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 2.707692307692308,
+          "sourceAspect": 0.5625
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1600"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4632/media/hero-portrait.jpg 规范化匹配 /media/hero-portrait.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=1.5644 visible=900.0x332.4"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "pageUrl": "http://127.0.0.1:4632/",
+        "selector": "img[alt=\"hero\"]",
+        "assetRef": "/media/hero-portrait.jpg",
+        "currentSrc": "http://127.0.0.1:4632/media/hero-portrait.jpg",
+        "matchCount": 3,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1600,
+        "renderedBox": {
+          "x": 16,
+          "y": 68,
+          "width": 736,
+          "height": 432
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 0.8177777777777778,
+          "visibleSourceRect": {
+            "x": 0,
+            "y": 535.8695652173914,
+            "width": 900,
+            "height": 528.2608695652174
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 1.7037037037037037,
+          "sourceAspect": 0.5625
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1600"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4632/media/hero-portrait.jpg 规范化匹配 /media/hero-portrait.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=0.8178 visible=900.0x528.3"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "name": "mobile-375",
+          "width": 375,
+          "height": 812
+        },
+        "pageUrl": "http://127.0.0.1:4632/",
+        "selector": "img[alt=\"hero\"]",
+        "assetRef": "/media/hero-portrait.jpg",
+        "currentSrc": "http://127.0.0.1:4632/media/hero-portrait.jpg",
+        "matchCount": 3,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1600,
+        "renderedBox": {
+          "x": 16,
+          "y": 68,
+          "width": 343,
+          "height": 210.9375
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 0.3811111111111111,
+          "visibleSourceRect": {
+            "x": 0,
+            "y": 523.2598396501459,
+            "width": 900,
+            "height": 553.4803206997084
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 1.626074074074074,
+          "sourceAspect": 0.5625
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1600"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4632/media/hero-portrait.jpg 规范化匹配 /media/hero-portrait.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=0.3811 visible=900.0x553.5"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "name": "mobile-390",
+          "width": 390,
+          "height": 844
+        },
+        "pageUrl": "http://127.0.0.1:4632/",
+        "selector": "img[alt=\"hero\"]",
+        "assetRef": "/media/hero-portrait.jpg",
+        "currentSrc": "http://127.0.0.1:4632/media/hero-portrait.jpg",
+        "matchCount": 3,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1600,
+        "renderedBox": {
+          "x": 16,
+          "y": 68,
+          "width": 358,
+          "height": 219.375
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 50%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 0.3977777777777778,
+          "visibleSourceRect": {
+            "x": 0,
+            "y": 524.2493016759777,
+            "width": 900,
+            "height": 551.5013966480446
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 1.631908831908832,
+          "sourceAspect": 0.5625
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1600"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4632/media/hero-portrait.jpg 规范化匹配 /media/hero-portrait.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=0.3978 visible=900.0x551.5"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      }
+    ]
+  },
+  "sha256": "7468f383544dca611fb6c55b9d4ff16e592e0ec596523b90389a0307c204a1b5"
+}
