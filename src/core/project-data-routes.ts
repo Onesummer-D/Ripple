@@ -55,8 +55,13 @@ export function inspectDataRouter(
   // The HTML module entry is the executable root. Neither a conventional
   // filename nor a component named App proves that the project mounts it.
   // The bounded ProjectConfigGraph records explicit index.html module scripts.
+  // `sources` is keyed by project-normalized absolute paths (forward slashes,
+  // see project.ts); entry paths must be normalized the same way before the
+  // lookup, otherwise Windows backslash paths never match and every
+  // data-router proof fail-closes as "entry not statically available".
+  const toSourceKey = (value: string) => path.resolve(value).replaceAll('\\', '/')
   const candidateEntrypoints = configuredEntrypoints
-    .map(entry => [path.resolve(entry), sources.get(path.resolve(entry))] as const)
+    .map(entry => [toSourceKey(entry), sources.get(toSourceKey(entry))] as const)
     .filter((entry): entry is readonly [string, ts.SourceFile] => Boolean(entry[1]))
 
   for (const [absolute, source] of sources) {
