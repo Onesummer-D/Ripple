@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { assertDesktopPreviewViewport, clickDesktopNavTarget } from './applied-preview-navigation'
+import { assertAppliedPreviewInteractable, assertDesktopPreviewViewport, clickDesktopNavTarget, mountAppliedPreviewFrame, unmountAppliedPreviewFrame } from './applied-preview-navigation'
 import { projectPreviewViewports } from '../src/core/project-viewports'
 import { collectRuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { createHash } from 'node:crypto'
@@ -1109,16 +1109,8 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   const appliedPreview = await appliedPreviewResponse.json() as { projectId: string; previewId: string; url: string }
   sourcePreviewProjectId = appliedPreview.projectId
   sourcePreviewId = appliedPreview.previewId
-  await page.evaluate(url => {
-    const frame = document.createElement('iframe')
-    frame.id = 'applied-bolt-preview'
-    frame.title = 'Applied Bolt project'
-    frame.sandbox.add('allow-scripts')
-    frame.style.width = '1280px'
-    frame.style.height = '800px'
-    frame.src = url
-    document.body.append(frame)
-  }, appliedPreview.url)
+  await mountAppliedPreviewFrame(page, appliedPreview.url)
+  await assertAppliedPreviewInteractable(page)
   const appliedFrame = page.frameLocator('#applied-bolt-preview')
   await expect(appliedFrame.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible({ timeout: 90_000 })
   const appliedViewport = await assertDesktopPreviewViewport(appliedFrame)
@@ -1137,6 +1129,7 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   expect(stopPreview.ok()).toBe(true)
   sourcePreviewProjectId = ''
   sourcePreviewId = ''
+  await unmountAppliedPreviewFrame(page)
 
   await page.getByTestId('rollback-candidate').click()
   await expect(page.getByTestId('candidate-workflow')).toContainText('rolled-back')
