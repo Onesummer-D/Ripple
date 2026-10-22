@@ -30,6 +30,13 @@ export interface DomElementGeometry {
   /** Area left by overflow hidden/clip ancestors only (content outside is cut off, not scrollable); an axis that only scrolls spans ±1e6 CSS px; null when none or unknown. */
   hiddenClipRect: CssRect | null
   visible: boolean | null
+  /**
+   * Collection-time identity reasons carried over from the runtime annotation
+   * (C+D `RuntimeIdentityReason` vocabulary). Null until the sampler wires
+   * them in. Any C+D blocking reason makes the element ineligible for
+   * instance-candidate pairing.
+   */
+  identityReasons: string[] | null
 }
 
 export interface DomGeometrySample {
@@ -49,6 +56,12 @@ export interface DomGeometrySample {
   documentSize: CssSize | null
   /** SHA-256 of the screenshot taken together with this sample; binds the two. */
   screenshotSha256: string | null
+  /**
+   * SHA-256 of the served source file this sample's annotations were collected
+   * from (C+D `sourceVersion` semantics). Null until the sampler wires it in;
+   * pairing treats a null as "version evidence unavailable", never as a match.
+   */
+  sourceVersion: string | null
   elements: DomElementGeometry[]
 }
 
@@ -93,6 +106,9 @@ export function parseDomGeometrySample(value: unknown, side: VisualSide, limits:
   const screenshotSha256 = value.screenshotSha256 === undefined || value.screenshotSha256 === null ? null
     : typeof value.screenshotSha256 === 'string' && /^[a-f0-9]{64}$/.test(value.screenshotSha256) ? value.screenshotSha256 : undefined
   if (screenshotSha256 === undefined) return fail('Geometry sample screenshotSha256 is invalid.')
+  const sourceVersion = value.sourceVersion === undefined || value.sourceVersion === null ? null
+    : typeof value.sourceVersion === 'string' && /^[a-f0-9]{64}$/.test(value.sourceVersion) ? value.sourceVersion : undefined
+  if (sourceVersion === undefined) return fail('Geometry sample sourceVersion is invalid.')
   if (!Array.isArray(value.elements)) return fail('Geometry sample elements must be an array.')
   if (value.elements.length > limits.maxElements) return fail(`Geometry sample has ${value.elements.length} elements; the limit is ${limits.maxElements}.`)
   const elements: DomElementGeometry[] = []
@@ -114,8 +130,15 @@ export function parseDomGeometrySample(value: unknown, side: VisualSide, limits:
     const hiddenClipRect = raw.hiddenClipRect === undefined || raw.hiddenClipRect === null ? null : cssRect(raw.hiddenClipRect)
     if (raw.hiddenClipRect !== undefined && raw.hiddenClipRect !== null && !hiddenClipRect) return fail(`Element ${raw.id} has an invalid hiddenClipRect.`)
     if (raw.visible !== undefined && raw.visible !== null && typeof raw.visible !== 'boolean') return fail(`Element ${raw.id} has an invalid visible flag.`)
+    let identityReasons: string[] | null = null
+    if (raw.identityReasons !== undefined && raw.identityReasons !== null) {
+      if (!Array.isArray(raw.identityReasons) || raw.identityReasons.length > 8 || raw.identityReasons.some(reason => typeof reason !== 'string' || !reason || reason.length > 64)) {
+        return fail(`Element ${raw.id} has invalid identityReasons.`)
+      }
+      identityReasons = [...raw.identityReasons] as string[]
+    }
     ids.add(raw.id)
-    elements.push({ id: raw.id, parentId, sourceRef, runtimeInstanceId, identityCertainty, rect, clipRect, hiddenClipRect, visible: typeof raw.visible === 'boolean' ? raw.visible : null })
+    elements.push({ id: raw.id, parentId, sourceRef, runtimeInstanceId, identityCertainty, rect, clipRect, hiddenClipRect, visible: typeof raw.visible === 'boolean' ? raw.visible : null, identityReasons })
   }
   const parents = new Map(elements.map(element => [element.id, element.parentId]))
   for (const element of elements) {
@@ -131,7 +154,7 @@ export function parseDomGeometrySample(value: unknown, side: VisualSide, limits:
       schema: DOM_GEOMETRY_SCHEMA, side, route, locationSuffixSha256,
       viewport: { width: value.viewport.width as number, height: value.viewport.height as number },
       devicePixelRatio: value.devicePixelRatio, interactionState: value.interactionState, coordinateSpace: value.coordinateSpace,
-      scroll: { x: value.scroll.x, y: value.scroll.y }, documentSize, screenshotSha256, elements,
+      scroll: { x: value.scroll.x as number, y: value.scroll.y as number }, documentSize, screenshotSha256, sourceVersion, elements,
     },
   }
 }
@@ -305,28 +328,65 @@ export const sourceFileFromSourceRef = (sourceRef: string | null): string | null
   return match ? match[1] : null
 }
 
-export type CrossVersionProof = 'instance-proven' | 'source-file-proven' | 'unproven'
+export type CrossVersionProof = 'instance-candidate' | 'same-sourceRef-observed' | 'unproven'
+
+/**
+ * Inputs that C+D's strict instance proof (PR #28 `resolveRuntimeElement`)
+ * requires but this pairing cannot evaluate. `strictInstanceProofAvailable`
+ * stays false while any of these is listed; consumers must not present the
+ * pairing as instance-level proof.
+ */
+export type CrossVersionMissingEvidence = 'source-version' | 'page-context' | 'collection-reasons' | 'graph-membership'
+
+export interface CrossVersionPairingScope {
+  /**
+   * What this pairing IS: candidate pairing supported by the runtime
+   * annotation only. It is explicitly NOT the C+D full identity assessment
+   * (sourceVersion / pageContext / collection reasons / graph membership).
+   */
+  level: 'annotation-pairing'
+  /** True only when missingEvidence is empty AND a C+D-grade assessment ran. */
+  strictInstanceProofAvailable: boolean
+  missingEvidence: CrossVersionMissingEvidence[]
+}
 
 export interface CrossVersionPair {
   baseline: DomElementGeometry
   candidate: DomElementGeometry
   proof: CrossVersionProof
-  /** Deterministic downgrade facts; empty only for an instance-proven pair. */
+  /** Deterministic downgrade facts; empty only for an instance-candidate pair. */
   reasons: string[]
   sourceRef: { baseline: string | null; candidate: string | null }
   runtimeInstanceId: string | null
 }
 
 export interface CrossVersionPairing {
-  /** Same stable runtime instance id on both sides, from the same source file. */
-  instanceProven: CrossVersionPair[]
-  /** Identical sourceRef (exact, including offset) without an instance proof. */
-  sourceFileProven: CrossVersionPair[]
+  /** What kind of pairing this is and which strict-proof inputs are missing. */
+  scope: CrossVersionPairingScope
+  /**
+   * Same stable runtime instance id on both sides, each exactly once, both
+   * certainties stable, same source file, same page context and no version
+   * clash. A CROSS-VERSION CANDIDATE only — the annotation supports the
+   * pairing; it is not a C+D instance identity proof.
+   */
+  instanceCandidate: CrossVersionPair[]
+  /**
+   * Identical sourceRef string observed on both sides, without instance
+   * evidence. String equality only: after an offset shift the same
+   * `jsx:<file>#<offset>` can name a DIFFERENT JSX node, so this never
+   * claims "same source element proven".
+   */
+  sameSourceRefObserved: CrossVersionPair[]
   /** Paired by an ambiguous rule or downgraded; never stronger than the facts. */
   unproven: CrossVersionPair[]
   baselineOnly: DomElementGeometry[]
   candidateOnly: DomElementGeometry[]
 }
+
+/** C+D blocking reasons: an element carrying any of these has no usable unique instance identity. */
+const BLOCKING_IDENTITY_REASONS: readonly string[] = [
+  'invalid-certainty', 'unmapped-owner', 'instance-unavailable', 'duplicate-runtime-instance', 'route-namespace-stale', 'react-keys-unavailable',
+]
 
 const UNSTABLE_REASON: Record<IdentityCertainty, string | null> = {
   'stable-keyed-instance': null,
@@ -340,15 +400,25 @@ const UNSTABLE_REASON: Record<IdentityCertainty, string | null> = {
  * Pairs baseline and candidate elements across the two source versions.
  *
  * Proof ladder (never skipped, never guessed):
- * - `instance-proven`: both sides carry the same `runtimeInstanceId`, each
- *   exactly once per side, both certainties stable, and both sourceRefs parse
- *   to the same source file. The instance id is the cross-version anchor; the
- *   file check pins it to the edited source rather than a reused id.
- * - `source-file-proven`: exact `sourceRef` equality (same file AND offset),
- *   without the instance evidence above.
+ * - `instance-candidate`: both sides carry the same `runtimeInstanceId`, each
+ *   exactly once per side, both certainties stable, both sourceRefs parse to
+ *   the same source file, both samples share route/location suffix, the
+ *   declared sourceVersions do not clash, and neither element carries a C+D
+ *   blocking identity reason. This is the strongest level the runtime
+ *   annotation alone can support; it remains a CANDIDATE until C+D-grade
+ *   version/page-context/reason evidence is wired in (see pairing.scope).
+ * - `same-sourceRef-observed`: exact `sourceRef` string equality (same file
+ *   AND offset) without the instance evidence above. Offset drift means the
+ *   string can label a different JSX node in the other version, so the level
+ *   is observation, not provenance.
  * - `unproven`: everything else that still pairs (duplicated instance ids,
- *   unstable certainty, different source file) — recorded with its reasons.
+ *   unstable certainty, different source file, page-context or version clash)
+ *   — recorded with its reasons.
  * - Elements that pair with nothing are reported per side, not dropped.
+ *
+ * Elements without a runtime instance id pair by exact sourceRef equality
+ * ONLY when each side has exactly one such element; with several, array order
+ * is never used to infer a correspondence (that would be position inference).
  */
 export function pairCrossVersionElements(baseline: DomGeometrySample, candidate: DomGeometrySample): CrossVersionPairing {
   const usable = (element: DomElementGeometry) => element.sourceRef !== null && element.identityCertainty !== null && element.identityCertainty !== 'unmapped'
@@ -360,13 +430,34 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
     }
     return groups
   }
+  // Sample-level deterministic facts. Route + location suffix are the
+  // page-context subset E actually collects; a mismatch proves the two
+  // samples describe different pages. sourceVersion is the served-file
+  // sha256: both sides declaring it MUST agree, and a missing declaration is
+  // "version evidence unavailable", never a match.
+  const samePageContext = baseline.route === candidate.route && baseline.locationSuffixSha256 === candidate.locationSuffixSha256
+  const versionClash = baseline.sourceVersion !== null && candidate.sourceVersion !== null && baseline.sourceVersion !== candidate.sourceVersion
+  const missingEvidence: CrossVersionMissingEvidence[] = []
+  if (baseline.sourceVersion === null || candidate.sourceVersion === null) missingEvidence.push('source-version')
+  // Route/suffix are collected, but C+D's full RuntimePageContext (pathname
+  // namespace, route identity) is not — the strict proof input stays missing.
+  missingEvidence.push('page-context', 'collection-reasons', 'graph-membership')
   const consumedBaseline = new Set<string>(), consumedCandidate = new Set<string>()
-  const instanceProven: CrossVersionPair[] = [], sourceFileProven: CrossVersionPair[] = [], unproven: CrossVersionPair[] = []
+  const instanceCandidate: CrossVersionPair[] = [], sameSourceRefObserved: CrossVersionPair[] = [], unproven: CrossVersionPair[] = []
   const pair = (b: DomElementGeometry, c: DomElementGeometry, proof: CrossVersionProof, reasons: string[]): CrossVersionPair => ({
     baseline: b, candidate: c, proof, reasons,
     sourceRef: { baseline: b.sourceRef, candidate: c.sourceRef },
     runtimeInstanceId: b.runtimeInstanceId && b.runtimeInstanceId === c.runtimeInstanceId ? b.runtimeInstanceId : null,
   })
+  /** Facts that block or downgrade any pairing involving these two elements. */
+  const sharedBlockers = (b: DomElementGeometry, c: DomElementGeometry): string[] => {
+    const reasons: string[] = []
+    if (!samePageContext && !reasons.includes('different-page-context')) reasons.push('different-page-context')
+    if (versionClash && !reasons.includes('source-version-mismatch')) reasons.push('source-version-mismatch')
+    const blocking = [...(b.identityReasons ?? []), ...(c.identityReasons ?? [])].filter(reason => BLOCKING_IDENTITY_REASONS.includes(reason))
+    if (blocking.length && !reasons.includes('blocking-identity-reason')) reasons.push('blocking-identity-reason')
+    return reasons
+  }
 
   const bGroups = byInstance(baseline), cGroups = byInstance(candidate)
   for (const id of [...new Set([...bGroups.keys(), ...cGroups.keys()])].sort()) {
@@ -384,7 +475,7 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
     const b = left[0], c = right[0]
     consumedBaseline.add(b.id); consumedCandidate.add(c.id)
     const bFile = sourceFileFromSourceRef(b.sourceRef), cFile = sourceFileFromSourceRef(c.sourceRef)
-    const reasons: string[] = []
+    const reasons = sharedBlockers(b, c)
     if (!STABLE.has(b.identityCertainty!) || !STABLE.has(c.identityCertainty!)) {
       const reason = UNSTABLE_REASON[b.identityCertainty!] ?? UNSTABLE_REASON[c.identityCertainty!]!
       if (reason && !reasons.includes(reason)) reasons.push(reason)
@@ -393,19 +484,25 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
     }
     if (bFile === null || cFile === null) reasons.push('source-not-in-graph')
     else if (bFile !== cFile) reasons.push('different-source-file')
+    // A page-context or version CLASH actively contradicts the observation, so
+    // it lands at unproven even when the sourceRef strings are identical.
+    // Other downgrades with identical strings stay at observation level.
+    const contradicted = reasons.includes('different-page-context') || reasons.includes('source-version-mismatch')
     if (!reasons.length) {
-      instanceProven.push(pair(b, c, 'instance-proven', []))
-    } else if (b.sourceRef === c.sourceRef) {
-      // Same file AND offset is source-level evidence, but it cannot upgrade an
+      instanceCandidate.push(pair(b, c, 'instance-candidate', []))
+    } else if (b.sourceRef === c.sourceRef && !contradicted) {
+      // Same file AND offset is an observation, but it cannot upgrade an
       // unstable or duplicated identity to instance level.
-      sourceFileProven.push(pair(b, c, 'source-file-proven', reasons))
+      sameSourceRefObserved.push(pair(b, c, 'same-sourceRef-observed', reasons))
     } else {
       unproven.push(pair(b, c, 'unproven', reasons))
     }
   }
 
   // Remaining elements without a runtime instance id: only exact sourceRef
-  // equality pairs them, and only at source level.
+  // equality pairs them, only at observation level, and only when each side
+  // has exactly one such element — with several, array order must not be used
+  // to infer a per-element correspondence.
   const exactOnly = (sample: DomGeometrySample, consumed: Set<string>) => {
     const byRef = new Map<string, DomElementGeometry[]>()
     for (const element of sample.elements) {
@@ -418,16 +515,19 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   const bRefGroups = exactOnly(baseline, consumedBaseline), cRefGroups = exactOnly(candidate, consumedCandidate)
   for (const ref of [...new Set([...bRefGroups.keys(), ...cRefGroups.keys()])].sort()) {
     const left = bRefGroups.get(ref) ?? [], right = cRefGroups.get(ref) ?? []
-    const count = Math.min(left.length, right.length)
-    for (let i = 0; i < count; i++) {
-      consumedBaseline.add(left[i].id); consumedCandidate.add(right[i].id)
-      sourceFileProven.push(pair(left[i], right[i], 'source-file-proven', []))
-    }
+    if (left.length !== 1 || right.length !== 1) continue
+    const b = left[0], c = right[0]
+    consumedBaseline.add(b.id); consumedCandidate.add(c.id)
+    const reasons = sharedBlockers(b, c)
+    const contradicted = reasons.includes('different-page-context') || reasons.includes('source-version-mismatch')
+    if (contradicted) unproven.push(pair(b, c, 'unproven', reasons))
+    else sameSourceRefObserved.push(pair(b, c, 'same-sourceRef-observed', reasons))
   }
 
   const rest = (sample: DomGeometrySample, consumed: Set<string>) => sample.elements.filter(element => usable(element) && !consumed.has(element.id))
   return {
-    instanceProven, sourceFileProven, unproven,
+    scope: { level: 'annotation-pairing', strictInstanceProofAvailable: missingEvidence.length === 0, missingEvidence },
+    instanceCandidate, sameSourceRefObserved, unproven,
     baselineOnly: rest(baseline, consumedBaseline),
     candidateOnly: rest(candidate, consumedCandidate),
   }

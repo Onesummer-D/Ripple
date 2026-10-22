@@ -161,8 +161,16 @@ Receipt 合同与审批门控零改动。
    `scripts/docker-host-attach.mjs`（宿主侧分析+语义锁定）。
    **待验收**：F 工作台消费 UI。C+D sourceRef 与
    `targetBindings.sourceRefs` 的双侧精确对齐已实施（
-   `docs/architecture/source-ref-dual-alignment.md`，证明阶梯 +
-   8 个对照场景，`src/core/visual-dual-targets.test.ts` 12 例）。
+   `docs/architecture/source-ref-dual-alignment.md`，弱语义配对等级
+   instance-candidate → same-sourceRef-observed → unproven +
+   `scope` 严格证明声明，`src/core/visual-dual-targets.test.ts`
+   20 例）。配对为运行时标注支持的**候选配对**，不是 C+D 严格实例
+   证明；sampler 采集扩展合同见
+   `docs/architecture/visual-sampler-identity-rfc.md`（E 自有字段与
+   守卫已实现，C+D/A 协同项为 RFC）；F 消费字段映射与文案见
+   `docs/architecture/visual-evidence-f-consumption.md`。跨版本配对
+   **不参与**几何风险规则（遮挡/溢出/位移仍以同版本精确匹配为输入），
+   升级属 A 总集成合同。
 
    **Docker 验收的诚实边界（2026-10-23 加固）**。本次验收证明的是
    "采集→宿主分析"链路与保守语义在真实 Linux/Chromium 容器内的

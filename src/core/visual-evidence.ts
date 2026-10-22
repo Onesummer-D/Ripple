@@ -197,19 +197,25 @@ export interface GeometryReport {
   }
   /**
    * Present only in dual mode: the deterministic cross-version element pairing
-   * (proof ladder instance-proven → source-file-proven → unproven). Never
-   * inferred from text, position or asset URLs.
+   * (proof ladder instance-candidate → same-sourceRef-observed → unproven).
+   * Never inferred from text, position or asset URLs, and never a C+D strict
+   * instance proof: scope says which strict-proof inputs are missing.
    */
   crossVersion?: {
-    instanceProven: number
-    sourceFileProven: number
+    scope: {
+      level: 'annotation-pairing'
+      strictInstanceProofAvailable: boolean
+      missingEvidence: string[]
+    }
+    instanceCandidate: number
+    sameSourceRefObserved: number
     unproven: number
     baselineOnly: number
     candidateOnly: number
     pairs: Array<{
       sourceRef: { baseline: string | null; candidate: string | null }
       runtimeInstanceId: string | null
-      proof: 'instance-proven' | 'source-file-proven' | 'unproven'
+      proof: 'instance-candidate' | 'same-sourceRef-observed' | 'unproven'
       reasons: string[]
     }>
   }
@@ -356,7 +362,7 @@ function parseGeometryOnce(raw: unknown, side: VisualSide, limits: GeometryLimit
   if (raw === undefined || raw === null) return { digest: null, result: null }
   try {
     const result = parseDomGeometrySample(raw, side, limits)
-    return { digest: sha256Hex(result.ok ? JSON.stringify(result.sample) : `rejected:${result.detail}`), result }
+    return { digest: sha256Hex(result.ok ? digestSampleJson(result.sample) : `rejected:${result.detail}`), result }
   } catch (error) {
     // Keep both historical strings byte-identical: the id digest used the raw
     // message, the side report prefixed it.
@@ -365,6 +371,23 @@ function parseGeometryOnce(raw: unknown, side: VisualSide, limits: GeometryLimit
       result: { ok: false, detail: `Geometry sample could not be read: ${String((error as Error)?.message ?? error).slice(0, 200)}` },
     }
   }
+}
+
+/**
+ * Canonical JSON for the evidence id digest. The additive identity fields
+ * (`sourceVersion`, element `identityReasons`) are omitted from the
+ * serialization when they carry no data, so samples collected before those
+ * fields existed keep their historical digest byte-for-byte; once a field is
+ * populated the digest naturally changes, which is the desired hash-binding
+ * behavior for new information.
+ */
+function digestSampleJson(sample: DomGeometrySample): string {
+  const stripElement = ({ identityReasons: _omit, ...element }: DomGeometrySample['elements'][number]) => element
+  if (sample.sourceVersion === null && sample.elements.every(element => element.identityReasons === null)) {
+    const { sourceVersion: _omit, ...rest } = sample
+    return JSON.stringify({ ...rest, elements: rest.elements.map(stripElement) })
+  }
+  return JSON.stringify({ ...sample, elements: sample.elements.map(stripElement) })
 }
 
 function resolveParameters(input: VisualComparisonRequest['parameters']): VisualDiffParameters {
@@ -833,10 +856,11 @@ function analyseGeometry(
     // and which stay unproven (never upgraded from text/position/URL).
     if (dual) {
       const pairing = pairCrossVersionElements(bGeo.accepted.sample, cGeo.accepted.sample)
-      const pairs = cap([...pairing.instanceProven, ...pairing.sourceFileProven, ...pairing.unproven], limit)
+      const pairs = cap([...pairing.instanceCandidate, ...pairing.sameSourceRefObserved, ...pairing.unproven], limit)
       report.crossVersion = {
-        instanceProven: pairing.instanceProven.length,
-        sourceFileProven: pairing.sourceFileProven.length,
+        scope: pairing.scope,
+        instanceCandidate: pairing.instanceCandidate.length,
+        sameSourceRefObserved: pairing.sameSourceRefObserved.length,
         unproven: pairing.unproven.length,
         baselineOnly: pairing.baselineOnly.length,
         candidateOnly: pairing.candidateOnly.length,

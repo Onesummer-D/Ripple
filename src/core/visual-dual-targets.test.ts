@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { normalizeVisualCaptureDescriptor } from './visual-capture'
 import { DOM_GEOMETRY_SCHEMA, pairCrossVersionElements, parseDomGeometrySample, sourceFileFromSourceRef, type DomGeometrySample } from './visual-geometry'
 import { analyzeVisualDifference } from './visual-evidence'
+import { toVisualEvidenceView } from './visual-evidence-view'
 import { encodePng, sha256Hex } from './visual-png'
 
 type Element = Record<string, unknown>
@@ -38,24 +39,29 @@ describe('cross-version pairing proof ladder', () => {
     expect(sourceFileFromSourceRef(null)).toBeNull()
   })
 
-  it('首页标题修改后 JSX 位置偏移: same file + stable instance id pairs at instance level', () => {
+  it('首页标题修改后 JSX 位置偏移: same file + stable instance id pairs at instance-candidate level', () => {
     const baseline = sample('baseline', [el('h1', 'jsx:src/App.tsx#100', [4, 4, 50, 12])])
     const candidate = sample('candidate', [el('h1', 'jsx:src/App.tsx#156', [4, 4, 50, 12])])
     const pairing = pairCrossVersionElements(baseline, candidate)
-    expect(pairing.instanceProven).toHaveLength(1)
-    expect(pairing.instanceProven[0].reasons).toEqual([])
-    expect(pairing.instanceProven[0].sourceRef).toEqual({ baseline: 'jsx:src/App.tsx#100', candidate: 'jsx:src/App.tsx#156' })
-    expect(pairing.sourceFileProven).toHaveLength(0)
+    expect(pairing.instanceCandidate).toHaveLength(1)
+    expect(pairing.instanceCandidate[0].reasons).toEqual([])
+    expect(pairing.instanceCandidate[0].sourceRef).toEqual({ baseline: 'jsx:src/App.tsx#100', candidate: 'jsx:src/App.tsx#156' })
+    expect(pairing.sameSourceRefObserved).toHaveLength(0)
     expect(pairing.unproven).toHaveLength(0)
     expect(pairing.baselineOnly).toHaveLength(0)
     expect(pairing.candidateOnly).toHaveLength(0)
+    // A candidate pairing is NOT a C+D strict instance proof: the scope says
+    // which strict-proof inputs are missing, and they are missing here.
+    expect(pairing.scope.level).toBe('annotation-pairing')
+    expect(pairing.scope.strictInstanceProofAvailable).toBe(false)
+    expect(pairing.scope.missingEvidence).toEqual(['source-version', 'page-context', 'collection-reasons', 'graph-membership'])
   })
 
   it('共享 Footer 两页消费: a duplicated instance id pairs at nothing', () => {
     const baseline = sample('baseline', [el('f1', 'jsx:src/Footer.tsx#8', [0, 30, 60, 10], { runtimeInstanceId: '/:footer' }), el('f2', 'jsx:src/Footer.tsx#8', [0, 0, 60, 10], { runtimeInstanceId: '/:footer' })])
     const candidate = sample('candidate', [el('f1', 'jsx:src/Footer.tsx#8', [0, 30, 60, 10], { runtimeInstanceId: '/:footer' }), el('f2', 'jsx:src/Footer.tsx#8', [0, 0, 60, 10], { runtimeInstanceId: '/:footer' })])
     const pairing = pairCrossVersionElements(baseline, candidate)
-    expect(pairing.instanceProven).toHaveLength(0)
+    expect(pairing.instanceCandidate).toHaveLength(0)
     expect(pairing.unproven.every(pair => pair.reasons.includes('duplicate-runtime-instance'))).toBe(true)
     expect(pairing.unproven.length).toBe(4)
   })
@@ -64,29 +70,29 @@ describe('cross-version pairing proof ladder', () => {
     const baseline = sample('baseline', [el('a', 'jsx:src/App.tsx#40', [0, 0, 20, 10], { runtimeInstanceId: '/:a' })])
     const candidate = sample('candidate', [el('b', 'jsx:src/App.tsx#40', [0, 0, 20, 10], { runtimeInstanceId: '/:b' })])
     const pairing = pairCrossVersionElements(baseline, candidate)
-    expect(pairing.instanceProven).toHaveLength(0)
-    expect(pairing.sourceFileProven).toHaveLength(0)
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.sameSourceRefObserved).toHaveLength(0)
     expect(pairing.unproven).toHaveLength(0)
     expect(pairing.baselineOnly).toHaveLength(1)
     expect(pairing.candidateOnly).toHaveLength(1)
   })
 
-  it('RouterProvider 下实例身份 unknown: never stronger than source-file proof', () => {
+  it('RouterProvider 下实例身份 unknown: never stronger than source-level observation', () => {
     const baseline = sample('baseline', [el('r', 'jsx:src/App.tsx#64', [0, 0, 30, 10], { identityCertainty: 'unknown' })])
     const candidate = sample('candidate', [el('r', 'jsx:src/App.tsx#64', [0, 0, 30, 10], { identityCertainty: 'unknown' })])
     const pairing = pairCrossVersionElements(baseline, candidate)
-    expect(pairing.instanceProven).toHaveLength(0)
-    // Same sourceRef is source-level evidence; the unstable identity is recorded.
-    expect(pairing.sourceFileProven).toHaveLength(1)
-    expect(pairing.sourceFileProven[0].reasons).toContain('identity-not-stable')
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    // Same sourceRef string is an observation only; the unstable identity is recorded.
+    expect(pairing.sameSourceRefObserved).toHaveLength(1)
+    expect(pairing.sameSourceRefObserved[0].reasons).toContain('identity-not-stable')
   })
 
   it('baseline/candidate 来源不一致: same instance id from different files is unproven', () => {
     const baseline = sample('baseline', [el('x', 'jsx:src/A.tsx#10', [0, 0, 20, 10])])
     const candidate = sample('candidate', [el('x', 'jsx:src/B.tsx#10', [0, 0, 20, 10])])
     const pairing = pairCrossVersionElements(baseline, candidate)
-    expect(pairing.instanceProven).toHaveLength(0)
-    expect(pairing.sourceFileProven).toHaveLength(0)
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.sameSourceRefObserved).toHaveLength(0)
     expect(pairing.unproven).toHaveLength(1)
     expect(pairing.unproven[0].reasons).toContain('different-source-file')
   })
@@ -95,9 +101,9 @@ describe('cross-version pairing proof ladder', () => {
     const baseline = sample('baseline', [el('p', 'jsx:src/List.tsx#22', [0, 0, 20, 10], { identityCertainty: 'position-dependent' })])
     const candidate = sample('candidate', [el('p', 'jsx:src/List.tsx#22', [0, 0, 20, 10], { identityCertainty: 'position-dependent' })])
     const pairing = pairCrossVersionElements(baseline, candidate)
-    expect(pairing.instanceProven).toHaveLength(0)
-    expect(pairing.sourceFileProven).toHaveLength(1)
-    expect(pairing.sourceFileProven[0].reasons).toContain('position-dependent-identity')
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.sameSourceRefObserved).toHaveLength(1)
+    expect(pairing.sameSourceRefObserved[0].reasons).toContain('position-dependent-identity')
   })
 })
 
@@ -119,7 +125,7 @@ const rgba = (width: number, height: number, paint: (x: number, y: number) => [n
   return bytes
 }
 
-function sideInput(kind: 'baseline' | 'candidate', elements: Element[], pngBytes: Uint8Array) {
+function sideInput(kind: 'baseline' | 'candidate', elements: Element[], pngBytes: Uint8Array, sampleExtra: Record<string, unknown> = {}) {
   const sha256 = sha256Hex(pngBytes)
   const descriptor = normalizeVisualCaptureDescriptor({
     side: kind, route: '/', viewport: { width: 60, height: 40 }, devicePixelRatio: 1, interactionState: 'rendered',
@@ -127,7 +133,7 @@ function sideInput(kind: 'baseline' | 'candidate', elements: Element[], pngBytes
     capture: { completed: true, stable: true, fullPage: true, scroll: { x: 0, y: 0 } },
     screenshot: { declaredSha256: sha256 },
   }, kind).descriptor
-  const geometry = { ...rawSample(kind, elements, { screenshotSha256: sha256 }), elements }
+  const geometry = { ...rawSample(kind, elements, { screenshotSha256: sha256, ...sampleExtra }), elements }
   return { descriptor, screenshot: pngBytes, geometry }
 }
 
@@ -157,7 +163,8 @@ describe('dual targets in analysis', () => {
     expect(dual.evidence.geometry?.target.status).toBe('mapped')
     expect(dual.evidence.geometry?.target.dual?.baseline.missingRefs).toEqual([])
     expect(dual.evidence.geometry?.target.dual?.candidate.missingRefs).toEqual([])
-    expect(dual.evidence.geometry?.crossVersion?.instanceProven).toBe(2)
+    expect(dual.evidence.geometry?.crossVersion?.instanceCandidate).toBe(2)
+    expect(dual.evidence.geometry?.crossVersion?.scope.strictInstanceProofAvailable).toBe(false)
     expect(dual.evidence.geometry?.crossVersion?.baselineOnly).toBe(0)
     expect(dual.evidence.geometry?.matching?.matched).toBe(1) // legacy exact-ref matching still sees the footer only
     const region = dual.evidence.observation?.regions[0]
@@ -223,8 +230,140 @@ describe('dual targets in analysis', () => {
       baseline, candidate, diffArtifactPath: 'dual-footer/diff.png',
     })
     const cross = outcome.evidence.geometry?.crossVersion
-    expect(cross?.instanceProven).toBe(1)
+    expect(cross?.instanceCandidate).toBe(1)
     expect(cross?.unproven).toBe(4)
+    expect(cross?.scope.strictInstanceProofAvailable).toBe(false)
     expect(cross?.pairs.filter(pair => pair.proof === 'unproven').every(pair => pair.reasons.includes('duplicate-runtime-instance'))).toBe(true)
+  })
+})
+
+// --- P1 negative cases: strict-proof downgrades --------------------------------
+//
+// These pin the review-mandated counter-examples. They assert the VISIBLE
+// proof level of the final evidence / view model wherever the scenario can be
+// driven end-to-end — never only the internal pairing arrays.
+
+describe('P1 negative cases: strict-proof downgrades', () => {
+  const V1 = '1'.repeat(64)
+  const V2 = '2'.repeat(64)
+
+  it('反例1 两侧 sourceRef 相同但源码版本不同: offset 漂移可指向不同 JSX 节点，不高于 unproven', () => {
+    // Same ref string, different served-file versions: the string observation
+    // cannot be read as "same source element" — C+D would refuse the stale
+    // identity outright (resolveRuntimeElement version check).
+    const baseline = sample('baseline', [el('x', 'jsx:src/App.tsx#120', [0, 0, 20, 10], { runtimeInstanceId: null })], null)
+    const candidate = sample('candidate', [el('y', 'jsx:src/App.tsx#120', [0, 0, 20, 10], { runtimeInstanceId: null })], null)
+    const withVersions = (s: DomGeometrySample, v: string): DomGeometrySample => ({ ...s, sourceVersion: v })
+    const pairing = pairCrossVersionElements(withVersions(baseline, V1), withVersions(candidate, V2))
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.sameSourceRefObserved).toHaveLength(0)
+    expect(pairing.unproven).toHaveLength(1)
+    expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
+    // Both sides DID declare a version, so the scope must not list it as missing.
+    expect(pairing.scope.missingEvidence).not.toContain('source-version')
+    expect(pairing.scope.strictInstanceProofAvailable).toBe(false)
+  })
+
+  it('反例2 runtimeInstanceId 相同但 pageContext 不同: 禁止实例候选配对', () => {
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const onAbout = sample('candidate', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const candidate: DomGeometrySample = { ...onAbout, route: '/about' }
+    const pairing = pairCrossVersionElements(baseline, candidate)
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.unproven).toHaveLength(1)
+    expect(pairing.unproven[0].reasons).toContain('different-page-context')
+  })
+
+  it('反例3 runtimeInstanceId 相同但 sourceVersion 已失效: 实例路径同样拒绝', () => {
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const candidateRaw = sample('candidate', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const pairing = pairCrossVersionElements({ ...baseline, sourceVersion: V1 }, { ...candidateRaw, sourceVersion: V2 })
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.unproven).toHaveLength(1)
+    expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
+  })
+
+  it('反例4 同一 sourceRef 多次渲染且无稳定实例身份: 不配对', () => {
+    const baseline = sample('baseline', [
+      el('a', 'jsx:src/Item.tsx#5', [0, 0, 20, 10], { runtimeInstanceId: null, identityCertainty: 'unknown' }),
+      el('b', 'jsx:src/Item.tsx#5', [0, 12, 20, 10], { runtimeInstanceId: null, identityCertainty: 'unknown' }),
+    ])
+    const candidate = sample('candidate', [
+      el('c', 'jsx:src/Item.tsx#5', [0, 0, 20, 10], { runtimeInstanceId: null, identityCertainty: 'unknown' }),
+      el('d', 'jsx:src/Item.tsx#5', [0, 12, 20, 10], { runtimeInstanceId: null, identityCertainty: 'unknown' }),
+    ])
+    const pairing = pairCrossVersionElements(baseline, candidate)
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.sameSourceRefObserved).toHaveLength(0)
+    expect(pairing.unproven).toHaveLength(0)
+    expect(pairing.baselineOnly).toHaveLength(2)
+    expect(pairing.candidateOnly).toHaveLength(2)
+  })
+
+  it('反例5 多个无实例 ID 元素同 sourceRef: 禁止按数组顺序推定逐元素对应', () => {
+    // Stable certainty but no instance ids, deliberately listed in an order
+    // that would "line up" by position — array order must NOT be used.
+    const baseline = sample('baseline', [
+      el('a', 'jsx:src/Row.tsx#7', [0, 0, 30, 8], { runtimeInstanceId: null }),
+      el('b', 'jsx:src/Row.tsx#7', [0, 10, 30, 8], { runtimeInstanceId: null }),
+    ])
+    const candidate = sample('candidate', [
+      el('c', 'jsx:src/Row.tsx#7', [0, 10, 30, 8], { runtimeInstanceId: null }),
+      el('d', 'jsx:src/Row.tsx#7', [0, 0, 30, 8], { runtimeInstanceId: null }),
+    ])
+    const pairing = pairCrossVersionElements(baseline, candidate)
+    expect(pairing.sameSourceRefObserved).toHaveLength(0)
+    expect(pairing.baselineOnly).toHaveLength(2)
+    expect(pairing.candidateOnly).toHaveLength(2)
+  })
+
+  it('反例6 采集期 blocking reasons 存在时: 不允许实例候选，只记观察', () => {
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h', identityReasons: ['route-namespace-stale'] })])
+    const candidate = sample('candidate', [el('h', 'jsx:src/App.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const pairing = pairCrossVersionElements(baseline, candidate)
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.sameSourceRefObserved).toHaveLength(1)
+    expect(pairing.sameSourceRefObserved[0].reasons).toContain('blocking-identity-reason')
+  })
+
+  it('反例7 RouterProvider unknown 端到端: ViewModel 不得呈现实例级已证明', () => {
+    const unknown = (id: string): Element => el(id, 'jsx:src/App.tsx#64', [4, 4, 50, 20], { identityCertainty: 'unknown' })
+    const baseline = sideInput('baseline', [unknown('r')], baselinePng())
+    const candidate = sideInput('candidate', [unknown('r')], candidatePngInTarget())
+    const outcome = analyzeVisualDifference({
+      checkId: 'dual-router-unknown', subject: IDENTITY, expected: IDENTITY,
+      targets: { sourceRefs: ['jsx:src/App.tsx#64'], dual: { baseline: ['jsx:src/App.tsx#64'], candidate: ['jsx:src/App.tsx#64'] } },
+      baseline, candidate, diffArtifactPath: 'dual-router-unknown/diff.png',
+    })
+    const view = toVisualEvidenceView(outcome.evidence)
+    expect(view.crossVersion).toBeDefined()
+    expect(view.crossVersion!.scope.level).toBe('annotation-pairing')
+    expect(view.crossVersion!.scope.strictInstanceProofAvailable).toBe(false)
+    expect(view.crossVersion!.pairs.every(pair => pair.proof !== 'instance-candidate')).toBe(true)
+    expect(view.crossVersion!.pairs[0].proof).toBe('same-sourceRef-observed')
+    expect(view.crossVersion!.pairs[0].proofLabel).toContain('仅观察到相同 sourceRef')
+    // 像素变化可展示，但不得归属为特定实例的确定修改。
+    expect(view.changedPixels).toBeGreaterThan(0)
+    expect(view.state).not.toBe('pass' as never)
+  })
+
+  it('source-only 证据端到端: 只有来源级观察时 F 侧等级与文案禁止实例归属', () => {
+    // Same stable instance id BUT a version clash: the pairing collapses to
+    // unproven, so the view must not let a pixel change read as one specific
+    // instance's certain edit.
+    const baseline = sideInput('baseline', [h1(H1_BASELINE)], baselinePng(), { sourceVersion: V1 })
+    const candidate = sideInput('candidate', [h1(H1_CANDIDATE)], candidatePngInTarget(), { sourceVersion: V2 })
+    const outcome = analyzeVisualDifference({
+      checkId: 'dual-source-only', subject: IDENTITY, expected: IDENTITY,
+      targets: { sourceRefs: [H1_BASELINE, H1_CANDIDATE], dual: { baseline: [H1_BASELINE], candidate: [H1_CANDIDATE] } },
+      baseline, candidate, diffArtifactPath: 'dual-source-only/diff.png',
+    })
+    const view = toVisualEvidenceView(outcome.evidence)
+    expect(view.crossVersion!.scope.strictInstanceProofAvailable).toBe(false)
+    expect(view.crossVersion!.pairs.every(pair => pair.proof === 'unproven')).toBe(true)
+    expect(view.crossVersion!.pairs[0].proofLabel).toContain('需人工复核')
+    // 展示像素差异与区域是允许的；实例级确定归属是不允许的。
+    expect(view.changedPixels).toBeGreaterThan(0)
+    expect(view.crossVersion!.counts.instanceCandidate).toBe(0)
   })
 })

@@ -61,6 +61,12 @@ export interface VisualEvidenceView {
   /** Comparability limitation codes (fonts, stability, provenance, ...). */
   limitations: string[]
   comparabilityReasons: string[]
+  /**
+   * Additive (present only for dual-mode evidence): cross-version element
+   * pairing as candidate pairing, NEVER instance-level proof. F must render
+   * proofLabel verbatim and must not upgrade any wording on its own.
+   */
+  crossVersion?: VisualEvidenceViewCrossVersion
   /** Read-only artifact references; consumers render but must not modify. */
   artifacts: {
     evidenceJson: { sha256: string } | null
@@ -68,6 +74,45 @@ export interface VisualEvidenceView {
     /** Caller-supplied display URLs (e.g. served artifact paths). Never trusted as identity. */
     urls: { baseline?: string; candidate?: string; diff?: string; evidence?: string }
   }
+}
+
+export type CrossVersionViewProof = 'instance-candidate' | 'same-sourceRef-observed' | 'unproven'
+
+/**
+ * Stable Chinese labels for the pairing levels. Wording is deliberate:
+ * instance-candidate says "未经身份核验" and same-sourceRef-observed says the
+ * string may name a different JSX node — F renders these verbatim so no
+ * consumer can misread a candidate pairing as a proven instance identity.
+ */
+export const CROSS_VERSION_PROOF_LABEL: Record<CrossVersionViewProof, string> = {
+  'instance-candidate': '实例候选配对（运行时标注支持，未经身份核验）',
+  'same-sourceRef-observed': '来源字符串一致（仅观察到相同 sourceRef，版本偏移后可能对应不同 JSX 节点）',
+  'unproven': '未证实配对（需人工复核）',
+}
+
+export interface VisualEvidenceViewCrossVersion {
+  scope: {
+    /** Always 'annotation-pairing': 候选配对，不是 C+D 严格实例证明。 */
+    level: 'annotation-pairing'
+    /** False 时 F 不得以任何形式呈现“实例级已证明”。 */
+    strictInstanceProofAvailable: boolean
+    /** 缺失的严格证明输入（source-version / page-context / collection-reasons / graph-membership）。 */
+    missingEvidence: string[]
+  }
+  counts: {
+    instanceCandidate: number
+    sameSourceRefObserved: number
+    unproven: number
+    baselineOnly: number
+    candidateOnly: number
+  }
+  pairs: Array<{
+    sourceRef: { baseline: string | null; candidate: string | null }
+    runtimeInstanceId: string | null
+    proof: CrossVersionViewProof
+    proofLabel: string
+    reasons: string[]
+  }>
 }
 
 /** Caller-supplied, display-only URLs for the workbench. */
@@ -114,6 +159,27 @@ export function toVisualEvidenceView(evidence: VisualDifferenceEvidence, refs: V
     findings: evidence.findings.map(finding => ({ code: finding.code, severity: finding.severity, detail: finding.detail, regionIds: finding.regionIds ?? [] })),
     limitations: evidence.comparability.limitations.map(limitation => limitation.code),
     comparabilityReasons: evidence.comparability.reasons.map(reason => reason.code),
+    crossVersion: evidence.geometry?.crossVersion ? {
+      scope: {
+        level: evidence.geometry.crossVersion.scope.level,
+        strictInstanceProofAvailable: evidence.geometry.crossVersion.scope.strictInstanceProofAvailable,
+        missingEvidence: [...evidence.geometry.crossVersion.scope.missingEvidence],
+      },
+      counts: {
+        instanceCandidate: evidence.geometry.crossVersion.instanceCandidate,
+        sameSourceRefObserved: evidence.geometry.crossVersion.sameSourceRefObserved,
+        unproven: evidence.geometry.crossVersion.unproven,
+        baselineOnly: evidence.geometry.crossVersion.baselineOnly,
+        candidateOnly: evidence.geometry.crossVersion.candidateOnly,
+      },
+      pairs: evidence.geometry.crossVersion.pairs.map(pair => ({
+        sourceRef: pair.sourceRef,
+        runtimeInstanceId: pair.runtimeInstanceId,
+        proof: pair.proof,
+        proofLabel: CROSS_VERSION_PROOF_LABEL[pair.proof],
+        reasons: [...pair.reasons],
+      })),
+    } : undefined,
     artifacts: {
       evidenceJson: null,
       diffImage: observation?.diffImage ? { sha256: observation.diffImage.sha256, pixelSha256: observation.diffImage.pixelSha256 } : null,
@@ -142,6 +208,9 @@ export function toEvidenceItemView(view: VisualEvidenceView): {
     state: view.state,
     summary: view.summary,
     sourceKind: 'runtime-observation',
-    detail: JSON.stringify({ schema: view.schema, identity: view.identityStatus, comparable: view.comparable, findings: view.findings, limitations: view.limitations, artifacts: view.artifacts }),
+    detail: JSON.stringify({
+      schema: view.schema, identity: view.identityStatus, comparable: view.comparable, findings: view.findings, limitations: view.limitations, artifacts: view.artifacts,
+      crossVersion: view.crossVersion ? { scope: view.crossVersion.scope, counts: view.crossVersion.counts } : null,
+    }),
   }
 }
