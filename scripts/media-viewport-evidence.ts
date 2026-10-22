@@ -215,7 +215,10 @@ async function collectCandidateObservation(page: import('playwright').Page, inpu
   const matchCount = await page.locator('img').evaluateAll((all, ref) =>
     (all as HTMLImageElement[]).filter(image => image.getAttribute('src') === ref).length, input.assetRef)
   const artifactPath = path.join(outputDir, `${viewport.name}.png`)
-  await locator.screenshot({ path: artifactPath }).catch(() => {
+  let screenshotSha256: string | undefined
+  await locator.screenshot({ path: artifactPath }).then(() => {
+    screenshotSha256 = sha256(fs.readFileSync(artifactPath))
+  }).catch(() => {
     errors.push(`screenshot failed for ${selector}`)
   })
   return {
@@ -231,6 +234,7 @@ async function collectCandidateObservation(page: import('playwright').Page, inpu
     renderedBox: info.box,
     objectFit: info.objectFit,
     objectPosition: info.objectPosition,
+    screenshotSha256,
     errors,
   }
 }
