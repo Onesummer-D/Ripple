@@ -21,12 +21,12 @@ process.env.RIPPLE_WORKBENCH_STATE_DIR = apiStateRoot
 let server: ViteDevServer | undefined
 let baseUrl = ''
 
-/** Windows refuses to delete read-only Git object files; clear attributes before removing. */
+/** Some Git files are read-only; clear the read-only bit before removing (keep directories traversable). */
 function removeTree(root: string): void {
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const target = path.join(dir, entry.name)
-      try { fs.chmodSync(target, 0o666) } catch { /* keep walking */ }
+      try { fs.chmodSync(target, entry.isDirectory() ? 0o777 : 0o666) } catch { /* keep walking */ }
       if (entry.isDirectory()) walk(target)
     }
   }
