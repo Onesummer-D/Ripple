@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ExperienceWorkbench } from './experience-workbench'
 import { createStubRealAdapter } from './stub-real-adapter'
+import { createRealAdapter } from './real-adapter'
 
 const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 
@@ -265,5 +266,92 @@ describe('F 体验工作台 · 真实/演示隔离', () => {
     // real 模式没有可执行的审批入口，明确提示未接入
     expect(screen.queryByTestId('demo-approve')).toBeNull()
     expect(text('real-approval-pending')).toContain('真实审批尚未接入')
+  })
+})
+
+describe('F 体验工作台 · Real Adapter 真实流程', () => {
+  afterEach(cleanup)
+
+  interface MockResponse { status: number; body: unknown }
+  function mockFetch(routes: Record<string, MockResponse>) {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const path = url.replace(/^.*?\/__ripple\/api\//, '')
+      const route = routes[path]
+      if (!route) return { ok: false, status: 404, json: async () => ({ error: `未注册的路由：${path}` }) } as unknown as Response
+      return { ok: route.status >= 200 && route.status < 300, status: route.status, json: async () => route.body } as unknown as Response
+    }) as typeof fetch
+    return fetchImpl
+  }
+
+  const ANALYSIS = {
+    status: 200,
+    body: {
+      projectRoot: 'D:\\work\\acme-shop',
+      revision: { projectId: 'proj-acme', sourceDigest: 'digest-1', runtimeFingerprint: 'fp-1' },
+      graphId: 'graph-1',
+      unresolved: [],
+      routes: [{ id: 'page:home', label: '首页', page: '/' }],
+      targets: [{
+        id: 'data:hero-title', kind: 'data', label: '首页标题', value: 'Acme 商店',
+        location: { path: 'src/data/site.ts', start: 10, end: 20 },
+        impact: { pageRefs: ['page:home'], unresolved: [], certainty: 'source-proven' },
+      }],
+      relationCounts: { reads: 1 },
+    },
+  }
+  const HISTORY = {
+    status: 200,
+    body: {
+      history: [{
+        candidateId: 'candidate-real-1', projectId: 'proj-acme', lifecycle: 'applied',
+        patchHash: 'hash-1234abcd', updatedAt: '2026-10-22T09:30:00Z',
+        verification: { state: 'passed', runId: 'run-1' },
+      }],
+    },
+  }
+
+  it('真实模式未打开工程：显示打开工程入口与阻断原因，无演示内容', async () => {
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl: mockFetch({}) })} />)
+    await screen.findByTestId('open-project-form')
+    expect(text('blocked-reason')).toContain('尚未选择工程')
+    expect(screen.queryByTestId('demo-canvas')).toBeNull()
+    expect(screen.queryByTestId('demo-badge')).toBeNull()
+    expect(screen.getByTestId('real-badge')).toBeTruthy()
+  })
+
+  it('打开真实工程：真实页面/目标/历史呈现，审批入口明确未接入', async () => {
+    const fetchImpl = mockFetch({ analyze: ANALYSIS, history: HISTORY, 'project/preview': { status: 503, body: { error: '隔离预演网络池为空' } } })
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl })} />)
+    fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\work\\acme-shop' } })
+    fireEvent.click(screen.getByTestId('open-project-submit'))
+    // 真实工程页面列表与元素
+    await screen.findByTestId('page-item-page:home')
+    expect(text('real-badge')).toContain('真实工程')
+    expect(text('project-status')).toContain('工程就绪')
+    // 预演不可用：准确阻断原因，绝不渲染演示 DOM
+    await screen.findByTestId('real-preview-pending')
+    expect(text('real-preview-pending')).toContain('隔离预演网络池为空')
+    expect(screen.queryByTestId('demo-canvas')).toBeNull()
+    // 真实历史（来自 API 的候选 id），点击不臆造页面切换
+    fireEvent.click(screen.getByTestId('open-history'))
+    await screen.findByTestId('version-candidate-real-1')
+    expect(text('version-candidate-real-1')).toContain('已应用')
+    fireEvent.click(screen.getByTestId('version-candidate-real-1'))
+    // 真实审批未接入；元素可选中并查看真实来源
+    expect(text('real-approval-pending')).toContain('真实审批尚未接入')
+    fireEvent.click(screen.getByTestId('close-filmstrip'))
+    fireEvent.click(screen.getByTestId('canvas-el-data:hero-title'))
+    expect(text('selection-summary')).toContain('src/data/site.ts')
+    expect(text('selection-summary')).toContain('来源已证实')
+  })
+
+  it('打开工程失败：服务端错误如实显示，可修正后重试', async () => {
+    const failing = mockFetch({ analyze: { status: 400, body: { error: '项目路径不是目录' } } })
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl: failing })} />)
+    fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\no\\such' } })
+    fireEvent.click(screen.getByTestId('open-project-submit'))
+    await screen.findByTestId('open-project-error')
+    expect(text('open-project-error')).toContain('项目路径不是目录')
   })
 })

@@ -60,8 +60,28 @@
 .ripple-xp-chip-ready, .ripple-xp-chip-verified, .ripple-xp-chip-applied { background: #e5f6ef; color: var(--xp-ok); }
 .ripple-xp-chip-candidate, .ripple-xp-chip-draft { background: var(--xp-brand-soft); color: var(--xp-brand); }
 .ripple-xp-chip-demo { background: #fff4e0; color: var(--xp-warn); border-color: #f0dcb4; }
+.ripple-xp-chip-real { background: #e5f6ef; color: var(--xp-ok); border-color: #bfe6d6; }
 .ripple-xp-chip-stale, .ripple-xp-chip-rolled-back, .ripple-xp-chip-failed { background: #fbeaea; color: var(--xp-risk); }
 .ripple-xp-chip-analyzing { animation: ripple-xp-pulse 1.4s ease-in-out infinite; }
+.ripple-xp-open-project {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
+  margin: 12px 24px 0; padding: 14px 16px; border: 1px solid var(--xp-line); border-radius: 12px;
+  background: #fff;
+}
+.ripple-xp-open-project label { display: grid; gap: 6px; font-size: 13px; color: var(--xp-ink-soft); flex: 1 1 320px; }
+.ripple-xp-open-project input {
+  border: 1px solid var(--xp-line); border-radius: 8px; padding: 8px 10px; font-size: 14px; color: var(--xp-ink);
+}
+.ripple-xp-open-project input:focus-visible { border-color: var(--xp-brand); outline: none; }
+.ripple-xp-open-project .ripple-xp-warn { flex-basis: 100%; margin: 0; }
+.ripple-xp-target-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 16px 0; }
+.ripple-xp-target-chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+  border: 1px solid var(--xp-line); border-radius: 999px; padding: 4px 12px; background: #fff; color: var(--xp-ink);
+}
+.ripple-xp-target-chip:hover, .ripple-xp-target-chip:focus-visible { border-color: var(--xp-brand); outline: none; }
+.ripple-xp-target-chip.is-selected { border-color: var(--xp-brand); background: var(--xp-brand-soft); }
+.ripple-xp-target-chip.is-locked { color: var(--xp-ink-soft); border-style: dashed; }
 .ripple-xp-quiet {
   background: none; border: 1px solid var(--xp-line); border-radius: 8px;
   padding: 4px 10px; color: var(--xp-ink-soft);

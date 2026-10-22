@@ -23,6 +23,10 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [panel, setPanel] = useState<'evidence' | 'history' | null>('evidence')
   const [activeVersionId, setActiveVersionId] = useState<string>()
   const [feedback, setFeedback] = useState('')
+  const [openProjectPath, setOpenProjectPath] = useState('')
+  const [openProjectError, setOpenProjectError] = useState('')
+  const [openProjectBusy, setOpenProjectBusy] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const modelRef = useRef<ExperienceViewModel | undefined>(undefined)
 
   useEffect(() => {
@@ -31,9 +35,33 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
       .then(loaded => { if (active) setModel(loaded) })
       .catch(cause => { if (active) setError(cause instanceof Error ? cause.message : '工作台加载失败') })
     return () => { active = false }
-  }, [activeAdapter])
+  }, [activeAdapter, reloadToken])
 
-  if (error) return <div className="ripple-xp-scope ripple-xp-fatal" role="alert">{error}</div>
+  // 工作台卸载（含真实画布关闭）时释放适配器资源：停止项目预演、作废在途请求
+  useEffect(() => () => { void activeAdapter.dispose?.() }, [activeAdapter])
+
+  const retryLoad = () => {
+    setError('')
+    setModel(undefined)
+    setReloadToken(token => token + 1)
+  }
+
+  const openProject = () => {
+    if (!activeAdapter.openProject || !openProjectPath.trim()) return
+    setOpenProjectBusy(true)
+    setOpenProjectError('')
+    activeAdapter.openProject(openProjectPath.trim())
+      .then(loaded => setModel(loaded))
+      .catch(cause => setOpenProjectError(cause instanceof Error ? cause.message : '打开工程失败'))
+      .finally(() => setOpenProjectBusy(false))
+  }
+
+  if (error) return (
+    <div className="ripple-xp-scope ripple-xp-fatal" role="alert" data-testid="load-error">
+      <p>{error}</p>
+      <button type="button" className="ripple-xp-quiet" data-testid="load-retry" onClick={retryLoad}>重试</button>
+    </div>
+  )
   if (!model) return <div className="ripple-xp-scope ripple-xp-loading" role="status">工作台加载中…</div>
 
   modelRef.current = model
@@ -50,6 +78,29 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
 
   return <div className="ripple-xp-scope ripple-xp-workbench">
     <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} />
+    {model.dataProvenance === 'real' && model.projectStatus === 'unavailable' && activeAdapter.openProject && (
+      // 真实模式：尚未打开工程时提供"打开工程"入口；失败原因如实显示
+      <form
+        className="ripple-xp-open-project"
+        data-testid="open-project-form"
+        onSubmit={event => { event.preventDefault(); openProject() }}
+      >
+        <label>
+          打开真实工程（本机 React/Vite 项目目录）
+          <input
+            data-testid="open-project-path"
+            value={openProjectPath}
+            placeholder="例如 D:\work\my-react-app"
+            onChange={event => setOpenProjectPath(event.target.value)}
+          />
+        </label>
+        <button type="submit" className="ripple-xp-primary" data-testid="open-project-submit" disabled={openProjectBusy || !openProjectPath.trim()}>
+          {openProjectBusy ? '分析中…' : '分析并打开'}
+        </button>
+        {openProjectError && <p className="ripple-xp-warn" role="alert" data-testid="open-project-error">{openProjectError}</p>}
+        {(model.blockedReasons ?? []).map(reason => <p key={reason} className="ripple-xp-warn" data-testid="blocked-reason">{reason}</p>)}
+      </form>
+    )}
     <div className="ripple-xp-body">
       <PageRail pages={model.pages} currentPageRef={model.currentPageRef} onSelectPage={pageRef => apply(activeAdapter.setPage(model, pageRef) ?? model)} />
       <CanvasStage
@@ -80,7 +131,8 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         activeVersionId={activeVersionId}
         onSelect={version => {
           setActiveVersionId(version.id)
-          apply(activeAdapter.setPage(model, version.pageRef) ?? model)
+          // 真实历史不提供页面归属（pageRef 为空）时不切换页面，不臆造定位
+          if (version.pageRef) apply(activeAdapter.setPage(model, version.pageRef) ?? model)
         }}
         onClose={() => setPanel(null)}
       />

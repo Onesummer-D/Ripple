@@ -1,4 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 
 // F 体验工作台浏览器验收（PR #14 第一轮独立审查整改）。
 // 覆盖：初始页面、选中与编辑、来源未知元素、Scope 阻断、无选中/无修改不得审批、
@@ -195,4 +198,93 @@ test('控制台无错误', async ({ page }) => {
   await page.getByTestId('open-history').click()
   await page.getByTestId('version-v:2').click()
   expect(consoleErrors).toEqual([])
+})
+
+// ---- Real Adapter 第一阶段：真实后端连接（不依赖 Docker；预演两态均合法） ----
+
+const tempRoot = path.join(process.cwd(), 'node_modules', '.tmp')
+fs.mkdirSync(tempRoot, { recursive: true })
+const realSandbox = fs.mkdtempSync(path.join(tempRoot, 'ripple-xp-real-'))
+const realProjectRoot = path.join(realSandbox, 'site')
+const fixtureNodeModules = path.resolve('test/fixtures/react-vite-tailwind/node_modules')
+
+test.beforeAll(() => {
+  fs.mkdirSync(path.join(realProjectRoot, 'src', 'pages'), { recursive: true })
+  fs.writeFileSync(path.join(realProjectRoot, '.gitignore'), 'node_modules/\n')
+  fs.writeFileSync(path.join(realProjectRoot, 'package.json'), JSON.stringify({ name: 'ripple-xp-real-fixture', private: true, type: 'module' }))
+  fs.writeFileSync(path.join(realProjectRoot, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.jsx"></script>')
+  fs.writeFileSync(path.join(realProjectRoot, 'src', 'main.jsx'), "import { createRoot } from 'react-dom/client'; import { App } from './App.jsx'; createRoot(document.getElementById('root')).render(<App />)\n")
+  fs.writeFileSync(path.join(realProjectRoot, 'src', 'App.jsx'), "import { useState } from 'react'; import { HomePage } from './pages/HomePage.jsx'; import { AboutPage } from './pages/AboutPage.jsx'; export function App(){const [page,setPage]=useState('home');return <><nav><button onClick={()=>setPage('home')}>Home</button><button onClick={()=>setPage('about')}>About</button></nav>{page==='home'?<HomePage/>:<AboutPage/>}</>}\n")
+  fs.writeFileSync(path.join(realProjectRoot, 'src', 'pages', 'HomePage.jsx'), "export function HomePage(){return <main><h1>Acme 真实首页标题</h1><p>真实首页文案内容。</p></main>}\n")
+  fs.writeFileSync(path.join(realProjectRoot, 'src', 'pages', 'AboutPage.jsx'), "export function AboutPage(){return <main><h1>关于我们真实文案</h1></main>}\n")
+  if (fs.existsSync(fixtureNodeModules)) fs.symlinkSync(fixtureNodeModules, path.join(realProjectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
+  const git = (...args: string[]) => execFileSync('git', ['-C', realProjectRoot, ...args], { stdio: 'pipe' })
+  git('init', '-q'); git('config', 'user.email', 'xp-real@example.invalid'); git('config', 'user.name', 'XP real test'); git('add', '.'); git('commit', '-qm', 'baseline')
+})
+
+test.afterAll(() => {
+  // Windows 中文工作区下临时目录删除偶发 EPERM（已知本机环境限制，见 HANDOFF 第 6 节）；尽力清理
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try { fs.rmSync(realSandbox, { recursive: true, force: true }); break } catch { /* 重试 */ }
+  }
+})
+
+test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证据如实呈现）', async ({ page }) => {
+  const analyze = await page.request.post('http://127.0.0.1:4173/__ripple/api/analyze', { data: { projectRoot: realProjectRoot } })
+  expect(analyze.ok(), `analyze 失败：${await analyze.text()}`).toBeTruthy()
+  await openExperience(page, `/experience.html?adapter=real&project=${encodeURIComponent(realProjectRoot)}`)
+  // 真实工程身份与页面列表来自 analyze 响应
+  await expect(page.getByTestId('real-badge')).toContainText('真实工程')
+  await expect(page.getByTestId('project-status')).toContainText('工程就绪')
+  await expect(page.getByTestId('demo-badge')).toHaveCount(0)
+  await expect(page.getByTestId('page-item-page:home')).toBeVisible()
+  // 编辑目标来自 targets，绝不出现演示 DOM
+  await expect(page.getByTestId('target-strip')).toContainText('Acme 真实首页标题')
+  await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
+  // 无真实候选：验证证据如实"尚未运行"，候选状态"尚无候选"
+  await expect(page.getByTestId('evidence-ev:verification')).toContainText('尚未运行')
+  await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
+  // 真实审批未接入；对照区无真实截图时明确提示
+  await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
+  await expect(page.getByText('尚无真实截图').first()).toBeVisible()
+  // 选中真实目标：摘要显示真实源码路径；本地草稿不推进真实候选生命周期
+  await page.getByTestId('target-strip').getByRole('button', { name: /Acme 真实首页标题/ }).click()
+  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  await page.getByTestId('draft-text-input').fill('Acme 新首页标题')
+  await expect(page.getByTestId('evidence-ev:intent')).toContainText('Acme 新首页标题')
+  await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
+})
+
+test('REAL 模式：画布预演两态均合法（有 Docker 出 iframe，无 Docker 出准确阻断原因）', async ({ page }) => {
+  await page.request.post('http://127.0.0.1:4173/__ripple/api/analyze', { data: { projectRoot: realProjectRoot } })
+  await openExperience(page, `/experience.html?adapter=real&project=${encodeURIComponent(realProjectRoot)}`)
+  const frame = page.getByTestId('real-preview-frame')
+  const pending = page.getByTestId('real-preview-pending')
+  await expect(frame.or(pending).first()).toBeVisible({ timeout: 150_000 })
+  // iframe 只加载服务端核验的预演地址，隔离属性与 A 工作台一致
+  if (await frame.isVisible().catch(() => false)) {
+    await expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
+    await expect(frame).toHaveAttribute('referrerpolicy', 'no-referrer')
+    const src = await frame.getAttribute('src')
+    expect(src).toContain('127.0.0.1')
+  } else {
+    await expect(pending).toContainText('真实预览不可用')
+  }
+  await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
+})
+
+test('REAL 模式：未打开工程显示打开入口；分析失败给出准确原因，修正后可打开', async ({ page }) => {
+  await openExperience(page, '/experience.html?adapter=real')
+  await expect(page.getByTestId('open-project-form')).toBeVisible()
+  await expect(page.getByTestId('blocked-reason')).toContainText('尚未选择工程')
+  // 不存在的路径：服务端错误如实显示（ENOENT 原文透出，不粉饰为演示默认值）
+  await page.getByTestId('open-project-path').fill(path.join(realSandbox, 'no-such-dir'))
+  await page.getByTestId('open-project-submit').click()
+  await expect(page.getByTestId('open-project-error')).toContainText('no-such-dir')
+  // 修正为真实工程：分析成功，真实页面出现
+  await page.getByTestId('open-project-path').fill(realProjectRoot)
+  await page.getByTestId('open-project-submit').click()
+  await expect(page.getByTestId('project-status')).toContainText('工程就绪')
+  await expect(page.getByTestId('page-item-page:home')).toBeVisible()
+  await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
 })

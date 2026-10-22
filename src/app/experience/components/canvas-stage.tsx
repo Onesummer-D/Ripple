@@ -1,10 +1,43 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { CanvasElementXp, ExperienceViewModel } from '../view-model'
+import type { CanvasElementXp, ExperienceViewModel, RealPreviewXp } from '../view-model'
 import { CertaintyPill } from './status-pill'
 
 const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
   ready: '', loading: '预演加载中…', failed: '预演加载失败，请重试', unavailable: '该视口暂不可用',
   'stale-evidence': '证据已过期，需要重新验证',
+}
+
+/**
+ * 真实项目源码预演 iframe。地址只能来自适配器的 preview 会话（服务端身份核验），
+ * sandbox/referrerPolicy 与 A 的工作台预演面板一致；加载状态明确标记，
+ * 加载失败不回退任何模拟内容。预览会话的清理由适配器 dispose 负责。
+ */
+function RealPreviewFrame({ preview, width, height }: { preview: RealPreviewXp; width: number; height: number }) {
+  const [loaded, setLoaded] = useState(false)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { setLoaded(false); setFailed(false) }, [preview.url])
+  return <>
+    {!loaded && !failed && (
+      <div className="ripple-xp-canvas-state" role="status" data-testid="real-preview-loading">真实预演加载中…</div>
+    )}
+    {failed && (
+      <div className="ripple-xp-canvas-state ripple-xp-canvas-failed" role="status" data-testid="real-preview-failed">
+        真实预演加载失败
+      </div>
+    )}
+    <iframe
+      data-testid="real-preview-frame"
+      title="真实项目预演"
+      src={preview.url}
+      width={width}
+      height={height}
+      sandbox="allow-scripts"
+      referrerPolicy="no-referrer"
+      onLoad={() => setLoaded(true)}
+      onError={() => setFailed(true)}
+      style={{ display: 'block', opacity: loaded ? 1 : 0, border: 0, background: '#fff' }}
+    />
+  </>
 }
 
 /**
@@ -124,6 +157,27 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
       )}
     </div>
 
+    {model.dataProvenance !== 'demo' && model.elements.length > 0 && (
+      // 真实模式：预演页面在隔离 iframe 中（不可跨文档点选），
+      // 已分析的编辑目标以列表形式提供选中入口，来源确定性逐条标注。
+      <div className="ripple-xp-target-strip" role="group" aria-label="已分析的编辑目标" data-testid="target-strip">
+        {model.elements.map(element => (
+          <button
+            key={element.id}
+            type="button"
+            className={`ripple-xp-target-chip ${element.id === model.selectedElementId ? 'is-selected' : ''} ${element.editable ? '' : 'is-locked'}`}
+            aria-pressed={element.id === model.selectedElementId}
+            data-testid={`canvas-el-${element.id}`}
+            onClick={() => onSelectElement(element.id)}
+          >
+            {element.label}
+            {!element.editable && ' · 仅可查看'}
+            <CertaintyPill certainty={element.certainty} />
+          </button>
+        ))}
+      </div>
+    )}
+
     {selected && (
       <p className="ripple-xp-selection-summary" data-testid="selection-summary">
         已选中：{selected.label} · 源码 <code>{selected.sourcePath ?? '（未定位）'}</code>
@@ -138,11 +192,20 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
         style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})` }}
       >
         {model.dataProvenance !== 'demo' ? (
-          // 真实模式：绝不渲染写死的演示 DOM。真实预览 URL 由未来真实适配器提供，
-          // 未提供时明确提示，而不是退回模拟内容。
-          <div className="ripple-xp-canvas-state" role="status" data-testid="real-preview-pending">
-            真实预览尚未接入
-          </div>
+          model.preview ? (
+            // 真实模式：只加载适配器给出的同源预演地址（服务端身份核验响应），
+            // 绝不把任意第三方 URL 当作可信 Ripple 页面；隔离属性与 A 的工作台一致。
+            <RealPreviewFrame
+              preview={model.preview}
+              width={viewport.width}
+              height={viewport.height}
+            />
+          ) : (
+            <div className="ripple-xp-canvas-state ripple-xp-canvas-unavailable" role="status" data-testid="real-preview-pending">
+              {model.blockedReasons?.length ? `真实预览不可用：${model.blockedReasons[0]}` : '真实预览尚未接入'}
+              {model.blockedReasons?.length === 0 && model.projectStatus === 'failed' && <button type="button" className="ripple-xp-quiet" onClick={() => window.location.reload()}>重试</button>}
+            </div>
+          )
         ) : canvasState === 'ready' ? (
           currentPage?.id === 'page:home' ? demoPage : (
             <div className="ripple-xp-demo-page is-placeholder" data-testid="demo-canvas-placeholder">

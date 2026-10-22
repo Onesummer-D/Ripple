@@ -80,6 +80,26 @@ export interface CompareSideXp {
   note?: string
 }
 
+/**
+ * 真实项目源码预演会话（由 /__ripple/api/project/preview 建立）。
+ * iframe 只允许加载这里给出的同源预演地址——它来自服务端身份核验响应，
+ * 不得把任意第三方 URL 当作可信 Ripple 页面。
+ */
+export interface RealPreviewXp {
+  url: string
+  projectId: string
+  previewId: string
+  sourceDigest: string
+}
+
+/** 真实工程身份（分析响应 revision 的只读投影，用于界面标注与一致性核对）。 */
+export interface ProjectIdentityXp {
+  projectId: string
+  sourceDigest: string
+  gitCommit?: string
+  graphId?: string
+}
+
 export interface ExperienceViewModel {
   projectName: string
   projectStatus: 'ready' | 'analyzing' | 'failed' | 'unavailable'
@@ -97,6 +117,15 @@ export interface ExperienceViewModel {
   evidence: EvidenceItemXp[]
   versions: VersionItemXp[]
   compare: { baseline: CompareSideXp; candidate: CompareSideXp; matchedViewport: boolean; focusArea?: string }
+  /** 真实模式：项目源码预演会话（iframe 唯一可信地址来源）。 */
+  preview?: RealPreviewXp
+  /** 真实模式：工程身份标注。 */
+  projectIdentity?: ProjectIdentityXp
+  /**
+   * 真实模式当前无法提供的能力的准确阻断原因（如预演不可用、验证未运行）。
+   * 用于"看到无法操作的按钮及其准确阻断原因"，不得用演示默认值填充。
+   */
+  blockedReasons?: string[]
 }
 
 /** 把 scope 选择汇总成一句即时摘要（纯函数，可测）。 */
