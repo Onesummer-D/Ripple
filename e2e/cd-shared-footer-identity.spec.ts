@@ -73,7 +73,7 @@ test('real pick on two pages → sourceRef → SourceGraph → page consumption 
   // --- sourceRef → SourceGraph 节点 ---
   const element = graph.nodes.find(node => node.id === homeFooter.sourceRef)
   expect(element, 'sourceRef resolves into the SourceGraph').toBeDefined()
-  expect(element!.location?.path).toBe('main.jsx')
+  expect(element!.location?.path).toBe('main.tsx')
 
   // --- SourceGraph → 页面消费关系 → Scope 证据 ---
   const footerText = graph.nodes.find(node => node.kind === 'data' && node.value === 'Shared footer text')
