@@ -21,7 +21,7 @@ import {
 } from './visual-capture'
 import { DIFF_IMAGE_LEGEND, diffPixels, MASK_CHANGED, renderDiffImage, assertVisualWorkBudget, VisualResourceLimitError, type PixelDiff, type PixelRect, type Rgb } from './visual-diff'
 import {
-  bindGeometryToCapture, DEFAULT_GEOMETRY_LIMITS, detectGeometryRisks, elementDisplacements, GEOMETRY_RULES, matchElements, parseDomGeometrySample, toScreenshotRect,
+  bindGeometryToCapture, DEFAULT_GEOMETRY_LIMITS, detectGeometryRisks, elementDisplacements, GEOMETRY_RULES, matchElements, pairCrossVersionElements, parseDomGeometrySample, toScreenshotRect,
   type CssRect, type DomGeometrySample, type ElementDisplacement, type ElementIdentityKey, type GeometryLimits, type GeometryRiskFinding, type IdentityCertainty, type ScreenshotMapping,
 } from './visual-geometry'
 import { DEFAULT_PNG_LIMITS, encodePng, inspectPng, pixelDigest, readPng, sha256Hex, type DecodedPng, type PngLimits } from './visual-png'
@@ -81,8 +81,16 @@ export interface VisualComparisonRequest {
   expected?: ExpectedCandidateIdentity | null
   baseline: VisualCaptureInput
   candidate: VisualCaptureInput
-  /** data-ripple-source refs of the edited targets (the executor's target bindings). */
-  targets?: { sourceRefs: string[] } | null
+  /**
+   * data-ripple-source refs of the edited targets (the executor's target bindings).
+   * `sourceRefs` is the legacy flat declaration (matched against BOTH sides).
+   * `dual` declares the baseline and candidate refs separately — required for
+   * cross-version targets, because a JSX offset shift means the candidate ref
+   * legitimately does not exist in the baseline geometry and vice versa. When
+   * `dual` is present it drives target mapping; `sourceRefs` stays recorded
+   * for traceability.
+   */
+  targets?: { sourceRefs?: string[] | null; dual?: { baseline?: unknown; candidate?: unknown } | null } | null
   parameters?: Partial<Omit<VisualDiffParameters, 'png' | 'geometry'>> & { png?: Partial<PngLimits>; geometry?: Partial<GeometryLimits> }
   analyzedAt?: string
   /** Evidence-relative path the caller will write the diff PNG to. */
@@ -177,6 +185,33 @@ export interface GeometryReport {
     declaredRefs: string[]
     mappedRefs: { baseline: string[]; candidate: string[] }
     missingRefs: string[]
+    /**
+     * Present only when per-side (dual) target refs were declared: each side is
+     * mapped against its own geometry, so a cross-version JSX offset shift no
+     * longer forces the union-wide `partial` downgrade.
+     */
+    dual?: {
+      baseline: { declaredRefs: string[]; mappedRefs: string[]; missingRefs: string[] }
+      candidate: { declaredRefs: string[]; mappedRefs: string[]; missingRefs: string[] }
+    }
+  }
+  /**
+   * Present only in dual mode: the deterministic cross-version element pairing
+   * (proof ladder instance-proven → source-file-proven → unproven). Never
+   * inferred from text, position or asset URLs.
+   */
+  crossVersion?: {
+    instanceProven: number
+    sourceFileProven: number
+    unproven: number
+    baselineOnly: number
+    candidateOnly: number
+    pairs: Array<{
+      sourceRef: { baseline: string | null; candidate: string | null }
+      runtimeInstanceId: string | null
+      proof: 'instance-proven' | 'source-file-proven' | 'unproven'
+      reasons: string[]
+    }>
   }
   changedPixelsInsideTarget: number | null
   changedPixelsOutsideTarget: number | null
@@ -454,6 +489,15 @@ export function analyzeVisualDifference(request: VisualComparisonRequest): Visua
   const cGeometry = parseGeometryOnce(request.candidate?.geometry, 'candidate', parameters.geometry)
   const rawRefs: unknown = request.targets?.sourceRefs
   const declaredRefs = [...new Set((Array.isArray(rawRefs) ? rawRefs : []).filter((ref): ref is string => typeof ref === 'string' && ref.length > 0 && ref.length <= 512))].sort().slice(0, parameters.maxListedItems)
+  // Dual (per-side) target declaration: baseline refs map against baseline
+  // geometry, candidate refs against candidate geometry. A cross-version JSX
+  // offset shift makes the union-wide mapping fail by design; per-side mapping
+  // is the precise contract. Only well-formed string arrays activate it.
+  const sideRefs = (value: unknown) => [...new Set((Array.isArray(value) ? value : []).filter((ref): ref is string => typeof ref === 'string' && ref.length > 0 && ref.length <= 512))].sort().slice(0, parameters.maxListedItems)
+  const dualRaw = request.targets?.dual
+  const dual = dualRaw && (Array.isArray(dualRaw.baseline) || Array.isArray(dualRaw.candidate))
+    ? { baseline: sideRefs(dualRaw.baseline), candidate: sideRefs(dualRaw.candidate) }
+    : null
   const identity = assessIdentity(subject, expected, b.descriptor, c.descriptor)
   const comparability = assessComparability(b.descriptor, c.descriptor, { baseline: b.declaredSide, candidate: c.declaredSide },
     { baseline: bShot.png ? { width: bShot.png.width, height: bShot.png.height } : null, candidate: cShot.png ? { width: cShot.png.width, height: cShot.png.height } : null })
@@ -493,7 +537,7 @@ export function analyzeVisualDifference(request: VisualComparisonRequest): Visua
     targetMarginPx = Math.ceil(parameters.targetMarginCssPx * dpr)
     const diff = diffPixels(baselinePng.data, candidatePng.data, candidatePng.width, candidatePng.height, { threshold: parameters.threshold, includeAA: parameters.includeAA, mergeDistancePx })
     const reportedIndexes = selectReportedRegions(diff, parameters.maxRegions)
-    const analysed = analyseGeometry(bGeometry, cGeometry, b.descriptor, c.descriptor, baselinePng, candidatePng, diff, reportedIndexes, declaredRefs, parameters, targetMarginPx)
+    const analysed = analyseGeometry(bGeometry, cGeometry, b.descriptor, c.descriptor, baselinePng, candidatePng, diff, reportedIndexes, declaredRefs, parameters, targetMarginPx, dual)
     geometry = analysed.report
     if (geometry.status === 'unavailable') limitations.push({ code: 'geometry-unavailable', detail: 'No DOM geometry sample was supplied; changed regions cannot be related to elements or targets.' })
     if (!baselinePng.opaque || !candidatePng.opaque) limitations.push({ code: 'transparent-pixels', detail: 'A screenshot has non-opaque pixels; pixelmatch compares them blended over a checkerboard.', baseline: baselinePng.opaque, candidate: candidatePng.opaque })
@@ -637,6 +681,7 @@ function selectReportedRegions(diff: PixelDiff, limit: number): number[] {
 function analyseGeometry(
   bGeometry: PreparsedGeometry, cGeometry: PreparsedGeometry, bDesc: VisualCaptureDescriptor, cDesc: VisualCaptureDescriptor, bPng: DecodedPng, cPng: DecodedPng,
   diff: PixelDiff, reportedIndexes: number[], declaredRefs: string[], parameters: VisualDiffParameters, targetMarginPx: number,
+  dual: { baseline: string[]; candidate: string[] } | null,
 ): { report: GeometryReport; regions: VisualRegion[] } {
   const bGeo = sideGeometry(bGeometry.result, bDesc, bPng)
   const cGeo = sideGeometry(cGeometry.result, cDesc, cPng)
@@ -650,8 +695,11 @@ function analyseGeometry(
   const dpr = cDesc.devicePixelRatio!
   const { width, height } = diff
 
-  // Element boxes on the screenshot, per accepted side.
+  // Element boxes on the screenshot, per accepted side. In dual mode each side
+  // is matched against its OWN declared refs; the union mode (legacy) requires
+  // every ref on every side.
   const targetSet = new Set(declaredRefs)
+  const sideTargetSet = (side: VisualSide) => dual ? new Set(dual[side]) : targetSet
   const boxes: Array<{ side: VisualSide; rect: PixelRect; area: number; sourceRef: string | null; runtimeInstanceId: string | null; identityCertainty: IdentityCertainty | null; target: boolean }> = []
   const mapped: Record<VisualSide, Set<string>> = { baseline: new Set(), candidate: new Set() }
   for (const side of accepted) {
@@ -659,16 +707,31 @@ function analyseGeometry(
       if (element.visible === false) continue
       const rect = toScreenshotRect(element.rect, side.mapping)
       if (!rect) continue
-      const target = element.sourceRef !== null && targetSet.has(element.sourceRef)
+      const target = element.sourceRef !== null && sideTargetSet(side.sample.side).has(element.sourceRef)
       if (target) mapped[side.sample.side].add(element.sourceRef!)
       boxes.push({ side: side.sample.side, rect, area: rect.width * rect.height, sourceRef: element.sourceRef, runtimeInstanceId: element.runtimeInstanceId, identityCertainty: element.identityCertainty, target })
     }
   }
   if (accepted.length && declaredRefs.length) {
     report.target.mappedRefs = { baseline: [...mapped.baseline].sort(), candidate: [...mapped.candidate].sort() }
-    report.target.missingRefs = declaredRefs.filter(ref => accepted.some(side => !mapped[side.sample.side].has(ref)))
-    const foundAnywhere = declaredRefs.filter(ref => mapped.baseline.has(ref) || mapped.candidate.has(ref))
-    report.target.status = report.target.missingRefs.length === 0 ? 'mapped' : foundAnywhere.length ? 'partial' : 'unmatched'
+    if (dual) {
+      const perSide = (side: VisualSide, refs: string[]) => ({
+        declaredRefs: refs,
+        mappedRefs: [...mapped[side]].filter(ref => refs.includes(ref)).sort(),
+        missingRefs: refs.filter(ref => !mapped[side].has(ref)),
+      })
+      report.target.dual = { baseline: perSide('baseline', dual.baseline), candidate: perSide('candidate', dual.candidate) }
+      const considered = accepted.map(side => report.target.dual![side.sample.side])
+      const allMissed = considered.flatMap(entry => entry.missingRefs).sort()
+      report.target.missingRefs = allMissed
+      report.target.status = considered.length && considered.every(entry => entry.missingRefs.length === 0)
+        ? 'mapped'
+        : considered.some(entry => entry.mappedRefs.length) ? 'partial' : 'unmatched'
+    } else {
+      report.target.missingRefs = declaredRefs.filter(ref => accepted.some(side => !mapped[side.sample.side].has(ref)))
+      const foundAnywhere = declaredRefs.filter(ref => mapped.baseline.has(ref) || mapped.candidate.has(ref))
+      report.target.status = report.target.missingRefs.length === 0 ? 'mapped' : foundAnywhere.length ? 'partial' : 'unmatched'
+    }
   }
 
   // Target mask: union of target boxes from every accepted side (1), plus a
@@ -688,19 +751,19 @@ function analyseGeometry(
     }
     const grown: PixelRect[] = []
     for (const side of accepted) for (const element of side.sample.elements) {
-      if (element.visible === false || element.sourceRef === null || !targetSet.has(element.sourceRef)) continue
+      if (element.visible === false || element.sourceRef === null || !sideTargetSet(side.sample.side).has(element.sourceRef)) continue
       const ring = toScreenshotRect(element.rect, side.mapping, targetMarginPx)
       if (ring) { paint(ring, 2); grown.push(ring) }
     }
     for (const side of accepted) for (const element of side.sample.elements) {
-      if (element.visible === false || element.sourceRef === null || !targetSet.has(element.sourceRef)) continue
+      if (element.visible === false || element.sourceRef === null || !sideTargetSet(side.sample.side).has(element.sourceRef)) continue
       const core = toScreenshotRect(element.rect, side.mapping)
       if (core) paint(core, 1)
     }
     for (const side of accepted) {
       const parents = new Map(side.sample.elements.map(element => [element.id, element.parentId]))
       const chain = (id: string) => { const ids: string[] = []; for (let cursor = parents.get(id) ?? null; cursor !== null; cursor = parents.get(cursor) ?? null) ids.push(cursor); return ids }
-      const targets = side.sample.elements.filter(element => element.sourceRef !== null && targetSet.has(element.sourceRef))
+      const targets = side.sample.elements.filter(element => element.sourceRef !== null && sideTargetSet(side.sample.side).has(element.sourceRef))
       const targetIds = new Set(targets.map(element => element.id))
       const targetAncestors = new Set(targets.flatMap(element => chain(element.id)))
       for (const element of side.sample.elements) {
@@ -764,6 +827,21 @@ function analyseGeometry(
       matched: matching.matched.length, stableMatched: matching.matched.filter(item => item.stable).length,
       baselineOnly: baselineOnly.items, candidateOnly: candidateOnly.items, ambiguous: ambiguous.items, unidentified: matching.unidentified,
       truncated: baselineOnly.truncated || candidateOnly.truncated || ambiguous.truncated,
+    }
+    // Dual mode additionally pins the deterministic cross-version pairing:
+    // which targets exist on one side only, which are proven across versions
+    // and which stay unproven (never upgraded from text/position/URL).
+    if (dual) {
+      const pairing = pairCrossVersionElements(bGeo.accepted.sample, cGeo.accepted.sample)
+      const pairs = cap([...pairing.instanceProven, ...pairing.sourceFileProven, ...pairing.unproven], limit)
+      report.crossVersion = {
+        instanceProven: pairing.instanceProven.length,
+        sourceFileProven: pairing.sourceFileProven.length,
+        unproven: pairing.unproven.length,
+        baselineOnly: pairing.baselineOnly.length,
+        candidateOnly: pairing.candidateOnly.length,
+        pairs: pairs.items.map(entry => ({ sourceRef: entry.sourceRef, runtimeInstanceId: entry.runtimeInstanceId, proof: entry.proof, reasons: entry.reasons })),
+      }
     }
     const displacements = cap(elementDisplacements(bGeo.accepted.sample, cGeo.accepted.sample, matching, parameters.geometryToleranceCssPx), limit)
     report.displacements = displacements.items

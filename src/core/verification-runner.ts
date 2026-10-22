@@ -472,13 +472,20 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   // capture-only records. Attached before attestation; advisory, read-only,
   // never part of assertions, status or the approval gate, and never 'pass'.
   // Failures degrade to not-run / failed-to-run entries and never fail the run.
-  const visualTargetRefs = [...new Set(sourceBindings(candidate, baseGraph, candidateGraph, session)
-    .flatMap(binding => [...binding.sourceRefs, ...binding.baselineSourceRefs]))].sort()
+  const visualBindings = sourceBindings(candidate, baseGraph, candidateGraph, session)
+  // Legacy flat union stays for traceability; the precise contract is per-side:
+  // baseline refs map against baseline geometry, candidate refs against
+  // candidate geometry (a JSX offset shift makes the union fail by design).
+  const visualTargetRefs = [...new Set(visualBindings.flatMap(binding => [...binding.sourceRefs, ...binding.baselineSourceRefs]))].sort()
+  const dualVisualTargetRefs = {
+    baseline: [...new Set(visualBindings.flatMap(binding => binding.baselineSourceRefs))].sort(),
+    candidate: [...new Set(visualBindings.flatMap(binding => binding.sourceRefs))].sort(),
+  }
   // Hard isolation boundary (attachVisualEvidenceSafely): even an unexpected
   // throw from the supplementary attach path must not fail the formal
   // verification; it degrades to an explicit failed-to-run visual entry plus a
   // best-effort diagnostic file.
-  attachVisualEvidenceSafely(run, manifest, artifactRoot, candidate, session.projectRevision, visualTargetRefs)
+  attachVisualEvidenceSafely(run, manifest, artifactRoot, candidate, session.projectRevision, visualTargetRefs, dualVisualTargetRefs)
   return attestBrowserExecution(run, recordPath)
 }
 

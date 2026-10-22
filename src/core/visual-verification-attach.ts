@@ -134,6 +134,7 @@ export function attachVisualEvidence(
   revision: ProjectRevision,
   targetSourceRefs: string[],
   analyzedAt = new Date().toISOString(),
+  dualTargetRefs?: { baseline: string[]; candidate: string[] } | null,
 ): VerificationRun {
   const attached: VisualRunEvidence[] = []
   // Reading the manifest itself goes through the isolation boundary: a hostile
@@ -198,7 +199,7 @@ export function attachVisualEvidence(
       let outcome: { evidence: VisualDifferenceEvidence; diffPng: Uint8Array | null }
       try {
         outcome = analyzeVisualDifference({
-          checkId: entry.checkId, subject, expected, targets: { sourceRefs: targetSourceRefs },
+          checkId: entry.checkId, subject, expected, targets: { sourceRefs: targetSourceRefs, ...(dualTargetRefs ? { dual: dualTargetRefs } : {}) },
           baseline: { descriptor: entry.baseline.descriptor, screenshot: baseline.screenshot, geometry: baseline.geometry },
           candidate: { descriptor: entry.candidate.descriptor, screenshot: cand.screenshot, geometry: cand.geometry },
           analyzedAt, diffArtifactPath: diffRel,
@@ -286,9 +287,10 @@ export function attachVisualEvidenceSafely(
   candidate: CandidateRecord,
   revision: ProjectRevision,
   targetSourceRefs: string[],
+  dualTargetRefs?: { baseline: string[]; candidate: string[] } | null,
 ): VerificationRun {
   try {
-    return attachVisualEvidence(run, manifest, artifactRoot, candidate, revision, targetSourceRefs)
+    return attachVisualEvidence(run, manifest, artifactRoot, candidate, revision, targetSourceRefs, undefined, dualTargetRefs)
   } catch (error) {
     const entry = syntheticEntry('visual-attach', '/', { width: 0, height: 0 }, 'rendered', 'failed-to-run', `Visual evidence attachment failed unexpectedly: ${diagnostic(error)}`)
     try {

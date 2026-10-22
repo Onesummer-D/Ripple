@@ -159,8 +159,43 @@ Receipt 合同与审批门控零改动。
    `<run>/visual-analysis/0/` 且哈希相符。驱动脚本：
    `scripts/docker-container-e2e.mjs`（容器侧采集+自校验）与
    `scripts/docker-host-attach.mjs`（宿主侧分析+语义锁定）。
-   **待验收**：F 工作台消费 UI；C+D sourceRef 与 `targetBindings.sourceRefs`
-   的精确对齐（当前取并集，未命中时按 `target-not-mapped` 保守降级）。
+   **待验收**：F 工作台消费 UI。C+D sourceRef 与
+   `targetBindings.sourceRefs` 的双侧精确对齐已实施（
+   `docs/architecture/source-ref-dual-alignment.md`，证明阶梯 +
+   8 个对照场景，`src/core/visual-dual-targets.test.ts` 12 例）。
+
+   **Docker 验收的诚实边界（2026-10-23 加固）**。本次验收证明的是
+   "采集→宿主分析"链路与保守语义在真实 Linux/Chromium 容器内的
+   端到端正确性，而非青野生产形态的完整覆盖：
+
+   - 被测页面是脚本内合成的最小 HTML（静态文本 + 绝对定位元素），
+     **不是真实青野工程**；不含组件树、不含多路由、不含异步数据。
+   - 采集仅在单个视口（desktop，1280×720）、根路由 `/` 上以
+     rendered 态完成，**不是四视口 × 多路由矩阵**；视口生命周期
+     事件混淆防护仍由 `verification-execution` 单测锁定。
+   - 宿主侧 run 是测试构造的最小 run 记录（`scripts/docker-host-attach.mjs`
+     内联 JSON），**不是** A 审批门控下的完整 Approval → Apply →
+     Receipt 链路；Receipt 合同与门控行为由 A 基线用例锁定，本次零改动。
+   - 证据中的 `sourceRef`（`jsx:<file>#<offset>`）由测试脚本**手动提供**，
+     语义与 C+D PR #28 合同逐字段对齐，但**不是**由 C+D SourceGraph
+     自动证明；runtimeInstanceId / certainty / sourceVersion 等字段的
+     生产采集责任在 C+D 侧（依赖清单见对齐合同文档）。
+
+   **可重复执行命令**（Windows 宿主，Docker Desktop 已装）：
+
+   ```powershell
+   # 仓库根目录；脚本内部：ASCII 暂存目录 D:\RippleDockerE2E 挂载 +
+   # NODE_PATH=/pw/node_modules + createRequire 取 playwright，
+   # 规避 Git Bash 中文路径乱码
+   .\run-docker-e2e.ps1
+   # 仅重跑宿主侧分析（out 目录已由上次容器运行产出）：
+   node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs `
+     scripts/docker-host-attach.mjs D:\RippleDockerE2E\out
+   ```
+
+   脱敏汇总样例（`container-summary.json`，仅环境指纹，无工程内容）：
+   Node v24.21.0 linux/x64、Chromium 156、对比结论 `unknown`
+   （831 变化像素 / 1 区域）。
 
 ## 6. 回归基线
 

@@ -284,6 +284,156 @@ export interface ElementDisplacement extends ElementIdentityKey {
 const round = (value: number) => Math.round(value * 1000) / 1000
 const roundRect = (rect: CssRect): CssRect => ({ x: round(rect.x), y: round(rect.y), width: round(rect.width), height: round(rect.height) })
 
+// ---------------------------------------------------------------------------
+// Dual-side (baseline/candidate) precise cross-version pairing
+//
+// C+D's contract: a sourceRef is `jsx:<file>#<offset>`; the offset shifts when
+// the candidate edits move the JSX node, so an exact sourceRef match across
+// versions is the exception, not the rule. `runtimeInstanceId`
+// (`<pathname>:<owner>`, owner = jsx boundary path or React useId) is stable
+// across source edits ONLY when the annotation certifies a stable instance.
+//
+// Pairing uses exclusively deterministic facts — exact sourceRef equality,
+// the source file parsed out of the sourceRef, runtimeInstanceId equality and
+// the annotated certainty. Rendered text, DOM position and asset URLs are
+// never consulted for provenance (same rule as matchElements).
+
+/** `jsx:<file>#<offset>` → `<file>`; anything else has no provable source file. */
+export const sourceFileFromSourceRef = (sourceRef: string | null): string | null => {
+  if (sourceRef === null) return null
+  const match = /^jsx:(.+)#\d+$/.exec(sourceRef)
+  return match ? match[1] : null
+}
+
+export type CrossVersionProof = 'instance-proven' | 'source-file-proven' | 'unproven'
+
+export interface CrossVersionPair {
+  baseline: DomElementGeometry
+  candidate: DomElementGeometry
+  proof: CrossVersionProof
+  /** Deterministic downgrade facts; empty only for an instance-proven pair. */
+  reasons: string[]
+  sourceRef: { baseline: string | null; candidate: string | null }
+  runtimeInstanceId: string | null
+}
+
+export interface CrossVersionPairing {
+  /** Same stable runtime instance id on both sides, from the same source file. */
+  instanceProven: CrossVersionPair[]
+  /** Identical sourceRef (exact, including offset) without an instance proof. */
+  sourceFileProven: CrossVersionPair[]
+  /** Paired by an ambiguous rule or downgraded; never stronger than the facts. */
+  unproven: CrossVersionPair[]
+  baselineOnly: DomElementGeometry[]
+  candidateOnly: DomElementGeometry[]
+}
+
+const UNSTABLE_REASON: Record<IdentityCertainty, string | null> = {
+  'stable-keyed-instance': null,
+  'stable-react-instance': null,
+  'position-dependent': 'position-dependent-identity',
+  'unknown': 'identity-not-stable',
+  'unmapped': 'unmapped-owner',
+}
+
+/**
+ * Pairs baseline and candidate elements across the two source versions.
+ *
+ * Proof ladder (never skipped, never guessed):
+ * - `instance-proven`: both sides carry the same `runtimeInstanceId`, each
+ *   exactly once per side, both certainties stable, and both sourceRefs parse
+ *   to the same source file. The instance id is the cross-version anchor; the
+ *   file check pins it to the edited source rather than a reused id.
+ * - `source-file-proven`: exact `sourceRef` equality (same file AND offset),
+ *   without the instance evidence above.
+ * - `unproven`: everything else that still pairs (duplicated instance ids,
+ *   unstable certainty, different source file) — recorded with its reasons.
+ * - Elements that pair with nothing are reported per side, not dropped.
+ */
+export function pairCrossVersionElements(baseline: DomGeometrySample, candidate: DomGeometrySample): CrossVersionPairing {
+  const usable = (element: DomElementGeometry) => element.sourceRef !== null && element.identityCertainty !== null && element.identityCertainty !== 'unmapped'
+  const byInstance = (sample: DomGeometrySample) => {
+    const groups = new Map<string, DomElementGeometry[]>()
+    for (const element of sample.elements) {
+      if (!usable(element) || !element.runtimeInstanceId) continue
+      groups.set(element.runtimeInstanceId, [...(groups.get(element.runtimeInstanceId) ?? []), element])
+    }
+    return groups
+  }
+  const consumedBaseline = new Set<string>(), consumedCandidate = new Set<string>()
+  const instanceProven: CrossVersionPair[] = [], sourceFileProven: CrossVersionPair[] = [], unproven: CrossVersionPair[] = []
+  const pair = (b: DomElementGeometry, c: DomElementGeometry, proof: CrossVersionProof, reasons: string[]): CrossVersionPair => ({
+    baseline: b, candidate: c, proof, reasons,
+    sourceRef: { baseline: b.sourceRef, candidate: c.sourceRef },
+    runtimeInstanceId: b.runtimeInstanceId && b.runtimeInstanceId === c.runtimeInstanceId ? b.runtimeInstanceId : null,
+  })
+
+  const bGroups = byInstance(baseline), cGroups = byInstance(candidate)
+  for (const id of [...new Set([...bGroups.keys(), ...cGroups.keys()])].sort()) {
+    const left = bGroups.get(id) ?? [], right = cGroups.get(id) ?? []
+    // A duplicated instance id identifies nothing; keep every combination out
+    // of the proof ladder and record the downgrade once.
+    if (left.length > 1 || right.length > 1) {
+      for (const b of left) for (const c of right) {
+        consumedBaseline.add(b.id); consumedCandidate.add(c.id)
+        unproven.push(pair(b, c, 'unproven', ['duplicate-runtime-instance']))
+      }
+      continue
+    }
+    if (!left.length || !right.length) continue
+    const b = left[0], c = right[0]
+    consumedBaseline.add(b.id); consumedCandidate.add(c.id)
+    const bFile = sourceFileFromSourceRef(b.sourceRef), cFile = sourceFileFromSourceRef(c.sourceRef)
+    const reasons: string[] = []
+    if (!STABLE.has(b.identityCertainty!) || !STABLE.has(c.identityCertainty!)) {
+      const reason = UNSTABLE_REASON[b.identityCertainty!] ?? UNSTABLE_REASON[c.identityCertainty!]!
+      if (reason && !reasons.includes(reason)) reasons.push(reason)
+      const other = UNSTABLE_REASON[c.identityCertainty!]
+      if (other && !reasons.includes(other)) reasons.push(other)
+    }
+    if (bFile === null || cFile === null) reasons.push('source-not-in-graph')
+    else if (bFile !== cFile) reasons.push('different-source-file')
+    if (!reasons.length) {
+      instanceProven.push(pair(b, c, 'instance-proven', []))
+    } else if (b.sourceRef === c.sourceRef) {
+      // Same file AND offset is source-level evidence, but it cannot upgrade an
+      // unstable or duplicated identity to instance level.
+      sourceFileProven.push(pair(b, c, 'source-file-proven', reasons))
+    } else {
+      unproven.push(pair(b, c, 'unproven', reasons))
+    }
+  }
+
+  // Remaining elements without a runtime instance id: only exact sourceRef
+  // equality pairs them, and only at source level.
+  const exactOnly = (sample: DomGeometrySample, consumed: Set<string>) => {
+    const byRef = new Map<string, DomElementGeometry[]>()
+    for (const element of sample.elements) {
+      if (!usable(element) || consumed.has(element.id)) continue
+      if (element.runtimeInstanceId) continue
+      byRef.set(element.sourceRef!, [...(byRef.get(element.sourceRef!) ?? []), element])
+    }
+    return byRef
+  }
+  const bRefGroups = exactOnly(baseline, consumedBaseline), cRefGroups = exactOnly(candidate, consumedCandidate)
+  for (const ref of [...new Set([...bRefGroups.keys(), ...cRefGroups.keys()])].sort()) {
+    const left = bRefGroups.get(ref) ?? [], right = cRefGroups.get(ref) ?? []
+    const count = Math.min(left.length, right.length)
+    for (let i = 0; i < count; i++) {
+      consumedBaseline.add(left[i].id); consumedCandidate.add(right[i].id)
+      sourceFileProven.push(pair(left[i], right[i], 'source-file-proven', []))
+    }
+  }
+
+  const rest = (sample: DomGeometrySample, consumed: Set<string>) => sample.elements.filter(element => usable(element) && !consumed.has(element.id))
+  return {
+    instanceProven, sourceFileProven, unproven,
+    baselineOnly: rest(baseline, consumedBaseline),
+    candidateOnly: rest(candidate, consumedCandidate),
+  }
+}
+
+
 export function elementDisplacements(baseline: DomGeometrySample, candidate: DomGeometrySample, matching: ElementMatching, toleranceCssPx: number): ElementDisplacement[] {
   const result: ElementDisplacement[] = []
   for (const element of matching.matched) {
