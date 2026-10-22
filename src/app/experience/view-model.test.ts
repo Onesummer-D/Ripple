@@ -150,6 +150,28 @@ describe('页面关系投影 projectPageRelations（任务一）', () => {
     }
   })
 
+  it('负例：partial 元素的目标所属页如实显示部分证明，不得标为来源已证实', () => {
+    const projected = projectPageRelations(pages, partialBanner, 'page:home')
+    expect(projected.find(item => item.id === 'page:home'))
+      .toMatchObject({ relation: 'editing', relationCertainty: 'partial', scope: 'include' })
+  })
+
+  it('负例：unknown 元素的目标所属页如实显示未知，不得标为来源已证实', () => {
+    const projected = projectPageRelations(pages, unknownCard, 'page:home')
+    expect(projected.find(item => item.id === 'page:home'))
+      .toMatchObject({ relation: 'editing', relationCertainty: 'unknown', scope: 'include' })
+  })
+
+  it('目标所属页由元素数据决定，与用户浏览位置无关', () => {
+    // 目标在商品专题页（elementPageRef），即使用户正在首页浏览：
+    // 商品专题才是 editing，首页只按影响清单投影为同源
+    const projected = projectPageRelations(pages, heroTitle, 'page:products')
+    expect(projected.find(item => item.id === 'page:products'))
+      .toMatchObject({ relation: 'editing', relationCertainty: 'source-proven', scope: 'include' })
+    expect(projected.find(item => item.id === 'page:home'))
+      .toMatchObject({ relation: 'same-source', relationCertainty: 'source-proven' })
+  })
+
   it('不修改传入数组（不可变更新）', () => {
     const snapshot = JSON.parse(JSON.stringify(pages))
     projectPageRelations(pages, heroTitle, 'page:home')

@@ -128,8 +128,10 @@ export function createDemoAdapter(): ExperienceAdapter {
         candidateStatus: element?.editable ? 'draft' : 'none',
         // 页面关系与默认 Scope 全部以当前目标重新投影：
         // 上一目标留下的同源判定、Scope 决定都不跨目标复用
-        // （演示数据没有"已证明无影响"清单，缺页一律保持未证明，不臆造 unrelated）
-        pages: projectPageRelations(current.pages, element, current.currentPageRef),
+        // （演示数据没有"已证明无影响"清单，缺页一律保持未证明，不臆造 unrelated；
+        //   演示元素都位于首页；真实 Adapter 中目标所属页须由可信来源提供，
+        //   与用户正在浏览的 currentPageRef 区分）
+        pages: projectPageRelations(current.pages, element, HOME),
         compare: { ...current.compare, focusArea: element?.label },
         evidence: evidenceForSelection(element, ''),
       }

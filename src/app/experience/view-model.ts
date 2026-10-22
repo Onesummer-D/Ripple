@@ -136,7 +136,13 @@ export function approvalGate(input: { pages: PageXp[]; selectedElement?: CanvasE
  *
  * 规则（全部由当前目标的 CanvasElementXp 决定，与页面名称无关）：
  * - 未选中目标（element 为 undefined）：页面关系保持不变；
- * - 当前编辑页：relation 'editing'，scope 固定 'include'；
+ * - 目标所属页面（elementPageRef，即真实修改目标所在的页面）：
+ *   relation 'editing'，scope 固定 'include'；其来源确定性封顶为
+ *   min(元素确定性, source-proven)——partial/unknown 元素所在页如实显示
+ *   partial/unknown，不得无条件标记"来源已证实"。
+ *   注意：elementPageRef 与"用户正在浏览的页面"（ViewModel.currentPageRef）
+ *   是两个概念：浏览页只影响画布展示，绝不参与关系投影；目标所属页在真实
+ *   Adapter 中必须由可信来源（元素归属页面数据）提供，体验层不自行推断。
  * - 在 impactPageRefs 中：
  *   - 目标来源 source-proven → 'same-source' / source-proven / 默认 include；
  *   - 目标来源 partial/unknown → 'unproven' / 目标同级的确定性 / 默认 undecided
@@ -151,15 +157,17 @@ export function approvalGate(input: { pages: PageXp[]; selectedElement?: CanvasE
 export function projectPageRelations(
   pages: PageXp[],
   element: CanvasElementXp | undefined,
-  currentPageRef: string,
+  elementPageRef: string,
   provenUnaffectedRefs?: readonly string[],
 ): PageXp[] {
   if (!element) return pages
   const proven = element.certainty === 'source-proven'
   const unaffected = new Set(proven ? (provenUnaffectedRefs ?? []) : [])
   return pages.map(page => {
-    if (page.id === currentPageRef) {
-      return { ...page, relation: 'editing', relationCertainty: 'source-proven', scope: 'include' }
+    if (page.id === elementPageRef) {
+      // 编辑页的确定性不得高于元素自身的来源证据；scope 固定 include，
+      // 审批安全仍由 approvalGate() 的元素确定性条件兜底
+      return { ...page, relation: 'editing', relationCertainty: element.certainty, scope: 'include' }
     }
     if (element.impactPageRefs.includes(page.id)) {
       return proven
