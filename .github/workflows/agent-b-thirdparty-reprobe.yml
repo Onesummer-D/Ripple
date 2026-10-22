@@ -27,7 +27,18 @@ jobs:
       - name: "Candidate gate reproduction (expected: correctly rejected, exit 0)"
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-candidate-gate.mjs "$RUNNER_TEMP/codescandy" "$RUNNER_TEMP/gate-work"
       - name: "Source proof probe (expected: exit 2 BLOCKED with complete report)"
-        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/agent-c-codescandy-probe.mjs "$RUNNER_TEMP/codescandy" test-results/agent-b-codescandy-reprobe.json
+        # Probe exit semantics: 0 = proof satisfied; 2 = BLOCKED (complete report);
+        # 1 = hard failure. Current expected state is 2 — treat it as a passing
+        # contract check; 0 means the blocker was lifted and expectations must be
+        # updated; any other code fails.
+        run: |
+          set +e
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/agent-c-codescandy-probe.mjs "$RUNNER_TEMP/codescandy" test-results/agent-b-codescandy-reprobe.json
+          code=$?
+          echo "probe exit=$code"
+          if [ "$code" -eq 2 ]; then echo "expected BLOCKED state confirmed"; exit 0; fi
+          if [ "$code" -eq 0 ]; then echo "unexpected: source proof satisfied — update matrix expectations"; exit 1; fi
+          exit "$code"
       - name: Retain probe artifacts
         if: always()
         uses: actions/upload-artifact@v4
