@@ -4,7 +4,7 @@ import * as path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { assertCandidateCurrent, assertCandidateIntegrity, CandidateError, createCandidate, removeCandidate, type CandidateRecord } from './candidate'
-import { applyApprovedCandidate, isAppliedCandidateRollbackable, PatchApplyError, rollbackAppliedCandidate } from './apply'
+import { applyApprovedCandidate, assertAppliedCandidatePreviewable, isAppliedCandidateRollbackable, PatchApplyError, rollbackAppliedCandidate } from './apply'
 import { isCurrentProjectSourcePreview, preparePreviewNetworkPool, readProjectSourcePreviewDiagnostics, startCandidatePreview, startProjectSourcePreview, stopCandidatePreview, stopPreviewNetworkPool, stopProjectSourcePreview } from './candidate-preview'
 import { referencedPreviewResourceUrls, saveTrustedPreviewResourceUrls, trustedPreviewResourceUrls } from './preview-resource-policy'
 import { analyzeProject, isProjectWorkingTreeClean, readProjectSnapshot, resolveJsxSourceElement } from './project'
@@ -147,6 +147,22 @@ function assertProjectAnalysisCurrent(project: OpenProject): void {
   const revision = readProjectSnapshot(project.root, false).revision
   if (revision.projectId !== project.graph.revision.projectId || revision.sourceDigest !== project.graph.revision.sourceDigest) {
     throw new CandidateError('预览对应的项目源码已过期，请重新分析工程')
+  }
+}
+
+/** Preview gate for a deliberately-dirty tree: only the exact applied revision may be previewed,
+ * proven by cross-checking the stored apply record, candidate identity, project entry, git HEAD
+ * and the live working tree. Any mismatch or extra change keeps the strict clean-tree gate. */
+function assertAppliedPreviewCurrent(project: OpenProject, appliedCandidateId: string): void {
+  const live = candidates.get(appliedCandidateId)
+  if (!live) throw Object.assign(new CandidateError('按身份预览的候选不存在或已清理'), { statusCode: 404 })
+  if (live.lifecycle !== 'applied') throw new CandidateError('只有已成功应用的候选版本可以按身份预览')
+  if (live.session.projectRevision.projectId !== project.graph.revision.projectId) throw new CandidateError('候选不属于当前项目')
+  if (fs.realpathSync(project.root) !== fs.realpathSync(live.record.projectRoot)) throw new CandidateError('项目路径与候选记录不一致')
+  assertAppliedCandidatePreviewable(live.session, live.record)
+  const revision = readProjectSnapshot(project.root, false).revision
+  if (revision.projectId !== project.graph.revision.projectId || revision.sourceDigest !== project.graph.revision.sourceDigest) {
+    throw new CandidateError('已应用版本的预览对应源码已过期，请重新分析工程')
   }
 }
 
@@ -309,9 +325,11 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
         return { projectId: body.projectId, previewId: body.previewId, stopped: true }
       }
       assertNoActiveProjectCandidate(body.projectId as string)
-      assertProjectAnalysisCurrent(project)
+      if (typeof body.appliedCandidateId === 'string' && body.appliedCandidateId.length === 0) throw Object.assign(new CandidateError('appliedCandidateId 不能为空字符串'), { statusCode: 400 })
+      const assertPreviewCurrent = typeof body.appliedCandidateId === 'string' ? () => assertAppliedPreviewCurrent(project, body.appliedCandidateId as string) : () => assertProjectAnalysisCurrent(project)
+      assertPreviewCurrent()
       const preview = await startProjectSourcePreview(body.projectId as string, project.root, project.graph.revision.sourceDigest, trustedPreviewResourceUrls(body.projectId as string))
-      try { assertProjectAnalysisCurrent(project) }
+      try { assertPreviewCurrent() }
       catch (error) {
         await stopProjectSourcePreview(body.projectId as string, preview.previewId)
         throw error
