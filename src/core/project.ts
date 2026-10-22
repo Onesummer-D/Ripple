@@ -285,7 +285,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     }
     const ranges: Array<{ path: string; start: number; end: number }> = []
     const visited = new Set<ts.Node>()
-    const cover = (expression: ts.Expression): void => {
+    const cover = (expression: ts.Node): void => {
       if (visited.has(expression)) return
       visited.add(expression)
       const sourceFile = expression.getSourceFile()
@@ -326,14 +326,14 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         } else if (ts.isFunctionLike(current)) {
           const body = (current as ts.FunctionLikeDeclaration).body
           const signature = body ? checker.getSignatureFromDeclaration(current as ts.SignatureDeclaration) : undefined
-          if (body && signature && typeMatches(signature.getReturnType())) cover(ts.isBlock(body) ? body : body as ts.Expression)
+          if (body && signature && typeMatches(signature.getReturnType())) cover(body)
         } else if (ts.isCallExpression(current)) {
           for (const argument of current.arguments) {
             const contextual = checker.getContextualType(argument) ?? checker.getTypeAtLocation(argument)
             if (typeMatches(contextual)) cover(argument)
           }
         } else if (ts.isJsxAttribute(current)) {
-          const expression = ts.isJsxExpression(current.initializer) ? current.initializer.expression : undefined
+          const expression = current.initializer && ts.isJsxExpression(current.initializer) ? current.initializer.expression : undefined
           if (expression && typeMatches(checker.getContextualType(expression) ?? checker.getTypeAtLocation(expression))) cover(expression)
         }
         ts.forEachChild(current, visit)

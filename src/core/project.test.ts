@@ -155,7 +155,7 @@ function mediaSwapFixture(graph: ReturnType<typeof analyzeProject>) {
   return { target, bytes, assetHash, assetRef, operation, scope, executor, executors: [executor], readStagedAsset }
 }
 
-function swapFixtureFor(container: string, target: { id: string; value?: string }) {
+function swapFixtureFor(target: { id: string; value?: string }) {
   const bytes = Buffer.from([9, 8, 7, 6, 5])
   const assetHash = createHash('sha256').update(bytes).digest('hex')
   const assetRef = 'public/media/narrow-safety.webp'
@@ -435,7 +435,7 @@ export function AutumnPage() {
     expect(spreadImpact.unresolved.length).toBeGreaterThan(0)
 
     // N8 候选链路：修复前 createCandidate 误放行（Scope 漏 AutumnPage 真实消费者），修复后必须拒绝
-    const fixture = swapFixtureFor(container, shared)
+    const fixture = swapFixtureFor(shared)
     const rejectedScope: ScopeDecision = { ...fixture.scope, includedRefs: [shared.id, 'page:home'] }
     expect(() => createCandidate({
       projectRoot: root, candidateRoot: path.join(container, 'narrow-rejected'), artifactRoot: path.join(container, 'narrow-artifacts'),
@@ -500,7 +500,7 @@ export function AutumnPage() { return <main><h1>Autumn title</h1><img src={hero.
     expect(impact.unresolved).toEqual([])
 
     // N6：Scope 缺少可证明页面 → 拒绝；明确排除受保护页面 → 拒绝；补全后允许
-    const fixture = swapFixtureFor(container, hero)
+    const fixture = swapFixtureFor(hero)
     const partialScope: ScopeDecision = { ...fixture.scope, includedRefs: [hero.id, 'page:home'] }
     expect(() => createCandidate({
       projectRoot: root, candidateRoot: path.join(container, 'scope-partial'), artifactRoot: path.join(container, 'scope-partial-artifacts'),
