@@ -1,21 +1,33 @@
 # 缺失截图与待补证据清单
 
-> 日期：2026-10-22。所有「待采」项注明采集条件与责任方；采集后须更新 acceptance-matrix.md 与相关脚本/分镜。
+> 日期：2026-10-22（当晚修订）。所有「待采」项注明采集条件与责任方；采集后须更新 acceptance-matrix.md 与相关脚本/分镜。
+> **重要更正（协调人核实）**：Bolt 整轮 Runs #1–#17 结论均 failure，但 Run #15–#17 中「验证（七断言 PASSED）→审批→应用」阶段已真实通过（应用后 Footer.tsx 含新文案、HEAD 不变；Run #16/#17 应用预览已启动、新 footer 可见）；失败点在其后的应用预览三页导航（Run #16 @83ddff5 spec.ts:1122、Run #17 @736a029 spec.ts:1131，PR #23 修复中）；回滚与历史恢复 NOT RUN。下表据此重排。
 
-## A. 主案例（青野 TEXT · Bolt 真实验收）——优先级最高
+## A. 主案例（青野 TEXT · Bolt 真实验收）
+
+**已随 Run #15–#17 工件存在（failure Run 亦上传，if:always()）——待归档引用**：
+
+| # | 证据 | 现状 | 责任方 | 用于 |
+| --- | --- | --- | --- | --- |
+| A1 | bolt-workbench-execution.json + 四视口 PNG（SHA-256 与 artifactHash 绑定，七断言 PASSED） | ✅ 已存在于 Run #15–#17 工件，**待下载归档**并标注 Run 编号/SHA | A | 分镜镜 6；矩阵 1.5 |
+| A2 | 七断言数据（target-change 等，含四视口 scopeObservations） | ✅ 同 A1（数据在 execution.json）；工作台断言面板的 UI 截图成功路径未自动截取，需本地复跑或下次 Run 补 | A | 分镜镜 6；PPT 第 6 页 |
+| A3 | 应用成功证据（Footer.tsx 含「山野器物 · Ripple UI验收」、HEAD 不变） | ✅ 已在 Run #15–#17 日志断言通过 | A | 矩阵 1.8 |
+
+**仍缺失——待下一次 Run（PR #23 合并走通后）**：
 
 | # | 缺失证据 | 采集条件 | 责任方 | 用于 |
 | --- | --- | --- | --- | --- |
-| A1 | Run #18 真实执行记录 bolt-workbench-execution.json + 四视口 PNG（SHA-256 与 artifactHash 绑定） | Bolt workflow 首次 PASSED 运行（Run #18 起） | 负责人触发 / A 分析 | 分镜镜 6；矩阵 1.5 |
-| A2 | 七断言全 PASS 的断言面板截图（真实工程） | 同 A1 | A | 分镜镜 6；PPT 第 6 页 |
-| A3 | Approval→Apply 后 bolt-workbench-applied-site.png（应用预览逐页导航，footer 新文案可见） | 同 A1 | A | 分镜镜 8；矩阵 1.8 |
-| A4 | bolt-workbench-history-restored.png（历史恢复后验证状态 PASSED） | 同 A1 | A | 分镜镜 9；矩阵 1.10 |
-| A5 | 回滚后原工程未改动证明（git HEAD/status 对照画面或日志摘录） | 同 A1 | A | 分镜镜 9；答辩 |
-| A6 | 真实点选镜头（Bolt 工程内 footer 点选返回 Footer.tsx 来源） | 同 A1 或本地可跑通 Docker 的环境 | D / A | 分镜镜 4；矩阵 1.2 |
+| A4 | bolt-workbench-applied-site.png（应用预览三页导航，footer 新文案保持可见） | PR #23 合并后触发下一次 Bolt Run 并走通导航 | A | 分镜镜 8；矩阵 1.9 |
+| A5 | 回滚断言证据（Footer.tsx 恢复原文、原工程 HEAD/status 不变）+ bolt-workbench-history-restored.png | 同 A4（Run #15–#17 未执行到回滚/历史恢复） | A | 分镜镜 9；矩阵 1.10/1.11；答辩 |
+| A6 | 应用预览启动画面（新 footer 可见，Run #16/#17 已发生但未截图） | 同 A4；或本地复跑 | A | 分镜镜 8 |
 
-**Run #18 未通过前的过渡素材**（不得冒充最终证据）：
+**本地可立即补采（非 Run 依赖）**：
+- A7 真实点选镜头（本地工作台录 footer 点选返回 Footer.tsx 来源；真实 Bolt 点选已过 Run #15–#17，录屏用本地画面不冲突）——D / A，用于分镜镜 4。
+- A8 工作台验证 PASSED 面板 UI 截图（本地 Fixture 可复现，标注 FIXTURE 角标）——A，用于 PPT 第 6 页过渡。
+
+**过渡素材**（不得冒充最终证据）：
 - T1 本地工作台/F 演示流的对应镜头（DEMO/FIXTURE 角标保留）——已可采。
-- T2 Bolt Actions 页面 Runs #1–#17 列表 + failed-to-run.json 诊断滚动——已可采，用于「失败驱动修复」叙事。
+- T2 Bolt Actions 页面 Runs #1–#17 列表 + 阶段级诊断（Run #15–#17 的失败行：应用预览导航超时）——已可采，用于「失败驱动修复」叙事。
 - T3 MEDIA 线真实验收 Run 39536064634 工件（acceptance.json、四视口截图、回滚后摘要）——已存在，仅作同构佐证并标注来源。
 
 ## B. 栖光 MEDIA 案例

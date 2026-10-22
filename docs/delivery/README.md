@@ -20,17 +20,22 @@
 
 ## 当前真实验收状态摘要（截至 2026-10-22 晚）
 
-| 案例 | 真实验收状态 |
+| 案例 | 真实验收状态（阶段级） |
 | --- | --- |
-| 青野 TEXT（Bolt real-project acceptance） | Runs #1–#17 **全部失败**，Run #18 未触发；最近一次为 2026-10-22 的 Run #17（3m 8s，failure）。无完整可审批 Receipt，Approval→Apply→Rollback→History Restore 真实闭环 **NOT RUN**。 |
+| 青野 TEXT（Bolt real-project acceptance） | 整轮 workflow 尚未通过（Runs #1–#17 结论均 failure），**但阶段级结果已大幅推进**（协调人据 Run #15–#17 日志核实）：工程分析→资源快照→点选→候选生成→**四视口验证七断言 PASSED**→范围决策→**审批成功**→**补丁应用成功**（应用后 Footer.tsx 含新文案、HEAD 不变）→应用预览启动、新 footer 可见（Run #16/#17）；尚未走通：应用后三页桌面导航（Run #16 @83ddff5 spec.ts:1122、Run #17 @736a029 spec.ts:1131，PR #23 修复中）、回滚与历史恢复（NOT RUN）。 |
 | 青野 MEDIA（Qingye real-project MEDIA acceptance） | Run `39536064634`（2026-10-21）**SUCCESS**：四视口双端验证、7 项断言、Approval/Apply/Rollback、原工程未改动检查通过。仅限「青野分类图 source-proven MEDIA asset-swap」单操作。 |
 | 栖光 MEDIA | 工作台 Fixture/演示层可用（本地图片上传、三容器裁切对照）；**真实工程 MEDIA 验收未在栖光工程上运行**，E 视觉差异模块未接入 VerificationRunner。 |
 | 第三方（codescandy dashui @ b700bbd） | 能力盘点与缺口复现完成（4924 节点/5006 边；61 条 source-proven 消费边；100 条页面影响全 unknown；route 0、token 0）；TEXT 全生命周期 NOT RUN；Issue #6 不关闭。 |
 
+> 注：workflow 整轮 Failure 与某阶段 NOT RUN 不能等同。Run #15–#17 的失败点均在应用之后；验证、审批、应用阶段在真实 Bolt 工程上已通过。各文档已按此逐阶段修订。
+
 ## 关键证据链接（全部已实际核对）
 
 - 普通 CI（Ripple CI）：<https://github.com/Onesummer-D/Ripple/actions?query=workflow%3ARipple+CI>（A 主线 2525092 对应 CI #478 success；PR #23 分支在跑）
-- Bolt 真实工程验收（Runs #1–#17 全失败）：<https://github.com/Onesummer-D/Ripple/actions/workflows/bolt-acceptance.yml>
+- Bolt 真实工程验收：<https://github.com/Onesummer-D/Ripple/actions/workflows/bolt-acceptance.yml>（整轮 Runs #1–#17 结论 failure；阶段级进展见上表与矩阵）
+- Bolt Run #15 @ a4ac547（验证/审批/应用阶段通过）：<https://github.com/Onesummer-D/Ripple/actions/runs/39724024971>
+- Bolt Run #16 @ 83ddff5（应用预览启动通过、导航超时）：<https://github.com/Onesummer-D/Ripple/actions/runs/39761298824>
+- Bolt Run #17 @ 736a029（导航点击超时，PR #23 修复中）：<https://github.com/Onesummer-D/Ripple/actions/runs/39774721394>
 - 青野 MEDIA 验收 Run：<https://github.com/Onesummer-D/Ripple/actions/runs/39536064634>
 - A+D Runtime Identity 集成 CI：<https://github.com/Onesummer-D/Ripple/actions/runs/39650178433>（Vitest 408/408、Playwright 30/30）
 - PR #17 受限预构建实验 CI：<https://github.com/Onesummer-D/Ripple/actions/runs/39667915489>（426/426、30 passed/1 skipped）

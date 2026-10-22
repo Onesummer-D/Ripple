@@ -11,18 +11,28 @@
 | # | 操作步骤 | 对应源码/页面 | 负责模块 | 期待结果 | 已有测试证据 | 实际运行结果 | 状态 | CI/截图链接 | 当前阻断 | 复验负责人 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1.1 | 打开真实青野工程并分析（AST SourceGraph） | 全工程 4 页 | A `project.ts` | 4 个实际页面状态、Footer 消费 /home /story 等关系可读 | 合成工程全量过；真实工程分析步骤在 Bolt Run #10 前置成功 | Run #10/#11 分析步骤成功（资源快照 221 个全成功） | PASS（分析步骤） | [Run #10](https://github.com/Onesummer-D/Ripple/actions/runs/39484983941) | 无 | A |
-| 1.2 | 网页点选 Footer 品牌文字定位源码 | `Footer.tsx` 实例 | D 点选桥（PR #18） | 返回 `jsx:src/components/Footer.tsx#…` 与可证明实例身份 | 真实 Vite 身份 E2E 21 项 + stable-react-instance 断言保留 | 合成工作台与官方 CI 通过；真实 Bolt 点选步骤随 Run 失败未走完 | RISK | [CI 39650178433](https://github.com/Onesummer-D/Ripple/actions/runs/39650178433) | Bolt Run 未通过；实例级精准编辑仍 navigation-only | D / A |
+| 1.2 | 网页点选 Footer 品牌文字定位源码 | `Footer.tsx` 实例 | D 点选桥（PR #18） | 返回 `jsx:src/components/Footer.tsx#…` 与可证明实例身份 | 真实 Vite 身份 E2E 21 项 + stable-react-instance 断言保留 | 真实 Bolt 中点选 footer 品牌文字并定位到 Footer.tsx 成功（Run #15–#17 均执行通过） | PASS（真实 Run #15–#17） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971) / [CI 39650178433](https://github.com/Onesummer-D/Ripple/actions/runs/39650178433) | 实例级精准编辑仍 navigation-only（不授权精准编辑） | D / A |
 | 1.3 | 外部资源授权与内容寻址快照 | Pexels 图、Google Fonts | A `verification-runner.ts` | 仅授权 URL 被快照（SHA-256） | 合成 + Run #10 真实快照 221 个/12.4MB/unavailable:0 | 真实快照成功（Run #10、#11 均 unavailableResources=0） | PASS | [Run #10](https://github.com/Onesummer-D/Ripple/actions/runs/39484983941) | 无 | A |
-| 1.4 | 生成文字修改候选（intent → EditOperation → 隔离 worktree diff） | `Footer.tsx` 单文件 diff | A `candidate.ts` | 真实源码 diff + patchHash + tree digest | 合成全链路 + 工作台 UI 真实可用 | 真实 Bolt 工程中候选生成步骤在失败 Run 内未稳定走完 | NOT RUN（真实） | [Bolt runs](https://github.com/Onesummer-D/Ripple/actions/workflows/bolt-acceptance.yml) | Bolt Run #1–#17 全失败 | A |
-| 1.5 | 四视口预演验证（1440×900 / 768×1024 / 375×812 / 390×844） | 4 页 × 4 视口 | A `candidate-verification-runner.mjs` 等 | target-change / scope-propagation / non-target-preserved / interaction / responsive-layout / source-mapping / browser-errors 七断言 | 合成工程全 PASS（Linux CI 30/30，1 跳过为私有专项）；Run #10 完成 desktop/tablet/mobile-375 | 真实四视口完整执行：Run #10 mobile-390 预算超时；Run #11 pids 超限；Run #12 每导航 ~10 s；Run #13 RISKS；Run #14–#17 失败 | NOT RUN | [Run #11](https://github.com/Onesummer-D/Ripple/actions/runs/39499078332) | 180 s 预算 vs 真实页面加载成本（已修 PR #17，待 Run #18 裁决）；Run #18 未触发 | A / 负责人 |
-| 1.6 | 范围决策（4 页 include / exclude） | ScopeDecision v1 | A `scope.ts` | 页级 Scope 与候选绑定 | 合成测试过 | 真实工程 NOT RUN（随 Run 失败） | NOT RUN | 同上 | 同上 | A |
-| 1.7 | 审批（Approval 门控） | 候选 + Receipt | A | 仅 PASSED Receipt 可审批 | 合成测试过；负例（completed:false 拒绝）钉死 | 真实无完整 Receipt | NOT RUN | 同上 | 同上 | A |
-| 1.8 | 应用同一份补丁到可丢弃 worktree | 同 patchHash | A `apply.ts` | 应用后 Footer.tsx 含新文案、HEAD 不变 | 合成测试过；PR #15/#16 应用预览已合并 | 真实 NOT RUN | NOT RUN | [PR #21/#22](https://github.com/Onesummer-D/Ripple/pulls) | 同上 | A |
-| 1.9 | 回滚 + 原工程未改动证明 | Footer.tsx / git status | A `apply.ts` | rolled-back、原工程 HEAD 与 status 不变 | 合成测试过；B 在 MEDIA 线有真实回滚证明范式 | 真实 TEXT 线 NOT RUN | NOT RUN | 同上 | 同上 | A |
-| 1.10 | 版本历史恢复 | `/__ripple/api/history` | A | 历史记录恢复后候选/哈希/验证状态一致 | 合成测试过 | 真实 NOT RUN | NOT RUN | 同上 | 同上 | A |
-| 1.11 | 体验层演示流（画布优先工作台） | `experience.html` | F（PR #14） | 打开→选标题→改文案→关系→范围→对照→证据→历史 17 步连续可操作 | 单测 40/40、e2e 15/15、xp-1..4 真实 Chromium 截图 | 演示数据 DEMO/SIMULATED 全程标注；真实审批未接入（设计如此） | PASS【已合成·演示】 | [CI #475/#478](https://github.com/Onesummer-D/Ripple/actions?query=workflow%3ARipple+CI)；`docs/experience/HANDOFF.md` | 接 real-adapter 需各 Agent 提供接口（F HANDOFF §4） | F / 集成方 |
+| 1.4 | 生成文字修改候选（intent → EditOperation → 隔离 worktree diff） | `Footer.tsx` 单文件 diff | A `candidate.ts` | 真实源码 diff + patchHash + tree digest | 合成全链路 + 工作台 UI 真实可用 | 真实 Bolt 候选生成走通（Run #15–#17：候选 ID、patchHash/treeDigest 绑定、diff 含新文案均断言通过） | PASS（真实 Run #15–#17） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971) | 无 | A |
+| 1.5 | 四视口预演验证（1440×900 / 768×1024 / 375×812 / 390×844） | 4 页 × 4 视口 | A `candidate-verification-runner.mjs` 等 | target-change / scope-propagation / non-target-preserved / interaction / responsive-layout / source-mapping / browser-errors 七断言 | 合成工程全 PASS（Linux CI 30/30，1 跳过为私有专项） | 真实 Bolt 四视口验证通过：Run #15–#17 终止状态 PASSED、七项断言全部 PASS、execution.json 与四视口截图随工件保存（SHA-256 绑定）；早期 Run #10 预算超时、#11 pids 超限、#12 导航 ~10 s、#13 RISKS 的失败均已逐项修复并在此后运行中越过 | PASS（真实 Run #15–#17 @ a4ac547 / 83ddff5 / 736a029） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971)、[Run #16](https://github.com/Onesummer-D/Ripple/actions/runs/39761298824)、[Run #17](https://github.com/Onesummer-D/Ripple/actions/runs/39774721394) | 无（该阶段） | A |
+| 1.6 | 范围决策（4 页 include / exclude） | ScopeDecision v1 | A `scope.ts` | 页级 Scope 与候选绑定 | 合成测试过 | 真实 Bolt 中 4 页 include 决策随候选创建执行并通过（Run #15–#17） | PASS（真实 Run #15–#17） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971) | 无（该阶段） | A |
+| 1.7 | 审批（Approval 门控） | 候选 + Receipt | A | 仅 PASSED Receipt 可审批 | 合成测试过；负例（completed:false 拒绝）钉死 | 真实 Bolt 审批成功（Run #15–#17：候选状态进入「已批准」） | PASS（真实 Run #15–#17） | 同上 | 无（该阶段） | A |
+| 1.8 | 应用同一份补丁到可丢弃 worktree | 同 patchHash | A `apply.ts` | 应用后 Footer.tsx 含新文案、HEAD 不变 | 合成测试过 | 真实 Bolt 应用成功：应用后 Footer.tsx 含「山野器物 · Ripple UI验收」、HEAD 不变（Run #15–#17 断言通过）；应用预览接口 Run #15 失败（spec.ts:1102，PR #21 修复），Run #16/#17 已能启动 | PASS（应用，真实 Run #15–#17） | 同上 | 应用预览导航见 1.9 | A |
+| 1.9 | 应用后预览逐页导航确认 | 应用预览 iframe | A（PR #15/#16 应用预览） | 桌面导航秋日手作节/商品专题/品牌故事三页，新 footer 保持可见 | 合成 e2e 过 | Run #16/#17 应用预览已启动、新 footer 可见；但桌面导航点击未走通（Run #16 @83ddff5 spec.ts:1122 点击 900 s 超时；Run #17 @736a029 spec.ts:1131 点击 15 s 超时）——PR #23 修复中 | RISK | [Run #17](https://github.com/Onesummer-D/Ripple/actions/runs/39774721394)；[PR #23](https://github.com/Onesummer-D/Ripple/pull/23) | 应用预览内同名按钮消歧/视口挂载（PR #23，CI #480 进行中） | A |
+| 1.10 | 回滚 + 原工程未改动证明 | Footer.tsx / git status | A `apply.ts` | rolled-back、原工程 HEAD 与 status 不变 | 合成测试过；B 在 MEDIA 线有真实回滚证明范式（Run 39536064634） | 真实 TEXT 线：Run #15–#17 均未执行到回滚断言（测试在 1.9 导航处已失败退出） | NOT RUN | 同上 | 依赖 1.9 走通后的下一次运行 | A |
+| 1.11 | 版本历史恢复 | `/__ripple/api/history` | A | 历史记录恢复后候选/哈希/验证状态一致 | 合成测试过 | 真实 TEXT 线 NOT RUN（同 1.10 阻断） | NOT RUN | 同上 | 同上 | A |
+| 1.12 | 体验层演示流（画布优先工作台） | `experience.html` | F（PR #14） | 打开→选标题→改文案→关系→范围→对照→证据→历史 17 步连续可操作 | 单测 40/40、e2e 15/15、xp-1..4 真实 Chromium 截图 | 演示数据 DEMO/SIMULATED 全程标注；真实审批未接入（设计如此） | PASS【已合成·演示】 | [CI #475/#478](https://github.com/Onesummer-D/Ripple/actions?query=workflow%3ARipple+CI)；`docs/experience/HANDOFF.md` | 接 real-adapter 需各 Agent 提供接口（F HANDOFF §4） | F / 集成方 |
 
-**主案例结论**：真实 TEXT 全闭环（分析→点选→候选→四视口→审批→应用→回滚→历史）**尚未通过 Run #18**，矩阵中 1.4–1.10 在真实工程上全部为 NOT RUN；录屏与参赛文案涉及这些环节时必须标注“待验收”。
+**主案例结论**：整轮 Bolt 验收（Run #15–#17）的 workflow 结论均为 failure，但**阶段级结果不同，不能等同为 NOT RUN**（协调人已据真实日志核实）：
+
+| 阶段 | 阶段级状态（真实） | 依据 |
+| --- | --- | --- |
+| 工程分析 → 资源授权快照 → 网页点选 → 候选生成 → 四视口验证（七断言 PASSED）→ 范围决策 → 审批 → 应用 | **PASS**（Run #15–#17 @ a4ac547 / 83ddff5 / 736a029） | 各 Run 日志：失败点均在此之后 |
+| 应用预览启动 + 修改后 footer 可见 | **PASS**（Run #16/#17） | Run #16 日志 1120 行断言通过 |
+| 应用后三页桌面导航 | **FAIL**（Run #16 @1122 超时；Run #17 @1131 超时） | PR #23 修复中 |
+| 回滚、原工程未改动证明、历史恢复 | **NOT RUN**（Run #15–#17 均未执行到） | 待导航走通后的下一次运行 |
+
+因此：整轮闭环尚未通过 ≠ 全链路未运行。录屏与参赛文案涉及已通过阶段时可引用 Run #15–#17 工件（execution.json、四视口截图已在失败 Run 的工件中保存）；涉及回滚/历史恢复时仍须标注「真实 TEXT 线 NOT RUN」（MEDIA 线 Run 39536064634 的同构证明可作佐证并标注来源）。
 
 ## 案例二：栖光艺术节 · 媒体替换（MEDIA 辅助案例）
 
@@ -61,11 +71,11 @@ Fixture 定义：`src/cases/fixtures.ts`（qiguang 4 个 slot：首页横幅 `/`
 | Docker 隔离预演（受限 Vite 适配、loopback relay、CSP、资源快照） | PASS【已合成】 | 上述 CI + PR #17 预构建实验 | Windows 原生不支持，需 Linux Docker |
 | D 运行时身份（stable-react-instance 恢复、navigation-only） | PASS | PR #18 已合并；CI 39650178433 | 实例级编辑授权仍关闭 |
 | F 体验工作台（演示流 + 审批门控） | PASS【演示·DEMO 标注】 | PR #14 已合并；e2e 15/15 | 真实审批入口在 real 模式明确不开放 |
-| 生命周期清理 fail-closed / 发布门（Run #12 修复） | PASS【已合成】 | PR #13 已合并；确定性负例 22+9+8 | 真实 Bolt 未复验 |
+| 生命周期清理 fail-closed / 发布门（Run #12 修复） | PASS【合成 + 真实复验】 | PR #13 已合并；确定性负例 22+9+8；Run #15–#17 真实四视口验证完整产出 execution.json | 真实复验范围 = 验证阶段；预算压力已缓解（PR #17 预构建，DCL 稳态 ~2.3 s→~0.41 s） |
 | E 视觉差异证据 | PASS【合成】/ NOT RUN【真实】 | E 分支 fixture 测试 | 未接入 VerificationRunner，未合入 A |
 
 ## 使用规则
 
-1. 复验以真实 CI/工件为准；上表任何 NOT RUN 在 Run #18（Bolt）或对应真实验收运行通过前不得改写为 PASS。
-2. 每完成一轮真实验收，更新“实际运行结果/状态/CI 链接/复验负责人”四列并记录日期与运行 SHA。
+1. 复验以真实 CI/工件为准；上表任何 NOT RUN 在对应真实验收运行通过前不得改写为 PASS。**workflow 结论 failure ≠ 各阶段 NOT RUN**：必须按日志定位失败行，将失败点之前已通过的阶段如实标 PASS（Run #15–#17 即为例证）。
+2. 每完成一轮真实验收，更新“实际运行结果/状态/CI 链接/复验负责人”四列并记录日期、运行编号与提交 SHA。
 3. 主案例与辅助案例分开记录，不以合成 Fixture 代替真实网页验收。

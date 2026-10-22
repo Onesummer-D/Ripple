@@ -35,9 +35,9 @@
 | 网页点选 → 源码定位与运行时实例身份（navigation-only） | 【已验证·合成+官方 CI】 | D PR #18 已合入 A；实例级精准编辑授权仍关闭 |
 | 意图输入 → 隔离 worktree 候选补丁（diff、patchHash、tree digest，多操作合并） | 【已验证·合成】 | fail-closed 边界齐全（路径越界/符号链接/漂移/篡改拒绝） |
 | 资源授权与内容寻址快照（SHA-256，未授权外联默认阻断） | 【已验证·真实（部分）】 | 青野真实快照 221 个资源/12.4 MB，unavailable=0（Run #10/#11） |
-| Docker 隔离预演 + 四视口（1440/768/375/390）Playwright 验证与七项断言 | 【已验证·合成】/【待验收·真实】 | Bolt Runs #1–#17 全失败，Run #18 未触发 |
-| 范围决策与审批门控（unknown/partial 页面拒绝进入安全范围） | 【已验证·演示层】 | F 体验层强制；真实 Receipt 门控随 Run 待验收 |
-| 同补丁 Approval→Apply→Rollback→History Restore | 【已验证·合成+MEDIA 真实单线】 | TEXT 真实闭环 NOT RUN；青野 MEDIA 分类图闭环真实通过（Run 39536064634） |
+| Docker 隔离预演 + 四视口（1440/768/375/390）Playwright 验证与七项断言 | 【已验证·真实（Run #15–#17）】 | 真实青野工程四视口验证终止状态 PASSED、七断言全过（2026-10-22，@ a4ac547/83ddff5/736a029） |
+| 范围决策与审批门控（unknown/partial 页面拒绝进入安全范围） | 【已验证·演示层 + 真实审批已过】 | F 体验层强制；真实 Bolt 审批成功（Run #15–#17） |
+| 同补丁 Approval→Apply→Rollback→History Restore | 【已验证·合成 + 真实部分通过】 | 真实 Bolt 审批与应用已成功（Run #15–#17：同补丁、应用后 Footer.tsx 含新文案、HEAD 不变）；应用后预览导航修复中（PR #23）；回滚与历史恢复真实 TEXT 线 NOT RUN（MEDIA 分类图闭环真实通过，Run 39536064634） |
 | MEDIA 素材替换（本地上传/海报库、三容器裁切对照、media:// 引用） | 【已验证·工作台本地】 | 真实管线单操作通过（青野）；栖光演示为 Fixture |
 | CSS Token 执行器 | 【未接入】 | A 未完成；第三方 Token 0 节点实测 |
 | E 视觉差异证据（像素 diff + 几何规则，risk/unknown 语义） | 【已验证·合成样例】 | 未接入 VerificationRunner |
@@ -58,7 +58,7 @@
 2. **证据纪律**：UNKNOWN/RISK/NOT_RUN/STALE/FAILED_TO_RUN 永不伪装成 PASS；视觉差异证据「从不 PASS」语义（变化≠风险、无变化≠通过）；审批只接受完成且绑定完整身份的 Receipt。
 3. **同一补丁原则**：审批、应用、回滚使用同一份已验证 CandidatePatch，不重新生成；回滚保护应用后用户新增修改。
 4. **四视口真实预演**：把响应式后果（换行、溢出、遮挡、异常重排）变成带哈希的可复核证据。
-5. **失败驱动的工程闭环**：17 次真实运行（Runs #1–#17）逐次归因（资源快照、pids 超限、导航 10 s、导航契约、预算），每次修复都带确定性负例与独立审查（三轮），不放宽断言换绿。
+5. **失败驱动的工程闭环**：17 次真实运行（Runs #1–#17）逐次归因（资源快照、pids 超限、导航 10 s、导航契约），每次修复都带确定性负例与独立审查（三轮），不放宽断言换绿；阶段级进展真实可查——验证、审批、应用已在真实青野工程通过（Run #15–#17），整轮闭环的最后一公里（应用后导航、回滚、历史恢复）正在修复中。
 
 ## 7. 技术路线
 
@@ -67,7 +67,7 @@ AST 来源分析（TypeScript compiler API）→ DOM→Source 运行时注解与
 ## 8. 测试与验证
 
 - **合成工程 CI**（权威 Linux CI）：A 主线 2525092 CI #478 success；A+D 集成 408/408 Vitest、30/30 Playwright（1 跳过为私有专项，Run 39650178433）；PR #17 联合回归 426/426、30 passed/1 skipped（Run 39667915489）。
-- **真实工程验收**：青野 MEDIA asset-swap 第一阶段 Run 39536064634 SUCCESS（四视口双端 7 断言、Approval/Apply/Rollback、原工程未改动证明）；Bolt TEXT 验收 Runs #1–#17 失败（预算、pids、导航成本等，已逐项修复），Run #18 待触发。
+- **真实工程验收**：青野 MEDIA asset-swap 第一阶段 Run 39536064634 SUCCESS（四视口双端 7 断言、Approval/Apply/Rollback、原工程未改动证明）；Bolt TEXT 验收整轮 Runs #1–#17 结论 failure，但阶段级结果（2026-10-22 核实）：验证（七断言 PASSED）、审批、应用已在真实青野工程通过（Run #15 @ a4ac547、#16 @ 83ddff5、#17 @ 736a029）；应用后三页导航（Run #16/#17 超时，PR #23 修复中）与回滚、历史恢复（NOT RUN）待下一次运行。
 - **独立审查**：Run #12 修复三轮独立审查（复用页面破坏隔离等 P0 均被负例抓住后修复）；B MEDIA 与第三方探针经协调人独立审查冻结。
 - 三案例统一验收矩阵见 `docs/delivery/acceptance-matrix.md`。
 
@@ -82,7 +82,7 @@ AST 来源分析（TypeScript compiler API）→ DOM→Source 运行时注解与
 
 | 不足 | 后续计划 |
 | --- | --- |
-| Bolt TEXT 真实全闭环未通过（Runs #1–#17 失败，Run #18 未触发） | 触发 Run #18；若超预算按已批准方向（网络 relay 提供快照恢复 HTTP 缓存 / cgroup 余量允许并发探测页），不延长预算、不减少视口 |
+| Bolt TEXT 整轮闭环未通过（Runs #1–#17 结论 failure；验证/审批/应用已过，应用后导航、回滚、历史恢复未走通） | 合并 PR #23 后触发下一次 Run；若验证阶段再超预算，按已批准方向（网络 relay 提供快照恢复 HTTP 缓存 / cgroup 余量允许并发探测页），不延长预算、不减少视口 |
 | E 视觉差异模块未接入验证管线 | 按 E 文档 §7 接入顺序：baseline 侧同参截图 → 采样器绑定 → manifest 增加 visualComparisons → Receipt 重算哈希（建议性，不替代必需断言） |
 | CSS Token 执行器未实现；SCSS 不支持 | A 实现 Token 执行器与 Scope/computed-style 证据后复验 |
 | 第三方工程路由识别缺失（data router 0 route） | A-P1a 合入后按阻断矩阵推进 codescandy TEXT 全生命周期 |
