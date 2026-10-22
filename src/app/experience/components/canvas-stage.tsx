@@ -107,21 +107,33 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
         <span>首页</span><span>全部商品</span><span>品牌故事</span><span>联系我们</span>
       </header>
       <section className="ripple-xp-demo-hero">
-        {heroTitle && renderElement(heroTitle, <h1>{heroTitle.currentText}</h1>)}
-        {heroSubtitle && renderElement(heroSubtitle, <p className="ripple-xp-demo-sub">{heroSubtitle.currentText}</p>)}
-        <div className="ripple-xp-demo-cta-row">
-          <span className="ripple-xp-demo-cta">逛市集</span>
-          {seasonal && renderElement(seasonal, <span className="ripple-xp-demo-banner">{seasonal.currentText}</span>)}
+        <img className="ripple-xp-demo-hero-media" src="/demo-assets/hero-market.jpg" alt="" aria-hidden />
+        <div className="ripple-xp-demo-hero-overlay">
+          {heroTitle && renderElement(heroTitle, <h1>{heroTitle.currentText}</h1>)}
+          {heroSubtitle && renderElement(heroSubtitle, <p className="ripple-xp-demo-sub">{heroSubtitle.currentText}</p>)}
+          <div className="ripple-xp-demo-cta-row">
+            <span className="ripple-xp-demo-cta">逛市集</span>
+            {seasonal && renderElement(seasonal, <span className="ripple-xp-demo-banner">{seasonal.currentText}</span>)}
+          </div>
         </div>
       </section>
       <section className="ripple-xp-demo-grid">
-        {['柴烧茶壶', '素白陶碗', '手作风铃'].map(name => <div key={name} className="ripple-xp-demo-card"><span className="ripple-xp-demo-thumb" /><strong>{name}</strong></div>)}
+        {([
+          ['柴烧茶壶', '/demo-assets/workshop.jpg'],
+          ['素白陶碗', '/demo-assets/vessels.jpg'],
+          ['手作风铃', '/demo-assets/seasonal.jpg'],
+        ] as const).map(([name, art]) => (
+          <div key={name} className="ripple-xp-demo-card">
+            <span className="ripple-xp-demo-thumb" style={{ backgroundImage: `url(${art})` }} />
+            <strong>{name}</strong>
+          </div>
+        ))}
         {promo && renderElement(promo, <div className="ripple-xp-demo-card is-promo"><span className="ripple-xp-demo-thumb" /><strong>{promo.currentText}</strong></div>)}
       </section>
     </div>
   )
 
-  return <section className="ripple-xp-stage" aria-label="网页画布" data-testid="canvas-stage">
+  return <section className="ripple-xp-stage reveal" aria-label="网页画布" data-testid="canvas-stage">
     <div className="ripple-xp-stage-toolbar">
       <div className="ripple-xp-viewport-switch" role="group" aria-label="视口选择">
         {model.viewports.map(item => (
@@ -186,7 +198,14 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
       </p>
     )}
 
-    <div className="ripple-xp-viewport-shell" ref={hostRef} data-testid="viewport-shell">
+    <div
+      className="ripple-xp-viewport-shell"
+      ref={hostRef}
+      data-testid="viewport-shell"
+      // surface 使用 transform: scale()，不参与布局：外壳必须显式给出缩放后的高度，
+      // 否则画布渲染出来高度塌陷（空白根因修复）
+      style={{ height: Math.round(viewport.height * scale) }}
+    >
       <div
         className="ripple-xp-viewport-surface"
         style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})` }}

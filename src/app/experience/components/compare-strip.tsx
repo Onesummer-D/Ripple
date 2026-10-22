@@ -72,7 +72,7 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
     </figure>
   )
   const note = isDemo ? DEMO_COMPARE_NOTE : COMPARE_STATE_NOTE[compareState]
-  return <section className="ripple-xp-compare" aria-label="前后对照" data-testid="compare-strip">
+  return <section className="ripple-xp-compare reveal" aria-label="前后对照" data-testid="compare-strip">
     <SectionTitle aside={<span className={`ripple-xp-match-note ${note.className}`} data-testid="viewport-match-note">
       {note.text}
     </span>}>

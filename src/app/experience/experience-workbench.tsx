@@ -30,6 +30,54 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [reloadToken, setReloadToken] = useState(0)
   const modelRef = useRef<ExperienceViewModel | undefined>(undefined)
 
+  // 点击涟漪：产品名 Ripple 的核心触感。任何点击在落点扩散一枚茶青圆环；
+  // 动效纯视觉、挂载在 body，不干扰事件流；减少动态偏好时完全关闭。
+  useEffect(() => {
+    if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const onClick = (event: MouseEvent) => {
+      const drop = document.createElement('span')
+      drop.className = 'ripple-xp-ripple'
+      drop.style.left = `${event.clientX}px`
+      drop.style.top = `${event.clientY}px`
+      document.body.appendChild(drop)
+      drop.addEventListener('animationend', () => drop.remove(), { once: true })
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [])
+
+  // 滚动浮现：分区进入视口时上浮入场（reveal → in-view），减少动态偏好时由 CSS 直接可见
+  useEffect(() => {
+    const root = document.querySelector('.ripple-xp-workbench')
+    if (!root) return
+    if (typeof IntersectionObserver === 'undefined') {
+      // 老环境降级：不做浮现动画，内容直接可见
+      root.querySelectorAll('.reveal:not(.in-view)').forEach(element => element.classList.add('in-view'))
+      return
+    }
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view')
+          observer.unobserve(entry.target)
+        }
+      }
+    }, { rootMargin: '0px 0px -8% 0px' })
+    root.querySelectorAll('.reveal:not(.in-view)').forEach(element => {
+      // 首屏内的分区同步入场（不等 IO 回调，避免首帧空白）；
+      // 视口外的交给 IO 做滚动浮现
+      if (element.getBoundingClientRect().top < window.innerHeight) {
+        element.classList.add('in-view')
+        return
+      }
+      if (!(element as HTMLElement).dataset.xpObserved) {
+        (element as HTMLElement).dataset.xpObserved = '1'
+        observer.observe(element)
+      }
+    })
+    return () => observer.disconnect()
+  })
+
   useEffect(() => {
     let active = true
     activeAdapter.load()

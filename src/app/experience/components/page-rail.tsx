@@ -21,7 +21,7 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
     const rank = (page: PageXp) => page.relation === 'editing' ? 0 : page.relation === 'same-source' ? 1 : 2
     return rank(a) - rank(b) || a.label.localeCompare(b.label, 'zh')
   })
-  return <nav className="ripple-xp-page-rail" aria-label="页面导航" data-testid="page-rail">
+  return <nav className="ripple-xp-page-rail reveal" aria-label="页面导航" data-testid="page-rail">
     <h3>页面</h3>
     {navigationDisabled && (
       <p className="ripple-xp-nav-pending" role="note" data-testid="page-nav-pending">
