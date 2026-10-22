@@ -141,7 +141,7 @@ crossVersion: {
 
 ## 6. 验证
 
-`src/core/visual-dual-targets.test.ts` 21 例：
+`src/core/visual-dual-targets.test.ts` 23 例：
 
 - 原 8 对照场景（位置偏移 / 共享 Footer 重复实例 / 同源不同实例 /
   RouterProvider unknown / 来源不一致 / 跨页消费者 / 无目标变化 /
@@ -154,7 +154,11 @@ crossVersion: {
   采集期 reason 禁止实例候选；⑦ RouterProvider unknown 与 unproven
   两例**端到端断言最终 Evidence/ViewModel 可见等级**（scope、
   proofLabel、计数），不允许只查内部配对数组；⑧ 严格证明开关收紧
-  （空 missingEvidence + 显式评估仍因其余输入未清而为 false）。
+  （空 missingEvidence + 显式评估仍因其余输入未清而为 false）；
+  ⑨ offset 漂移（#120/#148）+ candidate 自身版本失效必须检出——
+  版本检查按各侧自己的 sourceRef 文件对照该侧预期摘要，不依赖两侧
+  字符串相等；⑩ 正例：offset 漂移 + 合法 H1≠H2 各自有效维持
+  instance-candidate，且版本证据移出 missingEvidence。
 
 固件字节零变化（golden fixture 未触碰）。旧输入路径（非 dual）逐字节
 不变。

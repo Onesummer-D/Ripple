@@ -483,36 +483,33 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   // samples describe different pages.
   const samePageContext = baseline.route === candidate.route && baseline.locationSuffixSha256 === candidate.locationSuffixSha256
   /**
-   * Per-side version verification against that side's OWN expected digest.
-   * `invalid` is a real contradiction (collected vs the same side's graph
-   * revision); `unverified` only means no expected digest was supplied.
-   * Comparing baseline's digest against candidate's is MEANINGLESS — they
-   * are two different revisions and are expected to differ.
+   * Per-side version verification: each side's collected digest for the file
+   * named by THAT SIDE'S OWN sourceRef is compared against that side's OWN
+   * expected digest. `invalid` is a real contradiction (collected vs the same
+   * side's graph revision); `unverified` only means no expected digest was
+   * supplied or nothing was collected. Comparing baseline's digest against
+   * candidate's is MEANINGLESS — they are two different revisions and are
+   * expected to differ. The check must not depend on the two sourceRef
+   * strings being equal: an offset drift (#120 vs #148) names the same file,
+   * and a stale version on either side invalidates the pairing regardless.
    */
-  const versionStatus = (file: string | null): { invalid: boolean; unverified: boolean } => {
+  const sideVersionStatus = (side: 'baseline' | 'candidate', file: string | null): { invalid: boolean; unverified: boolean } => {
     if (file === null) return { invalid: false, unverified: true }
-    const check = (sample: DomGeometrySample, expected?: Record<string, string> | null) => {
-      const want = expected?.[file]
-      if (want === undefined) return { invalid: false, unverified: true }
-      const got = sample.sourceFileVersions?.[file]
-      return { invalid: got !== want, unverified: got === undefined }
-    }
-    const b = check(baseline, options.expectedSourceVersions?.baseline ?? null)
-    const c = check(candidate, options.expectedSourceVersions?.candidate ?? null)
-    return { invalid: b.invalid || c.invalid, unverified: b.unverified || c.unverified }
+    const sample = side === 'baseline' ? baseline : candidate
+    const expected = side === 'baseline' ? options.expectedSourceVersions?.baseline ?? null : options.expectedSourceVersions?.candidate ?? null
+    const want = expected?.[file]
+    if (want === undefined) return { invalid: false, unverified: true }
+    const got = sample.sourceFileVersions?.[file]
+    return { invalid: got !== want, unverified: got === undefined }
   }
   const missingEvidence: CrossVersionMissingEvidence[] = []
   // Version evidence is unverified when either sample collected no map at
-  // all, or any source file involved in the pairing lacks a per-side
-  // expected-digest comparison. Only a per-side CONTRADICTION is a mismatch
+  // all, or any element's own source file lacks a per-side expected-digest
+  // comparison on its side. Only a per-side CONTRADICTION is a mismatch
   // (checked per pair in sharedBlockers); unverified never downgrades alone.
-  const involvedFiles = new Set<string>()
-  for (const element of [...baseline.elements, ...candidate.elements]) {
-    const file = sourceFileFromSourceRef(element.sourceRef)
-    if (file !== null) involvedFiles.add(file)
-  }
   const versionUnverified = baseline.sourceFileVersions === null || candidate.sourceFileVersions === null
-    || [...involvedFiles].some(file => versionStatus(file).unverified)
+    || baseline.elements.some(element => sideVersionStatus('baseline', sourceFileFromSourceRef(element.sourceRef)).unverified)
+    || candidate.elements.some(element => sideVersionStatus('candidate', sourceFileFromSourceRef(element.sourceRef)).unverified)
   if (versionUnverified) missingEvidence.push('source-version')
   // Route/suffix are collected, but C+D's full RuntimePageContext (pathname
   // namespace, route identity) is not — the strict proof input stays missing.
@@ -528,8 +525,11 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   const sharedBlockers = (b: DomElementGeometry, c: DomElementGeometry): string[] => {
     const reasons: string[] = []
     if (!samePageContext && !reasons.includes('different-page-context')) reasons.push('different-page-context')
-    const sharedFile = b.sourceRef !== null && b.sourceRef === c.sourceRef ? sourceFileFromSourceRef(b.sourceRef) : null
-    if (versionStatus(sharedFile).invalid && !reasons.includes('source-version-mismatch')) reasons.push('source-version-mismatch')
+    // Per-side version check on each side's OWN sourceRef file — independent
+    // of whether the two refs are equal (offset drift keeps the file equal).
+    const versionInvalid = sideVersionStatus('baseline', sourceFileFromSourceRef(b.sourceRef)).invalid
+      || sideVersionStatus('candidate', sourceFileFromSourceRef(c.sourceRef)).invalid
+    if (versionInvalid && !reasons.includes('source-version-mismatch')) reasons.push('source-version-mismatch')
     const blocking = [...(b.identityReasons ?? []), ...(c.identityReasons ?? [])].filter(reason => BLOCKING_IDENTITY_REASONS.includes(reason))
     if (blocking.length && !reasons.includes('blocking-identity-reason')) reasons.push('blocking-identity-reason')
     return reasons

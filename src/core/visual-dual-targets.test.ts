@@ -313,6 +313,42 @@ describe('P1 negative cases: strict-proof downgrades', () => {
     expect(unverified.scope.strictInstanceProofAvailable).toBe(false)
   })
 
+  it('反例3b offset 漂移 + candidate 自身版本失效: 不得依赖 sourceRef 字符串相等才检查版本', () => {
+    // baseline jsx:src/App.tsx#120 collected H1 == expected H1; candidate
+    // jsx:src/App.tsx#148 (same file, offset drift) collected H_BAD !=
+    // candidate's own expected H2. The per-side check must key on each
+    // side's OWN sourceRef file, not on the two strings being equal.
+    const H3 = '3'.repeat(64)
+    const HBAD = '9'.repeat(64)
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#120', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const candidateRaw = sample('candidate', [el('h', 'jsx:src/App.tsx#148', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const pairing = pairCrossVersionElements(
+      { ...baseline, sourceFileVersions: { 'src/App.tsx': V1 } },
+      { ...candidateRaw, sourceFileVersions: { 'src/App.tsx': HBAD } },
+      { expectedSourceVersions: { baseline: { 'src/App.tsx': V1 }, candidate: { 'src/App.tsx': H3 } } },
+    )
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.unproven).toHaveLength(1)
+    expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
+  })
+
+  it('正例 offset 漂移 + 合法 H1!=H2 各自有效: 维持 instance-candidate', () => {
+    // Same file, offset shifted, each side's collected digest matches its
+    // OWN expected digest — a legal cross-revision difference must not
+    // downgrade, and version evidence is verified (out of missingEvidence).
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#120', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const candidateRaw = sample('candidate', [el('h', 'jsx:src/App.tsx#148', [0, 0, 20, 10], { runtimeInstanceId: '/:h' })])
+    const pairing = pairCrossVersionElements(
+      { ...baseline, sourceFileVersions: { 'src/App.tsx': V1 } },
+      { ...candidateRaw, sourceFileVersions: { 'src/App.tsx': V2 } },
+      { expectedSourceVersions: { baseline: { 'src/App.tsx': V1 }, candidate: { 'src/App.tsx': V2 } } },
+    )
+    expect(pairing.instanceCandidate).toHaveLength(1)
+    expect(pairing.unproven).toHaveLength(0)
+    expect(pairing.scope.missingEvidence).not.toContain('source-version')
+    expect(pairing.scope.strictInstanceProofAvailable).toBe(false) // page-context 等仍未清
+  })
+
   it('反例4 同一 sourceRef 多次渲染且无稳定实例身份: 不配对', () => {
     const baseline = sample('baseline', [
       el('a', 'jsx:src/Item.tsx#5', [0, 0, 20, 10], { runtimeInstanceId: null, identityCertainty: 'unknown' }),
