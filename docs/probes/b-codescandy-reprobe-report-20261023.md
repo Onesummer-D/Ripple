@@ -22,7 +22,7 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs s
 实测（完整数据 `docs/probes/b-codescandy-reprobe-2026-10-23.json`、`b-codescandy-reprobe-stats-20261023.json`）：
 
 - 图 4957 节点 / 5384 边 / **37 route**（旧 4924/5006/**0**）
-- 媒体 100 资产节点；**asset-consumer 边 178（source-proven 61 / semantic-candidate 117）——source-proven 61 与旧基线 61 完全同口径持平**（v1 报告误将 reads 边计入，已修正）；另有指向媒体节点的 `reads` 边 100 条 source-proven（JSX src 属性，不计入该指标）
+- 媒体 100 资产节点；**asset-consumer 边 178（source-proven 61 / semantic-candidate 117）——source-proven 61 与旧基线 61 完全同口径持平**（v1 报告误将 reads 边计入，已修正）；节点口径：任意边即消费 100，**source-proven 消费 61**；另有指向媒体节点的 `reads` 边 100 条 source-proven（JSX src 属性，不计入 asset-consumer 指标）
 - 媒体页面影响：0 source-proven / 60 partial / 40 unknown（旧版 100/100 unknown）
 - TEXT 2283 data 节点 / 3593 条 source-proven reads 边
 - token 0；悬空 source-proven 边 0；unresolved 3（theme.scss、条件路由回退、route-coverage）

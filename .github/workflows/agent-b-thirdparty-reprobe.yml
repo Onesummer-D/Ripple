@@ -30,8 +30,8 @@ jobs:
         # injects unrelated errors to prove no false green. After AC-P2a/AC-P2b
         # land, switch to: --expect accepted
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-candidate-gate.mjs "$RUNNER_TEMP/codescandy" --selftest --artifacts test-results
-      - name: "B-ENV-1 pinned repro (CRLF/LF working-tree states)"
-        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-env1-eol-repro.mjs "$RUNNER_TEMP/codescandy" test-results
+      - name: "B-ENV-1 pinned repro (read-only source, independent LF/CRLF clones)"
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-env1-eol-repro.mjs "$RUNNER_TEMP/codescandy" --selftest --artifacts test-results
       - name: "Source proof probe (expected: exit 2 BLOCKED with complete report)"
         # Probe exit semantics: 0 = proof satisfied; 2 = BLOCKED (complete report);
         # 1 = hard failure. Current expected state is 2 — treat it as a passing

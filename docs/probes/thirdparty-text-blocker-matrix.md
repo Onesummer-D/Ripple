@@ -17,6 +17,7 @@
 | route 节点 | **0** | **37** |
 | 媒体资产节点 | 100 | 100 |
 | 媒体 asset-consumer 边（source-proven） | 61 | 61（同口径持平；另有 semantic-candidate 117，合计 178） |
+| 媒体被消费覆盖（节点数） | — | 任意边即消费 100；**source-proven asset-consumer 消费 61**（两者不得混用） |
 | 媒体页面影响 | 100/100 unknown | 0 source-proven / 60 partial / 40 unknown；`reads` 类边 100 条 source-proven（JSX src 属性，不计入 asset-consumer 指标） |
 | TEXT data 节点 | 2283 | 2283 |
 | TEXT source-proven reads 边 | —（页面影响全 unknown） | 3593 |

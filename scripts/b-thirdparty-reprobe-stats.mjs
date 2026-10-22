@@ -32,6 +32,7 @@ for (const e of edgesToMedia.filter(e => e.kind !== 'asset-consumer')) {
   otherEdgesToMediaByKind[e.kind].byCertainty[e.certainty] = (otherEdgesToMediaByKind[e.kind].byCertainty[e.certainty] ?? 0) + 1
 }
 const consumedMediaIds = new Set(edgesToMedia.map(e => e.to))
+const provenConsumedMediaIds = new Set(assetConsumerEdges.filter(e => e.certainty === 'source-proven').map(e => e.to))
 const mediaPageImpactTally = { 'source-proven': 0, partial: 0, unknown: 0 }
 for (const m of mediaAssetNodes) {
   const impact = sourceProvenPageImpact(graph, m.id)
@@ -64,7 +65,9 @@ const result = {
   unresolved: graph.unresolved,
   media: {
     assetNodes: mediaAssetNodes.length,
-    uniqueConsumed: consumedMediaIds.size,
+    uniqueConsumedAnyEdge: consumedMediaIds.size,
+    uniqueConsumedProvenAssetConsumer: provenConsumedMediaIds.size,
+    consumptionDistinctionNote: 'uniqueConsumedAnyEdge 只表示"存在任意指向媒体的边"（含未证明的 asset-consumer 与 reads）；uniqueConsumedProvenAssetConsumer 才是"存在 source-proven asset-consumer 消费关系"的媒体数量，两者不得混用。',
     unconsumed: mediaAssetNodes.length - consumedMediaIds.size,
     assetConsumer: tally(assetConsumerEdges),
     otherEdgesToMediaByKind,

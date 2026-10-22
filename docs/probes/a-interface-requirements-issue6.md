@@ -57,9 +57,12 @@ unresolved 记录 `data-router src/App.tsx#2358: conditional route fallback cons
 `b-env1-eol-repro-20261023.json`，复跑脚本 `scripts/b-env1-eol-repro.mjs`。
 
 要点：codescandy 的 git blob 全为 LF；CRLF 工作树仅来自 autocrlf=true 检出且被 git 报为
-"干净"（stat 缓存/过滤幻觉，Ripple 干净检查会放行）；Ripple 以 `-c core.autocrlf=false`
-建候选 worktree 得 LF 字节，与 CRLF 快照摘要必然不一致 → 候选创建被字节一致性检查拒绝
-（`mismatchDemonstrated: true`，可稳定复现）。
+"干净"（Ripple 干净检查放行）；Ripple 以 `-c core.autocrlf=false` 建候选 worktree 得 LF
+字节，与 CRLF 快照摘要必然不一致 → 候选创建被字节一致性检查拒绝（`mismatchDemonstrated:
+true`，可稳定复现）。v2 复现（传入检出只读、双独立临时 clone）进一步确认：CRLF 快照摘要
+与新建 autocrlf=true worktree 摘要一致（`a3d59740…`，同一 git 过滤器），v1 曾测得的第三
+个摘要值为手工转换伪影，已取代；有操作意义的不一致仅为 CRLF 快照（`a3d59740…`）vs
+autocrlf=false 候选 worktree（`016aee03…`）。
 
 **B 不要求、也不建议**把 ProjectRevision/CandidatePatch/补丁范围/工作树完整性的摘要改为
 "归一化文本后计算"——这些摘要必须尊重真实字节，归一化会使摘要与实际补丁不一致。
@@ -97,19 +100,24 @@ blocks the project-level page-impact proof. Model provable fallbacks into
 the graph (source-proven); keep traceable unresolved for the rest; make the
 `route-coverage` trigger explainable.
 
-**B-ENV-1 (environment note, pinned repro available):** codescandy git blobs
-are LF; a CRLF working tree arises from an `core.autocrlf=true` checkout and is
-reported clean by git (stat-cache/filter illusion), so Ripple's snapshot check
-lets it through; Ripple then builds the candidate worktree with
-`-c core.autocrlf=false` (LF bytes), which can never match the CRLF snapshot
-digest — candidate creation fails the byte-identity check
-(`mismatchDemonstrated: true`). Full two-state record (autocrlf, blob, on-disk
-bytes, graph/candidate offsets, both digests):
+**B-ENV-1 (environment note, pinned repro v2):** codescandy git blobs
+are LF; a CRLF working tree arises from a `core.autocrlf=true` checkout and is
+reported clean by git, so Ripple's snapshot check lets it through; Ripple then
+builds the candidate worktree with `-c core.autocrlf=false` (LF bytes), which
+can never match the CRLF snapshot digest — candidate creation fails the
+byte-identity check (`mismatchDemonstrated: true`). v2 (read-only source, two
+independent script-owned clones) further shows the CRLF snapshot digest equals
+a fresh `autocrlf=true` worktree digest (`a3d59740…`, same git filter); the
+third digest seen in v1 was a manual-conversion artifact and is superseded.
+The only operative mismatch is CRLF snapshot (`a3d59740…`) vs the
+autocrlf=false candidate worktree (`016aee03…`). Full record:
 `docs/probes/b-env1-eol-repro-20261023.md`, rerunnable via
-`scripts/b-env1-eol-repro.mjs`. We explicitly do NOT propose hashing
-normalized text — ProjectRevision/CandidatePatch/patch-scope/worktree-integrity
-digests must respect real bytes. Decision (checkout policy vs source-version
-contract recording EOL state) is A's. Graph and candidate offsets shift with
+`scripts/b-env1-eol-repro.mjs` (with `--selftest` file-safety negatives:
+dirty source returned byte-identical, foreign sentinel untouched). We
+explicitly do NOT propose hashing normalized text —
+ProjectRevision/CandidatePatch/patch-scope/worktree-integrity digests must
+respect real bytes. Decision (checkout policy vs source-version contract
+recording EOL state) is A's. Graph and candidate offsets shift with
 EOL (#2620 ↔ #2691); artifacts carrying source offsets must record EOL state.
 
 **Repro:** `scripts/b-thirdparty-candidate-gate.mjs`,

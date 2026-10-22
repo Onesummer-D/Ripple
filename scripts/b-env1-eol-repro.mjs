@@ -1,16 +1,23 @@
-/** B-ENV-1 pinned repro: CRLF vs LF working-tree state of the fixed codescandy
- *  checkout. Git blobs are LF; a CRLF working tree arises when the checkout was
- *  materialized with core.autocrlf=true (git still considers such a tree CLEAN).
- *  This script records, for BOTH states on the SAME pinned HEAD:
- *    - core.autocrlf (repo/global), git status cleanliness, git blob identity
- *    - on-disk bytes (size/sha256/EOL)
- *    - Ripple snapshot digest vs fresh-worktree digests (autocrlf=false/true)
- *    - Ripple graph offsets and candidate (node.location) offsets of the
- *      ProfileHeader "Overview" TEXT target
- *  Data only — handed to A to judge checkout policy / source-version contract.
+/** B-ENV-1 pinned repro v2: CRLF vs LF working-tree states, WITHOUT touching
+ *  the caller's checkout. The passed repo is strictly READ-ONLY (we only run
+ *  git read commands against it and verify the pinned HEAD). All experiments
+ *  happen in two independent script-owned clones under an mkdtemp root:
  *
- *  Safety: only the passed scratch checkout is temporarily converted and it is
- *  ALWAYS restored (git checkout -f) in finally; worktrees are script-created.
+ *    lfClone   — cloned with -c core.autocrlf=false (LF working tree)
+ *    crlfClone — cloned with -c core.autocrlf=true  (CRLF working tree, git-clean)
+ *
+ *  Records per state: autocrlf, git-cleanliness, on-disk bytes, Ripple snapshot
+ *  digest, graph/candidate offsets of the ProfileHeader "Overview" target, plus
+ *  reference worktree digests (what Ripple's candidate worktree add would
+ *  produce under each policy) and a per-file diff list explaining why the
+ *  CRLF snapshot digest and the fresh autocrlf=true worktree digest differ.
+ *
+ *  Data only — handed to A to judge checkout policy / source-version contract.
+ *  Never proposes changing security digests or the ProjectRevision contract.
+ *
+ *  --selftest adds file-safety negatives: a pre-existing foreign sentinel dir
+ *  must stay byte-identical, and a DIRTY clone passed as the source must be
+ *  returned completely unchanged.
  */
 import fs from 'node:fs'
 import os from 'node:os'
@@ -19,18 +26,23 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { analyzeProject, readProjectSnapshot, digestTrackedTree } from '../src/core/project.ts'
 
-const repo = process.argv[2]
-const artifactsDir = path.resolve(process.argv[3] ?? 'test-results')
+const argv = process.argv.slice(2)
+const repo = path.resolve(argv[0])
+const flagValue = (name) => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 1] : undefined }
+const artifactsDir = path.resolve(flagValue('--artifacts') ?? 'test-results')
+const selftest = argv.includes('--selftest')
+if (!argv[0]) throw new Error('usage: b-env1-eol-repro.mjs <repo> [--selftest] [--artifacts <dir>]')
+
 const expected = 'b700bbd55b31a62fe04d4cd8210fc37232f0c9f0'
 const actual = execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
 if (actual !== expected) throw new Error(`Refusing unpinned checkout: ${actual}`)
 
 const TARGET = 'src/sub-components/profile/ProfileHeader.tsx'
-const TEXT_EXT = /\.(ts|tsx|js|jsx|json|scss|css|html|md|txt|svg|yml|yaml|map)$/i
-const sha256 = buf => createHash('sha256').update(buf).digest('hex')
+const sha256 = (buf) => createHash('sha256').update(buf).digest('hex')
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim()
-const porcelain = (root) => git(root, ['status', '--porcelain'])
+const porcelain = (root) => { try { return git(root, ['status', '--porcelain']) } catch { return '<error>' } }
 const trackedFiles = (root) => git(root, ['ls-files']).split('\n').filter(Boolean)
+const worktreeList = (root) => git(root, ['worktree', 'list', '--porcelain']).split('\n').filter(l => l.startsWith('worktree ')).map(l => l.slice(9).trim())
 
 const measure = (root, label) => {
   const graph = analyzeProject(root, true)
@@ -43,30 +55,50 @@ const measure = (root, label) => {
     fileSha256: sha256(bytes),
     gitClean: porcelain(root) === '',
     snapshotDigest: readProjectSnapshot(root).revision.sourceDigest,
-    graphOffsets: literal ? {
-      literalId: literal.id,
-      candidateStart: literal.location.start,
-      candidateEnd: literal.location.end,
-    } : null,
+    graphOffsets: literal ? { literalId: literal.id, candidateStart: literal.location.start, candidateEnd: literal.location.end } : null,
   }
 }
 
-const toCrlf = () => {
-  for (const f of trackedFiles(repo)) {
-    if (!TEXT_EXT.test(f)) continue
-    const p = path.join(repo, f)
-    const buf = fs.readFileSync(p)
-    if (buf.includes(Buffer.from('\r\n'))) continue
-    fs.writeFileSync(p, buf.toString('utf8').replace(/\n/g, '\r\n'))
+/** Per-file byte diff between two checkouts of the same tree, with git attrs. */
+const diffCheckouts = (rootA, rootB) => {
+  const diffs = []
+  for (const f of trackedFiles(rootA)) {
+    const a = fs.readFileSync(path.join(rootA, f))
+    const b = fs.readFileSync(path.join(rootB, f))
+    if (sha256(a) !== sha256(b)) {
+      let attr = null
+      try { attr = git(rootA, ['check-attr', 'text', 'eol', '--', f]) } catch { /* ignore */ }
+      diffs.push({
+        file: f,
+        bytesA: a.length,
+        bytesB: b.length,
+        eolA: a.includes(Buffer.from('\r\n')) ? 'CRLF' : (a.includes(10) ? 'LF' : 'binary/no-lf'),
+        eolB: b.includes(Buffer.from('\r\n')) ? 'CRLF' : (b.includes(10) ? 'LF' : 'binary/no-lf'),
+        attr,
+      })
+    }
   }
+  return diffs
+}
+
+const cloneInto = (dest, autocrlf) => {
+  execFileSync('git', ['-c', `core.autocrlf=${autocrlf}`, 'clone', '--quiet', '--', repo, dest], { stdio: 'pipe' })
+  if (git(dest, ['rev-parse', 'HEAD']) !== expected) throw new Error(`clone HEAD mismatch in ${dest}`)
 }
 
 const tempParent = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-b-env1-'))
-const wtFalse = path.join(tempParent, 'wt-autocrlf-false')
-const wtTrue = path.join(tempParent, 'wt-autocrlf-true')
-const savedAutocrlf = (() => { try { return git(repo, ['config', '--get', 'core.autocrlf']) } catch { return null } })()
+const lfClone = path.join(tempParent, 'lf-checkout')
+const crlfClone = path.join(tempParent, 'crlf-checkout')
+const wtFalse = path.join(tempParent, 'ref-worktree-autocrlf-false')
+const wtTrue = path.join(tempParent, 'ref-worktree-autocrlf-true')
+
+const repoBefore = { head: actual, digest: digestTrackedTree(repo), porcelain: porcelain(repo), worktrees: worktreeList(repo) }
+
 let result
 try {
+  cloneInto(lfClone, false)
+  cloneInto(crlfClone, true)
+
   const blob = {
     blobName: git(repo, ['rev-parse', `HEAD:${TARGET}`]),
     blobSha256: sha256(execFileSync('git', ['-C', repo, 'cat-file', 'blob', `HEAD:${TARGET}`])),
@@ -74,71 +106,86 @@ try {
     blobEol: execFileSync('git', ['-C', repo, 'cat-file', 'blob', `HEAD:${TARGET}`]).includes(Buffer.from('\r\n')) ? 'CRLF' : 'LF',
   }
 
-  const lf = measure(repo, 'LF')
+  const lf = measure(lfClone, 'LF (script-owned clone, autocrlf=false)')
+  const crlf = measure(crlfClone, 'CRLF (script-owned clone, autocrlf=true)')
 
-  // CRLF state: convert tracked text files, declare autocrlf=true, then force a
-  // checkout so the index stat cache is rewritten under autocrlf=true — this
-  // reproduces the original-clone condition where git considers CRLF bytes CLEAN.
-  toCrlf()
-  execFileSync('git', ['-C', repo, 'config', 'core.autocrlf', 'true'], { stdio: 'pipe' })
-  execFileSync('git', ['-c', 'core.autocrlf=true', '-C', repo, 'checkout', '-f', 'HEAD'], { stdio: 'pipe' })
-  let crlf
-  try {
-    crlf = measure(repo, 'CRLF')
-  } catch (error) {
-    crlf = { state: 'CRLF', measureError: error instanceof Error ? error.message : String(error), gitClean: porcelain(repo) === '', porcelainSample: porcelain(repo).split('\n').slice(0, 5) }
-  }
-
-  // reference worktrees: what `git worktree add` would produce under each policy
-  execFileSync('git', ['-c', 'core.autocrlf=false', '-C', repo, 'worktree', 'add', '--detach', wtFalse, actual], { stdio: 'pipe' })
-  execFileSync('git', ['-c', 'core.autocrlf=true', '-C', repo, 'worktree', 'add', '--detach', wtTrue, actual], { stdio: 'pipe' })
+  // reference worktrees: what `git worktree add` produces under each policy —
+  // created from the CRLF clone, which is the state Ripple would snapshot.
+  execFileSync('git', ['-c', 'core.autocrlf=false', '-C', crlfClone, 'worktree', 'add', '--detach', wtFalse, expected], { stdio: 'pipe' })
+  execFileSync('git', ['-c', 'core.autocrlf=true', '-C', crlfClone, 'worktree', 'add', '--detach', wtTrue, expected], { stdio: 'pipe' })
   const worktreeDigests = {
     worktreeAutocrlfFalse: digestTrackedTree(wtFalse),
     worktreeAutocrlfTrue: digestTrackedTree(wtTrue),
   }
 
+  const crlfVsWtTrue = diffCheckouts(crlfClone, wtTrue)
+
   result = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     codescandySha: actual,
     recordedAt: new Date().toISOString(),
+    sourceRepo: { role: 'read-only', note: '传入检出仅执行 git 读命令；全部实验在脚本自有临时 clone 中进行。' },
     gitConfig: {
-      repoCoreAutocrlfDuringCrlfState: 'true',
-      repoCoreAutocrlfRestored: savedAutocrlf,
-      globalCoreAutocrlf: (() => { try { return execFileSync('git', ['config', '--global', '--get', 'core.autocrlf'], { encoding: 'utf8' }).trim() || null } catch { return null } })(),
-      mechanism: 'blob 为 LF；autocrlf=true 检出的工作树为 CRLF 且 git 视角干净；Ripple 用 -c core.autocrlf=false 建候选 worktree 得到 LF 字节 → 摘要不一致。',
+      clonePolicyLf: 'core.autocrlf=false',
+      clonePolicyCrlf: 'core.autocrlf=true',
+      mechanism: 'blob 为 LF；autocrlf=true 检出的工作树为 CRLF 且 git 视角干净；Ripple 用 -c core.autocrlf=false 建候选 worktree 得到 LF 字节 → 与 CRLF 快照摘要不一致。',
     },
     gitBlob: blob,
     states: { lf, crlf },
     worktreeDigests,
     mismatchDemonstrated: crlf.snapshotDigest !== worktreeDigests.worktreeAutocrlfFalse,
+    crlfSnapshotVsFreshAutocrlfTrueWorktree: {
+      explanation: 'v2（clone 法）：CRLF 原工程摘要 a3d59740… 与新建 autocrlf=true worktree 摘要完全一致（differingFiles=0）——两者都经 git 同一换行过滤。v1（手工 sed 转换法）曾得到第三个摘要 bdb283ff…，原因是手工转换把 git 视为非文本的文件（部分 .svg 等）也转成了 CRLF，超出了 git 过滤器范围；该值是测量法伪影，已被 v2 取代。operative 不一致仅存在于 CRLF 快照（a3d59740…）与 Ripple 建候选用的 autocrlf=false worktree（016aee03…）之间。',
+      differingFiles: crlfVsWtTrue,
+    },
+  }
+
+  if (selftest) {
+    const cases = []
+    // sentinel: pre-existing foreign dir + file must be byte-identical afterwards
+    const foreign = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-b-env1-foreign-'))
+    const sentinelFile = path.join(foreign, 'sentinel.bin')
+    fs.writeFileSync(sentinelFile, Buffer.from('do-not-touch-' + Date.now()))
+    const sentinelBytes = fs.readFileSync(sentinelFile)
+    // dirty-worktree source: a clone with modified tracked file + untracked file,
+    // passed through the same read-only pipeline (measure must refuse the dirty tree)
+    const dirtyClone = path.join(tempParent, 'dirty-source')
+    cloneInto(dirtyClone, false)
+    const dirtyTarget = path.join(dirtyClone, TARGET)
+    const dirtyBytesBefore = fs.readFileSync(dirtyTarget)
+    fs.appendFileSync(dirtyTarget, '// dirty-local-edit\n')
+    const untrackedFile = path.join(dirtyClone, 'local-notes.txt')
+    fs.writeFileSync(untrackedFile, 'local untracked content')
+    let dirtyMeasureError = null
+    try { measure(dirtyClone, 'dirty') } catch (error) { dirtyMeasureError = error instanceof Error ? error.message : String(error) }
+    cases.push({
+      case: 'dirty-source-read-only',
+      pass: dirtyMeasureError !== null
+        && fs.readFileSync(dirtyTarget).equals(Buffer.concat([dirtyBytesBefore, Buffer.from('// dirty-local-edit\n')]))
+        && fs.readFileSync(untrackedFile, 'utf8') === 'local untracked content',
+      detail: { measureError: dirtyMeasureError },
+    })
+    cases.push({
+      case: 'sentinel-byte-invariance',
+      pass: fs.existsSync(sentinelFile) && fs.readFileSync(sentinelFile).equals(sentinelBytes) && fs.existsSync(foreign),
+    })
+    fs.rmSync(foreign, { recursive: true, force: true })
+    const repoAfter = { head: git(repo, ['rev-parse', 'HEAD']), digest: digestTrackedTree(repo), porcelain: porcelain(repo), worktrees: worktreeList(repo) }
+    const postChecks = {
+      sourceRepoHeadUnchanged: repoAfter.head === repoBefore.head,
+      sourceRepoDigestUnchanged: repoAfter.digest === repoBefore.digest,
+      sourceRepoPorcelainUnchanged: repoAfter.porcelain === repoBefore.porcelain,
+      sourceRepoWorktreesUnchanged: repoAfter.worktrees.length === repoBefore.worktrees.length && repoAfter.worktrees.every(p => repoBefore.worktrees.includes(p)),
+    }
+    result.selftest = { cases, postChecks, allPass: cases.every(c => c.pass) && Object.values(postChecks).every(v => v === true) }
   }
 } finally {
-  // restore: original config, then delete+re-extract all tracked files (bypasses
-  // the stat-cache illusion that lets CRLF bytes look clean), verify target bytes.
-  try {
-    if (savedAutocrlf === null) execFileSync('git', ['-C', repo, 'config', '--unset', 'core.autocrlf'], { stdio: 'pipe' })
-    else execFileSync('git', ['-C', repo, 'config', 'core.autocrlf', savedAutocrlf], { stdio: 'pipe' })
-  } catch { /* best effort */ }
-  try {
-    const files = trackedFiles(repo)
-    for (const f of files) { try { fs.rmSync(path.join(repo, f), { force: true }) } catch { /* best effort */ } }
-    execFileSync('git', ['-C', repo, 'checkout', '--', '.'], { stdio: 'pipe' })
-  } catch { /* best effort */ }
-  const blobBytes = execFileSync('git', ['-C', repo, 'cat-file', 'blob', `HEAD:${TARGET}`])
-  if (sha256(fs.readFileSync(path.join(repo, TARGET))) !== sha256(blobBytes)) {
-    for (const f of trackedFiles(repo)) {
-      if (!TEXT_EXT.test(f)) continue
-      const p = path.join(repo, f)
-      const buf = fs.readFileSync(p)
-      fs.writeFileSync(p, buf.toString('utf8').replace(/\r\n/g, '\n'))
-    }
-    try { execFileSync('git', ['-C', repo, 'checkout', '--', '.'], { stdio: 'pipe' }) } catch { /* best effort */ }
-  }
-  for (const wt of [wtFalse, wtTrue]) {
-    try { execFileSync('git', ['-c', 'core.longpaths=true', '-C', repo, 'worktree', 'remove', '--force', wt], { stdio: 'pipe' }) } catch { /* best effort */ }
-  }
-  if (path.basename(tempParent).startsWith('ripple-b-env1-')) fs.rmSync(tempParent, { recursive: true, force: true })
+  // remove ONLY the script-owned temp root (clones + reference worktrees live inside)
+  const base = path.basename(tempParent)
+  if (base.startsWith('ripple-b-env1-')) fs.rmSync(tempParent, { recursive: true, force: true })
   fs.mkdirSync(artifactsDir, { recursive: true })
   if (result) fs.writeFileSync(path.join(artifactsDir, 'b-env1-eol-repro.json'), JSON.stringify(result, null, 2) + '\n')
 }
+
 console.log(JSON.stringify(result, null, 2))
+process.exitCode = result?.selftest && result.selftest.allPass === false ? 1 : 0

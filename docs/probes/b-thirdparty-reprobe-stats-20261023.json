@@ -13,7 +13,9 @@
   ],
   "media": {
     "assetNodes": 100,
-    "uniqueConsumed": 100,
+    "uniqueConsumedAnyEdge": 100,
+    "uniqueConsumedProvenAssetConsumer": 61,
+    "consumptionDistinctionNote": "uniqueConsumedAnyEdge 只表示\"存在任意指向媒体的边\"（含未证明的 asset-consumer 与 reads）；uniqueConsumedProvenAssetConsumer 才是\"存在 source-proven asset-consumer 消费关系\"的媒体数量，两者不得混用。",
     "unconsumed": 0,
     "assetConsumer": {
       "total": 178,
