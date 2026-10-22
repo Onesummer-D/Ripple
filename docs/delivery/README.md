@@ -1,10 +1,10 @@
 # Ripple 比赛交付文档（docs/delivery/）
 
-> 日期：2026-10-22（Asia/Shanghai）
+> 日期：2026-10-23（Asia/Shanghai）
 > 分支：`docs/competition-delivery-20261022`（基于 A 主线 `feat/project-first-core-20261018 @ 2525092`）
-> 性质：**纯文档交付**。不修改 A 的任何核心源码、验证器或真实工程资产；全部内容以只读方式核对 GitHub 远端、本地工作区与已提交交接文档后编写。
+> 性质：**纯文档交付 + Run #18 原始证据归档**（`evidence/run18/`，29 MB）。不修改 A 的任何核心源码、验证器或真实工程资产；文档以只读方式核对 GitHub 远端与本地工作区后编写。
 > 状态纪律：所有功能按三种状态标注——【已验证】已由真实工程/真实浏览器证据验证；【已合成】已由合成测试证明但未完成真实案例验收；【未接入】尚未接入或仍在开发。后两种不得写成已完成。
-> 修订历史：6a1a51d（初稿）→ 7bcc838（Run #15–#17 阶段级更正）→ 本轮（Run #18 整轮通过后最终事实修订 + 参赛材料评委语言重构）。
+> 修订历史：6a1a51d（初稿）→ 7bcc838（Run #15–#17 阶段级更正）→ 66fb241b（Run #18 整轮通过后最终事实修订 + 参赛材料评委语言重构）→ 本轮（最终复审：能力边界三层划分、证据对应关系、视频来源标注、栖光 390 范围更正、Run #18 证据归档、逐镜口播执行表）。
 
 ## 文档清单
 
@@ -18,8 +18,11 @@
 | 06 | [video-storyboard-full.md](./video-storyboard-full.md) | 3–4 分钟完整版分镜表（含旁白草稿与证据采集清单） | 五 |
 | 07 | [competition-materials-draft.md](./competition-materials-draft.md) | 参赛材料内容初稿（作品概述 / 背景 / 需求 / 功能 / 架构 / 创新 / 技术路线 / 测试验证 / 应用价值 / 不足与计划 / PPT 页面建议） | 六 |
 | 08 | [evidence-gap-checklist.md](./evidence-gap-checklist.md) | 缺失截图与待补证据清单 | 五·6 / 七·8 |
+| 09 | [video-voiceover-120s.md](./video-voiceover-120s.md) | 120 秒版 8 镜逐镜口播词与录屏执行表 | 五 |
+| 10 | [video-voiceover-full.md](./video-voiceover-full.md) | 3:30 完整版 13 镜逐镜口播词与录屏执行表 | 五 |
+| — | [evidence/run18/](./evidence/run18/INDEX.md) | Run #18 原始证据归档（238 文件 + 逐文件 SHA-256 索引） | — |
 
-## 当前真实验收状态摘要（截至 2026-10-22 晚，Run #18 后）
+## 当前真实验收状态摘要（截至 2026-10-23，Run #18 后，证据已归档）
 
 | 案例 | 真实验收状态 |
 | --- | --- |
@@ -30,7 +33,8 @@
 
 ## 关键证据链接（全部已实际核对）
 
-- **Bolt Run #18 @ 16e737c（整轮 SUCCESS，主案例真实闭环通过）**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>
+- **Bolt Run #18 @ 16e737c（整轮 SUCCESS，主案例真实闭环通过）**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>；**原始证据已归档**：`evidence/run18/`（238 文件与远端逐字节一致，ZIP SHA-256 `35668a23…ff2c44`，逐文件哈希索引见 `evidence/run18/INDEX.md`；远端工件 retention 30 天，到期后以此目录为准）
+- 公开性说明：主项目开源、验收记录链接公开可查；真实验收工程 `ripple-qingye-bolt` 为**私有仓**；CI 工件有保存期限，长期副本以上述归档目录为准
 - Bolt 真实工程验收（历史 Runs #1–#17 结论均 failure，逐次归因修复）：<https://github.com/Onesummer-D/Ripple/actions/workflows/bolt-acceptance.yml>
 - Bolt Run #15 @ a4ac547（验证/审批/应用阶段通过）：<https://github.com/Onesummer-D/Ripple/actions/runs/39724024971>
 - Bolt Run #16 @ 83ddff5（应用预览启动通过、导航超时）：<https://github.com/Onesummer-D/Ripple/actions/runs/39761298824>

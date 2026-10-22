@@ -1,0 +1,223 @@
+{
+  "config": {
+    "argv": [
+      "/opt/hostedtoolcache/node/22.23.4/x64/bin/node",
+      "/home/runner/work/Ripple/Ripple/node_modules/.bin/playwright",
+      "test",
+      "e2e/project-workbench.spec.ts",
+      "--grep",
+      "runs the Bolt shared TEXT workflow"
+    ],
+    "configFile": "/home/runner/work/Ripple/Ripple/playwright.config.ts",
+    "rootDir": "/home/runner/work/Ripple/Ripple/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "ci": {
+        "commitHref": "https://github.com/Onesummer-D/Ripple/commit/16e737c16d95a26879d1aee813b85fb472fd8215",
+        "commitHash": "16e737c16d95a26879d1aee813b85fb472fd8215",
+        "buildHref": "https://github.com/Onesummer-D/Ripple/actions/runs/39808500782"
+      },
+      "gitCommit": {
+        "shortHash": "16e737c",
+        "hash": "16e737c16d95a26879d1aee813b85fb472fd8215",
+        "subject": "Merge pull request #23 from Onesummer-D/feat/a-run17-applied-iframe-mount-20261022",
+        "body": "Merge pull request #23 from Onesummer-D/feat/a-run17-applied-iframe-mount-20261022\n\nRun #17: keep the applied preview iframe fully inside the outer viewport",
+        "author": {
+          "name": "Tongxin Deng",
+          "email": "2494251401@qq.com",
+          "time": 1792683242000
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "time": 1792683242000
+        },
+        "branch": "feat/project-first-core-20261018"
+      },
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/runner/work/Ripple/Ripple/test-results/playwright",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "ci": {
+            "commitHref": "https://github.com/Onesummer-D/Ripple/commit/16e737c16d95a26879d1aee813b85fb472fd8215",
+            "commitHash": "16e737c16d95a26879d1aee813b85fb472fd8215",
+            "buildHref": "https://github.com/Onesummer-D/Ripple/actions/runs/39808500782"
+          },
+          "gitCommit": {
+            "shortHash": "16e737c",
+            "hash": "16e737c16d95a26879d1aee813b85fb472fd8215",
+            "subject": "Merge pull request #23 from Onesummer-D/feat/a-run17-applied-iframe-mount-20261022",
+            "body": "Merge pull request #23 from Onesummer-D/feat/a-run17-applied-iframe-mount-20261022\n\nRun #17: keep the applied preview iframe fully inside the outer viewport",
+            "author": {
+              "name": "Tongxin Deng",
+              "email": "2494251401@qq.com",
+              "time": 1792683242000
+            },
+            "committer": {
+              "name": "GitHub",
+              "email": "noreply@github.com",
+              "time": 1792683242000
+            },
+            "branch": "feat/project-first-core-20261018"
+          },
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/home/runner/work/Ripple/Ripple/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/home/runner/work/Ripple/Ripple/test-results/playwright",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "ci": {
+            "commitHref": "https://github.com/Onesummer-D/Ripple/commit/16e737c16d95a26879d1aee813b85fb472fd8215",
+            "commitHash": "16e737c16d95a26879d1aee813b85fb472fd8215",
+            "buildHref": "https://github.com/Onesummer-D/Ripple/actions/runs/39808500782"
+          },
+          "gitCommit": {
+            "shortHash": "16e737c",
+            "hash": "16e737c16d95a26879d1aee813b85fb472fd8215",
+            "subject": "Merge pull request #23 from Onesummer-D/feat/a-run17-applied-iframe-mount-20261022",
+            "body": "Merge pull request #23 from Onesummer-D/feat/a-run17-applied-iframe-mount-20261022\n\nRun #17: keep the applied preview iframe fully inside the outer viewport",
+            "author": {
+              "name": "Tongxin Deng",
+              "email": "2494251401@qq.com",
+              "time": 1792683242000
+            },
+            "committer": {
+              "name": "GitHub",
+              "email": "noreply@github.com",
+              "time": 1792683242000
+            },
+            "branch": "feat/project-first-core-20261018"
+          },
+          "actualWorkers": 1
+        },
+        "name": "",
+        "testDir": "/home/runner/work/Ripple/Ripple/e2e",
+        "snapshotDir": "/home/runner/work/Ripple/Ripple/e2e",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 45000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4173",
+          "browserName": "chromium",
+          "headless": true,
+          "screenshot": "only-on-failure",
+          "trace": "retain-on-failure"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": ""
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "./test-results/browser-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.0",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev -- --host 127.0.0.1 --port 4173 --strictPort",
+      "url": "http://127.0.0.1:4173",
+      "reuseExistingServer": false,
+      "env": {
+        "RIPPLE_WORKBENCH_STATE_DIR": "/home/runner/work/Ripple/Ripple/node_modules/.tmp/playwright-state"
+      }
+    }
+  },
+  "suites": [
+    {
+      "title": "project-workbench.spec.ts",
+      "file": "project-workbench.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "runs the Bolt shared TEXT workflow through the workbench, applies the same patch in a disposable worktree, then rolls it back",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 900000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 82101,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-22T15:51:12.716Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "334f72f12eef880c26e4-77ebd284e06ac3fce531",
+          "file": "project-workbench.spec.ts",
+          "line": 814,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-22T15:51:09.672Z",
+    "duration": 85695.181,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

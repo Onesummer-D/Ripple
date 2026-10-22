@@ -1,6 +1,6 @@
 # 三案例统一验收矩阵
 
-> 日期：2026-10-22（当晚按 Run #18 最终修订）。基线：A 主线 `feat/project-first-core-20261018`（文档起草 @ 2525092；Bolt 验收通过时 A @ `16e737c`）。
+> 日期：2026-10-23（Run #18 最终修订 + 复审小改）。基线：A 主线 `feat/project-first-core-20261018`（文档起草 @ 2525092；Bolt 验收通过时 A @ `16e737c`）。Run #18 证据已归档 `docs/delivery/evidence/run18/`（哈希索引见 INDEX.md）。
 > 状态取值：PASS / RISK / UNKNOWN / NOT RUN。标【已合成】的通过仅为合成工程或 Fixture 证据，不代表真实案例验收。
 > “实际运行结果”列只写真实运行过的内容；没有真实运行的写 NOT RUN 并说明阻断。
 > **主案例真实验收已于 Run #18（2026-10-22，A @ 16e737c）整轮通过**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>。
@@ -19,7 +19,7 @@
 | 1.6 | 范围决策（4 页 include / exclude） | ScopeDecision v1 | A `scope.ts` | 页级 Scope 与候选绑定 | 合成测试过 | 真实 Bolt 中 4 页 include 决策随候选创建执行并通过（Run #15–#17） | PASS（真实 Run #15–#17） | [Run #15](https://github.com/Onesummer-D/Ripple/actions/runs/39724024971) | 无（该阶段） | A |
 | 1.7 | 审批（Approval 门控） | 候选 + Receipt | A | 仅 PASSED Receipt 可审批 | 合成测试过；负例（completed:false 拒绝）钉死 | 真实 Bolt 审批成功（Run #15–#17：候选状态进入「已批准」） | PASS（真实 Run #15–#17） | 同上 | 无（该阶段） | A |
 | 1.8 | 应用同一份补丁到可丢弃 worktree | 同 patchHash | A `apply.ts` | 应用后 Footer.tsx 含新文案、HEAD 不变 | 合成测试过 | 真实 Bolt 应用成功：应用后 Footer.tsx 含「山野器物 · Ripple UI验收」、HEAD 不变（Run #15–#17 断言通过）；应用预览接口 Run #15 失败（spec.ts:1102，PR #21 修复），Run #16/#17 已能启动 | PASS（应用，真实 Run #15–#17） | 同上 | 应用预览导航见 1.9 | A |
-| 1.9 | 应用后预览逐页导航确认 | 应用预览 iframe | A（PR #15/#16/#23 应用预览） | 桌面导航秋日手作节/商品专题/品牌故事三页，新 footer 保持可见 | 合成 e2e 过 | 真实 Bolt 通过：三页 H1 断言 + 每页 footer 新文案可见（Run #18 @16e737c），bolt-workbench-applied-site.png 已入工件 | PASS（真实 Run #18） | [Run #18](https://github.com/Onesummer-D/Ripple/actions/runs/39808500782) | 无 | A |
+| 1.9 | 应用后预览逐页导航确认 | 应用预览 iframe | A（PR #15/#16/#23 应用预览） | 桌面导航秋日手作节/商品专题/品牌故事三页，新 footer 保持可见 | 合成 e2e 过 | 真实 Bolt 通过：三页 H1 断言 + 每页 footer 新文案可见（Run #18 @16e737c）；bolt-workbench-applied-site.png 为三页导航中一次的截图，完整证明以逐页断言为准 | PASS（真实 Run #18） | [Run #18](https://github.com/Onesummer-D/Ripple/actions/runs/39808500782) | 无 | A |
 | 1.10 | 回滚 + 原工程未改动证明 | Footer.tsx / git status | A `apply.ts` | rolled-back、原工程 HEAD 与 status 不变 | 合成测试过；MEDIA 线同构真实证明（Run 39536064634） | 真实 Bolt 通过：Footer.tsx 恢复原文、无 "Ripple UI验收"、应用 worktree 与原工程 HEAD/status 逐字节不变（Run #18） | PASS（真实 Run #18） | 同上 | 无 | A |
 | 1.11 | 版本历史恢复 | `/__ripple/api/history` | A | 历史记录恢复后候选/哈希/验证状态一致 | 合成测试过 | 真实 Bolt 通过：历史 lifecycle=rolled-back、patchHash 一致；恢复后候选 ID/patchHash/验证状态 PASSED 一致，bolt-workbench-history-restored.png 已入工件（Run #18） | PASS（真实 Run #18） | 同上 | 无 | A |
 | 1.12 | 体验层演示流（画布优先工作台） | `experience.html` | F（PR #14） | 打开→选标题→改文案→关系→范围→对照→证据→历史 17 步连续可操作 | 单测 40/40、e2e 15/15、xp-1..4 真实 Chromium 截图 | 演示数据 DEMO/SIMULATED 全程标注；真实审批未接入（设计如此） | PASS【已合成·演示】 | [CI #475/#478](https://github.com/Onesummer-D/Ripple/actions?query=workflow%3ARipple+CI)；`docs/experience/HANDOFF.md` | 接 real-adapter 需各 Agent 提供接口（F HANDOFF §4） | F / 集成方 |
@@ -28,7 +28,8 @@
 
 - 整轮运行 1.4 分钟，唯一用例 `runs the Bolt shared TEXT workflow` passed（<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>）。
 - 执行记录 `bolt-workbench-execution.json`（v4 manifest，completed:true）：七项断言（target-change / non-target-preserved / scope-propagation / interaction / responsive-layout / source-mapping / browser-errors）**全部 pass**；四视口 1440×900 / 768×1024 / 375×812 / 390×844；16 条 scopeObservations（4 页 × 4 视口）；221 个资源快照、unavailable=0、blockedExternalResourceUrls=[]；四视口截图 SHA-256 与 artifactHash 逐一致（已核对）。
-- 工件 `ripple-bolt-workbench-39808500782`（retention 30 天）含：execution.json、四视口 PNG、bolt-workbench-analysis/candidate/applied-site/history-restored.png、resource-load-audit.json、resource-snapshots 与 progress.jsonl 诊断。
+- 工件 `ripple-bolt-workbench-39808500782`（retention 30 天）含：execution.json、四视口 PNG、bolt-workbench-analysis/candidate/applied-site/history-restored.png、resource-load-audit.json、resource-snapshots 与 progress.jsonl 诊断；**2026-10-23 已完整解压归档**至 `docs/delivery/evidence/run18/`（238 个文件与远端逐字节一致，ZIP SHA-256 与逐文件哈希见 `evidence/run18/INDEX.md`）。
+- 审批通过的真实证明是工作台状态断言（候选进入「已批准」）；回滚的证明是 Footer 源码恢复 + 应用 worktree 与原工程 HEAD/status 逐字节不变断言；历史恢复是恢复选中历史候选及其验证状态展示，均见 INDEX.md「使用边界」。
 - 历史过程如实保留：Runs #1–#17 结论均 failure，逐次归因（资源快照→pids 超限→导航 ~10 s→导航契约→应用预览挂载），每次修复带确定性负例；Run #15–#17 阶段级通过（验证/审批/应用已过），Run #18 在 PR #23 修复后整轮通过。
 
 录屏与参赛文案现可引用 Run #18 真实证据，不再需要「待验收」标注；仅 E 视觉模块接入、第三方全生命周期等仍按各自状态标注。

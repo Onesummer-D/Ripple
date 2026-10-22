@@ -65,7 +65,7 @@
 ### 步骤 9 · 查看应用结果
 - 界面：应用预览 iframe（1280 桌面视口）逐页导航；工作台状态 chip「applied」。
 - 数据：三页 H1 断言（秋日手作节/器物全集/从山野，到日常）+ footer 新文案可见。
-- 证据：bolt-workbench-applied-site.png 已在 Run #18 工件（ripple-bolt-workbench-39808500782）中；三页导航与每页 footer 新文案保持可见的断言全部通过。
+- 证据：bolt-workbench-applied-site.png 已在 Run #18 工件中（为其中一次导航后的单张截图，完整证明以逐页断言为准，归档于 `evidence/run18/`）；三页导航与每页 footer 新文案保持可见的断言全部通过。
 - 状态：【真实已过 Run #18】。
 
 ### 步骤 10 · 回滚与版本恢复
@@ -81,8 +81,9 @@
 1. 凡数据来自 Fixture/演示适配器的镜头，画面角落保留 DEMO/FIXTURE 标识（F 工作台顶栏常驻 DEMO chip）。
 2. 概念走位画面（C 的 kanva 状态稿）只作分镜参照，投屏时保留其「概念效果示意 · 非浏览器实测截图」标注。
 
-## 3. 证据归档清单（Run #18 已完成，归档即可）
+## 3. 证据归档清单
 
-- [ ] 归档 Run #18 工件 ripple-bolt-workbench-39808500782：bolt-workbench-execution.json（v4 manifest，七断言 pass）、四视口 PNG（SHA-256 与 artifactHash 已核对一致）、analysis/candidate/applied-site/history-restored.png、bolt-resource-load-audit.json、resource-snapshots、progress.jsonl。
-- [ ] 录屏/PPT 引用上述素材时标注来源：Run #18 @ 16e737c × 青野 f7e4998a，2026-10-22。
-- [ ] 历史 Runs #1–#17 的失败日志保留在 _scratch，用于「失败驱动修复」叙事（可选）。
+- [x] 归档 Run #18 工件 ripple-bolt-workbench-39808500782 → **`docs/delivery/evidence/run18/`（2026-10-23，238 文件与远端逐字节一致）**：bolt-workbench-execution.json（v4 manifest，七断言 pass）、四视口 PNG（SHA-256 与 artifactHash 已核对一致）、analysis/candidate/applied-site/history-restored.png、bolt-resource-load-audit.json、browser-results.json、resource-snapshots（221 个）与 progress.jsonl 诊断；逐文件哈希与来源标识见 `evidence/run18/INDEX.md`。
+- [x] 录屏/PPT 引用上述素材时标注来源：Run #18 @ 16e737c × 青野 f7e4998a，2026-10-22。
+- [ ] 历史 Runs #1–#17 的失败日志保留在 _scratch，用于「失败驱动修复」叙事（可选，本地留存不入库）。
+- [ ] A6 工作台验证面板 UI 截图：仍缺失，需本地补采（见 evidence-gap-checklist A6）。

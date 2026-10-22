@@ -1,17 +1,17 @@
 # 缺失截图与待补证据清单
 
 > 日期：2026-10-23（Run #18 通过后定稿）。所有「待采」项注明采集条件与责任方；采集后须更新 acceptance-matrix.md 与相关脚本/分镜。
-> **Run #18（2026-10-22，A @ 16e737c）整轮 SUCCESS**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>。A 组证据已全部生成（工件 ripple-bolt-workbench-39808500782，27 MB，retention 30 天），现状为「已生成、待归档」，非缺失。
+> **Run #18（2026-10-22，A @ 16e737c）整轮 SUCCESS**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>。A 组证据 A1–A5 已于 2026-10-23 **归档可交付**（工件 ripple-bolt-workbench-39808500782 完整解压至 `docs/delivery/evidence/run18/`，238 文件与远端逐字节一致，ZIP SHA-256 `35668a23…ff2c44`，逐文件索引见 `evidence/run18/INDEX.md`）。
 
 ## A. 主案例（青野 TEXT · Bolt 真实验收）——已闭环
 
 | # | 证据 | 现状 | 用于 |
 | --- | --- | --- | --- |
-| A1 | bolt-workbench-execution.json（v4 manifest，completed:true，七断言全 pass，16 条 scopeObservations，221 资源快照，blocked/unavailable 均空） | ✅ Run #18 工件已生成，SHA-256 绑定已核对，**待归档** | 分镜镜 6；矩阵 1.5；PPT 第 6 页 |
-| A2 | 四视口 PNG（1440×900 / 768×1024 / 375×812 / 390×844，artifactHash 与文件 SHA-256 一致，已核对） | ✅ 同上 | 分镜镜 6；PPT 第 6 页 |
-| A3 | bolt-workbench-analysis.png / candidate.png（分析、候选阶段工作台截图） | ✅ 同上 | 分镜镜 3/5；PPT 第 4 页 |
-| A4 | bolt-workbench-applied-site.png（应用后三页导航，footer 新文案可见） | ✅ Run #18 断言通过后拍摄入工件 | 分镜镜 8；矩阵 1.9 |
-| A5 | 回滚与历史恢复（history-restored.png；Footer.tsx 恢复原文、双端 HEAD/status 不变断言通过） | ✅ Run #18 工件已生成 | 分镜镜 9；矩阵 1.10/1.11 |
+| A1 | bolt-workbench-execution.json（v4 manifest，completed:true，七断言全 pass，16 条 scopeObservations，221 资源快照，blocked/unavailable 均空） | ✅ **已归档可交付**（evidence/run18/，SHA-256 绑定已核对） | 分镜镜 6；矩阵 1.5；PPT 第 6 页 |
+| A2 | 四视口 PNG（1440×900 / 768×1024 / 375×812 / 390×844，artifactHash 与文件 SHA-256 一致，已核对） | ✅ **已归档可交付**（evidence/run18/） | 分镜镜 6；PPT 第 6 页 |
+| A3 | bolt-workbench-analysis.png / candidate.png（分析、候选阶段工作台截图） | ✅ **已归档可交付**（evidence/run18/） | 分镜镜 3/5；PPT 第 4 页 |
+| A4 | bolt-workbench-applied-site.png（应用后某次三页导航之一截图；完整证明为逐页 H1/footer 断言） | ✅ **已归档可交付**（evidence/run18/） | 分镜镜 8；矩阵 1.9 |
+| A5 | 回滚与历史恢复（history-restored.png；Footer.tsx 恢复原文、双端 HEAD/status 不变断言通过；历史恢复＝选中候选及其验证状态） | ✅ **已归档可交付**（evidence/run18/） | 分镜镜 9；矩阵 1.10/1.11 |
 | A6 | 工作台验证面板 UI 截图（成功路径不自动截屏） | ⬜ **确实缺失**——需本地复跑补采（标注 FIXTURE 角标）或从录屏截取 | PPT 第 6 页过渡 |
 
 **归档动作**：将 Run #18 工件解压归档（execution.json、五张 PNG、resource-load-audit.json、resource-snapshots、diagnostics），引用时标注「Run #18 @ 16e737c × 青野 f7e4998a，2026-10-22」。可选叙事素材：Runs #1–#17 阶段级失败日志（已存 _scratch/delivery-prep/run15/run16/run17/run18-logs.zip）。
@@ -26,7 +26,7 @@
 | B1 | 栖光真实工程接入 MEDIA 管线的验收运行（四视口双端截图 + acceptance.json） | B/A 接入真实管线 + 负责人 dispatch | B / A | 矩阵 2.4 |
 | B2 | E 视觉证据真实样本：双端截图的 risk/unknown 证据 JSON + 差异图 | E §7 接入顺序（1) baseline 同参截图 2) 采样器绑定 3) manifest visualComparisons）实施并合入 | E / A | 分镜镜 11；qiguang-materials §5 |
 | B3 | 横→竖替换后三容器真实裁切/遮挡/溢出观测（E 几何规则输出） | 同 B2 | E | qiguang-materials §4 |
-| B4 | 390×844 视口真实证据（替换 F 层「验证中」标注） | 同 B2 或 Run #18 级真实运行 | E | 矩阵 2.3 |
+| B4 | 栖光自身 390×844 真实 MEDIA 证据（替换 F 层「验证中」标注） | 栖光工程或媒体测试工程接入真实 MEDIA 管线后采集（同 B1）。注意：Run #18 的 mobile-390 截图只证明青野 TEXT 案例与公共验证器视口能力，不能替代栖光证据 | E / A | 矩阵 2.3 |
 | 已有 | 本地 MEDIA 交互录屏、三容器裁切弹窗、C 概念海报（16:9/4:5，示意标注） | — | A / C | 分镜镜 10 过渡 |
 
 ## C. 第三方案例
