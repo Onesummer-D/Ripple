@@ -389,3 +389,51 @@ F #25 集成（`feat/a-f25-integration-20261023` @ af936884，CI 39864728226 SUC
 ## 3. 不变项
 
 AC-P2a/AC-P2b 继续由 C+D 在新基线处理，之后 B 复验第三方完整生命周期；F #25 并入 A 的批准仍待负责人签发。
+
+
+---
+
+# v10 F #25 正式并入 A + 新正式基线（2026-10-23）
+
+## 0. 合并结果
+
+- **F #25 已正式并入 A**：merge 提交 `ac0da9993dcc5bf559bfba624ab1a11c7702f330`，PR #25 状态 merged（GitHub 检出合并）。
+- 路径：预演分支对齐最新 A 8dbfc0c（merge `8afee59`，零冲突，B-ENV-1 文档保留）→ 集成分支 CI 39869995411 SUCCESS → A 上 `--no-ff` 正式 merge。
+- **新 A 正式基线 HEAD：`ac0da99`**；A 分支完整 CI [39872273138](https://github.com/Onesummer-D/Ripple/actions/runs/39872273138) **SUCCESS**。
+- 合并前核验记录：PR #25 head 403ca81b 与授权一致；mergeable 曾短暂 false 为 GitHub 缓存，复核已恢复 true；未覆盖 8dbfc0c；无冲突、无源码回退。
+
+## 1. 各线新基线分发
+
+| 线 | 基线 | 任务 |
+|---|---|---|
+| F（主线） | `ac0da99` | 第二阶段真实 TEXT 工作台开发 |
+| E | `ac0da99` | 联合接线必须基于新 HEAD 重新核验（c3158c6 仅预演，不登记完整接线 PASS）；E 旧 457c0f9 待修状态作废（已由 0dd2e91 终审取代） |
+| C+D | `ac0da99` | AC-P2a/b 独立分支起点 |
+| B | `ac0da99` | 两项工具修复后，待 C+D P2 新基线复验 |
+| D | `ac0da99` | MEDIA 独立分支 N4–N10 负例实证 |
+
+## 2. F 第二阶段（真实 TEXT 工作台）
+
+- 开发分支（F Agent）：自 `ac0da99` 切 `feat/f-real-text-workbench-20261023`（建议名，F 可调整）。
+- 第一批 UI 任务（逐项验收，缺一不可）：真实 DOM 点选 → Scope 决策 → Candidate 创建 → 四视口 Verify → Approval → Apply → Rollback。
+- 验收口径：每步真实浏览器工件 + run 记录；DEMO/REAL 隔离合同持续有效；未触发 Bolt。
+
+## 3. E 与 F 下一批联合集成
+
+- E 接线在新基线 `ac0da99` 上重新 merge E（0dd2e91）→ 新协调分支，替代 c3158c6；不得用两个各自基于旧 A 的预演成功代替 F+E 联合集成。
+- 接线验收清单与两道验收安排不变（见 v8 §2）。
+
+## 4. B-ENV-1 设计验证安排（先验证后编码，暂不批准 blob canonical 直接实施）
+
+负责人：实现交 C+D 或指定工程 Agent，A 审查；设计验证为实施前置门：
+
+1. 原工作树 CRLF 与候选 LF 的实际源码编辑与 Apply 行为差异（含 CandidatePatch 字节绑定影响面）。
+2. clean/smudge filter、LFS、`.gitattributes`、`symlink` 的兼容矩阵。
+3. 快照摘要、SourceGraph 解析内容、AST 偏移、候选应用四者同一版本的一致性证明。
+4. 术语与设计修正：TypeScript AST 偏移是 **UTF-16 文本偏移**，不得称为原始字节偏移；B-ENV-1 文档据此修订。
+5. 旧候选 / 已有 Revision 与新字节口径的兼容策略（迁移或双口径并存，需明确取舍）。
+6. 以上验证以最小实验脚本 + 设计文档交付，A 审查通过后才允许动公共核心；Candidate 字节一致性检查不得放宽。
+
+## 5. 并行任务不变
+
+D N4–N10 负例（P1-a 空数组无 unresolved / P1-b 文本类型名查找）；C+D AC-P2a/b 准备；B 两项工具修复——均不阻塞 F 第二阶段。
