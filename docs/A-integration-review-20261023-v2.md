@@ -253,3 +253,42 @@ E 采样合同字段（sourceVersion、identityReasons、pageContext 守卫）�
 
 - 不自行解除 PR #28 Draft、不合并 main、不触发 Bolt；codescandy 探针 exit 2 维持已知边界语义（不写成 PASS）。
 - Run #18 证据仅属 16e737c；#28 合并后新 A HEAD 需按合并检查表重新验证相关功能，昂贵真实 Bolt 验收仅在负责人授权后安排。
+
+
+---
+
+# v6 第一批正式合并完成（2026-10-23，A 总集成）
+
+## 0. 合并结果
+
+- PR #28 已正式合并（merge 提交 `3cc37c24`，PR 状态 closed/merged，merge_commit_sha 核对一致）。
+- **新 A 集成分支 HEAD：`3cc37c2408caad6d3b8fd65d6c36a07980aeb94e`**（`feat/project-first-core-20261018` = 16e737c + merge 43f2ea24）。
+- 合并方式：本地 `--no-ff` merge（GitHub `ready_for_review` 端点经多次尝试返回 404，改用授权的 git merge+push 路径，合并语义与 PR merge 完全等价，PR 已被 GitHub 自动标记 merged）。
+- PR 正文已更新终审状态段（覆盖旧 HEAD 1dbaa53 与旧 CI 记录）。
+
+## 1. 合并后回归（全部通过）
+
+| 门 | 结果 |
+|---|---|
+| A 分支 push CI run 39857778018（3cc37c24） | **SUCCESS** |
+| 本地 typecheck（wt-base） | 通过 |
+| 定向 Vitest：sourcegraph-runtime-identity / project-data-routes / runtime-identity | **222/222 通过** |
+| F #25 最新 HEAD 403ca81b PR CI run 39856043046 | **SUCCESS**（合并就绪度评估通过，可进入主线集成） |
+
+## 2. 新稳定基线分发
+
+| 线 | 新基线 | 说明 |
+|---|---|---|
+| A（全集成主线） | `3cc37c2` | C+D 已并入；后续 F/E/MEDIA 均以此 rebase/merge |
+| F（主线下一棒） | `3cc37c2` | 在 A 上集成 #25（403ca81b）→ 真实 TEXT 第二阶段 → 统一工作台联调 |
+| C+D | `3cc37c2`（A 内）+ 独立分支 `feat/integration-cd-sourcegraph-20261022`（43f2ea2） | AC-P2a/AC-P2b 从 3cc37c2 切独立分支修复，不覆盖 43f2ea2 历史 |
+| B | `3cc37c2`（待 C+D P2 修复后再切新基线复验 TEXT） | 先自修 b-thirdparty-candidate-gate.mjs 门控 P1 |
+| E | `3cc37c2` | 双端 sourceVersion 校验 P1 自修 + 等待 C+D 答复 5 项 RFC 口径 |
+| D | `3cc37c2` | 栖光 SourceGraph 证明 harness 修复后重跑 + narrowMediaByReceiverType 最小重放 + 青野固定 SHA MEDIA 正式验收（Lab 通过不代替正式验收） |
+
+## 3. 下一批主线启动条件（F #25 集成）
+
+1. 以 `3cc37c2` 为基线建独立集成工作树（merge F #25 403ca81b）。
+2. 全量 Vitest + Playwright + typecheck + build。
+3. F 对未知来源遵循既有 fail-closed/降级合同——AC-P2a/b 与 E 完整身份 RFC 不构成 F 第一阶段接入前置。
+4. CI 绿后向负责人提交正式合并建议；不自行合并、不触发 Bolt。
