@@ -363,3 +363,29 @@ F #25 集成（`feat/a-f25-integration-20261023` @ af936884，CI 39864728226 SUC
 - **两道验收**：第一道 = 现有视觉证据以只读降级方式接入统一 VerificationRun；第二道 = C+D 版本/页面上下文/实例身份完整接线后的严格身份联合验收。每道交付固定 SHA、CI、真实浏览器工件与剩余缺口；独立模块 CI 不代替真实集成验收。
 - **预计合并顺序**：F #25 并入 A → E 接线第一道随下一批集成评估 → C+D P2（AC-P2a/b）与 B-ENV-1 修复期间并行推进 E 第二道 → 严格身份联合验收。
 - 接口文档以 E 已交付三份为准（visual-sampler-identity-rfc / source-ref-dual-alignment / visual-evidence-f-consumption），不要求另行冻结说明。
+
+
+---
+
+# v9 B-ENV-1 双检出复现确认 + A 核心登记（2026-10-23）
+
+## 0. A 基线更新
+
+- B-ENV-1 已以独立问题文档登记进 A 公共核心：`docs/integration/B-ENV-1-windows-eol-byte-consistency.md`（纯文档提交）。
+- **新 A HEAD：`8dbfc0cade803e24f3e8acbaafb3d4df2713ebca`**（3cc37c2 + 文档）。代码零改动；此 SHA 起为各线文档同步基线，功能基线仍为 3cc37c2。
+
+## 1. B-ENV-1 复现结论（B @ 0bbe057，双 CI #39864653358/#39864653362 SUCCESS）
+
+- P0 文件删除问题已修复。
+- 双检出策略复现可信：LF 树偏移 #2620、CRLF 树偏移 #2691；各自匹配 autocrlf 策略时快照与新建 worktree 摘要一致；根因 = Ripple 候选隔离检出策略与输入快照 EOL 不一致；v1 手工转换的额外摘要为实验伪影。
+- A 核心文档已按此更新（方向 A 统一 blob 字节 / 方向 B 检出跟随快照口径，含非 git 工程降级路径与三项禁止）。
+
+## 2. B 工具后续（B 自行最小修复，不属 A 核心）
+
+- `--expect accepted` 在成功候选字节验收前提前删除 worktree。
+- 全局 `git worktree prune` 可能修改调用者 Git 元数据。
+- 修复前 B 测试工具不作为可复用正式验收工具；不阻挡 Linux TEXT 核心与 F 第一阶段。
+
+## 3. 不变项
+
+AC-P2a/AC-P2b 继续由 C+D 在新基线处理，之后 B 复验第三方完整生命周期；F #25 并入 A 的批准仍待负责人签发。
