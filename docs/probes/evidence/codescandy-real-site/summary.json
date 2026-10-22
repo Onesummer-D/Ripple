@@ -1,0 +1,23 @@
+{
+  "port": 4319,
+  "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+  "checkedAt": "2026-10-22T20:13:41.995Z",
+  "pages": [
+    {
+      "route": "/",
+      "httpStatus": 200,
+      "overviewMatches": 0,
+      "pageErrors": [],
+      "bodySample": "Dashboard LAYOUTS & PAGES Pages Authentication Layouts UI COMPONENTS Components Menu Level DOCUMENTATION Docs Changelog Free Download Projects Create New Project Projects 18 2 Completed Active Task ",
+      "shot": "home.png"
+    },
+    {
+      "route": "/pages/profile",
+      "httpStatus": 200,
+      "overviewMatches": 2,
+      "pageErrors": [],
+      "bodySample": "Dashboard LAYOUTS & PAGES Pages Authentication Layouts UI COMPONENTS Components Menu Level DOCUMENTATION Docs Changelog Free Download Overview Jitu Chauhan @imjituchauhan Edit Profile Overview Proje",
+      "shot": "profile.png"
+    }
+  ]
+}

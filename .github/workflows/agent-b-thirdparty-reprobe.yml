@@ -1,0 +1,40 @@
+name: Agent B third-party (codescandy) reprobe
+on:
+  push:
+    branches:
+      - feat/b-thirdparty-reprobe-20261023
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  thirdparty-reprobe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Fetch exact codescandy source (do not execute its dependencies)
+        run: |
+          git clone --filter=blob:none https://github.com/codescandy/dash-ui-react-vitejs-typescript.git "$RUNNER_TEMP/codescandy"
+          git -C "$RUNNER_TEMP/codescandy" checkout --detach b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
+          test "$(git -C "$RUNNER_TEMP/codescandy" rev-parse HEAD)" = b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
+      - name: Capability stats probe (media / TEXT / routes / tokens)
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-reprobe-stats.mjs "$RUNNER_TEMP/codescandy"
+      - name: Candidate gate reproduction (expected: correctly rejected, exit 0)
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-candidate-gate.mjs "$RUNNER_TEMP/codescandy" "$RUNNER_TEMP/gate-work"
+      - name: Source proof probe (expected: exit 2 BLOCKED with complete report)
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/agent-c-codescandy-probe.mjs "$RUNNER_TEMP/codescandy" test-results/agent-b-codescandy-reprobe.json
+      - name: Retain probe artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-b-thirdparty-reprobe-${{ github.run_id }}
+          path: |
+            test-results/agent-b-codescandy-reprobe.json
+            test-results/b-thirdparty-reprobe-stats.json
+          retention-days: 30
+          if-no-files-found: warn
