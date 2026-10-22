@@ -8,6 +8,7 @@ import { approve, beginVerification, chooseScope, openSession, recordAppliedRevi
 import { attestBrowserExecution } from './verification-receipt'
 import { verificationContractHash } from './verification-contract'
 import { projectPreviewViewports } from './project-viewports'
+import { removeTree } from './test-fixture-dir'
 
 const revision: ProjectRevision = { projectId: 'bolt-shop', sourceDigest: 'tree-old', runtimeFingerprint: 'lock+vite+mock-data' }
 const scope = (version = 1, id = 'scope-1'): ScopeDecision => ({ id, version, includedRefs: ['home.title', 'autumn.title', 'page:home', 'page:autumn'], excludedRefs: ['product.price'], protectedRefs: ['story.2018'], decidedBy: 'user', decidedAt: '2026-10-18T00:00:00Z' })
@@ -83,7 +84,7 @@ function editOperationTypeContract(): void {
 }
 
 describe('Project-first session invariants', () => {
-  afterEach(() => { for (const root of artifactRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true }) })
+  afterEach(() => { for (const root of artifactRoots.splice(0)) removeTree(root) })
   it('retains raw intent and accepts multiple operations under explicit scope', () => {
     const decision = scope()
     const operations = candidate(decision).operations

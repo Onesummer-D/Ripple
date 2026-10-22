@@ -8,6 +8,7 @@ import type { RuntimeElementObservation, SourceGraph } from './model'
 import { createRuntimeSourceMap, resolveRuntimeElement, resolveRuntimeInstance } from './project'
 import { assessRuntimeIdentity, compareRuntimeSnapshots, selectableRuntimeObservations, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
 import { classifyKeyExpression, createProjectEscapeIndex, RIPPLE_IDENTITY_RUNTIME, sourceAnnotationPlugin } from './source-annotation'
+import { removeLink, removeTree } from './test-fixture-dir'
 
 const projectRoot = path.resolve('/ripple-virtual-project')
 const transform = (code: string, file = 'src/App.jsx'): string => {
@@ -355,7 +356,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(hooksIn(root, 'src/Badge.jsx', 'Badge')).toBe(true)
       expect(hooksIn(root, 'src/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'src/App.jsx', 'App')).toBe(true)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it.each([
@@ -380,7 +381,7 @@ describe('project escape index (cross-file hook safety)', () => {
     ['.call on the function', { 'src/App.jsx': `import { Row } from './ui/Row'\nexport const first = item => Row.call(null, item)\n` }],
   ])('drops hooks when an export escapes through a %s', (_name, files) => {
     const root = project({ 'src/ui/Row.jsx': row, ...files as Record<string, string> })
-    try { expect(hooksIn(root, 'src/ui/Row.jsx', 'Row')).toBe(false) } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    try { expect(hooksIn(root, 'src/ui/Row.jsx', 'Row')).toBe(false) } finally { removeTree(root) }
   })
 
   it('follows default exports imported under another name, and ignores package imports and benign namespace JSX', () => {
@@ -396,7 +397,7 @@ describe('project escape index (cross-file hook safety)', () => {
       const index = createProjectEscapeIndex(root)()
       expect(index.all).toBe(false)
       expect([...index.origins].map(origin => path.relative(root, origin))).toEqual([path.join('src', 'Cell.jsx#Cell')])
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('resolves linked workspace packages and tsconfig aliases to the real files', () => {
@@ -413,14 +414,14 @@ describe('project escape index (cross-file hook safety)', () => {
     })
     try {
       fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive: true })
-      fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'node_modules', '@acme', 'ui'), 'dir')
+      fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'node_modules', '@acme', 'ui'), 'junction')
       expect(hooksIn(root, 'packages/ui/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'packages/ui/Badge.jsx', 'Badge')).toBe(true)
       expect(hooksIn(root, 'src/lib/Item.jsx', 'Item')).toBe(false)
       const index = createProjectEscapeIndex(root)()
       expect([...index.origins].map(origin => path.relative(root, origin)).sort()).toEqual([path.join('packages', 'ui', 'Row.jsx#Row'), path.join('src', 'lib', 'Item.jsx#Item')])
       expect([...index.names]).toEqual([])
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   const linkedWorkspace = (manifest: string, extra: Record<string, string> = {}) => {
@@ -433,7 +434,7 @@ describe('project escape index (cross-file hook safety)', () => {
       ...extra,
     })
     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive: true })
-    fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'node_modules', '@acme', 'ui'), 'dir')
+    fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'node_modules', '@acme', 'ui'), 'junction')
     return root
   }
   it.each([
@@ -454,7 +455,7 @@ describe('project escape index (cross-file hook safety)', () => {
       const index = createProjectEscapeIndex(root)()
       expect(index.all).toBe(false)
       expect([...index.origins].map(origin => path.relative(root, origin)).sort()).toEqual([path.join('packages', 'ui', 'dist', 'index.js#Row'), path.join('packages', 'ui', 'src', 'Row.jsx#Row')])
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it.each([
     ['a target that exists outside the scanned sources', '{ "name": "@acme/ui", "exports": { ".": { "browser": "./node_modules/.cache/entry.js", "default": "./dist/index.js" } } }', { 'packages/ui/node_modules/.cache/entry.js': `export { Row } from '../../src/Row.jsx'\n` }],
@@ -468,11 +469,11 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(createProjectEscapeIndex(root)().all).toBe(true)
       expect(hooksIn(root, 'packages/ui/src/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'src/Badge.jsx', 'Badge')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('fails closed for a deprecated folder mapping that covers the requested subpath', () => {
     const root = linkedWorkspace('{ "name": "@acme/ui", "exports": { ".": "./src/index.js", "./lib/": "./src/" } }', { 'apps/web/Lib.jsx': `import { Row } from '@acme/ui/lib/Row.jsx'\nexport const rows = xs => xs.map(Row)\n`, 'packages/ui/lib/Row.jsx': row })
-    try { expect(createProjectEscapeIndex(root)().all).toBe(true) } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    try { expect(createProjectEscapeIndex(root)().all).toBe(true) } finally { removeTree(root) }
   })
   it.each([
     ['a types condition pointing at a declaration file', '{ "name": "@acme/ui", "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/index.js" } } }', { 'packages/ui/src/index.d.ts': 'export declare function Row(item: string): unknown\n' }],
@@ -489,7 +490,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(index.origins.has(path.join(root, 'packages', 'ui', 'src', 'Row.jsx#Row'))).toBe(true)
       expect(hooksIn(root, 'packages/ui/src/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'src/Badge.jsx', 'Badge')).toBe(true)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('expands exports subpath patterns for the requested subpath', () => {
     const root = linkedWorkspace('{ "name": "@acme/ui", "exports": { ".": "./dist/index.js", "./*": "./src/*.jsx" } }', {
@@ -501,7 +502,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(index.all).toBe(false)
       expect(index.origins.has(path.join(root, 'packages', 'ui', 'src', 'Cell.jsx#Cell'))).toBe(true)
       expect(hooksIn(root, 'packages/ui/src/Cell.jsx', 'Cell')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('resolves a deep workspace import without an exports map by its file path', () => {
     const root = linkedWorkspace('{ "name": "@acme/ui", "main": "./src/index.js" }', {
@@ -512,7 +513,7 @@ describe('project escape index (cross-file hook safety)', () => {
       const index = createProjectEscapeIndex(root)()
       expect(index.all).toBe(false)
       expect(index.origins.has(path.join(root, 'packages', 'ui', 'src', 'Cell.jsx#Cell'))).toBe(true)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('resolves dotted extension-less entries and imports to script files instead of treating them as assets', () => {
     const root = linkedWorkspace('{ "name": "@acme/ui", "main": "./dist/index.js", "module": "./src/index.esm" }', {
@@ -526,7 +527,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(index.origins.has(path.join(root, 'packages', 'ui', 'src', 'Row.jsx#Row'))).toBe(true)
       expect(hooksIn(root, 'packages/ui/src/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'src/Cell.web.jsx', 'Cell')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('records files by real path when a symlinked folder is walked before its target', () => {
     const root = project({
@@ -538,7 +539,7 @@ describe('project escape index (cross-file hook safety)', () => {
       'src/Globbed.js': `const all = import.meta.glob('./linked/T*.jsx', { eager: true })\nexport const tiles = () => Object.values(all).map(module => module.Tile({}))\n`,
     })
     try {
-      fs.symlinkSync(path.join(root, 'zshared'), path.join(root, 'src', 'linked'), 'dir')
+      fs.symlinkSync(path.join(root, 'zshared'), path.join(root, 'src', 'linked'), 'junction')
       const index = createProjectEscapeIndex(root)()
       expect(index.all).toBe(false)
       expect([...index.origins].map(origin => path.relative(root, origin)).sort()).toEqual([path.join('zshared', 'Row.jsx#Row'), path.join('zshared', 'Tile.jsx#Tile'), path.join('zshared', 'kit', 'Badge.jsx#Badge')].sort())
@@ -546,18 +547,18 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(hooksIn(root, 'src/linked/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'zshared/Tile.jsx', 'Tile')).toBe(false)
       expect(hooksIn(root, 'zshared/kit/Badge.jsx', 'Badge')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('resolves workspace packages when the project root itself is a symlinked path', () => {
     const real = linkedWorkspace('{ "name": "@acme/ui", "exports": "./src/index.js" }')
     const link = `${real}-link`
     try {
-      fs.symlinkSync(real, link, 'dir')
+      fs.symlinkSync(real, link, 'junction')
       const index = createProjectEscapeIndex(link)()
       expect(index.all).toBe(false)
       expect(index.origins.has(path.join(real, 'packages', 'ui', 'src', 'Row.jsx#Row'))).toBe(true)
       expect(hooksIn(link, 'packages/ui/src/Row.jsx', 'Row')).toBe(false)
-    } finally { fs.rmSync(link, { force: true }); fs.rmSync(real, { recursive: true, force: true }) }
+    } finally { removeLink(link); removeTree(real) }
   })
   it('looks a workspace package up from the importing file (pnpm per-package links) before the root', () => {
     const root = project({
@@ -570,10 +571,10 @@ describe('project escape index (cross-file hook safety)', () => {
     })
     try {
       fs.mkdirSync(path.join(root, 'apps', 'web', 'node_modules', '@acme'), { recursive: true })
-      fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'apps', 'web', 'node_modules', '@acme', 'ui'), 'dir')
+      fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'apps', 'web', 'node_modules', '@acme', 'ui'), 'junction')
       expect(hooksIn(root, 'packages/ui/src/Row.jsx', 'Row')).toBe(false)
       expect(createProjectEscapeIndex(root)().origins.has(path.join(root, 'packages', 'ui', 'src', 'Row.jsx#Row'))).toBe(true)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('keeps hooks for a workspace package whose every entry is proven, and for an unrelated subpath file', () => {
     const root = linkedWorkspace('{ "name": "@acme/ui", "exports": { ".": { "browser": "./src/index.js", "import": "./dist/index.js" }, "./Badge": "./src/Badge.jsx" } }', {
@@ -584,7 +585,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(createProjectEscapeIndex(root)().all).toBe(false)
       expect(hooksIn(root, 'packages/ui/src/Badge.jsx', 'Badge')).toBe(true)
       expect(hooksIn(root, 'packages/ui/src/Row.jsx', 'Row')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('follows every file an extensionless import may resolve to (Vite and TypeScript order extensions differently)', () => {
     const root = project({
@@ -600,7 +601,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(hooksIn(root, 'src/Row.tsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'src/kit/Cell.jsx', 'Cell')).toBe(false)
       expect([...createProjectEscapeIndex(root)().origins].map(origin => path.relative(root, origin)).sort()).toEqual([path.join('src', 'Row.js#Row'), path.join('src', 'Row.tsx#Row'), path.join('src', 'kit', 'Cell.js#Cell'), path.join('src', 'kit', 'Cell.jsx#Cell')].sort())
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('reads MDX and inline HTML module scripts as callers', () => {
@@ -615,21 +616,21 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(hooksIn(root, 'src/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'src/Card.jsx', 'Card')).toBe(true)
       expect(hooksIn(root, 'src/Tile.jsx', 'Tile')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('follows callers inside symlinked directories', () => {
     const root = project({ 'src/ui/Row.jsx': row, 'outside/App.jsx': `import { Row } from '../src/ui/Row'\nexport const rows = items => items.map(Row)\n` })
     try {
-      fs.symlinkSync(path.join(root, 'outside'), path.join(root, 'src', 'linked'), 'dir')
+      fs.symlinkSync(path.join(root, 'outside'), path.join(root, 'src', 'linked'), 'junction')
       fs.renameSync(path.join(root, 'outside'), path.join(root, '..', `${path.basename(root)}-outside`))
-      fs.rmSync(path.join(root, 'src', 'linked'))
-      fs.symlinkSync(path.join(root, '..', `${path.basename(root)}-outside`), path.join(root, 'src', 'linked'), 'dir')
+      removeLink(path.join(root, 'src', 'linked'))
+      fs.symlinkSync(path.join(root, '..', `${path.basename(root)}-outside`), path.join(root, 'src', 'linked'), 'junction')
       fs.writeFileSync(path.join(root, '..', `${path.basename(root)}-outside`, 'App.jsx'), `import { Row } from '../ui/Row'\nexport const rows = items => items.map(Row)\n`)
       expect(hooksIn(root, 'src/ui/Row.jsx', 'Row')).toBe(false)
     } finally {
-      fs.rmSync(path.join(root, '..', `${path.basename(root)}-outside`), { recursive: true, force: true })
-      fs.rmSync(root, { recursive: true, force: true })
+      removeTree(path.join(root, '..', `${path.basename(root)}-outside`))
+      removeTree(root)
     }
   })
 
@@ -645,12 +646,12 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(createProjectEscapeIndex(root)()).toMatchObject({ all: false })
       expect(hooksIn(root, 'src/ui/Row.jsx', 'Row')).toBe(true)
       expect(hooksIn(root, 'src/pages/Page.jsx', 'Page')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('treats a namespace export rendered only as JSX as benign', () => {
     const root = project({ 'src/ui/Row.jsx': row, 'src/barrel.ts': `export * as ui from './ui/Row'\n`, 'src/App.jsx': `import { ui } from './barrel'\nexport const App = () => <ui.Row />\n` })
-    try { expect(hooksIn(root, 'src/ui/Row.jsx', 'Row')).toBe(true) } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    try { expect(hooksIn(root, 'src/ui/Row.jsx', 'Row')).toBe(true) } finally { removeTree(root) }
   })
 
   it('reloads served modules whose escape decision flips after an edit elsewhere (HMR)', () => {
@@ -671,7 +672,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(sent).toEqual([{ type: 'full-reload' }])
       const second = plugin.transform(fs.readFileSync(rowFile, 'utf8'), rowFile) as { code: string }
       expect(second.code).not.toMatch(/__rippleUseIdentity\w*\(Row,/)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('rebuilds the escape index on the next transform after any watcher event, and reuses it otherwise', () => {
@@ -689,7 +690,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(listeners).toHaveLength(1)
       listeners.forEach(listener => listener())
       expect(transformRow()).not.toMatch(/__rippleUseIdentity\w*\(Row,/)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   const hmrOffServer = (root: string) => {
@@ -724,7 +725,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(server.sent).toEqual([{ type: 'full-reload' }])
       server.middlewares[0]({}, {}, () => undefined)
       expect(server.invalidated).toHaveLength(1)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('re-checks served decisions before a page navigation even when no watcher event was delivered', () => {
     const root = project({ 'src/ui/Row.jsx': row, 'src/App.jsx': `import { Row } from './ui/Row'\nexport const App = () => <ul><Row /></ul>\n` })
@@ -741,7 +742,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(invalidated).toEqual([])
       middlewares[0]({ headers: { accept: 'text/html,application/xhtml+xml' } }, {}, () => undefined)
       expect(invalidated).toEqual([rowModule])
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('re-checks served decisions shortly after a file event even when no request arrives, without HMR', async () => {
     const root = project({ 'src/ui/Row.jsx': row, 'src/App.jsx': `import { Row } from './ui/Row'\nexport const App = () => <ul><Row /></ul>\n` })
@@ -750,7 +751,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(server.invalidated).toEqual([])
       await new Promise(resolve => setTimeout(resolve, 120))
       expect(server.invalidated).toEqual([server.rowModule])
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('resolves relative imports from link paths as well as real directories (preserveSymlinks)', () => {
     const root = project({
@@ -761,12 +762,12 @@ describe('project escape index (cross-file hook safety)', () => {
       'src/kit/Badge.jsx': `export function Badge() { return <b>b</b> }\n`,
     })
     try {
-      fs.symlinkSync(path.join(root, 'lib', 'inner'), path.join(root, 'src', 'linked'), 'dir')
+      fs.symlinkSync(path.join(root, 'lib', 'inner'), path.join(root, 'src', 'linked'), 'junction')
       const origins = [...createProjectEscapeIndex(root)().origins].map(origin => path.relative(root, origin)).sort()
       expect(origins).toEqual([path.join('lib', 'Row.jsx#Row'), path.join('src', 'Row.jsx#Row'), path.join('src', 'kit', 'Badge.jsx#Badge')].sort())
       expect(hooksIn(root, 'src/Row.jsx', 'Row')).toBe(false)
       expect(hooksIn(root, 'src/kit/Badge.jsx', 'Badge')).toBe(false)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('reuses the index only while sources and every observed filesystem fact are unchanged', () => {
@@ -782,21 +783,21 @@ describe('project escape index (cross-file hook safety)', () => {
       const second = get(true)
       expect(second).not.toBe(first)
       expect(second.all).toBe(true)
-      fs.rmSync(path.join(root, 'packages/ui/node_modules'), { recursive: true, force: true })
+      removeTree(path.join(root, 'packages/ui/node_modules'))
       expect(get(true).all).toBe(false)
       // The installed link disappearing (observed node_modules path).
-      fs.rmSync(path.join(root, 'node_modules/@acme/ui'))
+      removeLink(path.join(root, 'node_modules/@acme/ui'))
       const unlinked = get(true)
       expect(unlinked.origins.has(path.join(root, 'packages', 'ui', 'src', 'Row.jsx#Row'))).toBe(false)
       expect(unlinked.names.has('Row')).toBe(true)
       // A manifest edit (config file inside the walk).
-      fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'node_modules', '@acme', 'ui'), 'dir')
+      fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, 'node_modules', '@acme', 'ui'), 'junction')
       expect(get(true).origins.has(path.join(root, 'packages', 'ui', 'src', 'Row.jsx#Row'))).toBe(true)
       fs.writeFileSync(path.join(root, 'packages/ui/package.json'), '{ "name": "@acme/ui", "exports": "./dist/index.js" }')
       const edited = get(true)
       expect(edited.origins.has(path.join(root, 'packages', 'ui', 'src', 'Row.jsx#Row'))).toBe(false)
       expect(edited.origins.has(path.join(root, 'packages', 'ui', 'dist', 'index.js#Row'))).toBe(true)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('sees a same-size edit that keeps the modification time of a recently modified file', () => {
@@ -813,7 +814,7 @@ describe('project escape index (cross-file hook safety)', () => {
       fs.writeFileSync(app, after)
       fs.utimesSync(app, time, time)
       expect([...get(true).origins].map(origin => path.relative(root, origin))).toEqual([path.join('src', 'ui', 'Row.jsx#Row')])
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('fails closed when a queued re-check throws: every served module is invalidated', () => {
     const root = project({ 'src/ui/Row.jsx': row, 'src/App.jsx': `import { Row } from './ui/Row'\nexport const App = () => <ul><Row /></ul>\n` })
@@ -830,18 +831,18 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(() => middlewares[0]({ headers: { accept: 'text/html' } }, {}, () => { passed = true })).not.toThrow()
       expect(passed).toBe(true)
       expect(invalidated).toContain(rowModule)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
   it('rebuilds when a symlink inside the project is retargeted', () => {
     const root = project({ 'shared-a/Row.jsx': row, 'shared-b/Row.jsx': row, 'src/App.jsx': `import { Row } from './linked/Row'\nexport const rows = xs => xs.map(Row)\n` })
     try {
-      fs.symlinkSync(path.join(root, 'shared-a'), path.join(root, 'src', 'linked'), 'dir')
+      fs.symlinkSync(path.join(root, 'shared-a'), path.join(root, 'src', 'linked'), 'junction')
       const get = createProjectEscapeIndex(root)
       expect([...get(true).origins].map(origin => path.relative(root, origin))).toEqual([path.join('shared-a', 'Row.jsx#Row')])
-      fs.rmSync(path.join(root, 'src', 'linked'))
-      fs.symlinkSync(path.join(root, 'shared-b'), path.join(root, 'src', 'linked'), 'dir')
+      removeLink(path.join(root, 'src', 'linked'))
+      fs.symlinkSync(path.join(root, 'shared-b'), path.join(root, 'src', 'linked'), 'junction')
       expect([...get(true).origins].map(origin => path.relative(root, origin))).toEqual([path.join('shared-b', 'Row.jsx#Row')])
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 
   it('fails closed for every exported function when a dynamic import is unknowable, but keeps private components', () => {
@@ -852,7 +853,7 @@ describe('project escape index (cross-file hook safety)', () => {
       expect(createProjectEscapeIndex(root)()).toMatchObject({ all: true })
       expect(hooksIn(root, 'src/App.jsx', 'App')).toBe(false)
       expect(hooksIn(root, 'src/App.jsx', 'Inner')).toBe(true)
-    } finally { fs.rmSync(root, { recursive: true, force: true }) }
+    } finally { removeTree(root) }
   })
 })
 
