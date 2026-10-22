@@ -218,6 +218,25 @@ export interface VerificationEvidence {
   artifactHash?: string
   reason?: string
 }
+export interface VisualRunEvidence {
+  checkId: Id
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  /** Never 'pass': a visual result is supplementary and cannot approve. */
+  result: 'risk' | 'unknown' | 'not-run' | 'stale' | 'failed-to-run'
+  resultReason: string
+  /** ripple-visual-difference/v1 evidence (every list bounded by construction). */
+  evidence: unknown
+  /** ripple-visual-evidence-view/v1 read-only projection for the F workbench. */
+  view: unknown
+  artifacts: {
+    baseline: { path: string; sha256: string } | null
+    candidate: { path: string; sha256: string } | null
+    diff: { path: string; sha256: string; pixelSha256: string } | null
+    evidenceJson: { path: string; sha256: string } | null
+  }
+}
 export interface VerificationRun {
   id: Id
   candidateId: Id
@@ -237,6 +256,12 @@ export interface VerificationRun {
   scopeObservations?: ScopePropagationObservation[]
   interactionObservations?: InteractionObservation[]
   browserErrorDetails?: BrowserErrorDetails
+  /**
+   * Supplementary visual-difference evidence (capture + analysis attached by
+   * the host after the attested browser run). Read-only, advisory, never part
+   * of assertions, status or the approval gate; results can never be 'pass'.
+   */
+  visualEvidences?: VisualRunEvidence[]
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }
