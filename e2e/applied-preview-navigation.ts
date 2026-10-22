@@ -17,7 +17,7 @@ export async function clickDesktopNavTarget(root: AppliedPreviewRoot, label: str
     await expect(inNav, `desktop navigation must resolve to exactly one visible '${label}' button`).toBeVisible({ timeout: 15_000 })
     await inNav.click({ timeout: 15_000 })
   } catch (error) {
-    const report = await root.getByRole('button', { name: label, exact: true }).evaluateAll(buttons => buttons.map(button => {
+    const report = await root.getByRole('button', { name: label, exact: true, includeHidden: true }).evaluateAll(buttons => buttons.map(button => {
       const style = getComputedStyle(button)
       const rect = button.getBoundingClientRect()
       return {
@@ -28,7 +28,7 @@ export async function clickDesktopNavTarget(root: AppliedPreviewRoot, label: str
         height: Math.round(rect.height),
       }
     })).catch(failure => `unavailable: ${String(failure)}`)
-    throw new Error(`desktop navigation to '${label}' failed: ${error instanceof Error ? error.message : String(error)}\nsame-name buttons in applied preview: ${JSON.stringify(report)}`)
+    throw new Error(`desktop navigation to '${label}' failed: ${error instanceof Error ? error.message : String(error)}\nsame-name buttons in applied preview (includeHidden): ${JSON.stringify(report)}`)
   }
 }
 

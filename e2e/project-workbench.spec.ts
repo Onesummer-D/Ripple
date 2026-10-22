@@ -1122,8 +1122,14 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   const appliedFrame = page.frameLocator('#applied-bolt-preview')
   await expect(appliedFrame.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible({ timeout: 90_000 })
   const appliedViewport = await assertDesktopPreviewViewport(appliedFrame)
+  const appliedPageHeadings: Record<string, string> = {
+    '秋日手作节': '秋日手作节',
+    '商品专题': '器物全集',
+    '品牌故事': '从山野，到日常',
+  }
   for (const label of ['秋日手作节', '商品专题', '品牌故事']) {
     await clickDesktopNavTarget(appliedFrame, label)
+    await expect(appliedFrame.getByRole('heading', { level: 1, name: appliedPageHeadings[label] }), `applied preview must render the unique ${label} page heading '${appliedPageHeadings[label]}' before the footer check`).toBeVisible({ timeout: 30_000 })
     await expect(appliedFrame.locator('footer').getByText('山野器物 · Ripple UI验收', { exact: true }), `applied preview footer marker must stay visible after navigating to ${label} (viewport ${appliedViewport.width}x${appliedViewport.height})`).toBeVisible({ timeout: 30_000 })
   }
   await appliedFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-applied-site.png') })

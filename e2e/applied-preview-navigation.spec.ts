@@ -6,7 +6,7 @@ const navLabels = ['秋日手作节', '商品专题', '品牌故事'] as const
 
 /** Replicates the real Bolt conflict structure: desktop nav inside <nav>, a mobile
  * menu outside <nav>, same-name footer buttons and a same-name body CTA. */
-function fixtureHtml(options: { omitNavLabel?: string } = {}): string {
+function fixtureHtml(options: { omitNavLabel?: string; inertNavLabel?: string } = {}): string {
   const navButtons = navLabels.filter(label => label !== options.omitNavLabel)
   return `<!doctype html>
 <html lang="zh-CN">
@@ -25,7 +25,7 @@ function fixtureHtml(options: { omitNavLabel?: string } = {}): string {
 <body>
 <header>
   <nav aria-label="主导航">
-    ${navButtons.map(label => `<button data-nav="${label}">${label}</button>`).join('\n    ')}
+    ${navButtons.map(label => label === options.inertNavLabel ? `<button>${label}</button>` : `<button data-nav="${label}">${label}</button>`).join('\n    ')}
   </nav>
   <button class="menu-toggle" aria-label="菜单" aria-expanded="false">菜单</button>
 </header>
@@ -84,6 +84,19 @@ test.describe('applied preview desktop navigation (real Chromium, 1280x800)', ()
       first.parentElement!.appendChild(first.cloneNode(true))
     })
     await expect(clickDesktopNavTarget(page, '秋日手作节')).rejects.toThrow(/exactly one visible/)
+    await expect(page.locator('main')).toHaveAttribute('data-page', 'home')
+  })
+
+  test('catches a nav click that never changes the page instead of trusting the shared footer', async ({ page }) => {
+    await page.setContent(fixtureHtml({ inertNavLabel: '秋日手作节' }))
+    await clickDesktopNavTarget(page, '秋日手作节')
+    // The shared footer marker stays visible the whole time, so only the page-identity
+    // assertion can prove the click failed to navigate.
+    await expect(page.locator('footer').getByText(footerMarker, { exact: true })).toBeVisible()
+    await expect((async () => {
+      await expect(page.locator('main'), 'page identity must switch to 秋日手作节').toHaveAttribute('data-page', '秋日手作节')
+      await expect(page.locator('main').getByRole('heading', { level: 1 }), 'unique H1 must prove the 秋日手作节 page').toHaveText('秋日手作节页面')
+    })()).rejects.toThrow(/秋日手作节/)
     await expect(page.locator('main')).toHaveAttribute('data-page', 'home')
   })
 
