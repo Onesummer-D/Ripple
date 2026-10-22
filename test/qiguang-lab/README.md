@@ -66,3 +66,25 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
 - 动态消费（运行时切换图源）不在本 Lab 范围，按 B 既有结论 fail-closed。
 - 本 Lab 证明的是「真实 React/Vite 多页工程形态下的采集与几何推导链路」，
   消费关系授权仍待 C+D 联合集成时由 SourceGraph 真实证明接管。
+
+## data-router 联合验证变体（router-variant/）
+
+协调人第五轮授权的先行交付：在 A 集成基线就绪前，独立提交 data-router 形态变体与
+证明 harness（不触碰共享 SourceGraph 文件，不覆盖 A 工作树）。
+
+- **形态**：对齐 PR #28 已验证夹具——命名导出 `App` 组件 + `createBrowserRouter`
+  路由表（`{ path, Component }` 平铺四项），`main.tsx` 无条件 `createRoot(<App />)`。
+  共享媒体消费容器与 MPA 主 Lab 完全一致（Hero 16:9 / 展墙 4:3 / 卡片 3:4）。
+- **harness**（`router-variant/scripts/verify-sourcegraph-proof.ts --core <宿主checkout>`）：
+  变体复制为临时干净 git 工程（含 react-router 依赖），用宿主的
+  `analyzeProject` / `sourceProvenPageImpact` 断言——共享媒体影响恰含
+  `/` `/program` `/tickets` 且 source-proven；档案独立媒体恰含 `/archive`；
+  任一不满足即非零退出。
+- **实测结果（2026-10-23，宿主 = PR #28 HEAD `1dbaa53` 检出）**：PASS——
+  共享媒体 `/media/qiguang-hero-wide.jpg` → source-proven `[page:/, page:/program,
+  page:/tickets]`；档案媒体 → source-proven `[page:/archive]`，无泄漏；
+  `graph.unresolved` 为空。证明 PR #28 合同下 SourceGraph **能够**自动证明
+  三页共享媒体消费——前提是路由形态对齐其识别模式（MPA 形态仍不可证明）。
+- **边界**：此为合同形态验证，非 A 集成基线最终签署；基线就绪后同一 harness 复跑为准。
+  路由形态要求（命名导出 App、`Component` 路由属性、无条件挂载）记入本文档，
+  联合集成时若真实工程形态不符将如实 fail-closed。

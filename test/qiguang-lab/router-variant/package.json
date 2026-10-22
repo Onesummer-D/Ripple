@@ -1,0 +1,21 @@
+{
+  "name": "ripple-qiguang-router-variant",
+  "private": true,
+  "version": "0.1.0",
+  "description": "栖光 Lab · data-router 联合验证变体（React Router 路由表形态，依赖解析自宿主 checkout node_modules，本目录不跑 npm ci）",
+  "type": "module",
+  "scripts": {
+    "build:variants": "node scripts/build-variants.mjs",
+    "verify:sourcegraph-proof": "node --experimental-transform-types --loader <宿主checkout>/scripts/ts-extension-loader.mjs scripts/verify-sourcegraph-proof.ts --core <宿主checkout>"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.5",
+    "typescript": "^5.7.2"
+  }
+}

@@ -36,6 +36,11 @@ jobs:
         run: git diff --exit-code -- test/qiguang-lab/src/components/SharedFestivalImage.tsx
       - name: Collect 3-page 4-viewport dual-end evidence
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs test/qiguang-lab/scripts/collect-evidence.ts
+      - name: Build data-router variant (react-router --no-save, repo lock untouched)
+        run: |
+          npm install react-router-dom@7.18.4 --no-save --no-audit --no-fund
+          node test/qiguang-lab/router-variant/scripts/build-variants.mjs
+          git diff --exit-code -- test/qiguang-lab/router-variant/src/components/SharedFestivalImage.tsx
       - name: Report evidence counts (screenshots / assertions / per-page status)
         run: |
           node - <<'EOF'
