@@ -157,3 +157,35 @@ export const App = () => <RouterProvider router={router} />;
 
 - A 稳定核心：`16e737c16d95a26879d1aee813b85fb472fd8215`
 - A + C+D（含 P1 别名链修复与合同文档，待负责人确认正式合并）：`43f2ea24…`（#28 分支）/ 等价 merge 预演 `a08ba86`（`feat/a-cd-rehearsal-20261023`）
+
+---
+
+# v4 增补（2026-10-23）｜B 第三方复验 P2 登记与 C+D 协调计划
+
+## 背景
+
+B 在预演基线 `1485439`（含 #28）上对 codescandy 固定 SHA `b700bbd` 完成复验：37 个 route 节点；Profile → ProfileHeader → Overview 路径部分来源证明；探针仍 exit 2 BLOCKED；createCandidate 被正确拒绝；DOM 点选/四视口验证/Approval/Apply/Rollback 未执行。
+
+## 登记项（独立 P2，不扩大第一批范围）
+
+### AC-P2a：composite JSX 子代来源证明（C+D 负责实现）
+- 对象：`<Link …>Overview</Link>`（ProfileHeader.tsx L71–73）目前仅有 semantic-candidate 边。
+- 方向：优先研究可审计、限定库版本的组件语义映射（react-router Link/NavLink children→DOM 传播）；静态不可证则保留 semantic-candidate 或研究运行时证据补全。
+- 红线：禁止仅凭组件名或浏览器文字相同提升为 source-proven；必须正反例齐备（真实 Link/NavLink 行为已支持、未知复合组件不升级、组件封装改变语义时自动降级）。
+
+### AC-P2b：data-router 回退与条件消费者（C+D 负责实现）
+- 对象：根路由 `errorElement: <NotFound />` 当前报 `conditional route fallback consumer is not modeled` + `route-coverage`。
+- 方向：研究 errorElement 的保守建模；lazy、动态路由、条件回退不可静证时保持阻断完整页面影响声明。
+- 红线：不得删除 route-coverage 或屏蔽 graph.unresolved 使候选通过。
+
+### 两项共同验收（C+D 交付时必须满足）
+1. 修复前复现 BLOCKED；2. 修复后重跑 codescandy 固定 SHA 探针；3. 证明目标 PageImpact 是否真正 source-proven；4. 其他未知消费者仍 partial/unknown；5. 完整来源证明成立前 B 不执行候选成功路径；6. 提供新 SHA、Linux CI、接口变更说明。
+
+### B-ENV-1：Windows CRLF/LF 检出的源码范围偏移与字节一致性差异
+- 先要求最小复现（与 v3 登记的 source-identity.spec.ts:588 Windows 失败同源），不直接改变安全哈希语义。
+
+## 协调计划
+
+1. **当前优先**：完成 #28 正式集成（条件见 v3 检查表，同步后 CI 39850415100 待转 SUCCESS），P2 不重开已完成的 C+D 集成。
+2. #28 稳定合入 A 后：向 C+D Agent 派发 AC-P2a/AC-P2b（独立分支、独立 PR、正反例齐备、codescandy 探针前后对照），A 负责审查与合并。
+3. P2 完成后：向 B 返回可复验新基线 SHA，B 继续第三方真实 TEXT 生命周期（DOM 点选 → 四视口验证 → Approval/Apply/Rollback）。
