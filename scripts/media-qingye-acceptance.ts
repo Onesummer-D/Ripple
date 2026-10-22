@@ -42,7 +42,7 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from '../src/core/project'
 import { assertCandidateCurrent, createCandidate, removeCandidate, type CandidateRecord } from '../src/core/candidate'
-import { createStagedAssetStore, assertImageBytes } from '../src/core/media-asset-staging'
+import { assertImageBytes, assertMediaSwapAsset, canonicalImageExtension, createStagedAssetStore } from '../src/core/media-asset-staging'
 import { mediaAssetSwapExecutors } from '../src/core/media-asset-swap'
 import { rollbackAppliedCandidate } from '../src/core/apply'
 import { approve, chooseScope, openSession, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from '../src/core/session'
@@ -411,13 +411,15 @@ async function main(): Promise<void> {
   // 2. 新图字节（真实下载）进暂存
   const imageUrl = process.env.MEDIA_SWAP_IMAGE_URL ?? 'https://images.pexels.com/photos/8952094/pexels-photo-8952094.jpeg?auto=compress&cs=tinysrgb&h=650&w=940'
   const bytes = await downloadBytes(imageUrl)
-  // 文件类型验证（D 复审返工）：魔数嗅探，拒绝以图片扩展名把非图字节写进项目 public 目录
+  // 统一素材校验入口（D 最终复审 P1）：格式头识别 + 扩展名一致性；URL 无扩展名时按实际字节格式命名
   const imageFormat = assertImageBytes(bytes, '替换图片')
+  const urlExtension = path.extname(new URL(imageUrl).pathname).toLowerCase()
+  const extension = urlExtension || canonicalImageExtension(imageFormat)
+  const assetRef = `/media/qingye-category-swap${extension}`
+  assertMediaSwapAsset(bytes, assetRef, '替换图片') // 终检：URL 扩展名与实际字节格式不符即拒绝
   const store = createStagedAssetStore(path.join(workDir, 'staged-assets'))
   const assetHash = store.store(bytes)
-  const extension = path.extname(new URL(imageUrl).pathname) || '.jpeg'
-  const assetRef = `/media/qingye-category-swap${extension}`
-  steps.assetStaging = { imageUrl, sha256: assetHash, bytes: bytes.byteLength, assetRef, format: imageFormat }
+  steps.assetStaging = { imageUrl, sha256: assetHash, bytes: bytes.byteLength, assetRef, format: imageFormat, validation: '格式头识别（非完整解码证明）+ 扩展名一致性' }
 
   // 3. Scope + 操作 + A 核心候选
   const scope: ScopeDecision = {
@@ -496,6 +498,11 @@ async function main(): Promise<void> {
       if (exitCode !== 0) throw new AcceptanceError(`四视口 Evidence 采集未通过（exit ${exitCode}）`)
       // D 复审返工：evidence.json 与 dual.json 同样做内容哈希回验（对称 P2-3），
       // 防止篡改采集输出操纵断言输入；解析一次后全链复用，不再重复读盘。
+      // 信任边界（D 最终复审 P2）：哈希一致性只证明"采集后未被改动"，不证明来源真实性——
+      // 能同时改写报告与哈希的攻击者可伪造一致对；真正绑定证据与候选版本的是报告内嵌的
+      // candidateId/patchHash/candidateTreeDigest/baseSourceDigest 四元组，由审批侧
+      // A 的 attestBrowserExecution / Receipt 门控复核。哈希回验防的是采集链路内的
+      // 意外损坏与单点篡改，不得夸大为来源真实性证明。
       const evidenceFile = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'evidence.json'), 'utf8')) as { report: MediaViewportEvidenceReport; sha256: string }
       if (mediaViewportEvidenceSha256(evidenceFile.report) !== evidenceFile.sha256) throw new AcceptanceError('evidence.json 内容哈希不匹配，采集数据可能被篡改，拒绝继续')
       mediaReport = evidenceFile.report

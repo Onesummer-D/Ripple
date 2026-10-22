@@ -78,7 +78,8 @@ function approvedFixture(): ApprovedFixture {
   if (!target?.location) throw new Error('fixture 需要 analyzer 产出带位置的媒体节点')
   const targetValue = target.value
   if (typeof targetValue !== 'string') throw new Error('fixture 媒体节点缺少值')
-  const bytes = Buffer.from([0, 255, 17, 0, 128, 42, 9, 1, 2, 3])
+  // 统一素材校验（D 最终复审 P1）：最小 WebP 头（RIFF....WEBP）使 staged 字节通过执行器格式头识别
+  const bytes = Buffer.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 9, 1, 2, 3])
   const assetHash = sha256(bytes)
   const assetRef = '/media/hero-new.webp'
   const stagedRelativePath = 'public/media/hero-new.webp'

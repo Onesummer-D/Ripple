@@ -5,7 +5,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { analyzeProject, digestTrackedTree, readProjectSnapshot, trackedProjectFiles } from './project'
 import { assertCandidateCurrent, CandidateError, createCandidate, removeCandidate } from './candidate'
-import { assertImageBytes, createStagedAssetStore, resolveAssetRefToRelativePath, sniffImageFormat, MediaAssetStagingError, type StagedAssetStore } from './media-asset-staging'
+import { assertImageBytes, assertMediaSwapAsset, canonicalImageExtension, createStagedAssetStore, resolveAssetRefToRelativePath, sniffImageFormat, MediaAssetStagingError, type StagedAssetStore } from './media-asset-staging'
 import { createMediaAssetSwapExecutor, mediaAssetSwapExecutor, type MediaAssetSwapOperation } from './media-asset-swap'
 import { applyApprovedCandidate, rollbackAppliedCandidate } from './apply'
 import { approve, chooseScope, openSession, recordAppliedRevision, recordSourceGraph, registerVerification, stageCandidate, stageOperations } from './session'
@@ -90,7 +90,9 @@ function mediaSwapFixture(root: string): MediaFixture {
   const sourceSlice = fs.readFileSync(path.join(root, target.location.path), 'utf8').slice(target.location.start, target.location.end)
   if (sourceSlice !== target.value) throw new Error(`媒体节点区间与值不一致：${JSON.stringify(sourceSlice)} vs ${JSON.stringify(target.value)}`)
 
-  const bytes = Buffer.from([0, 255, 17, 0, 128, 42, 9, 1, 2, 3])
+  // 统一素材校验（D 最终复审 P1）后，执行器 plan 要求 staged 字节通过格式头识别：
+  // 这里给出最小 WebP 头（RIFF....WEBP），hash 与后续字节断言均从该字节推导
+  const bytes = Buffer.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 9, 1, 2, 3])
   const assetHash = sha256(bytes)
   const assetRef = '/media/hero-new.webp'
   const store = createStagedAssetStore(path.join(temp(), 'staged-assets'))
@@ -179,9 +181,36 @@ describe('media-asset-staging', () => {
     expect(sniffImageFormat(new TextEncoder().encode('<svg onload="alert(1)"/>'))).toBeUndefined()
     expect(sniffImageFormat(new TextEncoder().encode('MZ\x90\x00executable'))).toBeUndefined()
     expect(sniffImageFormat(new Uint8Array([0x89, 0x50]))).toBeUndefined() // 太短
+    // 精确签名：GIF 仅 87a/89a；PNG 需完整 8 字节签名
+    expect(sniffImageFormat(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x38, 0x61, 1, 0]))).toBeUndefined()
+    expect(sniffImageFormat(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 1, 0]))).toBe('gif')
+    expect(sniffImageFormat(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x00]))).toBeUndefined()
     expect(assertImageBytes(jpeg)).toBe('jpeg')
     expect(() => assertImageBytes(new TextEncoder().encode('<svg onload="alert(1)"/>'))).toThrow(/不是受支持的图片格式/)
     expect(() => assertImageBytes(new Uint8Array())).toThrow(/非空字节/)
+    // 信任边界（如实声明）：伪造头（PNG 魔数+垃圾体）仍会被格式头识别放行——
+    // 头识别不等于完整有效性证明；真实可解码性由浏览器证据链（naturalWidth>0）兜底
+    const fakePng = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xde, 0xad, 0xbe, 0xef])
+    expect(sniffImageFormat(fakePng)).toBe('png')
+  })
+
+  it('assertMediaSwapAsset：扩展名与检测格式一致性，缺扩展名拒绝（统一校验入口）', () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01])
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d])
+    expect(assertMediaSwapAsset(jpeg, '/media/a.jpg')).toBe('jpeg')
+    expect(assertMediaSwapAsset(jpeg, '/media/a.JPEG')).toBe('jpeg') // 大小写不敏感
+    expect(assertMediaSwapAsset(png, '/media/a.png')).toBe('png')
+    expect(canonicalImageExtension('jpeg')).toBe('.jpg')
+    expect(canonicalImageExtension('avif')).toBe('.avif')
+    // 扩展名与检测格式不符：拒绝（png 字节配 .jpg 路径 / jpeg 字节配 .png 路径）
+    expect(() => assertMediaSwapAsset(png, '/media/a.jpg')).toThrow(/不一致/)
+    expect(() => assertMediaSwapAsset(jpeg, '/media/a.png')).toThrow(/不一致/)
+    // 缺扩展名：拒绝（无法保证按正确媒体类型伺服）
+    expect(() => assertMediaSwapAsset(jpeg, '/media/no-extension')).toThrow(/缺少扩展名/)
+    // 空扩展名（trailing dot）按不一致处理
+    expect(() => assertMediaSwapAsset(jpeg, '/media/trailingdot.')).toThrow(/不一致/)
+    // 非图字节在任何路径下都被拒
+    expect(() => assertMediaSwapAsset(new TextEncoder().encode('<svg onload="alert(1)"/>'), '/media/a.jpg')).toThrow(/不是受支持的图片格式/)
   })
 
   it('staged asset store：存取一致、缺失与篡改 fail-closed、身份格式校验', () => {
@@ -246,6 +275,23 @@ describe('media-asset-swap executor', () => {
     expect(plan.fileWrites).toHaveLength(1)
     expect(plan.fileWrites![0].path).toBe(fixture.stagedRelativePath)
     expect(Buffer.from(plan.fileWrites![0].bytes)).toEqual(Buffer.from(fixture.bytes))
+  })
+
+  it('plan 统一素材校验（D 最终复审 P1）：绕过验收脚本直接驱动执行器，未校验字节同样被拒', () => {
+    const { root } = sampleMediaProject()
+    const fixture = mediaSwapFixture(root)
+    const good = executor.plan(planInput(fixture))
+    expect(good.fileWrites).toHaveLength(1)
+    // 非图字节：SVG 脚本字节以 .webp 路径写入 → 拒绝
+    const evilBytes = new TextEncoder().encode('<svg onload="alert(1)"/>')
+    const evilHash = fixture.store.store(evilBytes)
+    expect(() => executor.plan(planInput(fixture, { payload: { ...fixture.operation.payload, assetHash: evilHash } }))).toThrow(/不是受支持的图片格式/)
+    // 扩展名与字节格式不符：PNG 头字节写入 .webp 路径 → 拒绝
+    const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d])
+    const pngHash = fixture.store.store(pngBytes)
+    expect(() => executor.plan(planInput(fixture, { payload: { ...fixture.operation.payload, assetHash: pngHash } }))).toThrow(/不一致/)
+    // 缺扩展名的 assetRef → 拒绝
+    expect(() => executor.plan(planInput(fixture, { after: '/media/no-extension', payload: { ...fixture.operation.payload, assetRef: '/media/no-extension' } }))).toThrow(/缺少扩展名/)
   })
 
   it('plan：无副作用——不读工程文件、不写任何文件', () => {

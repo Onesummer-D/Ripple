@@ -26,6 +26,20 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
   test/fixtures/media-orientation-swap/run-scenario.ts test/fixtures/media-orientation-swap/evidence
 ```
 
+`run-scenario.ts` 在采集之外执行两项回归加固（D 最终复审 P1）：
+
+1. **产物完整性核验**：evidence/dual 内容哈希回验、四视口缺一即败、8 张截图存在且
+   魔数确为 PNG、comparison.json 必须恰有 24 条观测（3 容器 × 4 视口 × 双端）；
+2. **失败路径负例**：以指向缺失资源的 assetRef 重跑采集器，必须非零退出——
+   若意外通过即判定断言链失效，场景整体失败。
+
+## 正式回归入口
+
+定向 workflow [`media-fixture-regression.yml`](../../../.github/workflows/media-fixture-regression.yml)：
+MEDIA 模块 / 本 Fixture / 工作流自身变更时自动触发（paths 过滤），也可手动 dispatch；
+不在每次 push 的常规 CI 中重复跑 Chromium。注意：**Fixture 验收通过 ≠ 真实工程
+MEDIA 生命周期通过**——后者以青野专项 workflow（双端构建 + 完整生命周期）为准。
+
 ## 观测结论（2026-10-22 本机 Chromium 一次采集，evidence/ 为证）
 
 四视口断言 `media-loaded / media-source-swapped / media-crop-geometry / media-browser-errors`

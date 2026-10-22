@@ -77,25 +77,43 @@ export function createStagedAssetStore(root: string): StagedAssetStore {
   }
 }
 
-/** 常见光栅图格式的魔数嗅探（仅识别，不解码）。MEDIA v1 只支持图片素材替换。 */
+/** 常见光栅图格式的魔数嗅探（仅格式头识别，不解码、不证明完整有效性）。MEDIA v1 只支持图片素材替换。 */
 export type SniffedImageFormat = 'jpeg' | 'png' | 'webp' | 'gif' | 'avif'
 
 export function sniffImageFormat(bytes: Uint8Array): SniffedImageFormat | undefined {
-  if (bytes.byteLength >= 12 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg'
-  if (bytes.byteLength >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'png'
-  if (bytes.byteLength >= 12 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'webp'
-  if (bytes.byteLength >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return 'gif'
-  // AVIF/HEIF：ftyp box 在第 4-8 字节，brand 'avif' 或 'avis'
+  if (bytes.byteLength >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpeg'
+  if (bytes.byteLength >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+      bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return 'png'
+  if (bytes.byteLength >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'webp'
+  // GIF87a / GIF89a
+  if (bytes.byteLength >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38 &&
+      (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61) return 'gif'
+  // AVIF：ISO-BMFF ftyp box（offset 4）major brand 'avif' 或 'avis'
   if (bytes.byteLength >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70 &&
       ((bytes[8] === 0x61 && bytes[9] === 0x76 && bytes[10] === 0x69 && bytes[11] === 0x66) ||
        (bytes[8] === 0x61 && bytes[9] === 0x76 && bytes[10] === 0x69 && bytes[11] === 0x73))) return 'avif'
   return undefined
 }
 
+/** 各格式的规范扩展名（小写，含等价格式）。 */
+const FORMAT_EXTENSIONS: Record<SniffedImageFormat, readonly string[]> = {
+  jpeg: ['.jpg', '.jpeg', '.jfif'],
+  png: ['.png'],
+  webp: ['.webp'],
+  gif: ['.gif'],
+  avif: ['.avif'],
+}
+
+/** 格式缺省扩展名（URL 无扩展名时按实际字节格式命名，避免名实不符）。 */
+export const canonicalImageExtension = (format: SniffedImageFormat): string => FORMAT_EXTENSIONS[format][0]
+
 /**
- * 素材文件类型验证：确认字节确是受支持的图片格式。
+ * 素材文件类型验证：确认字节头确属受支持的图片格式。
+ * 注意：这是宽松的格式头识别（首个字节模式的超集匹配），不是完整图片有效性证明——
+ * 伪造头可以通过本检查；真实可解码性由浏览器证据链（naturalWidth>0 真实解码）兜底。
  * 暂存 store 本身保持内容寻址的通用字节语义（测试与未来的非图资产仍可存取）；
- * 真实素材入口（验收脚本/未来的媒体库 UI）在写入暂存前必须经此校验，
+ * 真实素材入口（执行器 plan / 验收脚本 / 未来的媒体库 UI）必须经此校验，
  * 防止把可执行/SVG 脚本等内容以图片扩展名放进项目 public 目录。
  */
 export function assertImageBytes(bytes: Uint8Array, context = '媒体素材'): SniffedImageFormat {
@@ -103,7 +121,28 @@ export function assertImageBytes(bytes: Uint8Array, context = '媒体素材'): S
   const format = sniffImageFormat(bytes)
   if (!format) {
     throw new MediaAssetStagingError(
-      `${context}不是受支持的图片格式（按魔数识别 jpeg/png/webp/gif/avif）；拒绝以图片扩展名写入项目。`,
+      `${context}不是受支持的图片格式（格式头识别：jpeg/png/webp/gif/avif）；拒绝以图片扩展名写入项目。`,
+    )
+  }
+  return format
+}
+
+/**
+ * MEDIA asset-swap 的统一素材校验入口（D 最终复审 P1）：
+ * 在执行器 plan 内调用，确保绕过验收脚本直接驱动执行器时同样无法把未校验字节
+ * 写入图片资产路径。除格式头识别外，还核验写入路径扩展名与检测格式的一致性
+ * （assetRef 必须带扩展名且与格式匹配；大小写不敏感）。
+ */
+export function assertMediaSwapAsset(bytes: Uint8Array, assetRef: string, context = 'MEDIA 替换素材'): SniffedImageFormat {
+  const format = assertImageBytes(bytes, context)
+  const lastSegment = assetRef.split('/').pop() ?? ''
+  const extension = lastSegment.includes('.') ? lastSegment.slice(lastSegment.lastIndexOf('.')).toLowerCase() : ''
+  if (!extension) {
+    throw new MediaAssetStagingError(`${context}的 assetRef 缺少扩展名（${assetRef}），无法保证以正确媒体类型伺服；请显式命名。`)
+  }
+  if (!FORMAT_EXTENSIONS[format].includes(extension)) {
+    throw new MediaAssetStagingError(
+      `${context}的检测格式（${format}）与写入扩展名（${extension}）不一致：${assetRef}。拒绝名实不符的媒体路径。`,
     )
   }
   return format

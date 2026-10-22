@@ -18,10 +18,12 @@
  */
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { serveStatic } from '../../../src/core/media-acceptance-server'
+import { mediaDualEndpointSha256, mediaEvidenceSummary, mediaViewportEvidenceSha256 } from '../../../src/core/media-viewport-evidence'
 import { projectPreviewViewports } from '../../../src/core/project-viewports'
 
 const fixtureDir = path.dirname(fileURLToPath(import.meta.url))
@@ -75,6 +77,43 @@ async function measureEnd(browser: import('playwright').Browser, url: string, en
   return observations
 }
 
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+/** 回归加固（D 最终复审 P1）：采集产物完整性核验——哈希回验、四视口齐全、截图存在且确为 PNG、比较报告 24 条观测。 */
+function verifyArtifacts(dir: string): void {
+  const evidenceFile = JSON.parse(fs.readFileSync(path.join(dir, 'evidence.json'), 'utf8')) as { report: Parameters<typeof mediaViewportEvidenceSha256>[0]; sha256: string }
+  if (mediaViewportEvidenceSha256(evidenceFile.report) !== evidenceFile.sha256) throw new Error('evidence.json 内容哈希不匹配')
+  if (mediaEvidenceSummary(evidenceFile.report) !== 'pass') throw new Error('evidence.json 汇总不是 pass')
+  if (evidenceFile.report.observations.length !== projectPreviewViewports.length) throw new Error(`evidence.json 视口数 ${evidenceFile.report.observations.length} != ${projectPreviewViewports.length}`)
+  const dualFile = JSON.parse(fs.readFileSync(path.join(dir, 'dual.json'), 'utf8')) as { collection: Parameters<typeof mediaDualEndpointSha256>[0]; sha256: string }
+  if (mediaDualEndpointSha256(dualFile.collection) !== dualFile.sha256) throw new Error('dual.json 内容哈希不匹配')
+  if (dualFile.collection.viewports.length !== projectPreviewViewports.length) throw new Error('dual.json 视口不全')
+  for (const viewport of projectPreviewViewports) {
+    for (const suffix of [`${viewport.name}.png`, `${viewport.name}-baseline.png`]) {
+      const file = path.join(dir, suffix)
+      if (!fs.existsSync(file)) throw new Error(`缺少截图：${suffix}`)
+      if (!fs.readFileSync(file).subarray(0, 8).equals(PNG_MAGIC)) throw new Error(`截图不是 PNG：${suffix}`)
+    }
+  }
+  const comparison = JSON.parse(fs.readFileSync(path.join(dir, 'comparison.json'), 'utf8')) as { observations: unknown[] }
+  const expected = 3 * projectPreviewViewports.length * 2
+  if (comparison.observations.length !== expected) throw new Error(`comparison.json 观测数 ${comparison.observations.length} != ${expected}（3 容器 × ${projectPreviewViewports.length} 视口 × 双端）`)
+  console.log(`[scenario] 产物完整性核验通过：evidence/dual 哈希一致、${projectPreviewViewports.length} 视口截图成对且为 PNG、${expected} 条几何观测`)
+}
+
+function runEvidenceRunner(input: string, dir: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const runner = spawn(
+      process.execPath,
+      ['--experimental-transform-types', '--loader', './scripts/ts-extension-loader.mjs',
+        'scripts/media-viewport-evidence.ts', input, dir],
+      { cwd: repoRoot, stdio: 'inherit' },
+    )
+    runner.once('error', reject)
+    runner.once('close', code => resolve(code ?? 1))
+  })
+}
+
 async function main(): Promise<void> {
   fs.mkdirSync(outputDir, { recursive: true })
   const baseline = await serveStatic(path.join(fixtureDir, 'baseline'), 4631)
@@ -82,18 +121,24 @@ async function main(): Promise<void> {
   let runnerExit = 0
   try {
     console.log('[scenario] 静态服务就绪：baseline=4631 candidate=4632')
-    const runner = spawn(
-      process.execPath,
-      ['--experimental-transform-types', '--loader', './scripts/ts-extension-loader.mjs',
-        'scripts/media-viewport-evidence.ts',
-        path.join(fixtureDir, 'input.json'), outputDir],
-      { cwd: repoRoot, stdio: 'inherit' },
-    )
-    runnerExit = await new Promise<number>((resolve, reject) => {
-      runner.once('error', reject)
-      runner.once('close', code => resolve(code ?? 1))
-    })
+    runnerExit = await runEvidenceRunner(path.join(fixtureDir, 'input.json'), outputDir)
     console.log(`[scenario] 四视口证据采集退出码=${runnerExit}`)
+    if (runnerExit === 0) verifyArtifacts(outputDir)
+
+    // 失败路径负例（D 最终复审 P1）：assetRef 指向不存在资源时，采集器必须非零退出——
+    // 若意外通过，说明四视口断言/截图/比较报告检查失效，本场景整体判失败。
+    const tamperedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'media-orientation-negative-'))
+    try {
+      const tampered = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'input.json'), 'utf8')) as Record<string, unknown>
+      tampered.assetRef = '/media/does-not-exist.jpg'
+      const tamperedInput = path.join(tamperedDir, 'input.json')
+      fs.writeFileSync(tamperedInput, JSON.stringify(tampered))
+      const negativeExit = await runEvidenceRunner(tamperedInput, path.join(tamperedDir, 'out'))
+      if (negativeExit === 0) throw new Error('负例未生效：缺失资源的 assetRef 竟然采集通过，断言链失效')
+      console.log(`[scenario] 失败路径负例符合预期：缺失资源采集非零退出（exit ${negativeExit}）`)
+    } finally {
+      fs.rmSync(tamperedDir, { recursive: true, force: true })
+    }
 
     const browser = await chromium.launch({ headless: true })
     try {

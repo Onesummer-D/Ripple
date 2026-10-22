@@ -1,6 +1,6 @@
 import type { EditOperation, MediaAssetSwapPayload } from './model'
 import type { CandidateOperationContext, CandidateOperationExecutor, CandidateOperationPlan } from './candidate-operation-executors'
-import { resolveAssetRefToRelativePath } from './media-asset-staging'
+import { assertMediaSwapAsset, resolveAssetRefToRelativePath } from './media-asset-staging'
 
 /**
  * MEDIA asset-swap 执行器（B 侧，接入 A 的 CandidateOperationExecutor seam）。
@@ -106,8 +106,12 @@ export function createMediaAssetSwapExecutor(): CandidateOperationExecutor<Media
       if (operation.after !== payload.assetRef) {
         throw new MediaAssetSwapError(`operation.after 必须与 payload.assetRef 一致（保持候选记录真实）：${operation.id}`)
       }
-      // 核心会再次核对源码区间内的原始字节等于 edit.before；这里只规划，不读文件、不写文件
+      // 核心会再次核对源码区间内的原始字节等于 edit.before；这里只规划，不读项目文件、不写文件
       const relativePath = resolveAssetRefToRelativePath(payload.assetRef, target.location.path)
+      // 统一素材校验入口（D 最终复审 P1）：不经由验收脚本、直接驱动执行器也无法绕过——
+      // 格式头识别（jpeg/png/webp/gif/avif）+ 写入扩展名与检测格式一致性。
+      const stagedBytes = readStagedAsset(payload.assetHash)
+      assertMediaSwapAsset(stagedBytes, payload.assetRef)
       return {
         sourceEdits: [{
           path: target.location.path,
@@ -116,7 +120,7 @@ export function createMediaAssetSwapExecutor(): CandidateOperationExecutor<Media
           before: operation.before,
           after: payload.assetRef,
         }],
-        fileWrites: [{ path: relativePath, bytes: readStagedAsset(payload.assetHash) }],
+        fileWrites: [{ path: relativePath, bytes: stagedBytes }],
       }
     },
   }
