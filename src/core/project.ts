@@ -283,6 +283,25 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       if (Array.isArray(reference.typeArguments)) return reference.typeArguments.some(entry => typeMatches(entry, seen))
       return false
     }
+    // N11：无显式返回标注的工厂函数。推断返回类型结构兼容 T（含数组元素/联合成员，
+    // 经 checker 赋值关系判定）时同样覆盖函数体——返回体内的媒体是真实消费，
+    // 静默排除会让下游把缺失关系当作不存在、来源证明误升级。宁可过度保留（安全方向）。
+    const targetDeclaredType = checker.getDeclaredTypeOfSymbol(targetSymbol)
+    const isTypeAssignableTo = (checker as unknown as { isTypeAssignableTo?: (source: ts.Type, target: ts.Type) => boolean }).isTypeAssignableTo
+    const isAssignableSafe = (type: ts.Type): boolean => {
+      if (!isTypeAssignableTo) return false
+      try { return isTypeAssignableTo(type, targetDeclaredType) } catch { return false }
+    }
+    const relatedToTarget = (type: ts.Type | undefined, seen: Set<ts.Type> = new Set()): boolean => {
+      if (!type || seen.has(type)) return false
+      seen.add(type)
+      if (typeMatches(type) || isAssignableSafe(type)) return true
+      const unionLike = type as ts.UnionOrIntersectionType
+      if (Array.isArray(unionLike.types) && unionLike.types.length) return unionLike.types.some(entry => relatedToTarget(entry, seen))
+      const reference = type as ts.TypeReference
+      if (Array.isArray(reference.typeArguments) && reference.typeArguments.length) return reference.typeArguments.some(entry => relatedToTarget(entry, seen))
+      return false
+    }
     const ranges: Array<{ path: string; start: number; end: number }> = []
     const visited = new Set<ts.Node>()
     const cover = (expression: ts.Node): void => {
@@ -326,7 +345,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         } else if (ts.isFunctionLike(current)) {
           const body = (current as ts.FunctionLikeDeclaration).body
           const signature = body ? checker.getSignatureFromDeclaration(current as ts.SignatureDeclaration) : undefined
-          if (body && signature && typeMatches(signature.getReturnType())) cover(body)
+          if (body && signature && relatedToTarget(signature.getReturnType())) cover(body)
         } else if (ts.isCallExpression(current)) {
           for (const argument of current.arguments) {
             const contextual = checker.getContextualType(argument) ?? checker.getTypeAtLocation(argument)

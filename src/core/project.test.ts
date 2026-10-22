@@ -546,6 +546,61 @@ export function HomePage() { return <main><h1 className="text-ink-900">Home titl
     expect(graph3.nodes.some(node => node.kind === 'media' && node.value?.startsWith('/images/dyn-'))).toBe(false)
   }, 60_000)
 
+  it('keeps uncertain evidence when a factory without an explicit return type feeds typed receivers (N11)', () => {
+    const { container, root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'factory.ts'), `export interface Product { image: string }
+export const hero = { image: '/images/shared.webp' }
+export function makeProducts() {
+  return [{ image: hero.image }]
+}
+export const products: Product[] = makeProducts()
+export const categories = [{ image: '/images/cat.webp' }]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/factory'
+export function ProductCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { hero } from '../data/factory'
+export function HomePage() {
+  return <main><h1 className="text-ink-900">Home title</h1><img src={hero.image} /></main>
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), `import { products } from '../data/factory'
+import { ProductCard } from '../components/ProductCard'
+export function AutumnPage() {
+  return <main><h1>Autumn title</h1>{products.map((p) => <ProductCard key={p.image} product={p} />)}</main>
+}
+`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'factory without explicit return type feeds typed products')
+
+    const graph = analyzeProject(root)
+    const shared = graph.nodes.find(node => node.kind === 'media' && node.location?.path === 'src/data/factory.ts' && node.value === '/images/shared.webp')!
+    const catImage = graph.nodes.find(node => node.kind === 'media' && node.value === '/images/cat.webp')!
+    const card = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!
+    const cardCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === card.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    // N11：工厂返回值未显式标注时，返回体内的媒体仍是真实消费，必须保留不确定候选证据
+    expect(cardCandidateTargets).toContain(shared.id)
+    expect(cardCandidateTargets).not.toContain(catImage.id)
+
+    const impact = sourceProvenPageImpact(graph, shared.id)
+    expect(impact.pageRefs).toContain('page:home')
+    // 修复前此处错误：工厂返回体未被覆盖，边被静默删除后 PageImpact 漏 AutumnPage 且误成 source-proven
+    expect(impact.unresolved.length).toBeGreaterThan(0)
+    expect(impact.certainty).not.toBe('source-proven')
+
+    const fixture = swapFixtureFor(shared)
+    const rejectedScope: ScopeDecision = { ...fixture.scope, includedRefs: [shared.id, 'page:home'] }
+    expect(() => createCandidate({
+      projectRoot: root, candidateRoot: path.join(container, 'n11-rejected'), artifactRoot: path.join(container, 'n11-artifacts'),
+      graph, scope: rejectedScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
+    })).toThrow(CandidateError)
+  }, 60_000)
+
   it('does not execute a structured action through the literal candidate replacement path', () => {
     const { container, root } = sampleProject()
     const graph = analyzeProject(root)
