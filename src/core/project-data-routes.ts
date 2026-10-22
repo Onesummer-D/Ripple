@@ -361,8 +361,8 @@ export function inspectDataRouter(
     // them fail-closes the whole route table.
     // Bindings like `const selected = routes[key]` hand out a mutable element
     // reference through an index the analysis cannot prove. Any later write
-    // through such a binding must fail-close the whole route table.
-    const fuzzyElementSymbols = new Set<ts.Symbol>()
+    // through such a binding (including alias chains and `let` rebinding)
+    // must fail-close the whole route table.
     const resolveAlias = (expr: ts.Expression, seen = new Set<ts.Symbol>()): ts.Expression | undefined => {
       const raw = unwrap(expr)
       if (ts.isElementAccessExpression(raw)) {
@@ -388,15 +388,35 @@ export function inspectDataRouter(
       const declaration = bound.declarations?.find(ts.isVariableDeclaration)
       if (!declaration?.initializer) return undefined
       seen.add(bound)
-      const initial = unwrap(declaration.initializer)
-      if (ts.isElementAccessExpression(initial) && !ts.isNumericLiteral(initial.argumentExpression) &&
-        !ts.isPrefixUnaryExpression(initial.argumentExpression)) {
-        const target = resolveAlias(initial.expression, seen)
-        if (target && ts.isArrayLiteralExpression(target) && visitedArrays.has(target)) fuzzyElementSymbols.add(bound)
-      }
       // Unlike `resolve`, follow `let` aliases too: mutations do not need the
       // const provenance that route-table resolution requires.
       return resolveAlias(declaration.initializer, seen)
+    }
+    // Re-derived at each write site (never cached): the chain is followed from
+    // the written identifier through forwarding aliases; a `let` binding whose
+    // current value is the visited table itself is treated conservatively,
+    // because a rebinding may have handed it a fuzzily selected element.
+    // The seen set bounds the walk, so circular alias chains neither loop
+    // nor crash; an unprovable chain degrades instead of guessing.
+    const fuzzyWriteTarget = (expr: ts.Expression, seen = new Set<ts.Symbol>()): boolean => {
+      const raw = unwrap(expr)
+      if (!ts.isIdentifier(raw)) return false
+      const bound = symbol(raw)
+      if (!bound) return false
+      if (seen.has(bound)) return true // circular alias chain: unprovable, fail closed
+      seen.add(bound)
+      const declaration = bound.declarations?.find(ts.isVariableDeclaration)
+      if (!declaration?.initializer) return false
+      const initial = unwrap(declaration.initializer)
+      if (ts.isElementAccessExpression(initial)) {
+        if (ts.isNumericLiteral(initial.argumentExpression) || ts.isPrefixUnaryExpression(initial.argumentExpression)) return false
+        const target = resolveAlias(initial.expression, new Set(seen))
+        return Boolean(target && ts.isArrayLiteralExpression(target) && visitedArrays.has(target))
+      }
+      if (ts.isArrayLiteralExpression(initial) && visitedArrays.has(initial)) {
+        return Boolean(declaration.parent.flags & ts.NodeFlags.Let)
+      }
+      return fuzzyWriteTarget(initial, seen)
     }
     const arrayTarget = (expr: ts.Expression): ts.ArrayLiteralExpression | undefined => {
       const resolved = resolveAlias(expr)
@@ -425,13 +445,14 @@ export function inspectDataRouter(
           fail(file, node, 'route table or route object mutated by assignment')
         }
         // A property write through a binding selected with an unprovable index
-        // (`selected.Component = Home`) mutates an unknown member of the
-        // visited table even though const-only resolution cannot attribute it.
-        const fuzzyWrittenId =
-          ts.isPropertyAccessExpression(left) && ts.isIdentifier(left.expression) ? symbol(left.expression)
-          : ts.isElementAccessExpression(left) && ts.isStringLiteral(left.argumentExpression) && ts.isIdentifier(left.expression) ? symbol(left.expression)
+        // (`selected.Component = Home`, including alias chains and `let`
+        // rebinding) mutates an unknown member of the visited table even
+        // though const-only resolution cannot attribute it.
+        const writtenRoot =
+          ts.isPropertyAccessExpression(left) && ts.isIdentifier(left.expression) ? left.expression
+          : ts.isElementAccessExpression(left) && ts.isStringLiteral(left.argumentExpression) && ts.isIdentifier(left.expression) ? left.expression
           : undefined
-        if (fuzzyWrittenId && fuzzyElementSymbols.has(fuzzyWrittenId)) {
+        if (writtenRoot && fuzzyWriteTarget(writtenRoot)) {
           fail(file, node, 'route table member mutated through a non-numeric index selection')
         }
         // Reassigning a variable that was bound to the visited table hands the
