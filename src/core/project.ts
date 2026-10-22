@@ -7,6 +7,7 @@ import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeIdent
 import { findPageOverrideMarkers, readPageOverrideRegistry } from './page-overrides'
 import type { ProjectConfigGraph } from './project-config-resolver.mjs'
 import { resolveProjectConfigGraph } from './project-config-resolver.mjs'
+import { inspectDataRouter } from './project-data-routes'
 
 export class ProjectReadError extends Error {
   constructor(message: string) { super(message); this.name = 'ProjectReadError' }
@@ -88,7 +89,7 @@ export function readProjectSnapshot(input: string, requireClean = true): Project
   return { root, revision, trackedFiles: files }
 }
 
-interface ComponentInfo { id: string; name: string; file: string; node: ts.Node }
+interface ComponentInfo { id: string; name: string; file: string; node: ts.Node; isDefaultExport?: boolean }
 interface ImportTarget { file: string; exportName: string }
 
 const sourceKindFor = (file: string) => /\.(tsx|jsx)$/i.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS
@@ -114,7 +115,8 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
   for (const [absolute, source] of sources) {
     const file = relativeTo(root, absolute)
     const add = (name: string, node: ts.Node) => {
-      if (hasJsx(node)) result.push({ id: nodeId(file, 'component', node.getStart(source)), name, file, node })
+      if (hasJsx(node)) result.push({ id: nodeId(file, 'component', node.getStart(source)), name, file, node,
+        isDefaultExport: ts.canHaveModifiers(node) && Boolean(ts.getModifiers(node)?.some(mod => mod.kind === ts.SyntaxKind.DefaultKeyword)) })
     }
     const visit = (node: ts.Node) => {
       if (ts.isFunctionDeclaration(node) && node.name) add(node.name.text, node)
@@ -123,13 +125,44 @@ function componentInfos(root: string, sources: Map<string, ts.SourceFile>): Comp
       node.forEachChild(visit)
     }
     visit(source)
+    // Handle `const Page = () => <...>; export default Page` without
+    // inventing a component from the export assignment itself.
+    for (const statement of source.statements) {
+      if (!ts.isExportAssignment(statement) || !ts.isIdentifier(statement.expression)) continue
+      const exportedName = statement.expression.text
+      const component = result.find(item => item.file === file && item.name === exportedName)
+      if (component) component.isDefaultExport = true
+    }
   }
   return result
 }
 
-function declarationComponentName(tag: string | undefined, localImports: Map<string, ImportTarget>, byExport: Map<string, ComponentInfo>): ComponentInfo | undefined {
+/** Follow TypeScript's actual imported/exported symbol, including barrel chains.
+ * A file import is not, by itself, component consumption evidence: the JSX tag
+ * must bind to the exact component declaration tracked in this graph.
+ */
+function declarationComponentName(
+  tag: ts.Identifier | undefined,
+  checker: ts.TypeChecker,
+  byDeclaration: Map<ts.Node, ComponentInfo>,
+  localImports: Map<string, ImportTarget>,
+  byExport: Map<string, ComponentInfo>,
+): ComponentInfo | undefined {
   if (!tag) return undefined
-  const target = localImports.get(tag)
+  const symbol = checker.getSymbolAtLocation(tag)
+  if (symbol) {
+    const actual = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
+    // The resolved declaration must be an actual JSX component, not a barrel
+    // import/export alias or another value with the same spelling.
+    for (const declaration of actual?.declarations ?? []) {
+      const component = byDeclaration.get(declaration)
+      if (component) return component
+    }
+    return undefined
+  }
+  // The program may omit symbol information for unsupported script shapes;
+  // retain the established *direct-import* behavior, not arbitrary re-exports.
+  const target = localImports.get(tag.text)
   return target ? byExport.get(`${target.file}#${target.exportName}`) : undefined
 }
 
@@ -198,6 +231,13 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   }
   const components = componentInfos(snapshot.root, sourceFiles)
   const byExport = new Map(components.map(component => [`${component.file}#${component.name}`, component]))
+  // Explicit named default exports can be imported through any local identifier.
+  for (const component of components) {
+    if (component.isDefaultExport) {
+      byExport.set(`${component.file}#default`, component)
+    }
+  }
+  const byDeclaration = new Map<ts.Node, ComponentInfo>(components.map(component => [component.node, component]))
   for (const component of components) {
     const loc = { path: component.file, start: component.node.getStart(), end: component.node.getEnd() }
     addNode({ id: component.id, kind: 'component', label: component.name, location: loc })
@@ -273,6 +313,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   }
 
   const componentRenders = new Map<string, Set<string>>()
+  const importsByFile = new Map<string, Map<string, ImportTarget>>()
   const appDirect = new Set<string>()
   const pageTargets = new Map<string, Set<string>>()
   const appComponent = components.find(component => component.name === 'App')
@@ -302,7 +343,18 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const cssResolved = /\.css$/i.test(specifier) ? path.resolve(path.dirname(absolute), specifier) : undefined
       const resolved = scriptResolved ?? (cssResolved && tracked.has(normalize(cssResolved)) ? cssResolved : undefined)
       if (!resolved || !tracked.has(normalize(resolved))) {
-        if ((specifier.startsWith('.') || specifier.startsWith('@/')) && !/\.css$/i.test(specifier)) unresolved.push(`${relative} → ${specifier}`)
+        // Bare npm imports are external by default, not failed project aliases.
+        // A declared paths mapping, however, is explicit evidence of an
+        // expected project-local resolution. Do not silently lose that edge.
+        const internalAlias = Object.keys(compilerOptions.paths ?? {}).some(pattern => {
+          if (pattern === '*') return false // TypeScript tries npm fallback for this mapping.
+          const parts = pattern.split('*')
+          return parts.length === 1 ? specifier === pattern
+            : parts.length === 2 && specifier.startsWith(parts[0]) && specifier.endsWith(parts[1])
+        })
+        if ((specifier.startsWith('.') || specifier.startsWith('@/') || internalAlias) && !/\.css$/i.test(specifier)) {
+          unresolved.push(`${relative} → ${specifier}`)
+        }
         continue
       }
       const targetFile = relativeTo(snapshot.root, resolved)
@@ -314,6 +366,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       }
       addEdge(`file:${relative}`, `file:${targetFile}`, 'imports', `import:${relative}:${statement.getStart()}`)
     }
+    importsByFile.set(absolute, imports)
     const owner = components.filter(component => component.file === relative)
     const visit = (node: ts.Node) => {
       const ownerComponent = owner.find(component => component.node.pos <= node.pos && component.node.end >= node.end)
@@ -374,9 +427,25 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         const sourceNode: SourceNode = { id: nodeId(relative, 'literal', start), kind: 'data', label: rawValue.trim(), value: rawValue, location: { path: relative, start, end }, page: undefined }
         addNode(sourceNode)
         if (ownerComponent) addEdge(ownerComponent.id, sourceNode.id, 'reads', `literal-read:${sourceNode.id}`)
+        if (ts.isJsxElement(parentElement) && ownerComponent) {
+          const tag = jsxTagName(parentElement.openingElement)
+          if (!tag || !/^[a-z]/.test(tag)) {
+            // Passing a JSX text child to a composite component is statically
+            // visible, but whether it forwards children into the DOM is not.
+            // Keep the owner's lexical read, with independent uncertain DOM
+            // consumption evidence so downstream Scope remains fail-closed.
+            addEdge(ownerComponent.id, sourceNode.id, 'reads',
+              `composite-jsx-child:${ownerComponent.id}:${sourceNode.id}`, 'semantic-candidate')
+          }
+        }
         if (ts.isJsxElement(parentElement)) {
-          const elementId = nodeId(relative, 'jsx', parentElement.openingElement.getStart(source))
-          addEdge(elementId, sourceNode.id, 'reads', `jsx-text:${elementId}:${sourceNode.id}`)
+          const opening = parentElement.openingElement
+          const elementId = nodeId(relative, 'jsx', opening.getStart(source))
+          // Only intrinsic JSX tags have a trusted source-to-DOM annotation.
+          // Composite tags such as React Router <Link> receive children but
+          // must not be conflated with HTML anchors or phantom JSX nodes.
+          const tag = jsxTagName(opening)
+          if (tag && /^[a-z]/.test(tag)) addEdge(elementId, sourceNode.id, 'reads', `jsx-text:${elementId}:${sourceNode.id}`)
         }
       }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
@@ -386,7 +455,17 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
           addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
         }
-        const target = declarationComponentName(tag, imports, byExport)
+        // JSX declared inside a data-router route object is a route configuration
+        // value, not JSX actually rendered by App. In particular errorElement
+        // must never become a source-proven global page consumer.
+        let routeConfigJsx = false
+        for (let ancestor = node.parent; ancestor && ancestor !== ownerComponent?.node; ancestor = ancestor.parent) {
+          if (ts.isPropertyAssignment(ancestor) && ['element', 'errorElement', 'hydrateFallbackElement', 'fallbackElement'].includes(propertyName(ancestor) ?? '')) {
+            routeConfigJsx = true
+            break
+          }
+        }
+        const target = routeConfigJsx ? undefined : declarationComponentName(ts.isIdentifier(node.tagName) ? node.tagName : undefined, checker, byDeclaration, imports, byExport)
         if (target && ownerComponent) {
           if (!componentRenders.has(ownerComponent.id)) componentRenders.set(ownerComponent.id, new Set())
           componentRenders.get(ownerComponent.id)!.add(target.id)
@@ -400,7 +479,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         const targets = new Set<string>()
         const collectTags = (child: ts.Node) => {
           if (ts.isJsxOpeningElement(child) || ts.isJsxSelfClosingElement(child)) {
-            const target = declarationComponentName(jsxTagName(child), imports, byExport)
+            const target = declarationComponentName(ts.isIdentifier(child.tagName) ? child.tagName : undefined, checker, byDeclaration, imports, byExport)
             if (target) targets.add(target.id)
           }
           child.forEachChild(collectTags)
@@ -419,6 +498,19 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     void importedModules
   }
 
+  const dataRouter = inspectDataRouter(snapshot.root, sourceFiles, importsByFile, components, checker, configGraph.entries)
+  unresolved.push(...dataRouter.unresolved)
+  if (dataRouter.incomplete) unresolved.push('route-coverage: 静态路由表存在无法证明的消费者或条件分支')
+  for (const route of dataRouter.routes) {
+    const routeId = `page:${route.page}`
+    addNode({ id: routeId, kind: 'route', label: route.page, page: route.page,
+      location: { path: route.sourceFile, start: route.offset } })
+    addEdge(routeId, route.componentId, 'renders',
+      `data-router:${route.sourceFile}:${route.offset}:${route.componentId}:${route.page}`,
+      route.certain ? 'source-proven' : 'semantic-candidate')
+    if (!pageTargets.has(route.page)) pageTargets.set(route.page, new Set())
+    if (route.certain) pageTargets.get(route.page)!.add(route.componentId)
+  }
   const routedComponentIds = new Set([...pageTargets.values()].flatMap(targets => [...targets]))
   const sharedAppComponents = [...appDirect].filter(id => !routedComponentIds.has(id))
   for (const [state, targets] of pageTargets) {
