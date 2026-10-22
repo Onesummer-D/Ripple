@@ -95,13 +95,15 @@ test('real pick on two pages → sourceRef → SourceGraph → page consumption 
   expect(homeFooter.sourceVersion).toBeTruthy()
   await page.screenshot({ path: path.join(evidenceDir, 'cd-shared-footer-home.png') })
 
-  // --- 切页（about）：同源码、不同 React 实例 ---
+  // --- 切页（about）：同源码、同一调用链实例身份，但 DOM 重挂载 ---
   await page.getByTestId('switch-page').click()
   await expect(page.getByText('About Title')).toBeVisible()
   await page.getByTestId('shared-footer').click()
   const about = await snapshot(page)
   const aboutFooter = footerRecord(about)
   expect(aboutFooter.sourceRef).toBe(homeFooter.sourceRef)
+  // 真实浏览器证据：同一源码位置（components/Footer.tsx 同一锚点）在两个页面
+  // 渲染出不同调用链实例（链路含各自页面组件），来源相同 ≠ 实例相同。
   expect(aboutFooter.runtimeInstanceId).not.toBe(homeFooter.runtimeInstanceId)
   await page.screenshot({ path: path.join(evidenceDir, 'cd-shared-footer-about.png') })
 
@@ -121,12 +123,11 @@ test('real pick on two pages → sourceRef → SourceGraph → page consumption 
   const aboutTitle = graph.nodes.find(node => node.kind === 'data' && node.value === 'About Title')
   expect(sourceProvenPageImpact(graph, aboutTitle!.id).pageRefs).toEqual(['page:about'])
 
-  // --- 运行时映射：同源码两实例并存，身份不合并 ---
-  const runtimeMap = createRuntimeSourceMap(graph, [...selectableRuntimeObservations(home), ...selectableRuntimeObservations(about)])
-  const resolvedHome = resolveRuntimeElement(graph, { sourceRef: homeFooter.sourceRef, runtimeInstanceId: homeFooter.runtimeInstanceId! }, runtimeMap)
-  const resolvedAbout = resolveRuntimeElement(graph, { sourceRef: aboutFooter.sourceRef, runtimeInstanceId: aboutFooter.runtimeInstanceId! }, runtimeMap)
-  expect(resolvedHome.element.id).toBe(homeFooter.sourceRef)
-  expect(resolvedAbout.element.id).toBe(aboutFooter.sourceRef)
+  // --- 运行时映射：每页快照各自成图；跨页实例身份各自解析 ---
+  const homeMap = createRuntimeSourceMap(graph, selectableRuntimeObservations(home))
+  const aboutMap = createRuntimeSourceMap(graph, selectableRuntimeObservations(about))
+  expect(resolveRuntimeElement(graph, { sourceRef: homeFooter.sourceRef, runtimeInstanceId: homeFooter.runtimeInstanceId! }, homeMap).element.id).toBe(homeFooter.sourceRef)
+  expect(resolveRuntimeElement(graph, { sourceRef: aboutFooter.sourceRef, runtimeInstanceId: aboutFooter.runtimeInstanceId! }, aboutMap).element.id).toBe(aboutFooter.sourceRef)
 
   // --- D 的采集期评估：版本+页面双证据齐备时实例身份才被证明 ---
   const pageContext = { pathname: new URL(baseUrl).pathname, search: '', hash: '' }
