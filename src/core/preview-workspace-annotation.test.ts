@@ -29,10 +29,10 @@ import { createServer, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 import { chromium, type Browser } from 'playwright'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import { sourceAnnotationPlugin } from './source-annotation'
 import { collectRuntimeIdentitySnapshot } from './runtime-identity'
+import { makeFixtureRoot, removeTree } from './test-fixture-dir'
 
 let browser: Browser | undefined
 const servers: ViteDevServer[] = []
@@ -41,12 +41,12 @@ const tmpRoots: string[] = []
 afterAll(async () => {
   await browser?.close()
   await Promise.all(servers.map(server => server.close()))
-  for (const root of tmpRoots) fs.rmSync(root, { recursive: true, force: true })
+  for (const root of tmpRoots) removeTree(root)
 })
 
 describe('workspace source annotation semantics matrix', () => {
   it('project TSX is annotated and identity-provable; workspace TSX stays per-module but unannotated (unsupported, documented)', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-ws-annot-'))
+    const root = makeFixtureRoot('ripple-ws-annot')
     tmpRoots.push(root)
     // Third-party react as a REAL directory (production-like install).
     const realRoot = path.join(__dirname, '..', '..', 'node_modules')

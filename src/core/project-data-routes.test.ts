@@ -1,14 +1,14 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import * as os from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { analyzeProject } from './project'
 import { sourceProvenPageImpact } from './scope'
+import { makeFixtureRoot, removeTree } from './test-fixture-dir'
 
 const directories: string[] = []
 function project(files: Record<string, string>, config: Record<string, unknown> = { compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-agent-c-'))
+  const root = makeFixtureRoot('ripple-agent-c')
   directories.push(root)
   const contents = {
     'package.json': JSON.stringify({ name: 'route-proof-test' }),
@@ -27,7 +27,7 @@ function project(files: Record<string, string>, config: Record<string, unknown> 
   execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'baseline'], { cwd: root })
   return root
 }
-afterEach(() => { for (const dir of directories.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
+afterEach(() => { for (const dir of directories.splice(0)) removeTree(dir) })
 
 const pages = {
   'src/pages/Home.tsx': 'export function Home(){ return <main><h1>Home Title</h1></main> }',
@@ -460,4 +460,142 @@ export const App=()=><RouterProvider router={router}/>;`
       if (scenario.expected === 'source-proven') expect(graph.nodes.some(node=>node.id==='page:/profile')).toBe(true)
     })
   }
+})
+
+
+describe('agent C P1 round 3: conditional return paths never earn full source proof', () => {
+  const table = `const router = createBrowserRouter([{ path:'/profile', Component: Profile }]);`
+  // A single return nested under a conditional construct can be skipped by an
+  // implicit-undefined path, so the RouterProvider mount is only conditional.
+  for (const [label, body] of [
+    ['if statement with implicit undefined on the other path', `if (ready) return <RouterProvider router={router}/>;`],
+    ['switch with a single mounting case', `switch (ready) { case 1: return <RouterProvider router={router}/>; }`],
+    ['try block whose catch does not remount', `try { return <RouterProvider router={router}/>; } catch (error) { console.error(error); }`],
+  ] as Array<[string, string]>) {
+    it(`fails closed on a conditional return path: ${label}`, () => {
+      const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+        ${table}
+        export function App({ ready }: { ready: number | boolean }) { ${body} }` })
+      const graph = analyzeProject(root)
+      expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+      expect(graph.unresolved.join('\n')).toContain('conditional App RouterProvider mount')
+    })
+  }
+
+  it('fails closed when only some conditional branches mount the RouterProvider', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${table}
+      export function App({ ready }: { ready: boolean }) {
+        if (ready) return <RouterProvider router={router}/>;
+        return <Home/>;
+      }` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(graph.unresolved.join('\n')).toContain('multiple return paths')
+  })
+
+  it('keeps a Provider mounted inside a returned ternary or logical expression conditional', () => {
+    for (const body of [
+      `return ready ? <RouterProvider router={router}/> : <Home/>;`,
+      `return ready && <RouterProvider router={router}/>;`,
+    ]) {
+      const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+        ${table}
+        export function App({ ready }: { ready: boolean }) { ${body} }` })
+      const graph = analyzeProject(root)
+      expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+      expect(graph.unresolved.join('\n')).toContain('conditional App RouterProvider mount')
+    }
+  })
+
+  it('keeps the unconditional single RouterProvider mount fully source-proven', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${table}
+      export function App() { return <RouterProvider router={router}/>; }` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title')).toMatchObject({ pageRefs: ['page:/profile'], certainty: 'source-proven' })
+    expect(graph.unresolved.filter(entry => entry.includes('data-router'))).toEqual([])
+  })
+
+  it('still proves a mount guarded by an early throw, which has no implicit-undefined path', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${table}
+      export function App({ ready }: { ready: boolean }) {
+        if (!ready) throw new Error('not ready');
+        return <RouterProvider router={router}/>;
+      }` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title')).toMatchObject({ pageRefs: ['page:/profile'], certainty: 'source-proven' })
+  })
+})
+
+describe('agent C P1 round 3: mutable route table aliases fail closed', () => {
+  const declared = `const routes = [{ path:'/profile', Component: Profile }];`
+  const mounted = `const router = createBrowserRouter(routes); export const App = () => <RouterProvider router={router}/>;`
+
+  it('detects a mutation through a let alias of the route table', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      let alias = routes; alias.push({ path:'/other', Component: Home });
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    // The pushed consumer must not appear, and the table degrades to partial.
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(impact(graph, 'Home Title').pageRefs).not.toContain('page:/other')
+    expect(graph.unresolved.join('\n')).toContain('route array mutated through push')
+    expect(graph.unresolved.join('\n')).toContain('route-coverage:')
+  })
+
+  it('detects an indexed write through a let alias of the route table', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      let alias = routes; alias[0] = { path:'/other', Component: Home };
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(graph.unresolved.join('\n')).toContain('mutated by assignment')
+  })
+
+  it('detects an unknown function receiving the route table through a let alias', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      declare function helper(routes: unknown[]): void;
+      ${declared}
+      let alias = routes; helper(alias);
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(graph.unresolved.join('\n')).toContain('escapes to an unknown function')
+  })
+
+  it('detects a route object property write through an element reference', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      const first = routes[0]; first.Component = Home;
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(impact(graph, 'Home Title').pageRefs).not.toContain('page:/profile')
+    expect(graph.unresolved.join('\n')).toContain('mutated by assignment')
+  })
+
+  it('fails closed when a route table alias is reassigned', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      const more = [{ path:'/other', Component: Home }];
+      let alias = routes; alias = more; alias.push({ path:'/third', Component: Home });
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(graph.unresolved.join('\n')).toContain('alias reassigned')
+  })
+
+  it('keeps an unmodified static const route table fully source-proven', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      const alias = routes;
+      ${mounted.replace('createBrowserRouter(routes)', 'createBrowserRouter(alias)')}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title')).toMatchObject({ pageRefs: ['page:/profile'], certainty: 'source-proven' })
+    expect(graph.unresolved.filter(entry => entry.includes('data-router'))).toEqual([])
+  })
 })

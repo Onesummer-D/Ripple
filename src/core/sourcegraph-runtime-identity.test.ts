@@ -7,17 +7,17 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import * as os from 'node:os'
 import {
   analyzeProject, createRuntimeSourceMap, resolveRuntimeElement,
   resolveRuntimeInstance, sourceFileDigest,
 } from './project'
 import { sourceProvenPageImpact } from './scope'
+import { makeFixtureRoot, removeTree } from './test-fixture-dir'
 import type { RuntimeElementObservation, SourceGraph } from './model'
 
 const directories: string[] = []
 function project(files: Record<string, string>): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-cd-joint-'))
+  const root = makeFixtureRoot('ripple-cd-joint')
   directories.push(root)
   const contents = {
     'package.json': JSON.stringify({ name: 'cd-joint-test' }),
@@ -39,7 +39,7 @@ function gitCommit(root: string) {
   execFileSync('git', ['add', '.'], { cwd: root })
   execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'baseline'], { cwd: root })
 }
-afterEach(() => { for (const dir of directories.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
+afterEach(() => { for (const dir of directories.splice(0)) removeTree(dir) })
 
 const footer = {
   'src/components/Footer.tsx': `export function Footer() { return <footer><p>Shared footer text</p></footer> }`,

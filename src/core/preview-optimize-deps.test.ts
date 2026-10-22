@@ -22,9 +22,9 @@ import { createServer, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 import { chromium, type Browser } from 'playwright'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import { sourceAnnotationPlugin } from './source-annotation'
+import { makeFixtureRoot, removeTree } from './test-fixture-dir'
 // @ts-expect-error The container runtime is plain ESM without a TS build target.
 import { analyzeNodeModulesDeps } from './preview-optimize-deps-excludes.mjs'
 
@@ -41,7 +41,7 @@ const tmpRoots: string[] = []
 afterAll(async () => {
   await browser?.close()
   await Promise.all(servers.map(server => server.close()))
-  for (const root of tmpRoots) fs.rmSync(root, { recursive: true, force: true })
+  for (const root of tmpRoots) removeTree(root)
 })
 
 // Third-party deps are copied as REAL directories (like an npm-installed
@@ -147,7 +147,7 @@ async function runConfig(root: string, label: string, optimizeDeps: Record<strin
 
 describe('restricted optimizeDeps discovery experiment', () => {
   it('collapses confirmed third-party deps without touching project, workspace, lazy or CSS paths', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-optdeps-'))
+    const root = makeFixtureRoot('ripple-optdeps')
     tmpRoots.push(root)
     buildApp(root)
     // The production dependency-origin classification on this exact project.
@@ -199,7 +199,7 @@ describe('restricted optimizeDeps discovery experiment', () => {
   }, 300_000)
 
   it('discovers a late dynamic dependency with exactly one controlled reload, ending rendered', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-optdeps-late-'))
+    const root = makeFixtureRoot('ripple-optdeps-late')
     tmpRoots.push(root)
     fs.mkdirSync(path.join(root, 'src'), { recursive: true })
     fs.writeFileSync(path.join(root, 'index.html'), `<!doctype html><html><body><div id="root"></div><script type="module" src="/src/main.ts"></script></body></html>`)
@@ -239,7 +239,7 @@ describe('restricted optimizeDeps discovery experiment', () => {
   }, 180_000)
 
   it('refuses optimization on a failed node_modules scan instead of opening every dependency', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-optdeps-scan-'))
+    const root = makeFixtureRoot('ripple-optdeps-scan')
     tmpRoots.push(root)
     // node_modules itself is not a directory: the scan cannot classify any
     // origin, so optimization must be refused (production falls back to
@@ -255,8 +255,11 @@ describe('restricted optimizeDeps discovery experiment', () => {
       : { noDiscovery: true, include: ['react', 'react-dom/client'] }
     expect(productionOptimizeDeps).toHaveProperty('noDiscovery', true)
     // A project without node_modules at all is a complete, safe answer.
-    const empty = analyzeNodeModulesDeps(fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-optdeps-empty-')))
-    expect(empty.ok).toBe(true)
-    expect(empty.excludes).toEqual([])
+    const emptyRoot = makeFixtureRoot('ripple-optdeps-empty')
+    try {
+      const empty = analyzeNodeModulesDeps(emptyRoot)
+      expect(empty.ok).toBe(true)
+      expect(empty.excludes).toEqual([])
+    } finally { removeTree(emptyRoot) }
   })
 })
