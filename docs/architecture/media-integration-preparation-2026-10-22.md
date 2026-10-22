@@ -52,9 +52,10 @@ create-only 资产写入限制、sourceEdit 精确落在 target.location 区间�
 
 ## 3. 最新 SHA 与 CI
 
-- 分支 HEAD：`eef726e`（= 09e8713 移植 + 5452406 四视口场景 + 本文档）；基线 `25250925`（A 分支最新，其 CI run 39780812421 success）
-- 分支 CI（Linux，权威）：run [`39794609650`](https://github.com/Onesummer-D/Ripple/actions/runs/39794609650)（09e8713）**success**、run [`39795652882`](https://github.com/Onesummer-D/Ripple/actions/runs/39795652882)（5452406）**success**、run [`39796791980`](https://github.com/Onesummer-D/Ripple/actions/runs/39796791980)（eef726e HEAD）**success**
-- Draft PR：[#26](https://github.com/Onesummer-D/Ripple/pull/26) → base `feat/project-first-core-20261018`（A）
+- 分支 HEAD：`aa0ae0f`（变基后；= 移植 + 四视口场景 + 本文档 + 缓存清理）；基线已同步至 A 最新 `16e737c1`（PR #23 合并后；其相对 2525092 仅触碰 e2e 文件，与本分支零交集）
+- 审查回流（协调人 2026-10-22）：**P2 已修**——`tsconfig.node.tsbuildinfo` 恢复为 A 基线字节（`tsc -b` 编译缓存，非 MEDIA 功能文件），PR diff 现仅含新增文件 + `tsconfig.node.json` 一行；**P1 维持原判**——`narrowMediaByReceiverType` 继续留待 C+D 联合集成任务处理
+- 分支 CI（Linux，权威）：run [`39794609650`](https://github.com/Onesummer-D/Ripple/actions/runs/39794609650)（移植）**success**、run [`39795652882`](https://github.com/Onesummer-D/Ripple/actions/runs/39795652882)（场景）**success**、run [`39796791980`](https://github.com/Onesummer-D/Ripple/actions/runs/39796791980)（文档）**success**；变基后新 run 以 aa0ae0f 为准（见 Actions 页面）
+- Draft PR：[#26](https://github.com/Onesummer-D/Ripple/pull/26) → base `feat/project-first-core-20261018`（A），**保持 Draft 等 C**
 - 本机门禁（Windows；Linux CI 为权威）：typecheck ✅、build ✅、MEDIA 6 文件 62 用例**零断言失败**（14 个失败全部是 `node_modules/.tmp` 临时目录删除的已知 EPERM teardown 噪音，已用独立探针证明重试即成功，用例体全过）；candidate/session/scope 回归 33/33 ✅
 
 ## 4. 接口表（SourceGraph / Candidate / E / F）
