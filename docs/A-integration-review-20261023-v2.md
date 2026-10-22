@@ -437,3 +437,38 @@ AC-P2a/AC-P2b 继续由 C+D 在新基线处理，之后 B 复验第三方完整�
 ## 5. 并行任务不变
 
 D N4–N10 负例（P1-a 空数组无 unresolved / P1-b 文本类型名查找）；C+D AC-P2a/b 准备；B 两项工具修复——均不阻塞 F 第二阶段。
+
+
+---
+
+# v11 D 第八轮 + B b96a421 审查登记（2026-10-23）
+
+## 0. A 基线
+
+- 功能基线 `ac0da99`（F #25 并入，CI 绿）；文档 HEAD `fdf4a07`（+AC-P3 登记，纯文档）。
+- AC-P3 已独立登记进 A 核心：`docs/integration/AC-P3-windows-path-containment.md`（与 B-ENV-1、AC-P2a/b 分开排期；candidate.ts 目录包含判断缺 `path.isAbsolute`，含 6 组正反例与禁止项）。
+
+## 1. D MEDIA（feat/media-narrow-replay-20261023 @ 635339c，CI #39868691047 SUCCESS）
+
+- 认可：类型符号身份 + 数据流闭包 + 不确定边保留修复了 209cf4f 文本区间方案的真实漏洞（别名/展开流消费者被静默删除 → PageImpact 误升级 → 缺页 Scope 误放行）；旧 209cf4f 方案废弃，不同时保留两套收窄逻辑。
+- **N4–N10 覆盖范围如实登记**：部分用例覆盖图计算而非完整候选链路，验收口径按图计算级登记，不夸大。
+- **待 N11**：未标注返回类型的工厂函数（返回结构兼容 Product[]）经函数返回值流入目标页面 + 同媒体另有可证明直接消费者——验证类型收窄是否静默删除函数返回链；无法证明排除安全性时必须保留 semantic-candidate / unresolved；PageImpact 与 createCandidate 均需 fail-closed 拒绝实证。
+- N11 通过后由 A 审查决定 narrowMediaByReceiverType（安全化版）是否合入公共核心。青野正式全链验收未完成，PR #26 保持 Draft，不触发 Bolt。
+
+## 2. B（b96a421，双 CI SUCCESS）
+
+- 认可：真实 createCandidate 成功正例（最小 data-router fixture）；B-ENV-1 结论修正；两项工具缺陷已修复。
+- **P0 待修**：negative-caller-repo-proposal selftest 仍将调用者 repo/.gate-inside 作为 candidateRoot 传入真实 createCandidate——先建 worktree 后 assertScope，路径不存在不能证明过程只读。B 已接收 harness 所有权前置拦截任务；修复前该工具**不列为可用于任意用户仓库的验收脚本**。
+- codescandy 仍 BLOCKED，复验等待公共接口修复。
+
+## 3. F 第二阶段分支核验 ⚠️
+
+- `feat/f-real-text-phase2-20261023 @ 6cfa807` 已存在（docs：第二阶段集成计划），CI SUCCESS，**但基线为旧 A 16e737c（PR #28 之前）**——缺少 C+D 联合身份、F #25 适配器与全部文档登记。
+- **处置**：F 第二阶段真实开发开工前必须将分支同步至 `ac0da99`（merge 方式）；其集成计划文档需按新基线复核（PR #28 已合入，非"冻结待合"状态）。
+
+## 4. 优先级（主线）
+
+1. F 第二阶段真实 TEXT 工作台（分支同步 ac0da99 后开发，交付真实用户操作闭环，不以独立测试/文档代替）。
+2. E 只读视觉证据接线（新基线重 merge E 0dd2e91）。
+3. D N11 → A 审查 → MEDIA 公共核心合并决定。
+4. B P0 修复 + AC-P3 最小修复；C+D AC-P2a/b；均独立推进，互不为前置。
