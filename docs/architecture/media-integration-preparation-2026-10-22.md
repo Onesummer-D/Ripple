@@ -78,7 +78,24 @@ create-only 资产写入限制、sourceEdit 精确落在 target.location 区间�
    `media-fixture-regression.yml`（paths 过滤 + dispatch，Node 22 与 ci.yml 对齐——
    首跑因误配 Node 20 报 `bad option: --experimental-transform-types`，`d8b5b4d` 修复）。
 4. **真实工程形态 Lab（非本 PR）**：栖光 React/Vite 多页 Lab 独立分支
-   `prep/qiguang-media-lab-20261023`（`6b49156`），见 §6.5。
+   `prep/qiguang-media-lab-20261023`，见 §6.5。
+
+## 3.8 第四轮审查处理（协调人，2026-10-23，提交 `dd22676`）
+
+1. **双端截图内容哈希回验**：`MediaViewportObservation` 新增可选 `screenshotSha256`
+   （采集器登记候选端 `<viewport>.png` 哈希；基线端哈希原已在 `dual.json` 登记）。
+   `run-scenario.ts` `verifyArtifacts()` 对 8 张截图重算 SHA-256 逐项比对，登记值
+   缺失即 fail-closed；保持既有 evidence/dual 内容哈希与四视口检查不变。
+2. **截图篡改负例**：翻转候选/基线 desktop 截图中段一字节（PNG 头保持有效），
+   `verifyArtifacts` 必须拒绝；本机实测拒绝信息「候选端截图内容哈希不匹配」。
+3. **栖光 Lab 口径修正**：截图总数为 **24 张**（3 页 × 4 视口 × 双端；此前口头表述
+   48 张有误，48 是断言数 3 页 × 4 视口 × 4 项）；已入库文件统一表述并明示边界——
+   现有断言不构成完整页面逐像素一致声明。
+4. **栖光 Lab CI**：独立分支 workflow `qiguang-lab-ci.yml`（paths 过滤 + 真实
+   Chromium）：双变体构建 → 共享组件源码字节恢复检查（git diff --exit-code）→
+   三页四视口采集 → 证据哈希核验 → 非目标媒体字节一致 → 档案页零共享消费，
+   并显式输出截图数（24）/断言数（48）与失败原因。不触发正式 Bolt 验收，
+   Lab CI 通过 ≠ 真实 MEDIA 完整生命周期通过。
 
 ## 3.5 工程复审记录（协调人第二轮，2026-10-23，提交 `6a988e8`）
 
