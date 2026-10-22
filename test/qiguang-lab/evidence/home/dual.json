@@ -1,0 +1,188 @@
+{
+  "collection": {
+    "capturedAt": "2026-10-22T17:35:41.609Z",
+    "viewports": [
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/index.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "1f36603281337965609967e81ad2d2c45040116bf9ff45cc2479eae2e1f44b97",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "candidateDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-home"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/index.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "907e633d7140ec94a15dbc32e00d1e10f9a0af836c2e99f4d9c3f54328db3ee2",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "candidateDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-home"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-375",
+          "width": 375,
+          "height": 812
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/index.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "cb132256fe60fa2b0f18b6d67c7d11ef1bf0148401244ec9702706e44c054c77",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "candidateDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-home"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-390",
+          "width": 390,
+          "height": 844
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/index.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "b4f29e030be6cbd39b155d09aa1d4d29e6faaf21e1c60be02cb7e9a683f58221",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "candidateDigest": "c8174d8d64e49d4441dbda65a2c9fcd247d3c295a8c2e7c813e291a244842256",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>第六届栖光艺术节</h1><section class=\"hero-container\" data-container=\"home-hero\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"hero-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-home__\"></section><section class=\"local-section\" data-container=\"home-local\"><h2>城市光影驻地计划</h2><img alt=\"驻地计划现场\" data-consumer=\"home-local\" src=\"/media/qiguang-home-local.jpg\"></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-home"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      }
+    ]
+  },
+  "sha256": "213a0ba68932dcbb59125de260972ef56e4369636cd9ddb50d8340b497388353"
+}

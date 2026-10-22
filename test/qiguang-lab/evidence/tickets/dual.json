@@ -1,0 +1,188 @@
+{
+  "collection": {
+    "capturedAt": "2026-10-22T17:35:47.246Z",
+    "viewports": [
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/tickets.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "0d991da8287dce314708f3399899d2cd6831c6e1a114147de96e3baa3b9e59f0",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "candidateDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-tickets"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/tickets.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "0d991da8287dce314708f3399899d2cd6831c6e1a114147de96e3baa3b9e59f0",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "candidateDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-tickets"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-375",
+          "width": 375,
+          "height": 812
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/tickets.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "0d991da8287dce314708f3399899d2cd6831c6e1a114147de96e3baa3b9e59f0",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "candidateDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-tickets"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-390",
+          "width": 390,
+          "height": 844
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/tickets.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 2,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "0d991da8287dce314708f3399899d2cd6831c6e1a114147de96e3baa3b9e59f0",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "candidateDigest": "9cda408d418add9ac22dbadc29ac843f400c1223baafd9d753520f10ec7c08c8",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>购票</h1><section class=\"ticket-grid\"><article class=\"ticket-card\" data-container=\"ticket-card\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"ticket-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-tickets__\"><div class=\"ticket-info\"><strong>通票 · 三日</strong><span>¥ 299</span></div></article></section></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-tickets"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      }
+    ]
+  },
+  "sha256": "2060359e80637049c36f2781c3e72532ddd8c28b914f097425056974957e9d31"
+}

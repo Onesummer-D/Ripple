@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-10-22T17:35:48.913Z",
+  "pages": [
+    "home",
+    "program",
+    "tickets"
+  ],
+  "sharedMedia": {
+    "baseline": "/media/qiguang-hero-wide.jpg",
+    "candidate": "/media/qiguang-hero-tall.jpg"
+  },
+  "containers": [
+    "home-hero（16:9 · cover center）",
+    "program-wall（4:3 · cover 50% 20%）",
+    "ticket-card（3:4 · cover top）"
+  ],
+  "unaffected": [
+    "media/qiguang-archive.jpg（字节层）",
+    "media/qiguang-home-local.jpg（字节层）",
+    "archive.html（渲染层：零共享消费）"
+  ],
+  "note": "Lab 消费关系由工程结构显式声明，非 SourceGraph 证明；不构成 C+D 联合实测或真实 MEDIA 验收 PASS。"
+}

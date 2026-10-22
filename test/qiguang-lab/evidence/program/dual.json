@@ -1,0 +1,188 @@
+{
+  "collection": {
+    "capturedAt": "2026-10-22T17:35:44.411Z",
+    "viewports": [
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/program.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "b84781d7a7088ebf37dfb58f7842dd3edb6342bd38d49e5022ed50af5269293c",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "candidateDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-program"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/program.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "ec871b3512fa57d9135e3afe11ff7272679ccdc6fdc78ed1e9f3884cd5e28dee",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "candidateDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-program"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-375",
+          "width": 375,
+          "height": 812
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/program.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "c00d43b48e4955ae5754db1d223c8b4721ce146a622bc5c35a9c78bff5666fd9",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "candidateDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-program"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "viewport": {
+          "name": "mobile-390",
+          "width": 390,
+          "height": 844
+        },
+        "candidate": {
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1
+        },
+        "baseline": {
+          "pageUrl": "http://127.0.0.1:4641/program.html",
+          "worksPageReached": true,
+          "markerVisible": true,
+          "markerMatchCount": 1,
+          "imageFound": true,
+          "imageMatchCount": 1,
+          "currentSrc": "http://127.0.0.1:4641/media/qiguang-hero-wide.jpg",
+          "screenshotSha256": "471b6039e92b504efbec0fc463b4798b403ff43d5c83db91bb0ace2f3904a624",
+          "errors": []
+        },
+        "maskedComparison": {
+          "matched": true,
+          "baselineDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "candidateDigest": "52e7b27e6089eba62765b27e59eb2882a3fbae4ab962b8bc20432656f3e86e73",
+          "baselineSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "candidateSnapshot": "<div id=\"root\"><main><nav class=\"site-nav\"><a href=\"/index.html\">首页</a><a href=\"/program.html\">节目</a><a href=\"/tickets.html\">购票</a><a href=\"/archive.html\">往届</a></nav><h1>节目单</h1><section class=\"wall-container\" data-container=\"program-wall\"><img data-consumer=\"shared-hero\" alt=\"栖光艺术节主视觉\" class=\"wall-img\" src=\"__RIPPLE_TARGET_qiguang-hero-swap-program__\"></section><ul class=\"program-list\"><li>开幕光影秀 · 10 月 31 日</li><li>河畔声景巡游 · 11 月 2 日</li><li>闭幕对谈 · 11 月 9 日</li></ul></main></div>",
+          "maskedOperationIds": [
+            "qiguang-hero-swap-program"
+          ]
+        },
+        "interaction": {
+          "baselinePassed": false,
+          "candidatePassed": false,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "missing"
+        },
+        "layout": {
+          "horizontalOverflow": false
+        },
+        "runtimeState": "rendered",
+        "errors": [],
+        "warnings": []
+      }
+    ]
+  },
+  "sha256": "6131645d2dbfef5ce5020456a624ad0a6c50b870a36fdc325f5fccc5b0fd96de"
+}

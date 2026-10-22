@@ -1,0 +1,19 @@
+{
+  "previewUrl": "http://127.0.0.1:4642/index.html",
+  "baselineUrl": "http://127.0.0.1:4641/index.html",
+  "candidate": {
+    "candidateId": "qiguang-lab-hero-tall",
+    "baseSourceDigest": "qiguang-lab-digest-not-a-real-candidate",
+    "patchHash": "qiguang-lab-patch-not-a-real-candidate",
+    "candidateTreeDigest": "qiguang-lab-tree-not-a-real-candidate"
+  },
+  "targetRef": "media:qiguang/home#qiguang-hero-wide.jpg",
+  "operationId": "qiguang-hero-swap-home",
+  "assetRef": "/media/qiguang-hero-tall.jpg",
+  "originalValue": "/media/qiguang-hero-wide.jpg",
+  "markerText": "第六届栖光艺术节",
+  "selector": "img[data-consumer=\"shared-hero\"]",
+  "browser": {
+    "headless": true
+  }
+}

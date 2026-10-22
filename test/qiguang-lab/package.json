@@ -1,0 +1,21 @@
+{
+  "name": "ripple-qiguang-media-lab",
+  "private": true,
+  "version": "0.1.0",
+  "description": "栖光艺术节 React/Vite 多页面工程：共享媒体三容器消费的 MEDIA 集成准备 Lab（依赖解析自仓库根 node_modules，本目录不跑 npm ci）",
+  "type": "module",
+  "scripts": {
+    "generate-assets": "python scripts/generate-assets.py",
+    "build:variants": "node scripts/build-variants.mjs",
+    "collect-evidence": "node --experimental-transform-types --loader ../../scripts/ts-extension-loader.mjs scripts/collect-evidence.ts"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.5",
+    "typescript": "^5.7.2"
+  }
+}

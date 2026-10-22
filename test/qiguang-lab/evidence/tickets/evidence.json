@@ -1,0 +1,255 @@
+{
+  "report": {
+    "schemaVersion": "ripple-media-viewport-evidence/v1",
+    "capturedAt": "2026-10-22T17:35:47.246Z",
+    "browser": {
+      "name": "chromium"
+    },
+    "candidate": {
+      "candidateId": "qiguang-lab-hero-tall",
+      "baseSourceDigest": "qiguang-lab-digest-not-a-real-candidate",
+      "patchHash": "qiguang-lab-patch-not-a-real-candidate",
+      "candidateTreeDigest": "qiguang-lab-tree-not-a-real-candidate"
+    },
+    "targetRef": "media:qiguang/tickets#qiguang-hero-wide.jpg",
+    "observations": [
+      {
+        "viewport": {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900
+        },
+        "pageUrl": "http://127.0.0.1:4642/tickets.html",
+        "selector": "img[data-consumer=\"shared-hero\"]",
+        "assetRef": "/media/qiguang-hero-tall.jpg",
+        "currentSrc": "http://127.0.0.1:4642/media/qiguang-hero-tall.jpg",
+        "matchCount": 1,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1125,
+        "renderedBox": {
+          "x": 197,
+          "y": 146.875,
+          "width": 298,
+          "height": 397.328125
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 0%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 0.35318055555555555,
+          "visibleSourceRect": {
+            "x": 28.119469896574792,
+            "y": 0,
+            "width": 843.7610602068504,
+            "height": 1125
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 0.7500098312949782,
+          "sourceAspect": 0.8
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1125"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4642/media/qiguang-hero-tall.jpg 规范化匹配 /media/qiguang-hero-tall.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=0.3532 visible=843.8x1125.0"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "name": "tablet",
+          "width": 768,
+          "height": 1024
+        },
+        "pageUrl": "http://127.0.0.1:4642/tickets.html",
+        "selector": "img[data-consumer=\"shared-hero\"]",
+        "assetRef": "/media/qiguang-hero-tall.jpg",
+        "currentSrc": "http://127.0.0.1:4642/media/qiguang-hero-tall.jpg",
+        "matchCount": 1,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1125,
+        "renderedBox": {
+          "x": 17,
+          "y": 146.875,
+          "width": 298,
+          "height": 397.328125
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 0%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 0.35318055555555555,
+          "visibleSourceRect": {
+            "x": 28.119469896574792,
+            "y": 0,
+            "width": 843.7610602068504,
+            "height": 1125
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 0.7500098312949782,
+          "sourceAspect": 0.8
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1125"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4642/media/qiguang-hero-tall.jpg 规范化匹配 /media/qiguang-hero-tall.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=0.3532 visible=843.8x1125.0"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "name": "mobile-375",
+          "width": 375,
+          "height": 812
+        },
+        "pageUrl": "http://127.0.0.1:4642/tickets.html",
+        "selector": "img[data-consumer=\"shared-hero\"]",
+        "assetRef": "/media/qiguang-hero-tall.jpg",
+        "currentSrc": "http://127.0.0.1:4642/media/qiguang-hero-tall.jpg",
+        "matchCount": 1,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1125,
+        "renderedBox": {
+          "x": 17,
+          "y": 146.875,
+          "width": 298,
+          "height": 397.328125
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 0%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 0.35318055555555555,
+          "visibleSourceRect": {
+            "x": 28.119469896574792,
+            "y": 0,
+            "width": 843.7610602068504,
+            "height": 1125
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 0.7500098312949782,
+          "sourceAspect": 0.8
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1125"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4642/media/qiguang-hero-tall.jpg 规范化匹配 /media/qiguang-hero-tall.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=0.3532 visible=843.8x1125.0"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "name": "mobile-390",
+          "width": 390,
+          "height": 844
+        },
+        "pageUrl": "http://127.0.0.1:4642/tickets.html",
+        "selector": "img[data-consumer=\"shared-hero\"]",
+        "assetRef": "/media/qiguang-hero-tall.jpg",
+        "currentSrc": "http://127.0.0.1:4642/media/qiguang-hero-tall.jpg",
+        "matchCount": 1,
+        "loaded": true,
+        "naturalWidth": 900,
+        "naturalHeight": 1125,
+        "renderedBox": {
+          "x": 17,
+          "y": 146.875,
+          "width": 298,
+          "height": 397.328125
+        },
+        "objectFit": "cover",
+        "objectPosition": "50% 0%",
+        "errors": [],
+        "geometry": {
+          "scaleMode": "cover",
+          "scale": 0.35318055555555555,
+          "visibleSourceRect": {
+            "x": 28.119469896574792,
+            "y": 0,
+            "width": 843.7610602068504,
+            "height": 1125
+          },
+          "focalVisible": "not-applied",
+          "boxAspect": 0.7500098312949782,
+          "sourceAspect": 0.8
+        },
+        "assertions": [
+          {
+            "id": "media-loaded",
+            "result": "pass",
+            "detail": "natural 900x1125"
+          },
+          {
+            "id": "media-source-swapped",
+            "result": "pass",
+            "detail": "currentSrc http://127.0.0.1:4642/media/qiguang-hero-tall.jpg 规范化匹配 /media/qiguang-hero-tall.jpg"
+          },
+          {
+            "id": "media-crop-geometry",
+            "result": "pass",
+            "detail": "cover scale=0.3532 visible=843.8x1125.0"
+          },
+          {
+            "id": "media-browser-errors",
+            "result": "pass",
+            "detail": "无浏览器错误"
+          }
+        ]
+      }
+    ]
+  },
+  "sha256": "4e95211dbfe5f7745aecd829336bdc04173bf0da4da85519ac6c2894f6fa6352"
+}

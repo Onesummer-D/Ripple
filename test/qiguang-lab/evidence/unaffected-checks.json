@@ -1,0 +1,44 @@
+{
+  "generatedAt": "2026-10-22T17:35:48.911Z",
+  "note": "非目标资源不受影响断言：字节层（媒体资产双端相等）+ 渲染层（档案页零共享媒体消费、档案图尺寸/marker 一致）。archive.html 外壳因共享 bundle 差异不做字节断言。",
+  "byteChecks": [
+    {
+      "resource": "media/qiguang-archive.jpg",
+      "baselineSha256": "588d05aaa1aec2306aaf8956bbbd2f5413ca7413379a7bd9131feff2c469add9",
+      "candidateSha256": "588d05aaa1aec2306aaf8956bbbd2f5413ca7413379a7bd9131feff2c469add9",
+      "baselineBytes": 65509,
+      "equal": true
+    },
+    {
+      "resource": "media/qiguang-home-local.jpg",
+      "baselineSha256": "52f7257aab300a6e2225618427a864e7358d54707f1f470434357c790708a7df",
+      "candidateSha256": "52f7257aab300a6e2225618427a864e7358d54707f1f470434357c790708a7df",
+      "baselineBytes": 56097,
+      "equal": true
+    }
+  ],
+  "renderChecks": [
+    {
+      "page": "archive.html",
+      "end": "baseline",
+      "markerText": "往届档案",
+      "archiveImgSrc": "/media/qiguang-archive.jpg",
+      "archiveImgNatural": {
+        "width": 1600,
+        "height": 900
+      },
+      "sharedHeroImgCount": 0
+    },
+    {
+      "page": "archive.html",
+      "end": "candidate",
+      "markerText": "往届档案",
+      "archiveImgSrc": "/media/qiguang-archive.jpg",
+      "archiveImgNatural": {
+        "width": 1600,
+        "height": 900
+      },
+      "sharedHeroImgCount": 0
+    }
+  ]
+}

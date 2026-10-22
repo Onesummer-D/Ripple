@@ -1,0 +1,19 @@
+{
+  "previewUrl": "http://127.0.0.1:4642/tickets.html",
+  "baselineUrl": "http://127.0.0.1:4641/tickets.html",
+  "candidate": {
+    "candidateId": "qiguang-lab-hero-tall",
+    "baseSourceDigest": "qiguang-lab-digest-not-a-real-candidate",
+    "patchHash": "qiguang-lab-patch-not-a-real-candidate",
+    "candidateTreeDigest": "qiguang-lab-tree-not-a-real-candidate"
+  },
+  "targetRef": "media:qiguang/tickets#qiguang-hero-wide.jpg",
+  "operationId": "qiguang-hero-swap-tickets",
+  "assetRef": "/media/qiguang-hero-tall.jpg",
+  "originalValue": "/media/qiguang-hero-wide.jpg",
+  "markerText": "购票",
+  "selector": "img[data-consumer=\"shared-hero\"]",
+  "browser": {
+    "headless": true
+  }
+}
