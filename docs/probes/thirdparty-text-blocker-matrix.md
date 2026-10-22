@@ -78,7 +78,10 @@ Profile → ProfileHeader → Overview 三段链路全部 source-proven），但
 1. A/C+D 处理 AC-P2a（composite JSX 子代传播证明）与 AC-P2b（errorElement/条件回退建模），
    见 `docs/probes/a-interface-requirements-issue6.md` v2；保持 fail-closed，不放宽门控。
 2. 修复后固定三方 SHA 重跑：`acceptance:codescandy` + `b-thirdparty-reprobe-stats.mjs` +
-   `b-thirdparty-candidate-gate.mjs` 三件全绿（gate 脚本以"拒绝"为预期通过条件）才可推进 #3。
+   `b-thirdparty-candidate-gate.mjs`（切至 `--expect accepted`）三件全绿，外加
+   `b-candidate-accepted-fixture.mjs` 成功正例持续通过，才可推进 #3。
+   注意：门控脚本在 BLOCKED 状态下以"拒绝"为预期通过条件，绿色只代表拒绝语义正确，
+   不代表真实编辑成功；成功合同由正例夹具独立证明。
 3. #4 转 PASS 前，任何"接入成功"表述都视为过早结论。
 
 ## 任务三结论（SCSS × CSS Token）

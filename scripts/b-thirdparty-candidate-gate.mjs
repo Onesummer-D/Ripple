@@ -1,11 +1,12 @@
-/** Issue #6 — codescandy TEXT candidate gate contract test (v3, file-safety hardened).
+/** Issue #6 — codescandy TEXT candidate gate contract test (v4).
  *
- *  Ownership invariant: the passed repo is READ-ONLY. Every physical artifact
- *  lives under an mkdtemp-owned root (prefix 'ripple-b-gate-'); only paths
- *  verified to be inside that root may ever be created/removed by this script.
- *  Illegal candidate locations are only ever PROPOSED to createCandidate
- *  (which rejects them before touching disk) and are never created or deleted
- *  by us.
+ *  Read-only boundary: the passed repo is NEVER written to or git-mutated —
+ *  we only run read commands against it (rev-parse, status, worktree list,
+ *  digestTrackedTree). All candidate operations run against a script-owned
+ *  clone of the pinned HEAD inside an mkdtemp root (prefix 'ripple-b-gate-');
+ *  only realpath-verified paths inside that root are ever created/removed.
+ *  Illegal candidate locations are only ever PROPOSEED to createCandidate
+ *  (which rejects them before touching disk).
  *
  *  Modes:
  *    node b-thirdparty-candidate-gate.mjs <repo> [--expect rejected|accepted] [--artifacts <dir>]
@@ -15,15 +16,17 @@
  *    CURRENT expected provenance reasons (composite-jsx-child + data-router
  *    coverage), as a CandidateError, leaving no patch/worktree/mutation.
  *  --expect accepted: for after AC-P2a/AC-P2b — must produce a real
- *    CandidateRecord whose patch AND candidate-worktree bytes demonstrably
- *    contain the replacement (not just a non-empty modifiedPaths list).
- *  --selftest: negative injections (wrong location, malformed ops, foreign
- *    exception), sentinel byte-invariance for pre-existing non-owned paths,
- *    crash-path and double-cleanup safety.
+ *    CandidateRecord; verifies patch bytes vs record.patchHash, marker
+ *    consistency, and that the candidate worktree bytes equal the exact
+ *    source edit (original[0:start] + after + original[end:]) before cleanup.
+ *  --selftest: negative injections, sentinel byte-invariance, crash path,
+ *    double cleanup. For a positive end-to-end see
+ *    scripts/b-candidate-accepted-fixture.mjs.
  */
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { analyzeProject, digestTrackedTree } from '../src/core/project.ts'
 import { sourceProvenPageImpact } from '../src/core/scope.ts'
@@ -42,6 +45,10 @@ const expected = 'b700bbd55b31a62fe04d4cd8210fc37232f0c9f0'
 const actual = execFileSync('git', ['-C', repo, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
 if (actual !== expected) throw new Error(`Refusing unpinned checkout: ${actual}`)
 
+const sha256hex = (buf) => createHash('sha256').update(buf).digest('hex')
+const gitRead = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim()
+const worktreeList = (root) => gitRead(root, ['worktree', 'list', '--porcelain']).split('\n').filter(l => l.startsWith('worktree ')).map(l => l.slice(9).trim())
+
 /** Strict matcher: the CURRENT expected provenance rejection, nothing else. */
 const EXPECTED_REASON_PARTS = ['composite-jsx-child', 'data-router']
 const isExpectedGateRejection = (error) => {
@@ -53,8 +60,51 @@ const findOverviewTarget = (graph) => graph.nodes.find(n =>
   n.kind === 'data' && n.value?.trim() === 'Overview' && n.location?.path.endsWith('ProfileHeader.tsx'))
 
 const REPLACEMENT = 'Overview (reprobe)'
-const buildRequest = (graph, target, candidateRoot, artifactRoot, overrides = {}) => ({
-  projectRoot: repo,
+
+/** The ONLY directory this script may write/remove. */
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-b-gate-'))
+const tempRootReal = fs.realpathSync(tempRoot)
+const isOwned = (p) => {
+  try {
+    const resolved = fs.existsSync(p) ? fs.realpathSync(p) : fs.realpathSync(path.dirname(p)) + path.sep + path.basename(p)
+    return resolved === tempRootReal || resolved.startsWith(tempRootReal + path.sep)
+  } catch { return false }
+}
+const removeOwned = (p) => { if (isOwned(p)) fs.rmSync(p, { recursive: true, force: true }) }
+
+/** Script-owned clone of the pinned HEAD — the candidate projectRoot. */
+const project = path.join(tempRoot, 'project-clone')
+const registeredWorktrees = new Set()
+let cleanedUp = false
+const cleanup = () => {
+  if (cleanedUp) return
+  cleanedUp = true
+  // remove ONLY worktrees this script registered, from the OWNED clone
+  for (const wt of registeredWorktrees) {
+    try { execFileSync('git', ['-c', 'core.longpaths=true', '-C', project, 'worktree', 'remove', '--force', wt], { stdio: 'pipe' }) } catch { /* not registered */ }
+  }
+  if (path.basename(tempRootReal).startsWith('ripple-b-gate-') && tempRootReal !== path.dirname(tempRootReal)) {
+    fs.rmSync(tempRootReal, { recursive: true, force: true })
+  }
+}
+
+try {
+  execFileSync('git', ['-c', 'core.autocrlf=false', 'clone', '--quiet', '--', repo, project], { stdio: ['ignore', 'ignore', 'pipe'] })
+  execFileSync('git', ['-C', project, 'config', 'core.autocrlf', 'false'], { stdio: 'pipe' })
+  if (gitRead(project, ['rev-parse', 'HEAD']) !== expected) throw new Error('clone HEAD mismatch')
+  if (gitRead(project, ['status', '--porcelain']) !== '') throw new Error('clone is dirty')
+} catch (error) {
+  console.error('[gate] project clone failed:', error instanceof Error ? error.message : error)
+  throw error
+}
+
+const graph = analyzeProject(project, true)
+const target = findOverviewTarget(graph)
+if (!target) throw new Error('Overview TEXT target not found')
+const impact = sourceProvenPageImpact(graph, target.id)
+
+const buildRequest = (candidateRoot, artifactRoot, overrides = {}) => ({
+  projectRoot: project,
   candidateRoot,
   artifactRoot,
   graph,
@@ -69,37 +119,16 @@ const buildRequest = (graph, target, candidateRoot, artifactRoot, overrides = {}
   candidateId: overrides.candidateId,
 })
 
-/** The ONLY directory this script may write/remove. */
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-b-gate-'))
-const tempRootReal = fs.realpathSync(tempRoot)
-const isOwned = (p) => {
-  try {
-    const resolved = fs.existsSync(p) ? fs.realpathSync(p) : fs.realpathSync(path.dirname(p)) + path.sep + path.basename(p)
-    return resolved === tempRootReal || resolved.startsWith(tempRootReal + path.sep)
-  } catch { return false }
-}
-const removeOwned = (p) => { if (isOwned(p)) fs.rmSync(p, { recursive: true, force: true }) }
-let cleanedUp = false
-const cleanup = () => {
-  if (cleanedUp) return
-  cleanedUp = true
-  try { execFileSync('git', ['-c', 'core.longpaths=true', '-C', repo, 'worktree', 'prune'], { stdio: 'pipe' }) } catch { /* best effort */ }
-  if (path.basename(tempRootReal).startsWith('ripple-b-gate-') && tempRootReal !== path.dirname(tempRootReal)) {
-    fs.rmSync(tempRootReal, { recursive: true, force: true })
-  }
-}
-
 /** One attempt. Physical dirs are ALWAYS tempRoot slots; `proposal` fields only
- *  change what we PROPOSE to createCandidate (e.g. an illegal in-repo path,
- *  which createCandidate rejects before any write). */
-const attempt = (graph, { slot = 'main', proposal = {}, blockArtifactDir = false, preserveOnCreate = false } = {}) => {
-  const target = findOverviewTarget(graph)
-  if (!target) throw new Error('Overview TEXT target not found')
+ *  change what we PROPOSE to createCandidate. With preserveOnCreate, a created
+ *  candidate's worktree/artifacts are left in place for evidence collection and
+ *  registered for finally-cleanup (removal happens ONLY after verification or
+ *  on failure). */
+const attempt = ({ slot = 'main', proposal = {}, blockArtifactDir = false, preserveOnCreate = false } = {}) => {
   const slotRoot = path.join(tempRoot, slot)
   const localCandidateRoot = path.join(slotRoot, 'candidate-worktree')
   const localArtifactRoot = path.join(slotRoot, 'artifacts')
   if (blockArtifactDir) {
-    // simulate a pre-existing FOREIGN file blocking the artifact dir (crash path)
     fs.mkdirSync(slotRoot, { recursive: true })
     fs.writeFileSync(localArtifactRoot, 'foreign-blocker')
   } else {
@@ -110,8 +139,8 @@ const attempt = (graph, { slot = 'main', proposal = {}, blockArtifactDir = false
   const t0 = Date.now()
   let outcome
   try {
-    const record = createCandidate(buildRequest(graph, target, proposedCandidateRoot, proposedArtifactRoot, proposal))
-    outcome = { outcome: 'created', record, elapsedMs: Date.now() - t0 }
+    const record = createCandidate(buildRequest(proposedCandidateRoot, proposedArtifactRoot, proposal))
+    outcome = { outcome: 'created', record, slotRoot, localCandidateRoot, localArtifactRoot, elapsedMs: Date.now() - t0 }
   } catch (error) {
     outcome = {
       outcome: 'threw',
@@ -122,12 +151,11 @@ const attempt = (graph, { slot = 'main', proposal = {}, blockArtifactDir = false
       elapsedMs: Date.now() - t0,
     }
   }
-  // physical cleanup ONLY of owned slot dirs; proposals that were rejected
-  // pre-write are never touched (and we assert they do not exist). A created
-  // candidate's slots are preserved when the caller must collect evidence.
   const preserve = preserveOnCreate && outcome.outcome === 'created'
-  try { execFileSync('git', ['-c', 'core.longpaths=true', '-C', repo, 'worktree', 'remove', '--force', localCandidateRoot], { stdio: 'pipe' }) } catch { /* not registered */ }
-  if (!preserve) {
+  if (preserve) {
+    registeredWorktrees.add(localCandidateRoot)
+  } else {
+    try { execFileSync('git', ['-c', 'core.longpaths=true', '-C', project, 'worktree', 'remove', '--force', localCandidateRoot], { stdio: 'pipe' }) } catch { /* not registered */ }
     removeOwned(localCandidateRoot)
     if (!blockArtifactDir) removeOwned(localArtifactRoot)
   }
@@ -137,16 +165,9 @@ const attempt = (graph, { slot = 'main', proposal = {}, blockArtifactDir = false
   return outcome
 }
 
-const worktreePathSet = () => new Set(
-  execFileSync('git', ['-C', repo, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' })
-    .split('\n').filter(l => l.startsWith('worktree ')).map(l => l.slice('worktree '.length).trim()))
-
 const main = () => {
-  const graph = analyzeProject(repo, true)
-  const target = findOverviewTarget(graph)
-  const impact = sourceProvenPageImpact(graph, target.id)
   const repoDigestBefore = digestTrackedTree(repo)
-  const worktreesBefore = worktreePathSet()
+  const repoWorktreesBefore = worktreeList(repo)
 
   if (selftest) {
     const cases = []
@@ -155,106 +176,117 @@ const main = () => {
     fs.writeFileSync(sentinelFile, Buffer.from('do-not-touch-' + Date.now()))
     const sentinelBytes = fs.readFileSync(sentinelFile)
     try {
-      const base = attempt(graph, { slot: 'base' })
+      const base = attempt({ slot: 'base' })
       cases.push({ case: 'base-rejection', pass: base.outcome === 'threw' && base.matchesExpectedRejection === true, detail: base })
 
       const illegalInRepo = path.join(repo, '.gate-inside')
-      const inside = attempt(graph, { slot: 'inside', proposal: { candidateRoot: illegalInRepo } })
+      const inside = attempt({ slot: 'inside', proposal: { candidateRoot: illegalInRepo } })
       cases.push({
         case: 'negative-wrong-location',
-        pass: inside.outcome === 'threw' && inside.isCandidateError === true && inside.matchesExpectedRejection === false
-          && inside.proposalNeverCreated === true,
+        pass: inside.outcome === 'threw' && inside.isCandidateError === true && inside.matchesExpectedRejection === false && inside.proposalNeverCreated === true,
         detail: inside,
       })
 
-      const badOps = attempt(graph, { slot: 'badops', proposal: { operations: 'not-an-array' } })
+      const badOps = attempt({ slot: 'badops', proposal: { operations: 'not-an-array' } })
       cases.push({ case: 'negative-malformed-operations', pass: badOps.outcome === 'threw' && badOps.isCandidateError === true && badOps.matchesExpectedRejection === false, detail: badOps })
 
       cases.push({ case: 'negative-foreign-exception', pass: isExpectedGateRejection(new TypeError('composite-jsx-child data-router coincidence')) === false, detail: { note: 'foreign TypeError sharing reason substrings' } })
 
-      const crash = attempt(graph, { slot: 'crash', blockArtifactDir: true })
+      const crash = attempt({ slot: 'crash', blockArtifactDir: true })
       cases.push({ case: 'crash-path-blocked-artifact-dir', pass: crash.outcome === 'threw' && crash.matchesExpectedRejection === false && crash.blockerPreserved === true, detail: { errorName: crash.errorName, message: crash.message.slice(0, 120) } })
 
-      // double cleanup must be a no-op the second time and must not touch foreign dirs
+      // capture project-clone cleanliness BEFORE cleanup() deletes the clone
+      const callerProjectUntouched = gitRead(project, ['status', '--porcelain']) === ''
       cleanup()
-      const sentinelAfterFirstCleanup = fs.existsSync(sentinelFile) && fs.readFileSync(sentinelFile).equals(sentinelBytes)
-      const foreignIntactAfterCleanup = fs.existsSync(foreign)
+      const sentinelAfterFirst = fs.existsSync(sentinelFile) && fs.readFileSync(sentinelFile).equals(sentinelBytes)
+      const foreignIntact = fs.existsSync(foreign)
       cleanup()
-      const sentinelAfterDoubleCleanup = fs.existsSync(sentinelFile) && fs.readFileSync(sentinelFile).equals(sentinelBytes)
+      const sentinelAfterDouble = fs.existsSync(sentinelFile) && fs.readFileSync(sentinelFile).equals(sentinelBytes)
 
-      const repoDigestAfter = digestTrackedTree(repo)
-      const worktreesAfter = worktreePathSet()
       const postChecks = {
-        repoDigestUnchanged: repoDigestAfter === repoDigestBefore,
-        worktreeSetUnchanged: worktreesAfter.size === worktreesBefore.size && [...worktreesAfter].every(p => worktreesBefore.has(p)),
-        sentinelBytesUnchanged: sentinelAfterFirstCleanup && sentinelAfterDoubleCleanup,
-        foreignDirNeverRemoved: foreignIntactAfterCleanup,
+        callerRepoDigestUnchanged: digestTrackedTree(repo) === repoDigestBefore,
+        callerRepoWorktreesUnchanged: (() => { const after = worktreeList(repo); return after.length === repoWorktreesBefore.length && after.every(p => repoWorktreesBefore.includes(p)) })(),
+        callerProjectUntouched,
+        sentinelBytesUnchanged: sentinelAfterFirst && sentinelAfterDouble,
+        foreignDirNeverRemoved: foreignIntact,
         tempRootRemoved: !fs.existsSync(tempRootReal),
       }
       fs.rmSync(foreign, { recursive: true, force: true }) // test-owned sentinel
       const allPass = cases.every(c => c.pass) && Object.values(postChecks).every(v => v === true)
-      return { schemaVersion: 3, mode: 'selftest', codescandySha: actual, target: { id: target.id, path: target.location.path }, cases, postChecks, allPass }
+      return { schemaVersion: 4, mode: 'selftest', codescandySha: actual, projectClone: 'script-owned', target: { id: target.id, path: target.location.path }, cases, postChecks, allPass }
     } finally {
       if (fs.existsSync(foreign)) fs.rmSync(foreign, { recursive: true, force: true })
     }
   }
 
   if (expectMode === 'rejected') {
-    const gateResult = attempt(graph, { slot: 'main' })
-    const repoDigestAfter = digestTrackedTree(repo)
-    const worktreesAfter = worktreePathSet()
+    const gateResult = attempt({ slot: 'main' })
+    const scanForPatch = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) { if (scanForPatch(full)) return true }
+        else if (entry.name.endsWith('.patch')) return true
+      }
+      return false
+    }
     const postChecks = {
-      repoDigestUnchanged: repoDigestAfter === repoDigestBefore,
-      worktreeSetUnchanged: worktreesAfter.size === worktreesBefore.size && [...worktreesAfter].every(p => worktreesBefore.has(p)),
-      noPatchArtifact: !fs.existsSync(tempRootReal) || !scanForPatch(tempRootReal),
+      callerRepoDigestUnchanged: digestTrackedTree(repo) === repoDigestBefore,
+      callerRepoWorktreesUnchanged: (() => { const after = worktreeList(repo); return after.length === repoWorktreesBefore.length && after.every(p => repoWorktreesBefore.includes(p)) })(),
+      callerProjectUntouched: gitRead(project, ['status', '--porcelain']) === '',
+      noPatchArtifactInOwnedRoot: !scanForPatch(tempRootReal),
       noMarkerFile: !fs.existsSync(path.join(tempRootReal, '.ripple-candidate.json')),
     }
     const pass = gateResult.outcome === 'threw' && gateResult.isCandidateError === true
       && gateResult.matchesExpectedRejection === true
       && Object.values(postChecks).every(v => v === true)
-    return { schemaVersion: 3, mode: 'expect-rejected', codescandySha: actual, target: { id: target.id, path: target.location.path, value: JSON.stringify(target.value) }, impact, gate: gateResult, postChecks, pass, note: '拒绝语义正确的绿色不代表真实编辑成功；--expect accepted 供 AC-P2a/AC-P2b 修复后切换。' }
+    return { schemaVersion: 4, mode: 'expect-rejected', codescandySha: actual, projectClone: 'script-owned', target: { id: target.id, path: target.location.path, value: JSON.stringify(target.value) }, impact, gate: gateResult, postChecks, pass, note: '拒绝语义正确的绿色不代表真实编辑成功；真实成功正例见 scripts/b-candidate-accepted-fixture.mjs。' }
   }
 
-  // expect accepted — real success contract (patch AND candidate bytes verified)
-  const gateResult = attempt(graph, { slot: 'main-accepted', preserveOnCreate: true })
-  let acceptance = { created: gateResult.outcome === 'created' }
-  if (acceptance.created) {
-    const record = gateResult.record
-    const slotRoot = path.join(tempRoot, 'main-accepted')
-    const candidateRoot = path.join(slotRoot, 'candidate-worktree')
-    const artifactRoot = path.join(slotRoot, 'artifacts')
-    const patchPath = path.join(artifactRoot, `${record.id}.patch`)
-    const targetRel = target.location.path
-    const candidateFile = path.join(candidateRoot, targetRel)
-    const patchText = fs.existsSync(patchPath) ? fs.readFileSync(patchPath, 'utf8') : ''
-    const candidateText = fs.existsSync(candidateFile) ? fs.readFileSync(candidateFile, 'utf8') : ''
-    acceptance = {
-      ...acceptance,
-      recordShapeOk: typeof record.id === 'string' && record.markerPath.startsWith(candidateRoot) && Array.isArray(record.modifiedPaths),
-      modifiedTarget: record.modifiedPaths.includes(targetRel),
-      patchContainsReplacement: patchText.includes(REPLACEMENT) && patchText.includes(targetRel),
-      candidateBytesContainReplacement: candidateText.includes(REPLACEMENT),
+  // ---- expect accepted: real success contract, evidence before cleanup ----
+  const gateResult = attempt({ slot: 'main-accepted', preserveOnCreate: true })
+  const acceptance = { created: gateResult.outcome === 'created' }
+  try {
+    if (acceptance.created) {
+      const record = gateResult.record
+      const { localCandidateRoot, localArtifactRoot } = gateResult
+      const patchPath = path.join(localArtifactRoot, `${record.id}.patch`)
+      const targetRel = target.location.path
+      const candidateFile = path.join(localCandidateRoot, targetRel)
+      const patchBytes = fs.existsSync(patchPath) ? fs.readFileSync(patchPath) : Buffer.alloc(0)
+      const marker = fs.existsSync(record.markerPath) ? JSON.parse(fs.readFileSync(record.markerPath, 'utf8')) : null
+      const originalBytes = fs.readFileSync(path.join(project, targetRel), 'utf8')
+      const candidateBytes = fs.existsSync(candidateFile) ? fs.readFileSync(candidateFile, 'utf8') : ''
+      const { start, end } = target.location
+      const op = buildRequest(localCandidateRoot, localArtifactRoot).operations[0]
+      const expectedCandidate = originalBytes.slice(0, start) + op.after + originalBytes.slice(end)
+      acceptance.verification = {
+        recordShapeOk: typeof record.id === 'string' && Array.isArray(record.modifiedPaths) && record.markerPath === path.join(localCandidateRoot, '.ripple-candidate.json'),
+        modifiedTarget: record.modifiedPaths.includes(targetRel),
+        patchHashMatchesBytes: sha256hex(patchBytes) === record.patchHash,
+        markerMatchesRecord: !!marker && marker.id === record.id && marker.baseSourceDigest === record.baseSourceDigest,
+        candidateBytesExactEdit: candidateBytes === expectedCandidate,
+        candidateTreeDigestMatches: digestTrackedTree(localCandidateRoot) === record.candidateTreeDigest,
+      }
     }
-    // cleanup owned slots ONLY AFTER evidence collection
-    try { execFileSync('git', ['-c', 'core.longpaths=true', '-C', repo, 'worktree', 'remove', '--force', candidateRoot], { stdio: 'pipe' }) } catch { /* best effort */ }
-    removeOwned(candidateRoot)
-    removeOwned(artifactRoot)
+  } finally {
+    // ALWAYS release the preserved candidate after verification (or failure)
+    if (gateResult.outcome === 'created') {
+      try { execFileSync('git', ['-c', 'core.longpaths=true', '-C', project, 'worktree', 'remove', '--force', gateResult.localCandidateRoot], { stdio: 'pipe' }) } catch { /* best effort */ }
+      registeredWorktrees.delete(gateResult.localCandidateRoot)
+      removeOwned(gateResult.localCandidateRoot)
+      removeOwned(gateResult.localArtifactRoot)
+    }
   }
   const postChecks = {
-    repoDigestUnchanged: digestTrackedTree(repo) === repoDigestBefore,
-    worktreeSetUnchanged: (() => { const after = worktreePathSet(); return after.size === worktreesBefore.size && [...after].every(p => worktreesBefore.has(p)) })(),
+    callerRepoDigestUnchanged: digestTrackedTree(repo) === repoDigestBefore,
+    callerRepoWorktreesUnchanged: (() => { const after = worktreeList(repo); return after.length === repoWorktreesBefore.length && after.every(p => repoWorktreesBefore.includes(p)) })(),
+    callerProjectCleanAfterCandidateRemoval: gitRead(project, ['status', '--porcelain']) === '',
+    noOwnedWorktreeLeft: !fs.existsSync(gateResult.localCandidateRoot ?? path.join(tempRoot, 'none')),
   }
-  const pass = acceptance.created && Object.values(acceptance).every(v => v === true) && Object.values(postChecks).every(v => v === true)
-  return { schemaVersion: 3, mode: 'expect-accepted', codescandySha: actual, target: { id: target.id, path: target.location.path }, impact, gate: { outcome: gateResult.outcome }, acceptance, postChecks, pass, note: '候选创建成功仅证明门控放行；preview/approval/apply/rollback 仍为独立 NOT RUN 项。' }
-}
-
-const scanForPatch = (dir) => {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) { if (scanForPatch(full)) return true }
-    else if (entry.name.endsWith('.patch')) return true
-  }
-  return false
+  const pass = acceptance.created
+    && Object.values(acceptance.verification ?? {}).every(v => v === true)
+    && Object.values(postChecks).every(v => v === true)
+  return { schemaVersion: 4, mode: 'expect-accepted', codescandySha: actual, projectClone: 'script-owned', target: { id: target.id, path: target.location.path }, impact, gate: { outcome: gateResult.outcome }, acceptance, postChecks, pass, note: '候选创建成功仅证明门控放行；preview/approval/apply/rollback 仍为独立 NOT RUN 项。' }
 }
 
 let result

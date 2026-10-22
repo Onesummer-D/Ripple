@@ -11,4 +11,5 @@ test-results/
 playwright-report/
 coverage/
 *.log
+acceptance-artifacts/
 

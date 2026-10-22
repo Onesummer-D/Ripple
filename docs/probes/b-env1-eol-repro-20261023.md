@@ -53,12 +53,15 @@ autocrlf=false 候选 worktree（`016aee03…`）。
 
 ## 附带观察（如实记录，不定性）
 
-- **`git -c core.autocrlf=true clone` 的策略不落盘**：`-c` 只作用于 clone 进程本身；
-  若后续命令运行在默认 autocrlf=false 的环境（如 Linux CI），同一 CRLF 工作树会被
-  `git status` 判为 dirty（168 个文件）——Ripple 在**快照干净检查**阶段即拒绝。
-  Windows 上若机器默认 autocrlf=true，则同一棵树"静默干净"，Ripple 放行后在**候选
-  worktree 字节一致性**阶段才失败。同一风险两条失败路径，阶段不同。
-- Windows（git 2.47.1.windows.1）上 `git checkout -f` 在 autocrlf 切换后可能不重写
-  工作树字节而维持 stat 缓存"干净"假象；判断干净不能只看一次 `git status`，需结合
-  字节级校验。v2 脚本因此完全不依赖对调用者检出做任何恢复操作。
+- **`git -c core.autocrlf=true clone` 的策略不落盘**：`-c` 只作用于 clone 进程本身，
+  持久化的是被克隆仓库自己的配置。因此同一 CRLF 工作树在不同 Git 配置环境下的
+  表现不同：若后续命令运行在默认 `autocrlf=false` 的环境，该树会被 `git status`
+  判为 dirty（168 个文件）——Ripple 在**快照干净检查**阶段即拒绝；若后续命令运行
+  在默认 `autocrlf=true` 的环境，同一棵树"静默干净"，Ripple 放行后在**候选
+  worktree 字节一致性**阶段才失败。这是**受 Git 配置与检出策略影响的两条失败路径**
+  （阶段不同），不归因于操作系统本身——同一操作系统上切换全局/仓库配置即可互换
+  两条路径。
+- 某些 Git 版本（实测 Windows git 2.47.1.windows.1）上 `git checkout -f` 在 autocrlf
+  切换后可能不重写工作树字节而维持 stat 缓存"干净"假象；判断干净不能只看一次
+  `git status`，需结合字节级校验。v2 脚本因此完全不依赖对调用者检出做任何恢复操作。
 - 图偏移与候选偏移随 EOL 平移（+71 字节）；任何写入源码位置的工件必须携带 EOL 状态。

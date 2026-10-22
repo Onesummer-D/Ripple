@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 4,
+  "mode": "expect-rejected",
+  "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+  "projectClone": "script-owned",
+  "target": {
+    "id": "literal:src/sub-components/profile/ProfileHeader.tsx#2620",
+    "path": "src/sub-components/profile/ProfileHeader.tsx",
+    "value": "\"Overview\\n              \""
+  },
+  "impact": {
+    "pageRefs": [
+      "page:/pages/profile"
+    ],
+    "unresolved": [
+      "目标存在非确定的消费者关系：composite-jsx-child:component:src/sub-components/profile/ProfileHeader.tsx#131:literal:src/sub-components/profile/ProfileHeader.tsx#2620",
+      "工程存在尚未证明的 data-router 消费者，无法确认页面影响全集"
+    ],
+    "certainty": "partial"
+  },
+  "gate": {
+    "outcome": "threw",
+    "errorName": "CandidateError",
+    "message": "无法证明目标的完整页面影响，拒绝生成候选：目标存在非确定的消费者关系：composite-jsx-child:component:src/sub-components/profile/ProfileHeader.tsx#131:literal:src/sub-components/profile/ProfileHeader.tsx#2620；工程存在尚未证明的 data-router 消费者，无法确认页面影响全集",
+    "isCandidateError": true,
+    "matchesExpectedRejection": true,
+    "elapsedMs": 10715
+  },
+  "postChecks": {
+    "callerRepoDigestUnchanged": true,
+    "callerRepoWorktreesUnchanged": true,
+    "callerProjectUntouched": true,
+    "noPatchArtifactInOwnedRoot": true,
+    "noMarkerFile": true
+  },
+  "pass": true,
+  "note": "拒绝语义正确的绿色不代表真实编辑成功；真实成功正例见 scripts/b-candidate-accepted-fixture.mjs。"
+}
