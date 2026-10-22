@@ -54,8 +54,12 @@ const spaOptions = {
   // CTAs on the home page (the pinned Bolt HomePage '品牌故事' button).
   // inertToggle makes the toggle click a no-op (menu open failed);
   // toggleAriaControls gives the toggle aria-expanded/aria-controls wiring
-  // pointing at the rendered (possibly wrong/empty) region.
+  // pointing at the rendered (possibly wrong/empty) region; ariaPreExpanded
+  // renders the toggle already at aria-expanded="true"; ariaRegionHoldsTarget
+  // puts same-name target buttons inside the aria region; toggleInsertsCtas
+  // makes the click append same-name body CTAs instead of opening the menu.
   footerNav: false, homeCtaNames: [] as string[], inertToggle: false, toggleAriaControls: null as string | null,
+  ariaPreExpanded: false, ariaRegionHoldsTarget: false, toggleInsertsCtas: false,
   // wrong-route matrix: annotateHome annotates the home h1 with a
   // data-ripple-source ref; promoHome renders a home-page banner quoting
   // another page's marker text (sourceRef null = unannotated, inNav = inside
@@ -75,13 +79,13 @@ function spa(brand: string): string {
     ? `<style>${spaOptions.directMobileNav ? '' : '@media (max-width: 767px) { .desktop-nav { display: none } } '}@media (min-width: 768px) { .menu-toggle, .mobile-overlay { display: none } } .mobile-overlay { opacity: 0; pointer-events: none } .mobile-overlay.open { opacity: 1; pointer-events: auto }</style>`
     : ''
   const toggleMarkup = spaOptions.mobileMenu
-    ? `<button class="menu-toggle" aria-label="菜单"${spaOptions.toggleAriaControls ? ` aria-expanded="false" aria-controls="${spaOptions.toggleAriaControls}"` : ''}>菜单</button>`.repeat(spaOptions.dualToggle ? 2 : 1)
+    ? `<button class="menu-toggle" aria-label="菜单"${spaOptions.toggleAriaControls ? ` aria-expanded="${spaOptions.ariaPreExpanded ? 'true' : 'false'}" aria-controls="${spaOptions.toggleAriaControls}"` : ''}>菜单</button>`.repeat(spaOptions.dualToggle ? 2 : 1)
     : ''
   const overlayMarkup = spaOptions.mobileMenu
     ? `<div class="mobile-overlay">${(['autumn', 'products', 'story'] as const).map(tabName => {
         const label = tabName[0].toUpperCase() + tabName.slice(1)
         return `<button data-tab="${tabName}">${label}</button>`.repeat(spaOptions.duplicateOverlay.includes(tabName) ? 2 : 1)
-      }).join('')}</div>${spaOptions.toggleAriaControls ? `<div id="${spaOptions.toggleAriaControls}"><p>Other menu</p></div>` : ''}`
+      }).join('')}</div>${spaOptions.toggleAriaControls ? `<div id="${spaOptions.toggleAriaControls}">${spaOptions.ariaRegionHoldsTarget ? '<button data-tab="autumn">Autumn</button><button data-tab="products">Products</button><button data-tab="story">Story</button>' : '<p>Other menu</p>'}</div>` : ''}`
     : ''
   return `<!doctype html><html><head><meta charset="utf-8"><title>spa</title>${mobileStyle}</head><body><div id="root"></div>${toggleMarkup}${overlayMarkup}<script>
   const markers = { home: 'Home page', autumn: 'Autumn page', products: 'Products page', story: 'Story page', cart: 'Cart page' }
@@ -138,7 +142,11 @@ function spa(brand: string): string {
   render(currentTab())
   for (const toggle of document.querySelectorAll('.menu-toggle')) toggle.onclick = () => {
     if (${spaOptions.inertToggle}) return
-    document.querySelector('.mobile-overlay')?.classList.add('open')
+    if (${spaOptions.toggleInsertsCtas}) {
+      for (const label of ['Autumn', 'Products', 'Story']) { const cta = document.createElement('button'); cta.className = 'cta'; cta.textContent = label; document.querySelector('main').append(cta) }
+    } else {
+      document.querySelector('.mobile-overlay')?.classList.add('open')
+    }
     if (${JSON.stringify(spaOptions.toggleAriaControls)}) toggle.setAttribute('aria-expanded', 'true')
   }
   var introDone = false
@@ -902,6 +910,82 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
       spaOptions.mobileMenu = false
       spaOptions.footerNav = false
       spaOptions.toggleAriaControls = null
+    }
+  }, 90_000)
+
+  it('refuses an aria menu that was already expanded before the click', async () => {
+    // Review P1-1: the toggle renders with aria-expanded='true' from the start
+    // and its aria-controls region already holds an actionable same-name
+    // button; the click is a no-op. The post-click aria state alone would
+    // validate this visit, so the runner must compare against the pre-click
+    // baseline and refuse — the open is not attributable to this click.
+    spaOptions.mobileMenu = true
+    spaOptions.footerNav = true
+    spaOptions.toggleAriaControls = 'menu-panel'
+    spaOptions.ariaPreExpanded = true
+    spaOptions.ariaRegionHoldsTarget = true
+    spaOptions.inertToggle = true
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-pre-expanded-aria', {}, {}, contract)
+      const { manifest } = outcome.result!
+      expect(outcome.events.find(event => event.event === 'navigation-menu-disambiguated')).toBeUndefined()
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(3 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          const expected = viewport.width < 768 ? 'missing' : 'verified'
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.footerNav = false
+      spaOptions.toggleAriaControls = null
+      spaOptions.ariaPreExpanded = false
+      spaOptions.ariaRegionHoldsTarget = false
+      spaOptions.inertToggle = false
+    }
+  }, 90_000)
+
+  it('ignores dynamically inserted same-name buttons when the menu never opens', async () => {
+    // Review P1-2: the toggle never opens the menu but inserts a new body CTA
+    // with the same accessible name. The actionable count still grows (footer
+    // + inserted CTA), so count and node-presence alone would falsely accept
+    // the inserted button as the activated menu target. The runner must
+    // require the SAME NODE to have existed before the click and transitioned
+    // non-actionable -> actionable — the inserted CTA has no pre-open node,
+    // so the visit stays UNKNOWN.
+    spaOptions.mobileMenu = true
+    spaOptions.footerNav = true
+    spaOptions.toggleInsertsCtas = true
+    try {
+      const contract = {
+        pages: PAGES.map(page => page.navigateBy ? { ...page, menuControl: { role: 'button', name: '菜单' } } : page),
+        interactions: [HOME_INTERACTION],
+      }
+      const outcome = await run('run-nav-mobile-menu-inserted-cta', {}, {}, contract)
+      const { manifest } = outcome.result!
+      expect(outcome.events.find(event => event.event === 'navigation-menu-disambiguated')).toBeUndefined()
+      expect(manifest.browserErrorDetails.byCategory['page-visit-failed']).toBe(3 * 2 * 2)
+      const observation = (pageRef: string, width: number) => manifest.scopeObservations.find((item: { viewport: { width: number }; pageRef: string }) => item.viewport.width === width && item.pageRef === pageRef)
+      for (const pageRef of ['page:autumn', 'page:products', 'page:story']) {
+        for (const viewport of VIEWPORTS) {
+          const expected = viewport.width < 768 ? 'missing' : 'verified'
+          expect(observation(pageRef, viewport.width)).toMatchObject({ baselineRouteIdentity: expected, candidateRouteIdentity: expected })
+        }
+      }
+      expect(assertion(manifest, 'scope-propagation')).toBe('unknown')
+      expectBoundedAndCleanPages(outcome)
+    } finally {
+      spaOptions.mobileMenu = false
+      spaOptions.footerNav = false
+      spaOptions.toggleInsertsCtas = false
     }
   }, 90_000)
 
