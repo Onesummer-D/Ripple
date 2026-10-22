@@ -141,50 +141,34 @@ sudo nginx -t && sudo systemctl reload nginx
 - ~~公网地址与线上截图~~ → **已完成**：腾讯云国内入口 22/22 验收通过（主），Cloudflare 备用 22/22（海外）。
 - 静态版不含真实 TEXT 生命周期（按任务要求第二阶段完成后另行上线云端工作台，见
   `docs/experience/CLOUD-WORKBENCH-DEPLOY.md`）。
-- UI 优化方案（见下节）尚未实施；实施后需重跑线上验收保持 22/22。
+- ~~UI 优化方案（见下节）尚未实施~~ → **已实施**（设计系统 v2，`d8de78c`）：
+  本地静态验收 26/26 复跑通过；**线上 22/22 复跑待负责人将新 ZIP 重传两处部署后执行**。
 
-## 比赛展示 UI 优化方案（线上双端截图审查 · 可直接实施）
+## 比赛展示 UI 优化：设计系统 v2 已实施（`d8de78c`）
 
-线上功能验收 22/22 通过后，对画布缩放、文字可读性、留白与移动端体验做专项审查，
-以下为**可直接实施**的改动清单（含落点与改法；演示标识与真实能力边界保持不变）。
+按负责人审美要求（对齐 smartify.org 编辑式排版、参考 `docs/research/competitors/bolt-new/README.md`
+§07/§09 的 Bolt 借鉴原则）对体验页做整体设计系统重构。**禁止卡片、禁小字备注、主标题仅概括性短语、
+禁副标题**；字号全面上调（正文 16px 起、注释性文字 14px 起）；统一茶青单色体系。
 
-### P0 · 画布空白根因修复（留白最大来源，一处改动双端受益）
+实施内容：
 
-**根因**（`canvas-stage.tsx` L189-193）：`.ripple-xp-viewport-surface` 用
-`transform: scale(${scale})` 缩放，但 **transform 不参与布局**——外壳
-`.ripple-xp-viewport-shell`（`overflow: hidden`，无显式高度）的布局高度始终等于
-设计稿高度 `viewport.height`（900 px）。桌面端 host ≈780 px 时 scale≈0.54，实际可见内容
-≈486 px，底部留下 ≈400 px 死白；手机 390 px 端 scale≈0.27，死白 ≈657 px。
+1. **单色文字标记体系**：工程/候选状态、确定性（来源已证实/部分证明/未知）、证据状态、
+   生命周期全部从彩色胶囊改为加粗文字标记（茶青=已证实、赭琥珀=部分、石灰=未知、陶红=风险）；
+   全站仅保留一枚实心墨色「演示数据 DEMO」徽章。
+2. **编辑式排版**：暖纸底色 + 衬线大标题 + 细分隔线分区，无卡片边框；顶栏/页导航/范围决策/证据/
+   前后对照全部重排；青野演示页改为大图 hero + 衬线标题压图 + 图片商品行的杂志式版面。
+3. **画布空白根因修复（原 P0）**：`viewport-shell` 显式给出 `scale` 后的高度，
+   桌面/手机画布死白同时消除。
+4. **版本胶片改为图片轮播**：smartify 式横向滚动（箭头 + 滚动吸附 + 悬停缩放），
+   配 4 张茶器主题编辑摄影（AI 生成，水印已裁除，`public/demo-assets/`）。
+5. **涟漪感动效**：全局点击涟漪（产品名 Ripple 的核心触感）、分区滚动浮现（IO 驱动，
+   动画不可用时内容始终可见）、`prefers-reduced-motion` 全量降级。
 
-**改法**：外壳高度随缩放计算——
-```tsx
-<div className="ripple-xp-viewport-shell" ref={hostRef} data-testid="viewport-shell"
-     style={{ height: Math.round(viewport.height * scale) }}>
-```
-`scale` 已由 ResizeObserver 驱动，此行即可让外壳高度与可见内容一致，桌面/手机留白同时消除；
-`ripple-xp.css` 无需改动。
+验证：体验层单测 63/63、e2e 18/18、本地静态验收 26/26 全绿；66 个 testid 与全部演示语义文案
+（「演示数据」「演示对照：模拟内容，未经真实浏览器验证」「演示审批（不写入真实工程）」等）原样保留。
 
-### P1 · 移动端体验
+重构后截图（本地构建验收，`docs/experience/public-demo/`）：
+`demo-desktop-full.png`、`demo-mobile-full.png`。
 
-2. **顶栏换行挤压**（≤760 px）：工程名「青野文创商店」折行、四枚徽章堆叠。
-   改法：`@media (max-width: 760px)` 下隐藏 `.ripple-xp-topbar` 中的工程名文本（保留图标），
-   徽章组横向滚动（`overflow-x: auto; flex-wrap: nowrap`）。
-3. **版本胶片小屏裁切**：横向滚动卡片文案被截断且无线索。
-   改法：`@media (max-width: 760px)` 下 `.ripple-xp-filmstrip` 卡片改纵向列表
-   （`grid-template-columns: 1fr` 或 flex column），或在横滚容器右缘加渐变遮罩 +
-   `滑动查看更多` 提示。
-4. **前后对照占位框偏高**：窄屏下「修改前 / 候选修改后」两张占位框高、信息密度低。
-   改法：`.ripple-xp-compare-row` 在 ≤760 px 已为单列，再给占位框设 `max-height: 220px`
-   并在框内叠 `DEMO` 斜向水印（`opacity: 0.06`），强化演示标识。
-
-### P2 · 可读性与质感
-
-5. **源码路径字号**：顶栏摘要行 `code`（`selection-summary`，13 px）可读，但右栏
-   「选中位置」来源路径为 12 px 灰字（`--xp-ink-soft`）。改法：统一不低于 12 px，
-   路径色改用 `--xp-ink`（加深一级对比）。
-6. **画布质感**：P0 修复后画布高度变小，可在 `.ripple-xp-viewport-shell` 加浅网格背景
-   （`background-image: linear-gradient(...)` 两点网格，`opacity` 极低），呈现「设计台面」质感，
-   避免白盒子单调。
-
-> 验收基线不变：上述改动后重跑 `scripts/verify-demo-online.mjs` 须仍 22/22；
-> 演示标识（DEMO 徽章、演示对照文案、演示审批「未写入真实工程」）不得弱化或移除。
+> 待办：负责人将新 `ripple-f-demo-static.zip` 重传腾讯云/Cloudflare 后，复跑
+> `scripts/verify-demo-online.mjs`（双地址）须仍 22/22，并更新线上截图（`cn-*.png` / `online-*.png`）。
