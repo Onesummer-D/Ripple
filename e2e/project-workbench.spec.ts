@@ -1098,7 +1098,12 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   expect(execFileSync('git', ['-C', appliedProject, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()).toBe(originalHead)
 
   const restored = await (await page.request.post('http://127.0.0.1:4173/__ripple/api/candidate/restore', { data: { candidateId } })).json() as { analysis: { revision: { projectId: string } } }
-  const appliedPreviewResponse = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/preview', { data: { projectId: restored.analysis.revision.projectId } })
+  const appliedPreviewResponse = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/preview', { data: { projectId: restored.analysis.revision.projectId, appliedCandidateId: candidateId } })
+  if (!appliedPreviewResponse.ok()) {
+    const status = appliedPreviewResponse.status()
+    const bodyText = await appliedPreviewResponse.text()
+    throw new Error(`applied preview failed: HTTP ${status}: ${bodyText}`)
+  }
   expect(appliedPreviewResponse.ok()).toBe(true)
   const appliedPreview = await appliedPreviewResponse.json() as { projectId: string; previewId: string; url: string }
   sourcePreviewProjectId = appliedPreview.projectId

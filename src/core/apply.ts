@@ -11,12 +11,12 @@ import { assertVerificationContractResults } from './session'
 
 const appliedTreeDigest = (root: string, candidate: CandidateRecord) => digestTrackedTree(root, [...new Set([...trackedProjectFiles(root), ...candidate.modifiedPaths])].filter(file => fs.existsSync(path.join(root, file))))
 
-function assertAppliedTreeUnchanged(candidate: CandidateRecord, applied: AppliedRevision): void {
+function assertAppliedTreeUnchanged(candidate: CandidateRecord, applied: AppliedRevision, action: '回滚' | '预览' = '回滚'): void {
   const current = readProjectSnapshot(candidate.projectRoot, false)
   const untracked = git(candidate.projectRoot, ['ls-files', '--others', '--exclude-standard', '-z']).toString('utf8').split('\0').filter(Boolean)
   const unexpected = untracked.filter(file => !candidate.modifiedPaths.includes(file))
   if (current.revision.gitCommit !== applied.commit || appliedTreeDigest(candidate.projectRoot, candidate) !== applied.targetSourceDigest || unexpected.length) {
-    throw new PatchApplyError('原工程在应用后又发生变化；拒绝回滚以免覆盖新修改')
+    throw new PatchApplyError(`原工程在应用后又发生变化；拒绝${action}以免覆盖新修改`)
   }
 }
 
@@ -33,6 +33,19 @@ export function isAppliedCandidateRollbackable(session: EditSession, candidate: 
 
 export class PatchApplyError extends Error {
   constructor(message: string) { super(message); this.name = 'PatchApplyError' }
+}
+
+/** Verify that an applied revision can be safely previewed: the stored apply record, the
+ * candidate identity, the current git HEAD and the actual working tree must all agree.
+ * Caller must still confirm the previewing project entry matches this same tree revision. */
+export function assertAppliedCandidatePreviewable(session: EditSession, candidate: CandidateRecord): void {
+  const applied = session.applied
+  if (session.status !== 'applied' || !applied || applied.candidateId !== candidate.id || applied.appliedPatchHash !== candidate.patchHash ||
+      applied.baseSourceDigest !== candidate.baseSourceDigest || applied.targetSourceDigest !== candidate.candidateTreeDigest ||
+      applied.commit !== session.projectRevision.gitCommit) {
+    throw new PatchApplyError('应用记录与候选身份不一致，拒绝预览已应用版本')
+  }
+  assertAppliedTreeUnchanged(candidate, applied, '预览')
 }
 
 const sha256 = (value: Uint8Array) => createHash('sha256').update(value).digest('hex')
