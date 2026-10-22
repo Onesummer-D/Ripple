@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - feat/agent-c-sourcegraph-20261021
+      # PR #28 integration branch: the dedicated acceptance entry must run on
+      # the branch that actually merges into A, not only on the C feature branch.
+      - feat/integration-cd-sourcegraph-20261022
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +26,9 @@ jobs:
           git -C "$RUNNER_TEMP/codescandy" checkout --detach b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
           test "$(git -C "$RUNNER_TEMP/codescandy" rev-parse HEAD)" = b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
       - name: Analyze actual pinned codescandy graph without running target code
+        # Exit semantics (see probe verdict): 0 = expected source proof satisfied;
+        # 2 = BLOCKED, report complete but proof target not met (step fails explicitly);
+        # 1 = hard failure (unpinned checkout or broken graph integrity).
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/agent-c-codescandy-probe.mjs "$RUNNER_TEMP/codescandy" test-results/agent-c-codescandy.json
       - name: Retain full provenance JSON
         if: always()

@@ -227,13 +227,35 @@ export function inspectDataRouter(
       fail(file, owner, 'App is not proven reachable from an unconditional entrypoint React root render call')
       continue
     }
+    // A single explicit return is only fully consuming when no control-flow
+    // path can skip it: `if (c) return <RouterProvider/>` leaves the implicit
+    // undefined path unproven, so the mount itself is conditional.
+    const guardedKinds = new Set([
+      ts.SyntaxKind.IfStatement, ts.SyntaxKind.ConditionalExpression,
+      ts.SyntaxKind.SwitchStatement, ts.SyntaxKind.CaseClause, ts.SyntaxKind.DefaultClause,
+      ts.SyntaxKind.ForStatement, ts.SyntaxKind.ForInStatement, ts.SyntaxKind.ForOfStatement,
+      ts.SyntaxKind.WhileStatement, ts.SyntaxKind.DoStatement,
+      ts.SyntaxKind.TryStatement, ts.SyntaxKind.CatchClause,
+    ])
+    const isGuardedReturn = (statement: ts.ReturnStatement): boolean => {
+      let ancestor: ts.Node | undefined = statement.parent
+      while (ancestor && ancestor !== owner) {
+        if (guardedKinds.has(ancestor.kind)) return true
+        if (ts.isBinaryExpression(ancestor) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(ancestor.operatorToken.kind)) return true
+        ancestor = ancestor.parent
+      }
+      return false
+    }
     const returned: ts.Expression[] = []
+    let returnIsGuarded = false
     if (ts.isArrowFunction(owner) && !ts.isBlock(owner.body)) returned.push(owner.body)
     else {
       const scanReturns = (n: ts.Node): void => {
         if (n !== owner && ts.isFunctionLike(n)) return
-        if (ts.isReturnStatement(n) && n.expression) returned.push(n.expression)
-        else n.forEachChild(scanReturns)
+        if (ts.isReturnStatement(n) && n.expression) {
+          returned.push(n.expression)
+          if (isGuardedReturn(n)) returnIsGuarded = true
+        } else n.forEachChild(scanReturns)
       }
       scanReturns(owner.body)
     }
@@ -257,7 +279,7 @@ export function inspectDataRouter(
       }
       node.forEachChild(child => inspectMount(child, branch))
     }
-    inspectMount(mount)
+    inspectMount(mount, returnIsGuarded)
     if (!providers.length) continue
     if (providers.length > 1) fail(file, mount, 'multiple RouterProviders prevent a unique active router')
 
@@ -332,13 +354,46 @@ export function inspectDataRouter(
     }
 
     // Static const arrays are not immutable; modifications through aliases or
-    // indexed writes invalidate the entire finite consumer set.
+    // indexed writes invalidate the entire finite consumer set. Alias tracking
+    // intentionally goes beyond `resolve`: a `let alias = routes` is invisible
+    // to the const-only resolver, and `const first = routes[0]` hands out a
+    // mutable element reference. Both are followed here; any write through
+    // them fail-closes the whole route table.
+    const resolveAlias = (expr: ts.Expression, seen = new Set<ts.Symbol>()): ts.Expression | undefined => {
+      const raw = unwrap(expr)
+      if (ts.isElementAccessExpression(raw)) {
+        // Dereference one static index (`const first = routes[0]`) so later
+        // property writes on the element are attributed to the visited table.
+        // Non-literal indices stay unresolvable rather than guessing.
+        if (ts.isNumericLiteral(raw.argumentExpression)) {
+          const target = resolveAlias(raw.expression, seen)
+          if (target && ts.isArrayLiteralExpression(target) && visitedArrays.has(target)) {
+            const element = target.elements[Number(raw.argumentExpression.text)]
+            if (element) {
+              if (ts.isSpreadElement(element)) return resolveAlias(element.expression, seen)
+              if (ts.isObjectLiteralExpression(element)) return element
+              return resolve(element, seen)
+            }
+          }
+        }
+        return undefined
+      }
+      if (!ts.isIdentifier(raw)) return raw
+      const bound = symbol(raw)
+      if (!bound || seen.has(bound)) return undefined
+      const declaration = bound.declarations?.find(ts.isVariableDeclaration)
+      if (!declaration?.initializer) return undefined
+      seen.add(bound)
+      // Unlike `resolve`, follow `let` aliases too: mutations do not need the
+      // const provenance that route-table resolution requires.
+      return resolveAlias(declaration.initializer, seen)
+    }
     const arrayTarget = (expr: ts.Expression): ts.ArrayLiteralExpression | undefined => {
-      const resolved = resolve(expr)
+      const resolved = resolveAlias(expr)
       return resolved && ts.isArrayLiteralExpression(resolved) && visitedArrays.has(resolved) ? resolved : undefined
     }
     const objectTarget = (expr: ts.Expression): ts.ObjectLiteralExpression | undefined => {
-      const resolved = resolve(expr)
+      const resolved = resolveAlias(expr)
       return resolved && ts.isObjectLiteralExpression(resolved) && visitedObjects.has(resolved) ? resolved : undefined
     }
     const walkMutations = (node: ts.Node): void => {
@@ -358,6 +413,16 @@ export function inspectDataRouter(
         if (ts.isElementAccessExpression(left) && arrayTarget(left.expression) ||
           ts.isPropertyAccessExpression(left) && (objectTarget(left.expression) || ts.isElementAccessExpression(left.expression) && arrayTarget(left.expression.expression))) {
           fail(file, node, 'route table or route object mutated by assignment')
+        }
+        // Reassigning a variable that was bound to the visited table hands the
+        // table to a name whose later writes can no longer be attributed.
+        if (ts.isIdentifier(left)) {
+          const declaration = symbol(left)?.declarations?.find(ts.isVariableDeclaration)
+          const initial = declaration?.initializer && resolve(declaration.initializer)
+          if (initial && (ts.isArrayLiteralExpression(initial) && visitedArrays.has(initial) ||
+            ts.isObjectLiteralExpression(initial) && visitedObjects.has(initial))) {
+            fail(file, node, 'route table or route object alias reassigned')
+          }
         }
       }
       if (ts.isDeleteExpression(node) && ts.isElementAccessExpression(node.expression) && arrayTarget(node.expression.expression)) fail(file, node, 'route table member deleted')

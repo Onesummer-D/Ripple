@@ -98,9 +98,23 @@ const result = {
     : `BLOCKED: ${targetMatches.length !== 1 ? 'TEXT target is ambiguous/missing' : targetMatches[0].impact.unresolved.join('; ')}`,
   notes: ['Graph proof does not imply project preview support or completed lifecycle.',
     'Composite <Link> children are statically passed in JSX but their DOM propagation is not proven.',
+    'Unsupported dynamic routes, SCSS and other unproven constructs stay reported as limitations, never as passes.',
     'Static analysis only; target code was never executed.'],
+  verdict: null,
 }
+// Acceptance semantics, kept apart from report generation:
+//   exit 0 — probe ran AND the expected source proof is satisfied;
+//   exit 2 — probe ran and the report is complete, but the target is BLOCKED
+//            (proof not satisfied); the JSON above carries the reasons;
+//   exit 1 — hard failure: unpinned checkout or broken graph integrity.
+// A missing/unsatisfied proof therefore fails the dedicated acceptance entry,
+// while the full provenance JSON is still written and uploaded for inspection.
+let exitCode = 0
+if (danglingSourceProven.length) exitCode = 1
+else if (result.candidateGate.startsWith('BLOCKED')) exitCode = 2
+result.verdict = { exitCode, satisfied: exitCode === 0, danglingSourceProvenCount: danglingSourceProven.length }
 fs.mkdirSync(path.dirname(output),{recursive:true})
 fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n')
-if (danglingSourceProven.length) process.exitCode = 1
 console.log(JSON.stringify(result,null,2))
+console.log(`\nVERDICT exit=${exitCode} ${exitCode === 0 ? 'source proof satisfied' : exitCode === 2 ? `BLOCKED: ${result.candidateGate}` : 'graph integrity broken'}`)
+process.exitCode = exitCode
