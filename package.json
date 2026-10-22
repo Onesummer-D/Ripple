@@ -14,7 +14,8 @@
     "acceptance:phase4": "node scripts/phase4-acceptance.mjs",
     "acceptance:phase5": "node scripts/phase5-acceptance.mjs",
     "preview:static": "node scripts/preview-server.mjs",
-    "acceptance:runtime-node": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs"
+    "acceptance:runtime-node": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-smoke.mjs",
+    "build:demo-static": "vite build --mode demo-static && node scripts/package-demo-static.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
