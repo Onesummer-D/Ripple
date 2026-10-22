@@ -593,6 +593,75 @@ describe('agent C P1 round 3: mutable route table aliases fail closed', () => {
     expect(graph.unresolved.join('\n')).toContain('route-coverage:')
   })
 
+  it('fails closed when a fuzzy element selection is forwarded through an alias before a property write', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      declare const key: number;
+      const selected = routes[key];
+      const alias = selected;
+      alias.Component = Home;
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(impact(graph, 'Home Title').pageRefs).not.toContain('page:/profile')
+    expect(graph.unresolved.join('\n')).toContain('route-coverage:')
+  })
+
+  it('fails closed across a two-level alias chain with an element-access write', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      declare const key: number;
+      const selected = routes[key];
+      const alias1 = selected;
+      const alias2 = alias1;
+      alias2['Component'] = Home;
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(impact(graph, 'Home Title').pageRefs).not.toContain('page:/profile')
+    expect(graph.unresolved.join('\n')).toContain('route-coverage:')
+  })
+
+  it('fails closed when a fuzzy selection is rebound through let and written', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      declare const key: number;
+      let selected = routes[key];
+      const observer = selected;
+      selected = routes;
+      observer.Component = Home;
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(graph.unresolved.join('\n')).toContain('route-coverage:')
+  })
+
+  it('fails closed when a let alias chain of a fuzzy selection is written', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      declare const key: number;
+      let alias = routes[key];
+      const mid = alias;
+      alias = routes;
+      mid.Component = Home;
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(graph.unresolved.join('\n')).toContain('route-coverage:')
+  })
+
+  it('fails closed on a write through a circular alias chain without hanging', () => {
+    const root = project({ ...pages, 'src/App.tsx': `${routerImports}
+      ${declared}
+      let first = second;
+      let second = first;
+      first.Component = Home;
+      ${mounted}` })
+    const graph = analyzeProject(root)
+    expect(impact(graph, 'Profile Title').certainty).not.toBe('source-proven')
+    expect(graph.unresolved.join('\n')).toContain('route-coverage:')
+  })
+
   it('fails closed when a route table alias is reassigned', () => {
     const root = project({ ...pages, 'src/App.tsx': `${routerImports}
       ${declared}

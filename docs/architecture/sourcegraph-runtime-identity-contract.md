@@ -1,7 +1,7 @@
 # SourceGraph × Runtime Identity 来源身份接口说明（C+D → F / E Visual Evidence）
 
 > 版本：PR #28 HEAD `1dbaa53` 冻结版。供 F Agent（产品体验/精准点选）与 E Visual Evidence Agent（视觉证据）直接引用。
-> 2026-10-23 A 总集成修订：① 明确 PageImpact 来源证明与实例身份证明为独立校验（`assessRuntimeIdentity()` 不检查 `PageImpact.certainty`）；② 精确化 `source-version-*` 采集/评估双侧产生语义；③ RouterProvider unknown 限定为已验证场景的结论。
+> 2026-10-23 A 总集成修订（含别名链 fail-closed 后的边界 2 更新）：① 明确 PageImpact 来源证明与实例身份证明为独立校验（`assessRuntimeIdentity()` 不检查 `PageImpact.certainty`）；② 精确化 `source-version-*` 采集/评估双侧产生语义；③ RouterProvider unknown 限定为已验证场景的结论。
 > 本文档只描述合同，不授予任何权限；所有授权决策仍由 A 核心执行。
 
 ## 1. 三级概念必须区分（不可混用）
@@ -63,10 +63,10 @@
 - F：禁止按"第 N 个实例"精准点选/单实例修改授权；允许页面级定位（`locatable=true` 仍可导航回源码）与页面级影响声明；需实例级操作时必须重新采集至 `instanceIdentityProven=true`（reasons 清空）。
 - E：此类实例证据只能标注"页面级/来源级"，不得标注"实例级已证明"。
 
-### 边界 2：非数值下标别名关系未证明 → 继续降级
+### 边界 2：非数值下标选元及其别名链上的写入 → 整个路由表 fail-closed
 
-`resolveAlias` 只跟随 let、解引用数值下标并做符号去环；`table[key]` 等非数值下标别名不证明，命中即 `partial`/`unknown`。
-- F/E：不得自行推断别名等价；按降级路径声明。
+`resolveAlias` 只跟随 let、解引用数值下标并做符号去环；`table[key]` 等非数值下标别名不证明。自 PR #28 集成修订（2026-10-23）起，通过非数值下标选元绑定（`const selected = routes[key]`）进行的属性写入——包括经别名链转发（`const alias = selected; alias.Component = …`、多级链与 `alias2['Component'] = …` 元素访问写入）、`let` 重绑定（保守按无法证明处理）与循环别名链（有界遍历，不死循环）——都会使整个路由表 fail-closed（`route-coverage` unresolved，PageImpact 封顶 `partial`/`unknown`）。数值下标可证明访问（`routes[0]` 解引用及其既有正/反例）不受影响。
+- F/E：不得自行推断别名等价；按降级路径声明；禁止绕开上述 fail-closed 门。
 
 ### 边界 3：条件返回中的挂载不能自动升级为完整来源证明
 
