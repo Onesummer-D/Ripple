@@ -330,3 +330,36 @@ E 采样合同字段（sourceVersion、identityReasons、pageContext 守卫）�
 
 - 正式 TEXT 工作台开发基线 = `3cc37c2`；F 集成验证基线 = `feat/a-f25-integration-20261023`（merge 提交以推送后 CI 绿为准）。
 - 启动条件：F 集成 CI 绿 → 负责人批准 → F #25 以 merge 方式进 A（新 A HEAD 分发各线）→ F 第二阶段真实操作链路（统一接入正式候选、验证、审批、应用、回滚）开工。
+
+
+---
+
+# v8 D MEDIA 授权登记 + E 联合接线启动（2026-10-23）
+
+## 0. 主线不变
+
+F #25 集成（`feat/a-f25-integration-20261023` @ af936884，CI 39864728226 SUCCESS）待负责人批准并入 A；E 接线与 D MEDIA 复验均并行，不扩大 F 第一阶段合并范围。
+
+## 1. D MEDIA：协调决策
+
+1. **授权**：D 在独立 MEDIA 协调分支（不从 A 基线直接改）实施 209cf4f `narrowMediaByReceiverType` 最小重放 + N4–N10 负例；**禁止**将原补丁直接合入公共核心。PR #26（78a5484）在新 A 基线完成代码与负例审查通过前，不决定 rebase/merge 时机。
+2. **重点审查项（D 交付后由 A 执行）**：
+   - **P1-a**：`narrowMediaByReceiverType` 返回空数组时，project.ts 的 for 循环不产生消费者边且无显式 unresolved 记录——若真实消费者被过滤，`sourceProvenPageImpact` 可能因只看到剩余关系而误判影响完整。必须实证：负例（过滤后空）下来源完整性探针仍 exit 2 BLOCKED 或等价显式拒绝；不得依赖未经实证的"assertScope 一定拦截"。
+   - **P1-b**：以类型名称文本查找声明范围，跨模块同名类型/别名/数据流不完整时的排除正确性——需负例覆盖。
+3. **字段级合同**：MEDIA 候选复用现有 CandidatePatch/ScopeDecision/Approval/Receipt/Apply/Rollback 字段，不新增旁路；媒体类候选的 gate 与 TEXT 同一 fail-closed 门控；D 交付时逐字段对照 `run.*` 合同清单。
+4. **排期**：MEDIA 正式批次安排在 F #25 集成稳定之后；D 第七轮已通过的栖光复验部分（ee49e55/688ae0a，CI #39859399071）不再返工。
+5. **青野固定 SHA**：真实工程 `github.com/Onesummer-D/ripple-qingye-bolt` @ **`f7e4998a5c77ab4aeb3232dbc31e61196e9051a6`**（"Initial Bolt website baseline"，工作区干净）。正式验收覆盖：素材暂存 → 候选 → 四视口 → 视觉证据 → Approval/Apply/Rollback → 工件留存；Lab 通过不代替正式验收。
+
+## 2. E 联合接线
+
+- **E 独立模块状态**：终审通过，冻结候选。最终 HEAD `0dd2e912`；Ripple CI #39862685555 SUCCESS（706 Vitest / 57 Playwright）；Agent E Visual Acceptance #39862678940 SUCCESS；六项 P1 全部修复。PR #29 base 已改指 `feat/project-first-core-20261018`，mergeable=true。**待办：PR #29 需转为 Draft——GitHub REST API 无转 Draft 端点（ready_for_review 类端点此前亦 404），须由负责人在 PR 页面点击 Convert to draft；当前不合并。**
+- **接线负责人**：A（本 Agent）。**协调分支**：`feat/a-e-visual-wiring-20261023`（merge 3cc37c2 + E 0dd2e91，merge 提交 `c3158c6`，已推送，CI 运行中；本地 typecheck ✓ / build ✓ / 快速 Vitest 40/40）。
+- **接口验收清单（接线必查）**：
+  1. baseline/candidate 各自 sourceFileVersions（或等价来源摘要）取自 C+D SourceGraph/Runtime Identity，按文件核验，与各自真实工程修订绑定。
+  2. RuntimePageContext 与采集期 identityReasons 只读传入 E 采样与报告（命名空间沿用 `ripple-runtime-identity/v1` registry）。
+  3. 正式视觉证据分析按合同提供 expectedSourceVersions；identityAssessment 必须来自 C+D 真实评估，禁止合成成功结果。
+  4. 未完成证据保持 annotation-pairing / missingEvidence 呈现，不升级严格实例证明。
+  5. VerificationRunner 真实采样挂载后联合回归：证明只读视觉证据不改变 Approval、Receipt、Apply 结论。
+- **两道验收**：第一道 = 现有视觉证据以只读降级方式接入统一 VerificationRun；第二道 = C+D 版本/页面上下文/实例身份完整接线后的严格身份联合验收。每道交付固定 SHA、CI、真实浏览器工件与剩余缺口；独立模块 CI 不代替真实集成验收。
+- **预计合并顺序**：F #25 并入 A → E 接线第一道随下一批集成评估 → C+D P2（AC-P2a/b）与 B-ENV-1 修复期间并行推进 E 第二道 → 严格身份联合验收。
+- 接口文档以 E 已交付三份为准（visual-sampler-identity-rfc / source-ref-dual-alignment / visual-evidence-f-consumption），不要求另行冻结说明。
