@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { projectPreviewViewports } from '../src/core/project-viewports'
+import { collectRuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
@@ -264,6 +265,56 @@ const sourcePreviewResponse = page.waitForResponse(response => response.url().in
     const preview = page.frameLocator('iframe[data-testid="candidate-preview"]')
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toBeVisible({ timeout: 90_000 })
     await expect(preview.getByRole('heading', { name: 'Candidate title' })).toHaveAttribute('data-ripple-source', /jsx:src\/pages\/HomePage\.tsx#/)
+    // Diagnostic evidence from the real Docker candidate iframe. Preserve the existing
+    // stable-react-instance assertion: never downgrade the expectation to make CI green.
+    const candidateFrameUrl = await page.getByTestId('candidate-preview').getAttribute('src')
+    const candidateFrame = page.frames().find(frame => frame.url() === candidateFrameUrl)
+    expect(candidateFrame).toBeTruthy()
+    const runtimeDiagnosis = await candidateFrame!.evaluate(collector => {
+      const heading = document.querySelector('h1[data-ripple-source]')
+      const all = (0, eval)(`(${collector})`)({ label: 'data-testid' }) as {
+        records: Array<{ sourceRef: string; runtimeInstanceId?: string; certainty: string; reasons: string[]; sourceVersion?: string; sameSourceCount: number }>
+        page: { pathname: string; search: string; hash: string }
+      }
+      const sourceRef = heading?.getAttribute('data-ripple-source') ?? ''
+      return {
+        raw: {
+          sourceRef, instance: heading?.getAttribute('data-ripple-instance'),
+          certainty: heading?.getAttribute('data-ripple-identity-certainty'),
+        },
+        page: all.page,
+        collected: all.records.filter(record => record.sourceRef === sourceRef),
+      }
+    }, collectRuntimeIdentitySnapshot.toString())
+    console.log('RIPPLE_RUNTIME_IDENTITY_DIAG ' + JSON.stringify(runtimeDiagnosis))
+    const transformDiagnosis = await candidateFrame!.evaluate(async () => {
+      const modules = await Promise.all(['/src/main.tsx', '/src/App.tsx', '/src/pages/HomePage.tsx'].map(async address => {
+        const res = await fetch(address)
+        const body = await res.text()
+        const lines = body.split('\n')
+        return {
+          address, status: res.status, bytes: body.length,
+          hasBoundary: body.includes('RippleIdentity'),
+          hasUseIdentity: body.includes('__rippleUseIdentity'),
+          excerpts: lines.map((line, i) => ({ line: i + 1, text: line.slice(0, 400) }))
+            .filter(({ text }) => /RippleIdentity|__rippleUseIdentity|__rippleUseId|HomePage|createRoot|virtual:ripple/.test(text)).slice(0, 18),
+        }
+      }))
+      const heading = document.querySelector('h1[data-ripple-source]')
+      const fiberKey = heading && Object.keys(heading).find(key => key.startsWith('__reactFiber$'))
+      const fiber = fiberKey && (heading as unknown as Record<string, { type?: unknown; key?: unknown; return?: unknown }>)[fiberKey]
+      const chain: Array<{ type: string; key: string | null }> = []
+      let cursor: unknown = fiber
+      for (let depth = 0; depth < 16 && cursor && typeof cursor === 'object'; depth++) {
+        const current = cursor as { type?: unknown; key?: unknown; return?: unknown }
+        const type = typeof current.type === 'function' ? (current.type.name || '<anonymous>') : String(current.type)
+        chain.push({ type, key: typeof current.key === 'string' ? current.key : null })
+        cursor = current.return
+      }
+      return { modules, fiberChain: chain }
+    })
+    console.log('RIPPLE_COMPONENT_BOUNDARY_DIAG ' + JSON.stringify(transformDiagnosis))
+
     await page.getByTestId('toggle-element-selection').click()
     await preview.getByRole('heading', { name: 'Candidate title' }).click()
     await expect(page.getByTestId('selected-source')).toBeVisible({ timeout: 15_000 })
@@ -936,7 +987,14 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   for (const [pageId, markerText, navigationName] of verificationPages) {
     await page.getByLabel(`${pageId} 页面访问路径`).fill('/')
     await page.getByLabel(`${pageId} 页面标记文字`).fill(markerText)
-    if (navigationName) await page.getByLabel(`${pageId} 页面导航控件名称`).fill(navigationName)
+    if (navigationName) {
+      await page.getByLabel(`${pageId} 页面导航控件名称`).fill(navigationName)
+      // Run #13: the pinned Bolt project hides desktop nav and declares a
+      // collapsible mobile menu (aria-label 菜单) outside the nav landmark on
+      // narrow viewports; declaring it lets the runner open the menu instead
+      // of failing all 375/390 visits.
+      await page.getByLabel(`${pageId} 页面菜单控件名称`).fill('菜单')
+    }
   }
   await page.getByTestId('add-verification-interaction').click()
   await page.getByLabel('交互检查 1 所在页面').selectOption('page:home')
@@ -986,7 +1044,13 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     blockedExternalResourceUrls: string[]
   }
   fs.writeFileSync(path.join(evidenceRoot, 'bolt-workbench-execution.json'), JSON.stringify(execution, null, 2))
-  await expect(page.getByTestId('verification-state')).toContainText('PASSED', { timeout: 480_000 })
+  // The terminal class was already pinned above, so the state text is final
+  // here: assert it immediately and explicitly instead of waiting out a long
+  // PASSED poll (Run #13 ended RISKS and burned the full 480 s timeout before
+  // failing). RISKS/UNKNOWN/INCOMPLETE are NOT rewritten as PASS — they fail
+  // right now, with the complete execution record already persisted above.
+  const terminalStateText = (await page.getByTestId('verification-state').innerText()).replace(/\s+/g, ' ').trim()
+  expect(terminalStateText.includes('PASSED'), `Bolt acceptance requires PASSED; terminal state was '${terminalStateText}' (full execution record persisted at bolt-workbench-execution.json, assertions checked below)`).toBe(true)
   const assertions = page.getByTestId('verification-assertions')
   for (const assertionId of ['target-change', 'non-target-preserved', 'scope-propagation', 'interaction', 'responsive-layout', 'source-mapping', 'browser-errors']) {
     await expect(assertions.locator('div').filter({ hasText: assertionId })).toContainText('PASS')
@@ -1034,7 +1098,12 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
   expect(execFileSync('git', ['-C', appliedProject, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()).toBe(originalHead)
 
   const restored = await (await page.request.post('http://127.0.0.1:4173/__ripple/api/candidate/restore', { data: { candidateId } })).json() as { analysis: { revision: { projectId: string } } }
-  const appliedPreviewResponse = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/preview', { data: { projectId: restored.analysis.revision.projectId } })
+  const appliedPreviewResponse = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/preview', { data: { projectId: restored.analysis.revision.projectId, appliedCandidateId: candidateId } })
+  if (!appliedPreviewResponse.ok()) {
+    const status = appliedPreviewResponse.status()
+    const bodyText = await appliedPreviewResponse.text()
+    throw new Error(`applied preview failed: HTTP ${status}: ${bodyText}`)
+  }
   expect(appliedPreviewResponse.ok()).toBe(true)
   const appliedPreview = await appliedPreviewResponse.json() as { projectId: string; previewId: string; url: string }
   sourcePreviewProjectId = appliedPreview.projectId

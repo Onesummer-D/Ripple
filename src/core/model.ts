@@ -38,10 +38,37 @@ export interface SourceGraph {
   edges: Relation[]
   unresolved: string[]
 }
+/** Why a collected runtime identity cannot be treated as one proven instance. */
+export type RuntimeIdentityReason =
+  | 'invalid-certainty'
+  | 'unmapped-owner'
+  | 'instance-unavailable'
+  | 'duplicate-runtime-instance'
+  | 'route-namespace-stale'
+  | 'source-version-unavailable'
+  | 'source-version-ambiguous'
+  | 'source-version-mismatch'
+  | 'source-not-in-graph'
+  | 'page-context-mismatch'
+  | 'page-context-unverified'
+  | 'react-keys-unavailable'
+  | 'identity-not-stable'
+/** Browser location an element was observed at (client routing may use any of the parts). */
+export interface RuntimePageContext {
+  pathname: string
+  search: string
+  hash: string
+}
 export interface RuntimeElementObservation {
   sourceRef: Id
   runtimeInstanceId: Id
   certainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
+  /** Optional, additive: where the element was observed. */
+  pageContext?: RuntimePageContext
+  /** Optional, additive: sha256 of the served source file that rendered `sourceRef`. */
+  sourceVersion?: string
+  /** Optional, additive: collection-time downgrade reasons. */
+  reasons?: RuntimeIdentityReason[]
 }
 export interface RuntimeSourceMap {
   graphId: Id
@@ -67,6 +94,7 @@ export interface BrowserVerificationContract {
     path: string
     markerText: string
     navigateBy?: { role: BrowserControlRole; name: string }
+    menuControl?: { role: BrowserControlRole; name: string }
   }>
   interactions: Array<{
     pageRef: Id

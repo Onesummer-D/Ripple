@@ -27,4 +27,19 @@ describe('user-declared browser verification contract', () => {
     expect(() => normalizeVerificationContract({ ...value, pages: [value.pages[0], value.pages[0]] }, ['page:home'])).toThrow(/unique/)
     expect(() => normalizeVerificationContract({ ...value, interactions: [{ ...value.interactions[0], role: 'textbox' }] }, ['page:home', 'page:autumn'])).toThrow(/buttons or links/)
   })
+
+  it('normalizes a declared collapsible menu control and rejects malformed ones', () => {
+    const withMenu = {
+      ...value,
+      pages: [
+        value.pages[0],
+        { ...value.pages[1], menuControl: { role: 'button', name: '菜单' } },
+      ],
+    }
+    const normalized = normalizeVerificationContract(withMenu, ['page:home', 'page:autumn'])!
+    expect(normalized.pages[1]).toMatchObject({ navigateBy: { role: 'button', name: 'Autumn route' }, menuControl: { role: 'button', name: '菜单' } })
+    expect(() => normalizeVerificationContract({ ...value, pages: [value.pages[0], { ...value.pages[1], menuControl: { role: 'textbox', name: '菜单' } }] }, ['page:home', 'page:autumn'])).toThrow(/buttons or links/)
+    expect(() => normalizeVerificationContract({ ...value, pages: [value.pages[0], { ...value.pages[1], menuControl: null }] }, ['page:home', 'page:autumn'])).toThrow(/menu control is invalid/)
+    expect(() => normalizeVerificationContract({ ...value, pages: [value.pages[0], { ...value.pages[1], menuControl: { role: 'button', name: '' } }] }, ['page:home', 'page:autumn'])).toThrow(/menu control name/)
+  })
 })

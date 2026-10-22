@@ -117,6 +117,11 @@ export function createViewportScope({ checkId, viewport, progress, recordError, 
       return { ...described, ...location }
     },
 
+    // Diagnostic note stamped with this viewport's checkId (and the late flag
+    // after close), for auditable non-error events such as navigation
+    // disambiguation. Unlike timed() it is not a phase and cannot fail.
+    note(entry) { emit(entry) },
+
     async timed(phase, fn, extra = {}) {
       const started = now()
       const id = ++phaseSequence

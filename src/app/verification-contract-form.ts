@@ -7,6 +7,8 @@ export interface VerificationContractDraft {
     markerText: string
     navigationRole: BrowserControlRole
     navigationName: string
+    menuRole: BrowserControlRole
+    menuName: string
   }>
   interactions: Array<{
     id: string
@@ -70,6 +72,8 @@ export function createVerificationContractDraft(
         markerText: saved?.markerText ?? '',
         navigationRole: saved?.navigateBy?.role ?? 'button',
         navigationName: saved?.navigateBy?.name ?? '',
+        menuRole: saved?.menuControl?.role ?? 'button',
+        menuName: saved?.menuControl?.name ?? '',
       }
     }),
     interactions: (contract?.interactions ?? []).map((interaction, index) => ({
@@ -92,6 +96,8 @@ export function rebaseVerificationContractDraft(
       markerText: '',
       navigationRole: 'button',
       navigationName: '',
+      menuRole: 'button',
+      menuName: '',
     }),
     interactions: draft.interactions.filter(interaction => routeRefs.has(interaction.pageRef)),
   }
@@ -100,11 +106,12 @@ export function rebaseVerificationContractDraft(
 export function toBrowserVerificationContract(draft: VerificationContractDraft): BrowserVerificationContract | undefined {
   const pages = draft.pages
     .filter(page => page.path.trim() && page.markerText.trim())
-    .map(({ pageRef, path, markerText, navigationRole, navigationName }) => ({
+    .map(({ pageRef, path, markerText, navigationRole, navigationName, menuRole, menuName }) => ({
       pageRef,
       path: path.trim(),
       markerText: markerText.trim(),
       ...(navigationName.trim() ? { navigateBy: { role: navigationRole, name: navigationName.trim() } } : {}),
+      ...(menuName.trim() ? { menuControl: { role: menuRole, name: menuName.trim() } } : {}),
     }))
   const declaredPages = new Set(pages.map(page => page.pageRef))
   const interactions = draft.interactions

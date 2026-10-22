@@ -21,6 +21,21 @@ process.env.RIPPLE_WORKBENCH_STATE_DIR = apiStateRoot
 let server: ViteDevServer | undefined
 let baseUrl = ''
 
+/** Some Git files are read-only; clear the read-only bit before removing. Never chmod or
+ * follow symbolic links — their targets may live outside the temporary tree. */
+function removeTree(root: string): void {
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue
+      const target = path.join(dir, entry.name)
+      try { fs.chmodSync(target, entry.isDirectory() ? 0o777 : 0o666) } catch { /* keep walking */ }
+      if (entry.isDirectory()) walk(target)
+    }
+  }
+  try { walk(root) } catch { /* root may already be gone */ }
+  fs.rmSync(root, { recursive: true, force: true })
+}
+
 function makeGitProject(): string {
   const root = fs.mkdtempSync(path.join(tempParent, 'ripple-local-api-'))
   roots.push(root)
@@ -44,8 +59,8 @@ async function startApi(options?: LocalProjectApiOptions): Promise<void> {
 afterEach(async () => {
   await server?.close()
   server = undefined
-  for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
-  fs.rmSync(apiStateRoot, { recursive: true, force: true })
+  for (const root of roots.splice(0)) removeTree(root)
+  removeTree(apiStateRoot)
 })
 
 describe('loopback Project API', () => {
@@ -319,4 +334,98 @@ describe('loopback Project API', () => {
     expect(dirty.status).toBe(400)
     expect(fs.readFileSync(path.join(projectRoot, 'untracked.txt'), 'utf8')).toBe('keep')
   })
+
+  it('previews the applied revision only by explicit candidate identity and keeps every other dirty-tree gate', async () => {
+    const projectRoot = makeGitProject()
+    await startApi()
+    const request = (route: string, body: unknown) => fetch(`${baseUrl}/__ripple/api/${route}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: baseUrl }, body: JSON.stringify(body) })
+    const analysis = await (await request('analyze', { projectRoot })).json() as { revision: { projectId: string }; targets: Array<{ id: string; value: string }> }
+    const target = analysis.targets.find(item => item.value === 'Baseline title')!
+
+    const cleanPreview = await request('project/preview', { projectId: analysis.revision.projectId })
+    expect(cleanPreview.status).toBe(503)
+    expect((await cleanPreview.json()).error).toMatch(/node_modules|Linux 容器/)
+    const emptyIdentity = await request('project/preview', { projectId: analysis.revision.projectId, appliedCandidateId: '' })
+    expect(emptyIdentity.status).toBe(400)
+    const missingIdentity = await request('project/preview', { projectId: analysis.revision.projectId, appliedCandidateId: 'missing-candidate' })
+    expect(missingIdentity.status).toBe(404)
+
+    const createdResponse = await request('candidate', {
+      projectId: analysis.revision.projectId, rawIntent: 'Change the title and preview the applied revision',
+      scope: { id: 'scope-applied-preview', version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() },
+      operations: [{ id: 'op-applied-preview', kind: 'TEXT', targetRef: target.id, before: target.value, after: 'Applied preview title' }],
+    })
+    expect(createdResponse.status).toBe(200)
+    const created = await createdResponse.json() as { sessionId: string; candidate: { id: string; patchHash: string; candidateTreeDigest: string; baseSourceDigest: string } }
+
+    const storedPath = path.join(apiStateRoot, created.sessionId, 'session.json')
+    const stored = JSON.parse(fs.readFileSync(storedPath, 'utf8')) as StoredCandidate
+    const verificationRoot = path.join(apiStateRoot, created.sessionId, 'artifacts', 'verification', created.candidate.id, 'applied-preview-run')
+    fs.mkdirSync(verificationRoot, { recursive: true })
+    const screenshot = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pZsAAAAASUVORK5CYII=', 'base64')
+    const screenshotPath = path.join(verificationRoot, 'home.png')
+    fs.writeFileSync(screenshotPath, screenshot)
+    const artifactHash = createHash('sha256').update(screenshot).digest('hex')
+    const assertions = REQUIRED_VERIFICATION_ASSERTION_IDS.map(id => ({ id, result: 'unknown' as const, detail: `${id} is not exercised by this fixture` }))
+    const viewport = { width: 1280, height: 800 }
+    const run: VerificationRun = {
+      id: 'verification-applied-preview', candidateId: created.candidate.id, scopeDecisionId: stored.record.scopeDecisionId, scopeVersion: stored.record.scopeVersion,
+      baseSourceDigest: stored.record.baseSourceDigest, patchHash: stored.record.patchHash, candidateTreeDigest: stored.record.candidateTreeDigest,
+      runtimeFingerprint: stored.session.projectRevision.runtimeFingerprint, startedAt: '2026-10-22T00:00:00Z', completedAt: '2026-10-22T00:01:00Z',
+      checks: [{ id: 'home-desktop', route: '/', viewport, state: 'loaded', description: 'home loaded', mandatory: true }], assertions,
+      evidence: [{ id: 'evidence-applied-preview', checkId: 'home-desktop', result: 'pass', capturedAt: '2026-10-22T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: 'loaded', elementRefs: [], artifactPath: screenshotPath, artifactHash }], status: 'passed',
+    }
+    const recordPath = path.join(verificationRoot, 'execution.json')
+    fs.writeFileSync(recordPath, JSON.stringify({
+      schemaVersion: 4, executor: 'playwright', completed: true, runId: run.id, candidateId: run.candidateId,
+      scopeDecisionId: run.scopeDecisionId, scopeVersion: run.scopeVersion, baseSourceDigest: run.baseSourceDigest,
+      patchHash: run.patchHash, candidateTreeDigest: run.candidateTreeDigest, runtimeFingerprint: run.runtimeFingerprint,
+      viewports: [{ name: 'applied-preview', width: viewport.width, height: viewport.height }],
+      checks: run.checks.map(check => ({ id: check.id, route: check.route, viewport: check.viewport, state: check.state, passed: true })),
+      assertions, evidence: run.evidence.map(item => ({ ...item, artifactPath: path.basename(item.artifactPath!) })),
+      artifacts: [{ checkId: 'home-desktop', path: path.basename(screenshotPath), sha256: artifactHash }],
+    }))
+    stored.session.runs.push(attestBrowserExecution(run, recordPath))
+    stored.session.status = 'verified'
+    fs.writeFileSync(storedPath, JSON.stringify(stored))
+
+    await server?.close()
+    server = undefined
+    await startApi()
+    expect((await request('candidate/restore', { candidateId: created.candidate.id })).status).toBe(200)
+    expect((await request('candidate/approve', { candidateId: created.candidate.id, runId: 'verification-applied-preview' })).status).toBe(200)
+    expect((await request('candidate/apply', { candidateId: created.candidate.id })).status).toBe(200)
+    const homePagePath = path.join(projectRoot, 'src', 'pages', 'HomePage.tsx')
+    const appliedSource = fs.readFileSync(homePagePath, 'utf8')
+    expect(appliedSource).toContain('Applied preview title')
+
+    const dirtyPreview = await request('project/preview', { projectId: analysis.revision.projectId })
+    expect(dirtyPreview.status).toBe(409)
+    expect((await dirtyPreview.json()).error).toMatch(/工作树已发生修改/)
+    const appliedPreview = await request('project/preview', { projectId: analysis.revision.projectId, appliedCandidateId: created.candidate.id })
+    expect(appliedPreview.status).toBe(503)
+    expect((await appliedPreview.json()).error).toMatch(/node_modules|Linux 容器/)
+
+    fs.writeFileSync(homePagePath, `${appliedSource}\n// externally rewritten after apply\n`)
+    const modifiedPreview = await request('project/preview', { projectId: analysis.revision.projectId, appliedCandidateId: created.candidate.id })
+    expect(modifiedPreview.status).toBe(409)
+    expect((await modifiedPreview.json()).error).toMatch(/拒绝预览/)
+    fs.writeFileSync(homePagePath, appliedSource)
+
+    fs.writeFileSync(path.join(projectRoot, 'unexpected.txt'), 'surprise')
+    const untrackedPreview = await request('project/preview', { projectId: analysis.revision.projectId, appliedCandidateId: created.candidate.id })
+    expect(untrackedPreview.status).toBe(409)
+    expect((await untrackedPreview.json()).error).toMatch(/拒绝预览/)
+    fs.rmSync(path.join(projectRoot, 'unexpected.txt'))
+
+    expect((await request('candidate/rollback', { candidateId: created.candidate.id })).status).toBe(200)
+    expect(fs.readFileSync(homePagePath, 'utf8')).toContain('Baseline title')
+    expect(execFileSync('git', ['-C', projectRoot, 'status', '--porcelain'], { encoding: 'utf8' }).trim()).toBe('')
+    const rolledBackPreview = await request('project/preview', { projectId: analysis.revision.projectId, appliedCandidateId: created.candidate.id })
+    expect(rolledBackPreview.status).toBe(409)
+    expect((await rolledBackPreview.json()).error).toMatch(/已成功应用/)
+    const cleanAgainPreview = await request('project/preview', { projectId: analysis.revision.projectId })
+    expect(cleanAgainPreview.status).toBe(503)
+    expect((await cleanAgainPreview.json()).error).toMatch(/node_modules|Linux 容器/)
+  }, 90_000)
 })

@@ -16,6 +16,8 @@ import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { createBrowserErrorAccumulator } from './browser-error-accumulator.mjs'
+// @ts-expect-error Plain ESM without a TS build target.
+import { VERIFICATION_FONT_HEADER } from './preview-csp.mjs'
 import { createViewportScope, readCgroupUsage } from './verification-lifecycle.mjs'
 
 export const REQUIRED_ASSERTIONS = [
@@ -127,6 +129,11 @@ export async function executeVerification({
   }
 
   async function preparePage(page, scope, record) {
+    // Documents opened by the isolated runner carry the font-dependency
+    // header: the preview server then serves the verification shape of the
+    // CSP (snapshot-authorized fonts.gstatic.com allowed, see preview-csp.mjs).
+    // Interactive workbench previews never set it and keep the strict policy.
+    await page.setExtraHTTPHeaders({ [VERIFICATION_FONT_HEADER]: 'verified-font-dependencies' })
     await page.route('**/*', async route => {
       const requestedUrl = route.request().url()
       let parsed
@@ -204,30 +211,315 @@ export async function executeVerification({
     await page.waitForFunction(() => !!document.querySelector('#root')?.textContent?.trim(), undefined, { timeout: 15_000 })
   }
 
+  // True only for Playwright strict-mode ambiguity ("resolved to N elements"),
+  // which is the one failure mode where a narrower semantic context can
+  // legitimately rescue the click. Timeouts and missing controls propagate.
+  const isStrictModeAmbiguity = error => error instanceof Error && /strict mode violation/.test(error.message) && /resolved to \d+ elements?/.test(error.message)
+
+  // Clicks the contract's declared navigation control. When the name alone is
+  // ambiguous (Run #12: a hero CTA repeated a nav button's text), the only
+  // permitted resolution is a stable semantic context — the navigation
+  // landmark — and only when exactly one visible candidate remains there.
+  // Pages carrying two visible same-named controls inside navigation
+  // landmarks (e.g. desktop and mobile navs both live) stay UNKNOWN; the
+  // runner never picks a match by position (.first()/.nth(0)) because that
+  // would click an arbitrary element and could pass for the wrong route. The
+  // disambiguation is recorded only after the landmark-scoped click actually
+  // succeeded, with the viewport's checkId, side and match counts.
+  //
+  // Run #13 mobile contract: on narrow viewports the declared control can be
+  // unreachable until a declared collapsible menu is opened. The pinned Bolt
+  // project hides the desktop nav with display:none (excluded from the
+  // accessibility tree) while the collapsed overlay menu stays in the tree
+  // with opacity-0/pointer-events:none, so clicking it burns the full action
+  // timeout before failing. When the contract declares a menuControl that is
+  // present in the accessibility tree on this viewport, the menu leg owns the
+  // click: it opens the menu only when exactly one instance is visible and
+  // clicks the declared target only when exactly one visible candidate
+  // remains afterwards. A present-but-ambiguous declared menu (duplicate
+  // toggles, or toggles that exist but are not clickable here) is refused
+  // outright — never silently bypassed by falling back to a directly
+  // clickable nav target, which would launder the ambiguity into a PASS.
+  // Viewports where the toggle is absent from the tree entirely (desktop,
+  // tablet with the pinned Bolt markup) keep the original direct click and
+  // the Run #12 landmark rescue unchanged.
+  async function clickDeclaredControl(page, scope, side, spec) {
+    if (spec.menuControl) {
+      const toggles = page.getByRole(spec.menuControl.role, { name: spec.menuControl.name, exact: true })
+      if (await toggles.count() > 0) return openDeclaredMenuAndClick(page, scope, side, spec)
+    }
+    const target = page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
+    try {
+      await target.click({ timeout: actionTimeoutMs })
+      return false
+    } catch (error) {
+      if (!isStrictModeAmbiguity(error)) throw error
+    }
+    const landmarkScoped = page.getByRole('navigation').getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
+    const matches = await landmarkScoped.count()
+    const visible = []
+    for (let index = 0; index < matches; index += 1) {
+      const candidate = landmarkScoped.nth(index)
+      if (await candidate.isVisible()) visible.push(candidate)
+    }
+    if (visible.length !== 1) {
+      throw new Error(`declared navigation control '${spec.navigateBy.name}' is ambiguous: ${matches} matches inside navigation landmarks, ${visible.length} visible; refusing to pick one arbitrarily`)
+    }
+    await visible[0].click({ timeout: actionTimeoutMs })
+    scope.note({
+      event: 'navigation-disambiguated', pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path),
+      landmarkMatches: matches, visibleMatches: visible.length, viewport: scope.viewport,
+    })
+    return true
+  }
+
+  // Mobile-menu leg of the declared navigation contract (see
+  // clickDeclaredControl). Every refusal is an explicit reason, never a
+  // positional pick.
+  //
+  // Run #14: opening the menu is only half the contract — the target must be
+  // proven to belong to the menu THIS CLICK opened. Real pages keep footer
+  // nav and in-body CTAs with the same accessible names (the pinned Bolt
+  // project has both), so a page-wide role+name search after the open finds
+  // 2-3 visible matches and cannot decide. Two provable bindings, in priority
+  // order; both must attribute the activation to the click itself:
+  //   1. aria proof: when the toggle carries aria-expanded/aria-controls, the
+  //      page's own declaration owns the decision — the target must be the
+  //      single actionable match inside the resolved, now-visible region, AND
+  //      the open must be attributable to this click: aria-expanded must have
+  //      been absent/'false' before it, or the region/target must demonstrably
+  //      have been invisible/inert before it. A toggle already sitting at
+  //      aria-expanded='true' with an already-actionable region button proves
+  //      nothing about the click — it may be inert (review P1-1).
+  //   2. activation-transition proof (Bolt shape, no aria wiring): probe
+  //      which target matches exist and are ACTIONABLE before the open
+  //      (visible, sized, no pointer-events:none ancestor — isVisible() is
+  //      not enough, opacity-0/pointer-events:none overlays report visible),
+  //      then require exactly one match that is the SAME NODE as a pre-open
+  //      match and transitioned non-actionable -> actionable. Matches
+  //      actionable before AND after (footer, CTAs) are page chrome; a node
+  //      that did not exist before the click is a dynamically inserted
+  //      element, not menu evidence (review P1-2); a no-op toggle produces
+  //      zero transitions. Anything else is an explicit UNKNOWN.
+  async function openDeclaredMenuAndClick(page, scope, side, spec) {
+    const toggles = page.getByRole(spec.menuControl.role, { name: spec.menuControl.name, exact: true })
+    const toggleCount = await toggles.count()
+    const visibleToggles = []
+    for (let index = 0; index < toggleCount; index += 1) {
+      const toggle = toggles.nth(index)
+      if (await toggle.isVisible()) visibleToggles.push(toggle)
+    }
+    if (visibleToggles.length !== 1) {
+      throw new Error(`declared menu control '${spec.menuControl.name}' is ${visibleToggles.length === 0 ? 'missing or hidden' : 'ambiguous'}: ${toggleCount} matches, ${visibleToggles.length} visible; refusing to open a menu by position`)
+    }
+    const target = page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
+    const before = await targetProbe(target)
+    const toggle = visibleToggles[0]
+    const ariaBefore = await readToggleAria(toggle)
+    const regionBefore = ariaBefore.controls ? await probeAriaRegion(page, spec, ariaBefore.controls) : null
+    await toggle.click({ timeout: actionTimeoutMs })
+    const proven = await proveActivatedMenuTarget(page, spec, toggle, target, before, ariaBefore, regionBefore)
+    await proven.handle.click({ timeout: actionTimeoutMs })
+    scope.note({
+      event: 'navigation-menu-disambiguated', pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path),
+      menuControl: spec.menuControl.name, proof: proven.kind, regionId: proven.regionId ?? null,
+      preOpenActionable: before.filter(entry => entry.actionable).length, postOpenActionable: proven.postOpenActionable,
+      visibleMatches: 1, viewport: scope.viewport,
+    })
+    return true
+  }
+
+  // Probes every match of a locator, keeping each element handle paired with
+  // its actionability. ElementHandles stay valid across evaluate calls, so
+  // identity between the pre-open and post-open probes is a plain node
+  // comparison. Handles whose node was replaced by a re-render compare
+  // unequal; the callers treat that as failing closed, never as evidence.
+  async function targetProbe(locator) {
+    const probed = []
+    for (const handle of await locator.elementHandles()) {
+      probed.push({ handle, actionable: await isActionable(handle) })
+    }
+    return probed
+  }
+
+  async function isActionable(handle) {
+    return handle.evaluate(element => {
+      if (!(element instanceof HTMLElement)) return false
+      const rect = element.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return false
+      for (let node = element; node && node instanceof HTMLElement; node = node.parentElement) {
+        const style = getComputedStyle(node)
+        if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false
+      }
+      return true
+    }).catch(() => false)
+  }
+
+  async function readToggleAria(toggle) {
+    return toggle.evaluate(element => ({
+      expanded: element.getAttribute('aria-expanded'),
+      controls: element.getAttribute('aria-controls'),
+    })).catch(() => ({ expanded: null, controls: null }))
+  }
+
+  async function findSameNode(probed, handle) {
+    for (const entry of probed) {
+      if (await handle.evaluate((element, other) => element === other, entry.handle).catch(() => false)) return entry
+    }
+    return null
+  }
+
+  async function probeAriaRegion(page, spec, controls) {
+    const safeId = controls.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    const region = page.locator(`[id="${safeId}"]`)
+    if (await region.count() !== 1) return { resolvable: false, visible: false, probed: [] }
+    return {
+      resolvable: true,
+      visible: await region.first().isVisible().catch(() => false),
+      probed: await targetProbe(region.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })),
+    }
+  }
+
+  async function proveActivatedMenuTarget(page, spec, toggle, target, before, ariaBefore, regionBefore) {
+    const aria = await readToggleAria(toggle)
+    if (aria.expanded !== null || aria.controls !== null) {
+      if (aria.expanded !== 'true' || !aria.controls) {
+        throw new Error(`declared menu control '${spec.menuControl.name}' carries incomplete aria wiring (aria-expanded='${aria.expanded}', aria-controls='${aria.controls}') after the open; refusing to guess the menu region`)
+      }
+      const regionAfter = await probeAriaRegion(page, spec, aria.controls)
+      if (!regionAfter.resolvable || !regionAfter.visible) {
+        throw new Error(`aria-controls='${aria.controls}' does not resolve to exactly one visible region after opening declared menu '${spec.menuControl.name}'; refusing page-wide target search`)
+      }
+      const actionable = regionAfter.probed.filter(entry => entry.actionable)
+      if (actionable.length !== 1) {
+        throw new Error(`aria-controls region '${aria.controls}' holds ${actionable.length} actionable '${spec.navigateBy.name}' controls (expected exactly 1); refusing to pick one arbitrarily`)
+      }
+      if (ariaBefore.expanded === 'true') {
+        // The wiring claimed the menu was ALREADY open before our click; the
+        // click must still demonstrably change the target's reachability,
+        // otherwise the toggle may be inert and the region button was always
+        // clickable (review P1-1).
+        const prior = await findSameNode(regionBefore?.probed ?? [], actionable[0].handle)
+        const becameProvable = !regionBefore?.visible || (prior ? !prior.actionable : false)
+        if (!becameProvable) {
+          throw new Error(`declared menu control '${spec.menuControl.name}' already had aria-expanded='true' before the click and aria-controls region '${aria.controls}' already held an actionable '${spec.navigateBy.name}' control; the open is not attributable to this click; refusing`)
+        }
+      }
+      return { handle: actionable[0].handle, kind: 'aria-controls', regionId: aria.controls, postOpenActionable: actionable.length }
+    }
+    const after = await targetProbe(target)
+    const afterActionable = after.filter(entry => entry.actionable)
+    const beforeActionable = before.filter(entry => entry.actionable)
+    const activated = []
+    for (const entry of afterActionable) {
+      // The SAME NODE must have existed before the click and transitioned
+      // non-actionable -> actionable. Nodes that did not exist before are
+      // dynamically inserted content, not menu evidence (review P1-2).
+      const prior = await findSameNode(before, entry.handle)
+      if (prior && !prior.actionable) activated.push(entry)
+    }
+    if (activated.length !== 1 || afterActionable.length <= beforeActionable.length) {
+      throw new Error(`opening declared menu '${spec.menuControl.name}' did not prove a unique activated target: ${activated.length} '${spec.navigateBy.name}' control(s) transitioned to actionable (${beforeActionable.length} actionable before, ${afterActionable.length} after); refusing to pick by position`)
+    }
+    return { handle: activated[0].handle, kind: 'activation-transition', regionId: null, postOpenActionable: afterActionable.length }
+  }
+
+  // Binds a text match to the source module that rendered it, via the
+  // data-ripple-source annotation written by sourceAnnotationPlugin
+  // ('jsx:src/pages/HomePage.tsx#31' -> 'src/pages/HomePage.tsx'). Unannotated
+  // matches report null.
+  async function sourceFileOf(locator) {
+    return locator.evaluate(element => {
+      const annotated = element.closest('[data-ripple-source]')
+      const ref = annotated?.getAttribute('data-ripple-source') ?? null
+      if (!ref) return null
+      return ref.replace(/^jsx:/, '').split('#')[0]
+    }).catch(() => null)
+  }
+
+  // Run #13 wrong-route contract. Negation evidence must be bound to a real
+  // page identity, not to incidental copy: promotional banners, navigation
+  // and recommendation cards mention other pages' marker text all the time
+  // (the pinned Bolt HomePage carries the autumn page's exact marker in an
+  // event banner). Evidence grading for a visible other-page marker match
+  // outside chrome contexts (nav/footer landmarks, links — those never prove
+  // anything and are skipped):
+  //   - both sides annotated, SAME module → the page quoting itself: no
+  //     evidence (a home page legitimately renders its own promo copy);
+  //   - both sides annotated, DIFFERENT module → conflicting evidence, NOT a
+  //     verdict: module ownership is not route ownership (a home page may
+  //     import a shared EventBanner component). The route downgrades to
+  //     'ambiguous' (UNKNOWN) with a route-identity-conflict diagnostic, never
+  //     'wrong-route' on a file name alone;
+  //   - either side unannotated → the legacy conservative negation
+  //     ('wrong-route'), preserving the pre-Run-13 fail-closed semantics for
+  //     unproven route states.
+  // Residual, documented: one module rendering BOTH the page's own marker and
+  // another page's marker is indistinguishable from self-quoting at this
+  // abstraction, so it stays verified; only route-level ownership information
+  // (which the contract does not carry) could separate a shared shell from a
+  // double-mounted page.
+  async function wrongRouteEvidence(page, otherMarkerText, ownSourceFile) {
+    const matches = page.getByText(otherMarkerText, { exact: true })
+    const count = await matches.count()
+    let conflict = null
+    for (let index = 0; index < count; index += 1) {
+      const match = matches.nth(index)
+      if (!(await match.isVisible().catch(() => false))) continue
+      const probe = await match.evaluate(element => {
+        const inChromeContext = !!element.closest('nav, footer, [role="navigation"], [role="contentinfo"], a')
+        const annotated = element.closest('[data-ripple-source]')
+        const ref = annotated?.getAttribute('data-ripple-source') ?? null
+        return { inChromeContext, sourceFile: ref ? ref.replace(/^jsx:/, '').split('#')[0] : null }
+      }).catch(() => null)
+      if (!probe || probe.inChromeContext) continue
+      if (ownSourceFile && probe.sourceFile) {
+        if (probe.sourceFile !== ownSourceFile) conflict = conflict ?? { otherMarker: otherMarkerText, otherSourceFile: probe.sourceFile }
+        continue
+      }
+      return { kind: 'unbound' }
+    }
+    return conflict
+  }
+
   async function visitContractPage(scope, side, spec, reuseCurrent) {
     const extra = { pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path) }
     const { page } = side
+    let navigationDisambiguated = false
     if (!reuseCurrent) {
       await scope.timed('scope-navigate', () => page.goto(`http://${side.host}:5173${spec.path}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }), extra)
       await scope.timed('scope-root', () => waitForRoot(page), extra)
-      if (spec.navigateBy) await scope.timed('scope-navigation-action', () => page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true }).click({ timeout: actionTimeoutMs }), extra)
+      if (spec.navigateBy) navigationDisambiguated = await scope.timed('scope-navigation-action', () => clickDeclaredControl(page, scope, side, spec), extra)
     }
-    return scope.timed('scope-marker', async () => {
+    const marker = await scope.timed('scope-marker', async () => {
       const marker = page.getByText(spec.markerText, { exact: true })
       const markerMatchCount = await marker.count()
       const markerVisible = markerMatchCount > 0 && await marker.first().isVisible().catch(() => false)
       const declaredMatches = contractPages.filter(item => item.markerText === spec.markerText).length
       let routeIdentity = declaredMatches !== 1 || markerMatchCount > 1 ? 'ambiguous' : markerMatchCount === 0 ? 'missing' : 'verified'
       if (routeIdentity === 'verified') {
+        const ownSourceFile = await sourceFileOf(marker.first())
+        let conflict = null
         for (const otherMarker of new Set(contractPages.filter(item => item.pageRef !== spec.pageRef).map(item => item.markerText))) {
-          if (await page.getByText(otherMarker, { exact: true }).count() > 0) {
+          const evidence = await wrongRouteEvidence(page, otherMarker, ownSourceFile)
+          if (!evidence) continue
+          if (evidence.kind === 'unbound') {
             routeIdentity = 'wrong-route'
             break
           }
+          conflict = conflict ?? evidence
+        }
+        if (routeIdentity === 'verified' && conflict) {
+          routeIdentity = 'ambiguous'
+          scope.note({
+            event: 'route-identity-conflict', pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path),
+            ownSourceFile, otherMarker: conflict.otherMarker, otherSourceFile: conflict.otherSourceFile, viewport: scope.viewport,
+          })
         }
       }
       return { markerVisible, markerMatchCount, routeIdentity }
     }, extra)
+    return { ...marker, navigationDisambiguated }
   }
 
   // A failed visit is an observation (route identity unverified => UNKNOWN),
@@ -238,7 +530,7 @@ export async function executeVerification({
       return await visitContractPage(scope, side, spec, reuseCurrent)
     } catch (error) {
       scope.fail(error, { category: 'page-visit-failed', url: side.page.url(), pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path) })
-      return { markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing' }
+      return { markerVisible: false, markerMatchCount: 0, routeIdentity: 'missing', navigationDisambiguated: false }
     }
   }
 
@@ -442,6 +734,7 @@ export async function executeVerification({
         markerText: spec.markerText, baselineMarkerVisible: baselineProbe.markerVisible, candidateMarkerVisible: candidateProbe.markerVisible,
         baselineMarkerMatchCount: baselineProbe.markerMatchCount, candidateMarkerMatchCount: candidateProbe.markerMatchCount,
         baselineRouteIdentity: baselineProbe.routeIdentity, candidateRouteIdentity: candidateProbe.routeIdentity,
+        baselineNavigationDisambiguated: baselineProbe.navigationDisambiguated === true, candidateNavigationDisambiguated: candidateProbe.navigationDisambiguated === true,
         operations: input.targetBindings.map((binding, index) => {
           const expectation = binding.pageExpectations[spec.pageRef]
           return {
