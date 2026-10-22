@@ -189,3 +189,67 @@ B 在预演基线 `1485439`（含 #28）上对 codescandy 固定 SHA `b700bbd` �
 1. **当前优先**：完成 #28 正式集成（条件见 v3 检查表，同步后 CI 39850415100 待转 SUCCESS），P2 不重开已完成的 C+D 集成。
 2. #28 稳定合入 A 后：向 C+D Agent 派发 AC-P2a/AC-P2b（独立分支、独立 PR、正反例齐备、codescandy 探针前后对照），A 负责审查与合并。
 3. P2 完成后：向 B 返回可复验新基线 SHA，B 继续第三方真实 TEXT 生命周期（DOM 点选 → 四视口验证 → Approval/Apply/Rollback）。
+
+
+---
+
+# v5 总审更新（2026-10-23 晚间，A 总集成）
+
+## 0. 最新状态表（各线远端 HEAD，均已 git ls-remote 核实）
+
+| 线 | 分支 / PR | 远端 HEAD | CI 状态 | 下一步 |
+|---|---|---|---|---|
+| A 基线 | feat/project-first-core-20261018 | 16e737c16 | 稳定（Run #18 基准） | 等 #28 合并产生新 A HEAD |
+| C+D | feat/integration-cd-sourcegraph-20261022（PR #28） | 43f2ea24 | **重跑 run 39854058676 in_progress**（受控 dispatch） | CI 绿 → 负责人确认 → merge 进 A |
+| E 接入 | feat/e-visual-verification-integration-20261023 | d822819 | 39850834367 / 39850834496 均 SUCCESS | 自修 pairCrossVersion 双端 sourceVersion 校验 P1；接 VerificationRunner 待 RFC 答复 |
+| F #25 | feat/…real-adapter（PR #25） | 4c40694（另有 d4e1264 诊断+验收文档） | PR run 39851026342 SUCCESS | 等 #28 合并后并入统一工作台 |
+| B | feat/…media-text（PR #26 关联） | 79fb61d | — | 等 C+D P2 新基线后复验第三方 TEXT |
+| MEDIA | PR #26 | 12d992f | — | 最小差异接入，最后批次 |
+
+## 1. #28 CI 取消原因结论（本轮核实）
+
+- `ci.yml` concurrency group 为 `ripple-ci-${{ github.event.pull_request.head.sha || github.sha }}`。对挂 PR 的分支，push 事件与 pull_request 事件算出**同一 group key**，`cancel-in-progress` 互踩（43f2ea2 的 push run 39850410234 被同 group PR run 取消，属设计内行为）。
+- 但 43f2ea2 的 PR run 39850415100 与无 PR 的预演 push run 39850441832 是被**外部同时批量取消**，非 concurrency（当时无同 group 新 run 产生）。结论：取消非代码原因。
+- 早前 43f2ea2 push run 39850410128 唯一失败作业为 `codescandy-sourcegraph`（exit 2 BLOCKED），即已接受的 codescandy 支持边界，其余作业通过。
+- **处置**：对 43f2ea2 以 `workflow_dispatch` 触发完整重跑（run **39854058676**，in_progress）。未修改、未跳过任何浏览器断言，未触发 Bolt。最终结论以该 run 终态为准；预演分支 0f1b361 的 CI 作等价旁证。
+
+## 2. E 段落纠正（替代 v3/v4 中 E 待办）
+
+- v3 中"instance-proven 标签过强"待办已由 E 自行修复并复核（91dd54d → d822819）：配对等级全部改用弱语义命名（`instance-candidate` / `same-sourceRef-observed` / `unproven`），`scope.strictInstanceProofAvailable` 恒 false，F 只读消费并有逐字中文文案合同。
+- **新 P1（E 自修，A 跟踪验收）**：`pairCrossVersionElements()` 不应以"双侧 sourceVersion 哈希相等"为条件——baseline/candidate 本就是不同构建，预期不同；应各自对各自 SourceGraph 修订校验，且单 sourceVersion 不足以表示多文件页面。
+- E 视觉验收 run 39850834367 SUCCESS；Ripple CI 39850834496 SUCCESS（629 Vitest + 50 Playwright）。
+
+## 3. E 三份 RFC 已接收（d822819），C+D 待确认 5 点
+
+1. **版本校验口径**：`source-version-mismatch` 仅在能证明 candidate 的 sourceVersion 不属于其自身当前图谱修订时才升级为硬矛盾；两侧不同本身不矛盾。C+D 确认"各自修订摘要"比对逻辑的合同归属（A/C+D）。
+2. **sourceVersion 粒度**：单文件 sha256 不足以表示多文件页面；C+D 确认页面级修订摘要形态。
+3. **RuntimePageContext 只读传递**：C+D 在冻结路由合同时给出 `RuntimePageContext` 序列化形态与命名空间规则（建议沿用 `ripple-runtime-identity/v1` registry 命名空间，E 只读不写）。
+4. **采集期 reasons 语义**：确认 `RuntimeIdentityReason` 词表对 E 只读冻结；非 blocking 采集期 reason 是否允许进入视觉证据 reasons 展示字段（当前 E 只消费 blocking 交集）。
+5. **跨版本 offset 漂移映射**：提供（a）纳入版本指纹的稳定 sourceRef 锚（节点路径哈希）或（b）构建期 baseline→candidate 映射表（哈希绑定）。答复前 E 配对到 `instance-candidate` 即停止。
+
+E 采样合同字段（sourceVersion、identityReasons、pageContext 守卫）均已实现并有测试；运行时接线（从 C+D registry 读数）待 C+D 路由合同冻结后由 A 总集成接入。
+
+## 4. F #25（4c40694）集成评估
+
+- 真实项目数据接入已具备合并条件（PR+push 双 CI，PR run 39851026342 SUCCESS；push run 被 concurrency 取消属预期行为）。
+- 新提交 d4e1264（会话级清理诊断 + 两个公网 demo 验收文档，腾讯云 81.70.40.146:8082 仅静态 DEMO）不改变运行时行为，可随下一批一并评估。
+- 下一批顺序：#28 合并进 A → C+D P2 独立分支 → E 修正后进 VerificationRunner → F #25 并入 → MEDIA 最小差异接入。
+- F 二阶段统一接入正式候选/验证/审批/应用/回滚链路的稳定基线 SHA = 43f2ea2（CI 绿后）或正式 merge 后新 A HEAD。
+
+## 5. B / MEDIA 待验收项
+
+- **AC-P2a**（composite JSX 子代来源证明，codescandy `ProfileHeader.tsx` L71–73 `<Link>Overview</Link>`）：C+D 在 #28 稳定后独立分支修复，正反例齐备（Link/NavLink 真实行为通过、未知复合组件不升级、封装语义变化自动降级），禁止仅凭组件名/浏览器文字升级 source-proven。
+- **AC-P2b**（data-router `errorElement: <NotFound />` 回退消费者 + route-coverage）：保守建模或保持 partial/unknown；不得删除 route-coverage 或屏蔽 graph.unresolved。
+- **B-ENV-1**（Windows CRLF/LF 检出导致源码范围偏移与字节一致性差异）：先要求字节级最小复现，不直接改安全哈希语义。
+- B 自修 `b-thirdparty-candidate-gate.mjs` 异常误当拒绝的 P1；A 集成时核验门控严格性。
+- MEDIA #26（12d992f）：真实素材替换及范围决策为最后批次，依赖统一工作台稳定。
+
+## 6. Windows 遗留（不阻塞 Linux 验收）
+
+- `source-identity.spec.ts:588`：staleObservations=0；已用 debug 脚本证明两分支图输出一致（224/224 节点、107 重叠），非合并回归，CRLF 偏移嫌疑（与 B-ENV-1 同源）。
+- `project-workbench.spec.ts:814`：EPERM 临时目录清理，环境性。
+
+## 7. 本批不变纪律
+
+- 不自行解除 PR #28 Draft、不合并 main、不触发 Bolt；codescandy 探针 exit 2 维持已知边界语义（不写成 PASS）。
+- Run #18 证据仅属 16e737c；#28 合并后新 A HEAD 需按合并检查表重新验证相关功能，昂贵真实 Bolt 验收仅在负责人授权后安排。
