@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { assertDesktopPreviewViewport, clickDesktopNavTarget } from './applied-preview-navigation'
 import { projectPreviewViewports } from '../src/core/project-viewports'
 import { collectRuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { createHash } from 'node:crypto'
@@ -1113,14 +1114,23 @@ test('runs the Bolt shared TEXT workflow through the workbench, applies the same
     frame.id = 'applied-bolt-preview'
     frame.title = 'Applied Bolt project'
     frame.sandbox.add('allow-scripts')
+    frame.style.width = '1280px'
+    frame.style.height = '800px'
     frame.src = url
     document.body.append(frame)
   }, appliedPreview.url)
   const appliedFrame = page.frameLocator('#applied-bolt-preview')
   await expect(appliedFrame.getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible({ timeout: 90_000 })
+  const appliedViewport = await assertDesktopPreviewViewport(appliedFrame)
+  const appliedPageHeadings: Record<string, string> = {
+    '秋日手作节': '秋日手作节',
+    '商品专题': '器物全集',
+    '品牌故事': '从山野，到日常',
+  }
   for (const label of ['秋日手作节', '商品专题', '品牌故事']) {
-    await appliedFrame.getByRole('button', { name: label, exact: true }).first().click()
-    await expect(appliedFrame.locator('footer').getByText('山野器物 · Ripple UI验收', { exact: true })).toBeVisible()
+    await clickDesktopNavTarget(appliedFrame, label)
+    await expect(appliedFrame.getByRole('heading', { level: 1, name: appliedPageHeadings[label] }), `applied preview must render the unique ${label} page heading '${appliedPageHeadings[label]}' before the footer check`).toBeVisible({ timeout: 30_000 })
+    await expect(appliedFrame.locator('footer').getByText('山野器物 · Ripple UI验收', { exact: true }), `applied preview footer marker must stay visible after navigating to ${label} (viewport ${appliedViewport.width}x${appliedViewport.height})`).toBeVisible({ timeout: 30_000 })
   }
   await appliedFrame.locator('body').screenshot({ path: path.join(evidenceRoot, 'bolt-workbench-applied-site.png') })
   const stopPreview = await page.request.post('http://127.0.0.1:4173/__ripple/api/project/preview/stop', { data: { projectId: sourcePreviewProjectId, previewId: sourcePreviewId } })
