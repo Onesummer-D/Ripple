@@ -359,6 +359,10 @@ export function inspectDataRouter(
     // to the const-only resolver, and `const first = routes[0]` hands out a
     // mutable element reference. Both are followed here; any write through
     // them fail-closes the whole route table.
+    // Bindings like `const selected = routes[key]` hand out a mutable element
+    // reference through an index the analysis cannot prove. Any later write
+    // through such a binding must fail-close the whole route table.
+    const fuzzyElementSymbols = new Set<ts.Symbol>()
     const resolveAlias = (expr: ts.Expression, seen = new Set<ts.Symbol>()): ts.Expression | undefined => {
       const raw = unwrap(expr)
       if (ts.isElementAccessExpression(raw)) {
@@ -384,6 +388,12 @@ export function inspectDataRouter(
       const declaration = bound.declarations?.find(ts.isVariableDeclaration)
       if (!declaration?.initializer) return undefined
       seen.add(bound)
+      const initial = unwrap(declaration.initializer)
+      if (ts.isElementAccessExpression(initial) && !ts.isNumericLiteral(initial.argumentExpression) &&
+        !ts.isPrefixUnaryExpression(initial.argumentExpression)) {
+        const target = resolveAlias(initial.expression, seen)
+        if (target && ts.isArrayLiteralExpression(target) && visitedArrays.has(target)) fuzzyElementSymbols.add(bound)
+      }
       // Unlike `resolve`, follow `let` aliases too: mutations do not need the
       // const provenance that route-table resolution requires.
       return resolveAlias(declaration.initializer, seen)
@@ -413,6 +423,16 @@ export function inspectDataRouter(
         if (ts.isElementAccessExpression(left) && arrayTarget(left.expression) ||
           ts.isPropertyAccessExpression(left) && (objectTarget(left.expression) || ts.isElementAccessExpression(left.expression) && arrayTarget(left.expression.expression))) {
           fail(file, node, 'route table or route object mutated by assignment')
+        }
+        // A property write through a binding selected with an unprovable index
+        // (`selected.Component = Home`) mutates an unknown member of the
+        // visited table even though const-only resolution cannot attribute it.
+        const fuzzyWrittenId =
+          ts.isPropertyAccessExpression(left) && ts.isIdentifier(left.expression) ? symbol(left.expression)
+          : ts.isElementAccessExpression(left) && ts.isStringLiteral(left.argumentExpression) && ts.isIdentifier(left.expression) ? symbol(left.expression)
+          : undefined
+        if (fuzzyWrittenId && fuzzyElementSymbols.has(fuzzyWrittenId)) {
+          fail(file, node, 'route table member mutated through a non-numeric index selection')
         }
         // Reassigning a variable that was bound to the visited table hands the
         // table to a name whose later writes can no longer be attributed.
