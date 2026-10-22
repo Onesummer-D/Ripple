@@ -96,13 +96,24 @@ interface ExperienceAdapter {
 ## 6. 回归结果（本机 Windows，CI 为权威）
 
 - `npm run typecheck`：通过。
-- 体验层定向：`real-adapter.test.ts` 10/10 + `experience-flow.test.tsx` 20/20 + `view-model.test.ts` 23/23 = 53/53 过。
+- 体验层定向：`real-adapter.test.ts` 13/13 + `experience-flow.test.tsx` 22/22 + `view-model.test.ts` 23/23 = 58/58 过（含 6.5 返工新增）。
 - `npx playwright test e2e/experience.spec.ts`：18/18 过（含 3 项真实后端用例）。
 - `npm run build`：通过（`tsconfig.node.tsbuildinfo` 已按 HANDOFF 机制恢复 A 基线字节）。
 - `node scripts/xp-real-acceptance.mjs`：9 项断言通过，控制台零意外错误，截图 3 张。
 - 全量 `npx vitest run`：438 过 / 2 跳过；失败集中于 5 个 `src/core/*` 文件（runtime-identity 34、project 21、project-data-routes 43、preview-optimize-deps 1、preview-resource-policy 2），失败原因均为已记录的本机环境限制（Windows 临时目录 EPERM，含中文路径 mangling）。本轮未触碰任何 core 文件，`git status` 可证；Linux CI 为权威结论。
 - `npm run test:browser`（Docker 全量）：本机无 Docker，未跑（与 HANDOFF 相同限制）。
 - 旧工作台 `src/app/ProjectWorkbench.tsx`、`src/main.tsx` 零改动，Bolt 验收路径不受影响。
+
+## 6.5 最终独立审查返工（2026-10-23，五组 P1 + P2）
+
+1. **候选状态终态优先**：`candidateStatus()` 以 lifecycle 为准——applied/rolled-back/stale/discarded 终态不被历史记录上保留的旧审批覆盖；仅 active 才用 approval/验证结果推导。覆盖 5 组用例。
+2. **过期请求不回写 UI**：`StaleResponseError` 改为导出并直接外抛（移除"返回 unavailable 模型"的掩盖式处理）；工作台以序号守卫忽略过期响应、不更新任何 UI 状态，并新增受控 Promise 竞态测试（A 慢 B 快，A 最后返回，UI 保持 B）。
+3. **目标切换清除 Scope 意向**：`selectElement()` 同时清空 `ui.scopes`——新目标默认 Scope 完全由其来源证明生成，旧意向不跨目标复用；切回也不恢复。
+4. **对照语义三态化**：`matchedViewport: boolean` 升级为 `compareState: 'comparable' | 'partial' | 'none'`——无候选显示"尚未生成候选，暂无可比较内容"；有候选缺任一侧真实截图显示"真实截图尚不齐全"；仅两侧真实截图齐备才显示"可比较"。未分析工程时来源分析 Evidence 不得标 pass（改为 unknown）。
+5. **真实页面导航明确未接入**：真实模式 PageRail 按钮停用 + "尚未接入（第二阶段）"说明，杜绝"高亮变了但画布没切"的误导。
+6. **P2**：openProject/refresh 前停止旧预演会话；预览请求在工程切换期间完成时立即回收新会话；`attachSourceRelations/attachRuntimeIdentity` 挂点数据随 `resetForProject` 清除，不跨工程残留；refresh 无工程时阻断文案与 load 对齐。
+
+回归：体验层单测 58/58（real-adapter 13 + flow 22 + view-model 23）；e2e 18/18；typecheck/build 通过；`tsconfig.node.tsbuildinfo` 恢复 A 基线字节。同步 A `16e737c`。
 
 ## 7. C+D 集成后的后续接入清单
 

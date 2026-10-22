@@ -238,6 +238,9 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await expect(page.getByTestId('project-status')).toContainText('工程就绪')
   await expect(page.getByTestId('demo-badge')).toHaveCount(0)
   await expect(page.getByTestId('page-item-page:home')).toBeVisible()
+  // 真实页面导航第一阶段明确未接入：按钮停用 + 说明，不误导用户以为画布已切页
+  await expect(page.getByTestId('page-nav-pending')).toContainText('尚未接入')
+  await expect(page.getByTestId('page-item-page:home')).toHaveAttribute('aria-current', 'page')
   // 编辑目标来自 targets，绝不出现演示 DOM
   await expect(page.getByTestId('target-strip')).toContainText('Acme 真实首页标题')
   await expect(page.getByTestId('demo-canvas')).toHaveCount(0)

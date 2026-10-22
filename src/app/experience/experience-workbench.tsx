@@ -3,6 +3,7 @@ import type { ExperienceAdapter } from './adapter'
 import { approvalFeedbackStale } from './view-model'
 import type { ExperienceViewModel, PageScopeChoiceXp } from './view-model'
 import { createDemoAdapter } from './demo-adapter'
+import { StaleResponseError } from './real-adapter'
 import { TopBar } from './components/top-bar'
 import { PageRail } from './components/page-rail'
 import { CanvasStage } from './components/canvas-stage'
@@ -33,7 +34,11 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
     let active = true
     activeAdapter.load()
       .then(loaded => { if (active) setModel(loaded) })
-      .catch(cause => { if (active) setError(cause instanceof Error ? cause.message : '工作台加载失败') })
+      .catch(cause => {
+        // 过期响应：已有更新的请求接管，绝不提交任何 UI 状态更新
+        if (cause instanceof StaleResponseError) return
+        if (active) setError(cause instanceof Error ? cause.message : '工作台加载失败')
+      })
     return () => { active = false }
   }, [activeAdapter, reloadToken])
 
@@ -46,14 +51,21 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
     setReloadToken(token => token + 1)
   }
 
+  const openProjectSeq = useRef(0)
+
   const openProject = () => {
     if (!activeAdapter.openProject || !openProjectPath.trim()) return
+    const seq = ++openProjectSeq.current
     setOpenProjectBusy(true)
     setOpenProjectError('')
     activeAdapter.openProject(openProjectPath.trim())
-      .then(loaded => setModel(loaded))
-      .catch(cause => setOpenProjectError(cause instanceof Error ? cause.message : '打开工程失败'))
-      .finally(() => setOpenProjectBusy(false))
+      .then(loaded => { if (openProjectSeq.current === seq) setModel(loaded) })
+      .catch(cause => {
+        // 过期响应：更新的请求已接管，不得覆盖其错误/状态提示
+        if (cause instanceof StaleResponseError) return
+        if (openProjectSeq.current === seq) setOpenProjectError(cause instanceof Error ? cause.message : '打开工程失败')
+      })
+      .finally(() => { if (openProjectSeq.current === seq) setOpenProjectBusy(false) })
   }
 
   if (error) return (
@@ -102,7 +114,13 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
       </form>
     )}
     <div className="ripple-xp-body">
-      <PageRail pages={model.pages} currentPageRef={model.currentPageRef} onSelectPage={pageRef => apply(activeAdapter.setPage(model, pageRef) ?? model)} />
+      <PageRail
+        pages={model.pages}
+        currentPageRef={model.currentPageRef}
+        onSelectPage={pageRef => apply(activeAdapter.setPage(model, pageRef) ?? model)}
+        // 真实模式第一阶段：预演 iframe 不支持页面切换，导航停用并明确标注（不误导用户）
+        navigationDisabled={model.dataProvenance === 'real'}
+      />
       <CanvasStage
         model={model}
         onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}

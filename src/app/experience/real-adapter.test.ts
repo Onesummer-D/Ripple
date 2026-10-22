@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createRealAdapter } from './real-adapter'
+import { createRealAdapter, StaleResponseError } from './real-adapter'
 import type { EvidenceItemXp, ExperienceViewModel } from './view-model'
 
 /**
@@ -112,6 +112,8 @@ describe('Real Adapter · 真实数据映射', () => {
     expect(model.pages).toEqual([])
     expect(model.elements).toEqual([])
     expect(model.versions).toEqual([])
+    // 尚未分析工程：来源分析证据如实为未知，不得标记 pass
+    expect(evidence(model, 'ev:source-graph').state).toBe('unknown')
     expect(calls).toEqual([]) // 没有工程目录时不发出任何请求
   })
 
@@ -164,13 +166,14 @@ describe('Real Adapter · 真实数据映射', () => {
     // 无运行 → 无截图 → 对照不可用而非伪造
     expect(model.compare.candidate.state).toBe('unavailable')
     expect(model.compare.baseline.state).toBe('unavailable')
-    // 候选存在但该视口缺截图 → 如实提示视口不一致；没有候选时不显示该警告
-    expect(model.compare.matchedViewport).toBe(false)
+    // 有候选但缺真实截图（基线侧也未提供）→ 对照不完整；不是"已经一致"
+    expect(model.compare.compareState).toBe('partial')
     const noHistory = { status: 200, body: { history: [] } } as const
     const { fetchImpl: fetchNone } = mockFetch({ analyze: ANALYSIS, history: noHistory, 'project/preview': PREVIEW })
     const adapterNone = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl: fetchNone })
     const emptyModel = await adapterNone.load()
-    expect(emptyModel.compare.matchedViewport).toBe(true)
+    // 没有候选：无可比较内容
+    expect(emptyModel.compare.compareState).toBe('none')
   })
 
   it('预演启动失败：画布不可用并给出准确阻断原因，其余真实数据不受影响', async () => {
@@ -251,10 +254,8 @@ describe('Real Adapter · 真实数据映射', () => {
     const pending = adapter.load()
     await adapter.dispose?.()
     resolveAnalyze?.(ANALYSIS)
-    const model = await pending
-    // dispose 已使 load 过期：返回的是空工程模型，绝不把过期响应投影成"已加载"
-    expect(model.projectStatus).toBe('unavailable')
-    expect(model.preview).toBeUndefined()
+    // dispose 已使 load 过期：过期响应以 StaleResponseError 拒绝，调用方不得据此更新任何 UI 状态
+    await expect(pending).rejects.toBeInstanceOf(StaleResponseError)
     // dispose 时预演会话尚未建立，不应发出停止请求
     expect(calls.some(call => call.path === 'project/preview/stop')).toBe(false)
   })
@@ -295,9 +296,8 @@ describe('Real Adapter · 异步契约', () => {
     expect(switched.versions).toEqual([])
     expect(switched.pages.map(page => page.id)).toEqual(['page:main'])
     resolveFirstAnalyze?.(ANALYSIS)
-    const staleModel = await firstLoad
-    // 过期 load 不得覆盖新工程状态
-    expect(staleModel.projectIdentity?.projectId).toBe('proj-other')
+    // 过期 load 以 StaleResponseError 拒绝：不得返回任何模型去覆盖 B 工程状态
+    await expect(firstLoad).rejects.toBeInstanceOf(StaleResponseError)
   })
 
   it('history 请求失败：历史如实为空，工程状态仍可用', async () => {
@@ -312,5 +312,87 @@ describe('Real Adapter · 异步契约', () => {
     expect(model.versions).toEqual([])
     expect(model.candidateStatus).toBe('none')
     expect(evidence(model, 'ev:verification').state).toBe('not-run')
+  })
+})
+
+describe('Real Adapter · 审查返工（终态优先 / Scope 隔离）', () => {
+  function historyWith(item: Record<string, unknown>) {
+    return { status: 200, body: { history: [{ projectId: 'proj-acme', patchHash: 'hash-abcdef1234567890', updatedAt: '2026-10-22T10:00:00Z', ...item }] } }
+  }
+  const approval = { approval: { verificationRunId: 'run-9', at: '2026-10-22T11:00:00Z' } }
+
+  async function loadWithHistory(history: unknown) {
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: history as MockResponse, 'project/preview': PREVIEW })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    return { adapter, model: await adapter.load() }
+  }
+
+  it('候选状态映射：lifecycle 终态优先，旧审批记录不得覆盖终态', async () => {
+    // 1. active + 无审批
+    const a = await loadWithHistory(historyWith({ candidateId: 'c-1', lifecycle: 'active', verification: { state: 'not-run' } }))
+    expect(a.model.candidateStatus).toBe('candidate')
+    // 2. active + 已审批
+    const b = await loadWithHistory(historyWith({ candidateId: 'c-2', lifecycle: 'active', verification: { state: 'passed' }, ...approval }))
+    expect(b.model.candidateStatus).toBe('approved')
+    // 3. applied + 保留审批 → 终态 applied，不被旧审批覆盖成 approved
+    const c = await loadWithHistory(historyWith({ candidateId: 'c-3', lifecycle: 'applied', verification: { state: 'passed' }, ...approval }))
+    expect(c.model.candidateStatus).toBe('applied')
+    // 4. rolled-back + 保留审批 → 终态 rolled-back
+    const d = await loadWithHistory(historyWith({ candidateId: 'c-4', lifecycle: 'rolled-back', verification: { state: 'passed' }, ...approval }))
+    expect(d.model.candidateStatus).toBe('rolled-back')
+    // 5a. stale + 保留历史审批 → 终态 stale
+    const e = await loadWithHistory(historyWith({ candidateId: 'c-5', lifecycle: 'stale', verification: { state: 'stale' }, ...approval }))
+    expect(e.model.candidateStatus).toBe('stale')
+    // 5b. discarded + 保留历史审批 → 无活跃候选
+    const f = await loadWithHistory(historyWith({ candidateId: 'c-6', lifecycle: 'discarded', verification: { state: 'passed' }, ...approval }))
+    expect(f.model.candidateStatus).toBe('none')
+  })
+
+  it('切换目标清除旧 Scope 意向：新目标默认 Scope 完全由其来源证明生成', async () => {
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_NOT_RUN, 'project/preview': PREVIEW })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    // 目标 A（首页标题，唯一证明页=首页）：设置多页范围意向
+    const selectedA = adapter.selectElement(loaded, 'data:hero-title')
+    const scopedA = adapter.setPageScope(selectedA, 'page:about', 'protect')
+    expect(scopedA.pages.find(page => page.id === 'page:about')?.scope).toBe('protect')
+    // 切到目标 B（共享标语，影响首页+关于，无唯一所属页）
+    const selectedB = adapter.selectElement(scopedA, 'data:shared-slogan')
+    // B 的默认 Scope 全部来自 B 的来源证明：关于页是 B 证明的同源页（include），
+    // 绝不继承 A 留下的 protect 意向
+    expect(selectedB.pages.find(page => page.id === 'page:about'))
+      .toMatchObject({ relation: 'same-source', relationCertainty: 'source-proven', scope: 'include' })
+    expect(selectedB.pages.every(page => page.scope !== 'protect')).toBe(true)
+    // 切回 A：旧意向已清除，回到 A 的默认（首页 editing include，关于页 undecided）
+    const backToA = adapter.selectElement(selectedB, 'data:hero-title')
+    expect(backToA.pages.find(page => page.id === 'page:home')).toMatchObject({ relation: 'editing', scope: 'include' })
+    expect(backToA.pages.find(page => page.id === 'page:about')?.scope).toBe('undecided')
+  })
+
+  it('工程切换停止旧预演会话，且 C/D 挂点数据不跨工程残留', async () => {
+    const { fetchImpl, calls } = mockFetch({
+      analyze: ANALYSIS,
+      history: HISTORY_NOT_RUN,
+      'project/preview': PREVIEW,
+      'project/preview/stop': PREVIEW_STOP,
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    const real = adapter as ReturnType<typeof createRealAdapter> & {
+      attachSourceRelations(r: unknown): void
+      attachRuntimeIdentity(o: unknown): void
+    }
+    real.attachSourceRelations({ provenUnaffectedRefs: ['page:about'] })
+    real.attachRuntimeIdentity({ sourceRef: 'data:hero-title', identityCertainty: 'stable-keyed-instance', reasons: [] })
+    // 工程 B：同一 analyze 响应（测试关注会话停止与挂点清除）
+    const switched = await adapter.openProject!('/work/other-app')
+    expect(switched.projectStatus).toBe('ready')
+    // 旧预演会话被停止
+    expect(calls.some(call => call.path === 'project/preview/stop')).toBe(true)
+    // C/D 挂点数据已清除：若旧的 provenUnaffectedRefs 残留，首页标题的关于页会被错误标记
+    // unrelated/source-proven；清除后它回到"清单外未证明"（unknown，不臆造无影响）
+    const after = adapter.selectElement(switched, 'data:hero-title')
+    expect(after.pages.find(page => page.id === 'page:about')).toMatchObject({ relation: 'unproven', relationCertainty: 'unknown' })
+    void loaded
   })
 })

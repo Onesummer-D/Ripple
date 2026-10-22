@@ -116,7 +116,13 @@ export interface ExperienceViewModel {
   canvasState: 'ready' | 'loading' | 'failed' | 'unavailable' | 'stale-evidence'
   evidence: EvidenceItemXp[]
   versions: VersionItemXp[]
-  compare: { baseline: CompareSideXp; candidate: CompareSideXp; matchedViewport: boolean; focusArea?: string }
+  /**
+   * 前后对照的可比较性（明确三态，避免把"无需警告"误读为"已经一致"）：
+   * - 'comparable'：两侧真实截图的身份、视口与必要交互状态均一致，可比较；
+   * - 'partial'：有候选但 baseline/candidate 任一侧缺真实截图，对照不完整；
+   * - 'none'：尚无候选，暂无可比较内容。
+   */
+  compare: { baseline: CompareSideXp; candidate: CompareSideXp; compareState: 'comparable' | 'partial' | 'none'; focusArea?: string }
   /** 真实模式：项目源码预演会话（iframe 唯一可信地址来源）。 */
   preview?: RealPreviewXp
   /** 真实模式：工程身份标注。 */

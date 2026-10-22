@@ -28,8 +28,14 @@ function RealShotInner({ side, label }: { side: CompareSide; label: string }) {
  * 演示模式渲染明确标记的模拟面板；真实模式只接受带来源的真实 imageUrl，
  * 绝不用前端动画假装已经做过真实浏览器验证。
  */
+const COMPARE_STATE_NOTE: Record<ExperienceViewModel['compare']['compareState'], { text: string; className: string }> = {
+  comparable: { text: '两端真实截图身份、视口与交互状态一致，可比较', className: '' },
+  partial: { text: '真实截图尚不齐全，对照结果不完整', className: 'is-mismatch' },
+  none: { text: '尚未生成候选，暂无可比较内容', className: 'is-empty' },
+}
+
 export function CompareStrip({ model }: { model: ExperienceViewModel }) {
-  const { baseline, candidate, matchedViewport, focusArea } = model.compare
+  const { baseline, candidate, compareState, focusArea } = model.compare
   const isDemo = model.dataProvenance === 'demo'
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const side = (label: string, sideState: CompareSide, testId: string) => (
@@ -63,8 +69,8 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
     </figure>
   )
   return <section className="ripple-xp-compare" aria-label="前后对照" data-testid="compare-strip">
-    <SectionTitle aside={<span className={`ripple-xp-match-note ${matchedViewport ? '' : 'is-mismatch'}`} data-testid="viewport-match-note">
-      {matchedViewport ? '两端视口与交互状态一致' : '两端视口不一致，对照结果仅供参考'}
+    <SectionTitle aside={<span className={`ripple-xp-match-note ${COMPARE_STATE_NOTE[compareState].className}`} data-testid="viewport-match-note">
+      {COMPARE_STATE_NOTE[compareState].text}
     </span>}>
       前后对照
     </SectionTitle>

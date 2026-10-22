@@ -123,7 +123,12 @@ export interface RealRuntimeIdentityObservation {
 
 /* ---------- 内部工具 ---------- */
 
-class StaleResponseError extends Error {}
+/**
+ * 过期响应错误：generation 不匹配时抛出。
+ * 语义：调用方（工作台）收到此错误时不得提交任何 UI 状态更新——
+ * 新请求的结果（或后续请求）才是唯一可信状态。
+ */
+export class StaleResponseError extends Error {}
 
 const VIEWPORTS: Array<Omit<ViewportXp, 'verificationStatus'>> = [
   { id: 'desktop', label: '桌面 1440', width: 1440, height: 900 },
@@ -208,6 +213,14 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     ui.currentPageRef = ''
     ui.activeViewportId = 'desktop'
     ui.scopes = {}
+    // C/D 挂点数据属于具体工程：切换工程时一并清除，避免跨工程残留
+    sourceRelations = undefined
+    runtimeIdentities.clear()
+  }
+
+  /** 停止一个预演会话（尽力而为，不阻断主流程）。 */
+  async function stopPreview(session: PreviewSession): Promise<void> {
+    await post('project/preview/stop', { projectId: session.projectId, previewId: session.previewId }).catch(() => undefined)
   }
 
   /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
@@ -223,8 +236,15 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     previewSession = undefined
     previewFailedReason = ''
     try {
-      previewSession = await post<PreviewSession>('project/preview', { projectId })
+      const session = await post<PreviewSession>('project/preview', { projectId })
+      if (gen !== generation) {
+        // 请求期间已切换/失效：立即回收刚创建的会话，再按过期处理
+        await stopPreview(session)
+        stale(gen)
+      }
+      previewSession = session
     } catch (error) {
+      if (error instanceof StaleResponseError) throw error
       previewFailedReason = error instanceof Error ? error.message : '项目预演启动失败'
     }
     stale(gen)
@@ -270,16 +290,21 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     return history[0]
   }
 
+  /**
+   * 候选状态映射（以 A local-project-api 的历史合同为准）：
+   * lifecycle 终态（applied/rolled-back/stale/discarded）优先——历史记录上保留的
+   * 旧审批不得把终态覆盖显示为"已审批"；仅 active 生命周期才用 approval/验证结果推导。
+   */
   function candidateStatus(): ExperienceViewModel['candidateStatus'] {
     const latest = latestCandidate()
     if (!latest) return 'none'
-    if (latest.approval) return 'approved'
     switch (latest.lifecycle) {
       case 'applied': return 'applied'
       case 'rolled-back': return 'rolled-back'
       case 'stale': return 'stale'
       case 'discarded': return 'none'
       default:
+        if (latest.approval) return 'approved'
         return latest.verification.state === 'passed' || latest.verification.state === 'risks' ? 'verified' : 'candidate'
     }
   }
@@ -293,7 +318,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     items.push({
       id: 'ev:source-graph',
       title: '来源分析（真实）',
-      state: unresolved.length ? 'risk' : 'pass',
+      // 尚未分析工程时不得标记 pass：没有来源证据就是未知
+      state: !analysis ? 'unknown' : unresolved.length ? 'risk' : 'pass',
       sourceKind: 'source-graph',
       summary: analysis
         ? unresolved.length
@@ -393,6 +419,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const viewportWidth = VIEWPORTS.find(item => item.id === ui.activeViewportId)?.width ?? 1440
     const latest = latestCandidate()
     const shot = latest?.verification.evidence?.find(entry => entry.artifactUrl && entry.viewport.width === viewportWidth)
+    // 基线侧截图目前 API 尚未提供；两侧真实截图（身份+视口+交互状态）都齐备才可比较
+    const baselineShot = undefined as undefined
     return {
       baseline: {
         state: 'unavailable',
@@ -404,9 +432,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             state: 'unavailable',
             note: latest ? `该视口暂无真实截图（验证${VERIFICATION_STATE_LABEL[latest.verification.state]}）。` : '验证尚未运行，没有真实截图。',
           },
-      // matchedViewport 语义：有候选且该视口缺截图时才提示"不一致"；
-      // 没有任何候选（无可对照内容）时不显示误导性警告
-      matchedViewport: !!shot || !latest,
+      // 明确三态：无候选=无可比较内容；有候选任一侧缺真实截图=不完整；两侧齐备=可比较
+      compareState: !latest ? 'none' : shot && baselineShot ? 'comparable' : 'partial',
       focusArea: elements().find(item => item.id === ui.selectedElementId)?.label,
     }
   }
@@ -451,13 +478,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     }
   }
 
-  async function guarded(action: () => Promise<ExperienceViewModel>): Promise<ExperienceViewModel> {
-    try {
-      return await action()
-    } catch (error) {
-      if (error instanceof StaleResponseError) return buildModel('unavailable')
-      throw error
-    }
+  /**
+   * 异步动作直接外抛：StaleResponseError 表示"已有更新的请求接管"，调用方
+   * （工作台）必须忽略它、不得提交任何 UI 状态更新——绝不返回一个
+   * unavailable 模型去覆盖新请求的 ready 状态来掩盖竞态。
+   */
+  function run(action: () => Promise<ExperienceViewModel>): Promise<ExperienceViewModel> {
+    return action()
   }
 
   return {
@@ -465,7 +492,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
 
     async load() {
       const gen = ++generation
-      return guarded(async () => {
+      return run(async () => {
         resetForProject()
         if (!projectRoot?.trim()) {
           return buildModel('unavailable', ['尚未选择工程：请输入本机 React/Vite 项目目录。'])
@@ -478,9 +505,11 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
 
     async openProject(root: string) {
       const gen = ++generation
-      return guarded(async () => {
-        // 工程切换：旧候选、旧证据、旧预演会话全部失效（resetForProject 内清空）
+      return run(async () => {
+        // 工程切换：旧候选、旧证据、旧预演会话全部失效；旧会话先尽力停止，避免服务端泄漏
+        const oldSession = previewSession
         resetForProject()
+        if (oldSession) await stopPreview(oldSession)
         projectRoot = root
         await loadProjectState(gen)
         stale(gen)
@@ -490,8 +519,12 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
 
     async refresh() {
       const gen = ++generation
-      return guarded(async () => {
+      return run(async () => {
         if (!analysis) return buildModel('unavailable', ['尚未选择工程：请输入本机 React/Vite 项目目录。'])
+        // 重拉前停止旧预演会话（refresh 会重建 preview 会话）
+        const oldSession = previewSession
+        previewSession = undefined
+        if (oldSession) await stopPreview(oldSession)
         await loadProjectState(gen)
         stale(gen)
         return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
@@ -503,7 +536,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       const session = previewSession
       previewSession = undefined
       if (session) {
-        await post('project/preview/stop', { projectId: session.projectId, previewId: session.previewId }).catch(() => undefined)
+        await stopPreview(session)
       }
     },
 
@@ -523,8 +556,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       // 清除后又被 spread 覆盖，产生悬空 selectedElementId）
       if (!elements().some(item => item.id === elementId)) return current
       ui.selectedElementId = elementId
-      // 草稿属于目标：切换目标即清空，旧草稿绝不跨目标复用
+      // 草稿与范围意向都属于目标：切换目标即清空。旧 Scope 决定绝不用于
+      // 来源关系不同的新目标——默认 Scope 完全由新目标的真实来源证明生成。
       ui.draftAfterText = ''
+      ui.scopes = {}
       // 候选状态反映真实生命周期，不被本地选中动作改写
       return { ...buildModel(current.projectStatus, current.blockedReasons), selectedElementId: elementId, candidateStatus: current.candidateStatus }
     },

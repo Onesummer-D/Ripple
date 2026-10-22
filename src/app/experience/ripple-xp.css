@@ -15,6 +15,7 @@
   --xp-warn: #c98a12;
   --xp-risk: #d05454;
   --xp-unknown: #8a94a3;
+  --xp-muted: #8a94a3;
   color: var(--xp-ink);
   background: var(--xp-bg);
   font-family: var(--xp-font);
@@ -94,7 +95,9 @@
 
 /* 左：页面导航（无卡片：平面区域 + 行分隔线） */
 .ripple-xp-page-rail { background: var(--xp-panel); padding: 12px 4px; }
+.ripple-xp-nav-pending { margin: 8px 8px 0; font-size: 12px; color: var(--xp-muted); border: 1px dashed var(--xp-line); border-radius: 6px; padding: 6px 8px; }
 .ripple-xp-page-rail ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; }
+.ripple-xp-page-item:disabled { cursor: not-allowed; opacity: 0.75; }
 .ripple-xp-page-rail li + li { border-top: 1px solid var(--xp-line); }
 .ripple-xp-page-item {
   width: 100%; text-align: left; border: 1px solid transparent; border-radius: 8px;
@@ -241,6 +244,7 @@
 .ripple-xp-compare-img { max-width: 100%; max-height: 130px; object-fit: contain; }
 .ripple-xp-match-note { color: var(--xp-ok); }
 .ripple-xp-match-note.is-mismatch { color: var(--xp-risk); }
+.ripple-xp-match-note.is-empty { color: var(--xp-muted); }
 
 .ripple-xp-film-list { list-style: none; margin: 0; padding: 0; display: flex; gap: 0; overflow-x: auto; }
 .ripple-xp-film-list li + li { border-left: 1px solid var(--xp-line); }
