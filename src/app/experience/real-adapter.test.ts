@@ -396,3 +396,78 @@ describe('Real Adapter · 审查返工（终态优先 / Scope 隔离）', () => 
     void loaded
   })
 })
+
+describe('Real Adapter · 合并前修订（停止挂起竞态 / 清理失败诊断）', () => {
+  it('openProject：旧会话停止请求挂起期间更新的请求先落定，过期续体不得改写 projectRoot', async () => {
+    const calls: Array<{ path: string; body?: unknown }> = []
+    let releaseStop: (() => void) | undefined
+    const stopGate = new Promise<void>(resolve => { releaseStop = resolve })
+    const analysisFor = (root: string, projectId: string) => ({
+      ...ANALYSIS.body,
+      projectRoot: root,
+      revision: { ...ANALYSIS.body.revision, projectId },
+    })
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const path = url.replace(/^.*?\/__ripple\/api\//, '')
+      calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined })
+      const respond = (status: number, body: unknown) => ({ ok: status >= 200 && status < 300, status, json: async () => body }) as unknown as Response
+      if (path === 'project/preview/stop') {
+        // 旧会话停止请求故意挂起：模拟停止响应迟迟不到的窗口
+        await stopGate
+        return respond(200, { stopped: true })
+      }
+      if (path === 'analyze') {
+        const root = (calls.at(-1)?.body as { projectRoot?: string } | undefined)?.projectRoot
+        const body = root === '/work/a' ? analysisFor('/work/a', 'proj-a') : root === '/work/init' ? analysisFor('/work/init', 'proj-init') : analysisFor('/work/b', 'proj-b')
+        return respond(200, body)
+      }
+      if (path === 'history') return respond(200, { history: [] })
+      if (path === 'project/preview') return respond(200, { projectId: 'proj-acme', previewId: `preview-${calls.length}`, sourceDigest: 'd', url: 'http://127.0.0.1:9999/' })
+      return respond(404, { error: `未注册的路由：${path}` })
+    }) as typeof fetch
+
+    const adapter = createRealAdapter({ projectRoot: '/work/init', fetchImpl })
+    const initial = await adapter.load()
+    expect(initial.projectStatus).toBe('ready')
+    expect(initial.projectName).toBe('init')
+
+    // 打开 A：reset 后 projectRoot 已同步落定 '/work/a'，但旧会话的停止请求挂起
+    const openA = adapter.openProject!('/work/a')
+    // 停止挂起期间打开 B：B 不等 A 的停止响应，先完成并接管
+    const openB = await adapter.openProject!('/work/b')
+    expect(openB.projectStatus).toBe('ready')
+    expect(openB.projectName).toBe('b')
+    // 放行 A 的停止请求：A 续体随后必须按过期拒绝，不得把 projectRoot 改写回 '/work/a'
+    releaseStop!()
+    await expect(openA).rejects.toBeInstanceOf(StaleResponseError)
+    // refresh 只能基于当前工程 B：analyze 请求体绝不得再出现 /work/a
+    const refreshed = await adapter.refresh!(openB)
+    expect(refreshed.projectName).toBe('b')
+    const analyzeRoots = calls.filter(call => call.path === 'analyze').map(call => (call.body as { projectRoot: string }).projectRoot)
+    expect(analyzeRoots.at(-1)).toBe('/work/b')
+    expect(analyzeRoots).not.toContain('/work/a')
+  })
+
+  it('stopPreview 失败如实诊断：Evidence 呈现 ev:cleanup 风险项，不静默伪装清理成功', async () => {
+    const { fetchImpl } = mockFetch({
+      analyze: ANALYSIS,
+      history: HISTORY_NOT_RUN,
+      'project/preview': PREVIEW,
+      'project/preview/stop': { status: 500, body: { error: '会话不存在' } },
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    expect(loaded.projectStatus).toBe('ready')
+    // 首次加载没有清理动作，不应出现清理风险项
+    expect(loaded.evidence.find(item => item.id === 'ev:cleanup')).toBeUndefined()
+    // refresh 停止旧会话失败：主流程不中断，但 Evidence 必须如实暴露清理风险
+    const refreshed = await adapter.refresh!(loaded)
+    expect(refreshed.projectStatus).toBe('ready')
+    const cleanup = evidence(refreshed, 'ev:cleanup')
+    expect(cleanup.state).toBe('risk')
+    expect(cleanup.sourceKind).toBe('runtime-observation')
+    expect(cleanup.summary).toContain('preview-1')
+    expect(cleanup.summary).toContain('会话不存在')
+  })
+})

@@ -34,6 +34,9 @@ const COMPARE_STATE_NOTE: Record<ExperienceViewModel['compare']['compareState'],
   none: { text: '尚未生成候选，暂无可比较内容', className: 'is-empty' },
 }
 
+/** DEMO 对照的明确标注：绝不显示真实截图校验通过的结论 */
+const DEMO_COMPARE_NOTE = { text: '演示对照：模拟内容，未经真实浏览器验证', className: 'is-demo' }
+
 export function CompareStrip({ model }: { model: ExperienceViewModel }) {
   const { baseline, candidate, compareState, focusArea } = model.compare
   const isDemo = model.dataProvenance === 'demo'
@@ -68,9 +71,10 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
       </figcaption>
     </figure>
   )
+  const note = isDemo ? DEMO_COMPARE_NOTE : COMPARE_STATE_NOTE[compareState]
   return <section className="ripple-xp-compare" aria-label="前后对照" data-testid="compare-strip">
-    <SectionTitle aside={<span className={`ripple-xp-match-note ${COMPARE_STATE_NOTE[compareState].className}`} data-testid="viewport-match-note">
-      {COMPARE_STATE_NOTE[compareState].text}
+    <SectionTitle aside={<span className={`ripple-xp-match-note ${note.className}`} data-testid="viewport-match-note">
+      {note.text}
     </span>}>
       前后对照
     </SectionTitle>

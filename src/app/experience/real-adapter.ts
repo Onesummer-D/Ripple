@@ -218,9 +218,21 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     runtimeIdentities.clear()
   }
 
-  /** 停止一个预演会话（尽力而为，不阻断主流程）。 */
+  /** 最近一次预演清理失败的诊断（如实记录，绝不把清理失败误报为成功）。 */
+  let lastCleanupFailure = ''
+
+  /**
+   * 停止一个预演会话：与 A 服务端合同兼容的尽力清理。
+   * 失败时记录诊断（服务端可能仍持有该会话；dispose/下一次 openProject/refresh
+   * 会再次尝试清理），不阻断主流程，也绝不静默伪装成清理成功。
+   */
   async function stopPreview(session: PreviewSession): Promise<void> {
-    await post('project/preview/stop', { projectId: session.projectId, previewId: session.previewId }).catch(() => undefined)
+    try {
+      await post('project/preview/stop', { projectId: session.projectId, previewId: session.previewId })
+      lastCleanupFailure = ''
+    } catch (error) {
+      lastCleanupFailure = `预演会话 ${session.previewId} 停止失败：${error instanceof Error ? error.message : '未知错误'}（服务端可能仍持有该会话，下次切换/刷新/关闭时会重试清理）`
+    }
   }
 
   /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
@@ -388,6 +400,17 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           : '运行时实例身份尚未通过点选采集（D 接口预留，接入前不臆造实例确定性）。',
       })
     }
+
+    if (lastCleanupFailure) {
+      // 清理失败如实呈现为风险，绝不静默伪装成清理成功
+      items.push({
+        id: 'ev:cleanup',
+        title: '预演会话清理（尽力清理）',
+        state: 'risk',
+        sourceKind: 'runtime-observation',
+        summary: lastCleanupFailure,
+      })
+    }
     return items
   }
 
@@ -419,8 +442,6 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const viewportWidth = VIEWPORTS.find(item => item.id === ui.activeViewportId)?.width ?? 1440
     const latest = latestCandidate()
     const shot = latest?.verification.evidence?.find(entry => entry.artifactUrl && entry.viewport.width === viewportWidth)
-    // 基线侧截图目前 API 尚未提供；两侧真实截图（身份+视口+交互状态）都齐备才可比较
-    const baselineShot = undefined as undefined
     return {
       baseline: {
         state: 'unavailable',
@@ -432,8 +453,12 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             state: 'unavailable',
             note: latest ? `该视口暂无真实截图（验证${VERIFICATION_STATE_LABEL[latest.verification.state]}）。` : '验证尚未运行，没有真实截图。',
           },
-      // 明确三态：无候选=无可比较内容；有候选任一侧缺真实截图=不完整；两侧齐备=可比较
-      compareState: !latest ? 'none' : shot && baselineShot ? 'comparable' : 'partial',
+      /**
+       * 对照可比较性：基线截图 API 尚未提供，真实模式有候选时如实保持 'partial'。
+       * 未来实现 'comparable' 时必须校验双方截图的候选身份（candidateId/patchHash）、
+       * 视口与必要验证上下文一致——不得仅判断两张图片 URL 是否存在。
+       */
+      compareState: !latest ? 'none' : 'partial',
       focusArea: elements().find(item => item.id === ui.selectedElementId)?.label,
     }
   }
@@ -506,11 +531,15 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     async openProject(root: string) {
       const gen = ++generation
       return run(async () => {
-        // 工程切换：旧候选、旧证据、旧预演会话全部失效；旧会话先尽力停止，避免服务端泄漏
+        // 工程切换：旧候选、旧证据、旧预演会话全部失效；旧会话先尽力停止，避免服务端泄漏。
+        // projectRoot 必须在任何 await 之前同步落定——停止请求挂起期间若有更新的
+        // openProject 先完成，本续体随后不得把 projectRoot 改写回旧工程。
         const oldSession = previewSession
         resetForProject()
-        if (oldSession) await stopPreview(oldSession)
         projectRoot = root
+        if (oldSession) await stopPreview(oldSession)
+        // 停止期间被更新的请求接管：立即按过期处理，不得继续 analyze
+        stale(gen)
         await loadProjectState(gen)
         stale(gen)
         return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
@@ -525,6 +554,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         const oldSession = previewSession
         previewSession = undefined
         if (oldSession) await stopPreview(oldSession)
+        stale(gen)
         await loadProjectState(gen)
         stale(gen)
         return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])

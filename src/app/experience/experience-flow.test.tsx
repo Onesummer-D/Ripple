@@ -24,6 +24,15 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('demo-badge')).toContain('演示数据')
   })
 
+  it('DEMO 对照文案负例：绝不显示真实截图校验通过的结论', async () => {
+    render(<ExperienceWorkbench />)
+    await screen.findByTestId('compare-strip')
+    expect(text('viewport-match-note')).toContain('演示对照')
+    expect(text('viewport-match-note')).toContain('未经真实浏览器验证')
+    expect(text('viewport-match-note')).not.toContain('可比较')
+    expect(text('viewport-match-note')).not.toContain('真实截图')
+  })
+
   it('打开网页：工程与候选状态、页面导航、画布就绪', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('project-status')
