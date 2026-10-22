@@ -1,20 +1,30 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// Vitest provides __dirname (CJS-style transform); Playwright transpiles to
+// real ESM where only import.meta.url exists. Support both.
+const here = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * Creates a unique fixture project directory under the repo's .tmp/fixtures.
+ * Creates a unique fixture project directory under a `.ripple-fixtures`
+ * sibling of the repository root (never inside it).
  *
  * Fixture projects must not live under the OS temp directory: Vite's esbuild
  * transform runs tsconfig discovery (tsconfck) upward from every served file,
  * and a stray or broken tsconfig.json in a temp ancestor directory — observed
  * on Windows developer machines — fails every TS/TSX transform with a 500.
- * They must also not live under node_modules: dependency-origin classifiers
- * treat any realpath containing a node_modules segment as an installed
- * third-party package. Under the repository root, discovery stays inside this
- * project's own (complete) tsconfig chain and realpaths stay clean.
+ * They must also not live under the repository root: tsconfck then discovers
+ * the repo's own tsconfig chain from served fixture files, mixing real
+ * project config into fixture transforms, and `.tmp` fixture trees risk being
+ * swept into Docker build contexts and git operations. They must also not
+ * live under node_modules: dependency-origin classifiers treat any realpath
+ * containing a node_modules segment as an installed third-party package. A
+ * repo-sibling directory keeps discovery inside the fixture's own tsconfig
+ * chain (or none) and realpaths stay clean.
  */
 export function makeFixtureRoot(prefix: string): string {
-  const base = path.join(__dirname, '..', '..', '.tmp', 'fixtures')
+  const base = path.resolve(here, '..', '..', '..', '.ripple-fixtures')
   fs.mkdirSync(base, { recursive: true })
   return fs.mkdtempSync(path.join(base, `${prefix}-`))
 }

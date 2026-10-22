@@ -11,7 +11,7 @@ import {
   analyzeProject, createRuntimeSourceMap, resolveRuntimeElement,
   resolveRuntimeInstance, sourceFileDigest,
 } from './project'
-import { sourceProvenPageImpact } from './scope'
+import { sourceProvenPageImpact, evaluateOperationPageScope } from './scope'
 import { makeFixtureRoot, removeTree } from './test-fixture-dir'
 import type { RuntimeElementObservation, SourceGraph } from './model'
 
@@ -264,5 +264,88 @@ export const App = () => <RouterProvider router={router} />;`,
     const homeImpact = impact(graph, 'Home Title')
     expect(homeImpact.certainty).toBe('partial')
     expect(homeImpact.unresolved.some(item => item.includes('未解析依赖'))).toBe(true)
+  })
+})
+
+describe('C+D joint: counterexamples — scope propagation and observation hygiene', () => {
+  it('propagates shared-source page impact into Scope decisions: every consuming page must be covered', () => {
+    const root = provenProject()
+    const graph = analyzeProject(root)
+    const footerImpact = impact(graph, 'Shared footer text')
+    expect(footerImpact.certainty).toBe('source-proven')
+    const affected = footerImpact.pageRefs
+    expect(affected).toEqual(['page:/', 'page:/about'])
+    // 修改共享 Footer：Scope 只声明一个消费页面 → 另一个页面必须报 conflict，不能静默漏改
+    const partialScope = evaluateOperationPageScope(
+      { strategy: 'shared', localPageRef: '', includedRefs: ['page:/'], excludedRefs: [], protectedRefs: [] }, affected)
+    expect(partialScope).toEqual([
+      { pageRef: 'page:/', effect: 'change' },
+      { pageRef: 'page:/about', effect: 'conflict', reason: expect.stringContaining('page:/about') },
+    ])
+    // 两页面都进入 includedRefs → 全部 change
+    const fullScope = evaluateOperationPageScope(
+      { strategy: 'shared', localPageRef: '', includedRefs: ['page:/', 'page:/about'], excludedRefs: [], protectedRefs: [] }, affected)
+    expect(fullScope.every(entry => entry.effect === 'change')).toBe(true)
+    // 页面覆盖策略：只覆盖本页时，未明确排除的共享消费者必须报 conflict
+    const localOnly = evaluateOperationPageScope(
+      { strategy: 'page-override', localPageRef: 'page:/', includedRefs: ['page:/'], excludedRefs: [], protectedRefs: [] }, affected)
+    expect(localOnly.find(entry => entry.pageRef === 'page:/about')?.effect).toBe('conflict')
+    // 显式排除共享消费者 → preserve（共享修改不传播到该页）
+    const localExcluded = evaluateOperationPageScope(
+      { strategy: 'page-override', localPageRef: 'page:/', includedRefs: ['page:/'], excludedRefs: ['page:/about'], protectedRefs: [] }, affected)
+    expect(localExcluded.find(entry => entry.pageRef === 'page:/about')?.effect).toBe('preserve')
+    // 保护页面与排除页面同样阻断 change 策略
+    const protectedScope = evaluateOperationPageScope(
+      { strategy: 'shared', localPageRef: '', includedRefs: ['page:/', 'page:/about'], excludedRefs: [], protectedRefs: ['page:/about'] }, affected)
+    expect(protectedScope.find(entry => entry.pageRef === 'page:/about')?.effect).toBe('conflict')
+  })
+
+  it('rejects duplicate, unknown-source and unproven observations before source selection', () => {
+    const root = provenProject()
+    const graph = analyzeProject(root)
+    const ref = footerParagraphRef(graph)
+    const aboutPage = { pathname: '/about', search: '', hash: '' }
+    // 同源多实例必须携带不同实例 id；重复 id 说明采集或传递出错，整体拒绝
+    expect(() => createRuntimeSourceMap(graph, [
+      observe(ref, 'route:/:footer:1', { pageContext: homePage }),
+      observe(ref, 'route:/:footer:1', { pageContext: aboutPage }),
+    ])).toThrow(/重复/)
+    // 未知来源（图中不存在的 sourceRef）不得进入源码选择，更不能被标为 source-proven
+    expect(() => createRuntimeSourceMap(graph, [
+      observe('jsx:src/components/Phantom.tsx#0', 'route:/:phantom:1', { pageContext: homePage }),
+    ])).toThrow(/未映射/)
+    // unknown / unmapped 身份的观察直接拒绝
+    expect(() => createRuntimeSourceMap(graph, [observe(ref, 'u:1', { certainty: 'unknown' })])).toThrow(/未确认映射身份/)
+    expect(() => createRuntimeSourceMap(graph, [observe(ref, 'u:2', { certainty: 'unmapped' })])).toThrow(/未确认映射身份/)
+  })
+
+  it('keeps same-source duplicates on one page distinguishable without inventing certainty', () => {
+    const root = project({
+      ...footer,
+      'src/pages/HomePage.tsx': `import { Footer } from '../components/Footer';\nexport function HomePage() { return <main><h1>Home Title</h1><Footer /><Footer /></main> }`,
+      'src/App.tsx': `import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { HomePage } from './pages/HomePage';
+const router = createBrowserRouter([{ path: '/', element: <HomePage /> }]);
+export const App = () => <RouterProvider router={router} />;`,
+    })
+    const graph = analyzeProject(root)
+    const ref = footerParagraphRef(graph)
+    // 静态影响：两个实例同属本页消费，页面影响不因此翻倍或丢失
+    const footerImpact = impact(graph, 'Shared footer text')
+    expect(footerImpact.pageRefs).toEqual(['page:/'])
+    expect(footerImpact.certainty).toBe('source-proven')
+    // 同页两个实例：不同实例 id 可以同时成立且互不合并
+    const runtimeMap = createRuntimeSourceMap(graph, [
+      observe(ref, 'route:/:footer:1', { pageContext: homePage }),
+      observe(ref, 'route:/:footer:2', { pageContext: homePage }),
+    ])
+    const first = resolveRuntimeElement(graph, { sourceRef: ref, runtimeInstanceId: 'route:/:footer:1' }, runtimeMap)
+    const second = resolveRuntimeElement(graph, { sourceRef: ref, runtimeInstanceId: 'route:/:footer:2' }, runtimeMap)
+    expect(first.element.id).toBe(ref)
+    expect(second.element.id).toBe(ref)
+    expect(first.runtimeInstanceId).not.toBe(second.runtimeInstanceId)
+    // 缺失其中一个实例的映射里解析另一个 → 双向映射拒绝
+    const singleMap = createRuntimeSourceMap(graph, [observe(ref, 'route:/:footer:2', { pageContext: homePage })])
+    expect(() => resolveRuntimeElement(graph, { sourceRef: ref, runtimeInstanceId: 'route:/:footer:1' }, singleMap)).toThrow(/双向映射不匹配/)
   })
 })
