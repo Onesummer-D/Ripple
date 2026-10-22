@@ -24,7 +24,8 @@
     "message": "无法证明目标的完整页面影响，拒绝生成候选：目标存在非确定的消费者关系：composite-jsx-child:component:src/sub-components/profile/ProfileHeader.tsx#131:literal:src/sub-components/profile/ProfileHeader.tsx#2620；工程存在尚未证明的 data-router 消费者，无法确认页面影响全集",
     "isCandidateError": true,
     "matchesExpectedRejection": true,
-    "elapsedMs": 8823
+    "coreNotCalled": false,
+    "elapsedMs": 11029
   },
   "postChecks": {
     "callerRepoDigestUnchanged": true,

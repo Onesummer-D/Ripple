@@ -5,8 +5,9 @@
  *  digestTrackedTree). All candidate operations run against a script-owned
  *  clone of the pinned HEAD inside an mkdtemp root (prefix 'ripple-b-gate-');
  *  only realpath-verified paths inside that root are ever created/removed.
- *  Illegal candidate locations are only ever PROPOSEED to createCandidate
- *  (which rejects them before touching disk).
+ *  Illegal candidate locations are refused by the harness pre-flight
+ *  ('unsafe-proposal') and NEVER passed to createCandidate, so the core can
+ *  never write outside the owned root regardless of its validation order.
  *
  *  Modes:
  *    node b-thirdparty-candidate-gate.mjs <repo> [--expect rejected|accepted] [--artifacts <dir>]
@@ -95,6 +96,7 @@ try {
   if (gitRead(project, ['status', '--porcelain']) !== '') throw new Error('clone is dirty')
 } catch (error) {
   console.error('[gate] project clone failed:', error instanceof Error ? error.message : error)
+  cleanup() // never leak the script-owned temp root on init failure
   throw error
 }
 
@@ -123,7 +125,13 @@ const buildRequest = (candidateRoot, artifactRoot, overrides = {}) => ({
  *  change what we PROPOSE to createCandidate. With preserveOnCreate, a created
  *  candidate's worktree/artifacts are left in place for evidence collection and
  *  registered for finally-cleanup (removal happens ONLY after verification or
- *  on failure). */
+ *  on failure).
+ *
+ *  Harness pre-flight: createCandidate is ONLY ever invoked with paths inside
+ *  the script-owned mkdtemp root. Any proposal touching outside paths is
+ *  refused by the harness itself as 'unsafe-proposal' — the core is never
+ *  called, so it can never write to a caller/external location regardless of
+ *  core validation order or future changes to it (e.g. AC-P2a/b landing). */
 const attempt = ({ slot = 'main', proposal = {}, blockArtifactDir = false, preserveOnCreate = false } = {}) => {
   const slotRoot = path.join(tempRoot, slot)
   const localCandidateRoot = path.join(slotRoot, 'candidate-worktree')
@@ -138,17 +146,27 @@ const attempt = ({ slot = 'main', proposal = {}, blockArtifactDir = false, prese
   const proposedArtifactRoot = proposal.artifactRoot ?? localArtifactRoot
   const t0 = Date.now()
   let outcome
-  try {
-    const record = createCandidate(buildRequest(proposedCandidateRoot, proposedArtifactRoot, proposal))
-    outcome = { outcome: 'created', record, slotRoot, localCandidateRoot, localArtifactRoot, elapsedMs: Date.now() - t0 }
-  } catch (error) {
+  if (!isOwned(proposedCandidateRoot) || !isOwned(proposedArtifactRoot)) {
     outcome = {
-      outcome: 'threw',
-      errorName: error instanceof Error ? error.name : typeof error,
-      message: error instanceof Error ? error.message : String(error),
-      isCandidateError: error instanceof CandidateError,
-      matchesExpectedRejection: isExpectedGateRejection(error),
+      outcome: 'unsafe-proposal',
+      reason: !isOwned(proposedCandidateRoot) ? 'candidateRoot-outside-owned-root' : 'artifactRoot-outside-owned-root',
+      coreNotCalled: true,
       elapsedMs: Date.now() - t0,
+    }
+  } else {
+    try {
+      const record = createCandidate(buildRequest(proposedCandidateRoot, proposedArtifactRoot, proposal))
+      outcome = { outcome: 'created', record, slotRoot, localCandidateRoot, localArtifactRoot, elapsedMs: Date.now() - t0 }
+    } catch (error) {
+      outcome = {
+        outcome: 'threw',
+        errorName: error instanceof Error ? error.name : typeof error,
+        message: error instanceof Error ? error.message : String(error),
+        isCandidateError: error instanceof CandidateError,
+        matchesExpectedRejection: isExpectedGateRejection(error),
+        coreNotCalled: false,
+        elapsedMs: Date.now() - t0,
+      }
     }
   }
   const preserve = preserveOnCreate && outcome.outcome === 'created'
@@ -189,17 +207,18 @@ const main = () => {
         detail: insideProject,
       })
 
-      // Caller-repo proposal: the current provenance gate rejects before any
-      // worktree is created, so the refusal REASON is platform/order-dependent
-      // (on Windows a cross-drive candidateRoot/artifactRoot pair is also
-      // mis-rejected by A's missing isAbsolute guard — reported to A separately).
-      // The safety contract is platform-independent: never create anything in
-      // the caller checkout. Caller-repo integrity is asserted in postChecks.
+      // Caller-repo proposal must be refused by the HARNESS pre-flight, never
+      // reaching createCandidate: the core may write worktrees/markers before
+      // its own validation (worktree → marker → assertScope), and once AC-P2a/b
+      // land the core could even ACCEPT this location. Distinguish clearly:
+      // harness 'unsafe-proposal' = test tool never writes externally; core
+      // CandidateError = Ripple public contract (covered by the inside-project
+      // case above). Caller-repo integrity is asserted again in postChecks.
       const illegalInRepo = path.join(repo, '.gate-inside')
       const inside = attempt({ slot: 'caller', proposal: { candidateRoot: illegalInRepo } })
       cases.push({
         case: 'negative-caller-repo-proposal',
-        pass: inside.outcome === 'threw' && inside.isCandidateError === true && inside.proposalNeverCreated === true,
+        pass: inside.outcome === 'unsafe-proposal' && inside.coreNotCalled === true && inside.proposalNeverCreated === true,
         detail: inside,
       })
 
