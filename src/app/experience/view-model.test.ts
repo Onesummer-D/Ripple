@@ -185,7 +185,7 @@ describe('演示审批反馈失效 approvalFeedbackStale（任务三）', () => 
     pages: [page('page:home', 'include')], elements: [editableElement], currentPageRef: 'page:home',
     selectedElementId: 'el:x', draftAfterText: '新标题',
     viewports: [], activeViewportId: 'desktop', canvasState: 'ready',
-    evidence: [], versions: [], compare: { baseline: { state: 'ready' }, candidate: { state: 'ready' }, matchedViewport: true },
+    evidence: [], versions: [], compare: { baseline: { state: 'ready' }, candidate: { state: 'ready' }, compareState: 'comparable' },
   }
 
   it('目标切换 → 旧反馈失效', () => {

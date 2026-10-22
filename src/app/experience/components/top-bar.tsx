@@ -26,6 +26,11 @@ export function TopBar({ model, onOpenHistory }: { model: ExperienceViewModel; o
       {model.dataProvenance === 'demo' && (
         <span className="ripple-xp-chip ripple-xp-chip-demo" data-testid="demo-badge">演示数据 DEMO</span>
       )}
+      {model.dataProvenance === 'real' && (
+        <span className="ripple-xp-chip ripple-xp-chip-real" data-testid="real-badge">
+          真实工程{model.projectIdentity ? ` · ${model.projectIdentity.projectId.slice(0, 8)}` : ''}
+        </span>
+      )}
       <button type="button" className="ripple-xp-quiet" onClick={onOpenHistory} data-testid="open-history">
         版本历史
       </button>

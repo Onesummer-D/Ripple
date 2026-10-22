@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ExperienceWorkbench } from './experience-workbench'
+import { StaleResponseError } from './real-adapter'
 import { createStubRealAdapter } from './stub-real-adapter'
+import type { ExperienceAdapter } from './adapter'
+import type { ExperienceViewModel } from './view-model'
+import { createRealAdapter } from './real-adapter'
 
 const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 
@@ -18,6 +22,15 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('demo-badge')
     expect(text('demo-badge')).toContain('演示数据')
+  })
+
+  it('DEMO 对照文案负例：绝不显示真实截图校验通过的结论', async () => {
+    render(<ExperienceWorkbench />)
+    await screen.findByTestId('compare-strip')
+    expect(text('viewport-match-note')).toContain('演示对照')
+    expect(text('viewport-match-note')).toContain('未经真实浏览器验证')
+    expect(text('viewport-match-note')).not.toContain('可比较')
+    expect(text('viewport-match-note')).not.toContain('真实截图')
   })
 
   it('打开网页：工程与候选状态、页面导航、画布就绪', async () => {
@@ -249,6 +262,88 @@ describe('F 体验工作台 · 青野演示流', () => {
   })
 })
 
+describe('F 体验工作台 · REAL 模式异步竞态', () => {
+  afterEach(cleanup)
+
+  const VIEWPORTS: ExperienceViewModel['viewports'] = [
+    { id: 'desktop', label: '桌面 1440', width: 1440, height: 900, verificationStatus: 'available' },
+    { id: 'tablet', label: '平板 768', width: 768, height: 1024, verificationStatus: 'available' },
+    { id: 'mobile-375', label: '手机 375', width: 375, height: 812, verificationStatus: 'available' },
+    { id: 'mobile-390', label: '手机 390', width: 390, height: 844, verificationStatus: 'in-verification' },
+  ]
+
+  it('工程切换竞态：旧请求最后返回（StaleResponseError）不得覆盖新工程的 ready 状态', async () => {
+    const pending = new Map<string, { resolve: (m: ExperienceViewModel) => void; reject: (e: Error) => void }>()
+    const readyModel = (name: string, projectId: string): ExperienceViewModel => ({
+      projectName: name, projectStatus: 'ready', candidateStatus: 'none', dataProvenance: 'real',
+      currentPageRef: '', draftAfterText: '', activeViewportId: 'desktop', canvasState: 'unavailable',
+      pages: [], elements: [], viewports: VIEWPORTS, evidence: [], versions: [],
+      compare: { baseline: { state: 'unavailable' }, candidate: { state: 'unavailable' }, compareState: 'none' },
+      projectIdentity: { projectId, sourceDigest: 'digest' },
+    })
+    const initial: ExperienceViewModel = { ...readyModel('（未选择工程）', ''), projectStatus: 'unavailable' }
+    const adapter: ExperienceAdapter = {
+      provenance: 'real',
+      load: async () => initial,
+      openProject: (root: string) => new Promise<ExperienceViewModel>((resolve, reject) => { pending.set(root, { resolve, reject }) }),
+      selectElement: model => model,
+      setDraftText: model => model,
+      setPageScope: model => model,
+      setViewport: model => model,
+      setPage: model => model,
+    }
+    render(<ExperienceWorkbench adapter={adapter} />)
+    const input = await screen.findByTestId('open-project-path')
+    // A 工程请求开始（故意挂起）
+    fireEvent.change(input, { target: { value: '/work/a' } })
+    fireEvent.click(screen.getByTestId('open-project-submit'))
+    // B 工程请求开始（busy 期间按钮停用，用户以回车提交表单），先完成
+    fireEvent.change(input, { target: { value: '/work/b' } })
+    fireEvent.submit(screen.getByTestId('open-project-form'))
+    await act(async () => { pending.get('/work/b')!.resolve(readyModel('工程B', 'proj-b')) })
+    // B 已 ready：表单消失，顶栏显示 B
+    await screen.findByText('工程B')
+    expect(screen.queryByTestId('open-project-error')).toBeNull()
+    // A 最后返回：以 StaleResponseError 拒绝，UI 必须保持 B，不出现任何错误/加载态
+    await act(async () => { pending.get('/work/a')!.reject(new StaleResponseError('stale')) })
+    expect(screen.queryByText('工程A')).toBeNull()
+    expect(screen.queryByTestId('load-error')).toBeNull()
+    expect(screen.queryByTestId('open-project-error')).toBeNull()
+    expect(screen.getByText('工程B')).not.toBeNull()
+  })
+
+  it('REAL 模式：页面导航明确未接入（按钮停用 + 说明），不误导用户以为画布已切页', async () => {
+    const model: ExperienceViewModel = {
+      projectName: 'acme-shop', projectStatus: 'ready', candidateStatus: 'none', dataProvenance: 'real',
+      currentPageRef: 'page:home', draftAfterText: '', activeViewportId: 'desktop', canvasState: 'ready',
+      pages: [
+        { id: 'page:home', label: '首页', path: '/', relation: 'unproven', relationCertainty: 'unknown', scope: 'undecided' },
+        { id: 'page:about', label: '关于', path: '/about', relation: 'unproven', relationCertainty: 'unknown', scope: 'undecided' },
+      ],
+      elements: [], viewports: VIEWPORTS, evidence: [], versions: [],
+      compare: { baseline: { state: 'unavailable' }, candidate: { state: 'unavailable' }, compareState: 'none' },
+      preview: { url: 'http://127.0.0.1:9999/preview/p1/', projectId: 'p', previewId: 'p1', sourceDigest: 'd' },
+    }
+    const adapter: ExperienceAdapter = {
+      provenance: 'real',
+      load: async () => model,
+      selectElement: m => m,
+      setDraftText: m => m,
+      setPageScope: m => m,
+      setViewport: m => m,
+      setPage: m => m,
+    }
+    render(<ExperienceWorkbench adapter={adapter} />)
+    await screen.findByTestId('page-nav-pending')
+    expect(text('page-nav-pending')).toContain('尚未接入')
+    // 导航按钮停用：点击不会触发 setPage（currentPageRef 保持首页，iframe 地址不变）
+    expect((screen.getByTestId('page-item-page:about') as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByTestId('page-item-page:about'))
+    expect(screen.getByTestId('page-item-page:home').getAttribute('aria-current')).toBe('page')
+    expect((screen.getByTestId('real-preview-frame') as HTMLIFrameElement).src).toBe(model.preview!.url)
+  })
+})
+
 describe('F 体验工作台 · 真实/演示隔离', () => {
   afterEach(cleanup)
 
@@ -265,5 +360,92 @@ describe('F 体验工作台 · 真实/演示隔离', () => {
     // real 模式没有可执行的审批入口，明确提示未接入
     expect(screen.queryByTestId('demo-approve')).toBeNull()
     expect(text('real-approval-pending')).toContain('真实审批尚未接入')
+  })
+})
+
+describe('F 体验工作台 · Real Adapter 真实流程', () => {
+  afterEach(cleanup)
+
+  interface MockResponse { status: number; body: unknown }
+  function mockFetch(routes: Record<string, MockResponse>) {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      const path = url.replace(/^.*?\/__ripple\/api\//, '')
+      const route = routes[path]
+      if (!route) return { ok: false, status: 404, json: async () => ({ error: `未注册的路由：${path}` }) } as unknown as Response
+      return { ok: route.status >= 200 && route.status < 300, status: route.status, json: async () => route.body } as unknown as Response
+    }) as typeof fetch
+    return fetchImpl
+  }
+
+  const ANALYSIS = {
+    status: 200,
+    body: {
+      projectRoot: 'D:\\work\\acme-shop',
+      revision: { projectId: 'proj-acme', sourceDigest: 'digest-1', runtimeFingerprint: 'fp-1' },
+      graphId: 'graph-1',
+      unresolved: [],
+      routes: [{ id: 'page:home', label: '首页', page: '/' }],
+      targets: [{
+        id: 'data:hero-title', kind: 'data', label: '首页标题', value: 'Acme 商店',
+        location: { path: 'src/data/site.ts', start: 10, end: 20 },
+        impact: { pageRefs: ['page:home'], unresolved: [], certainty: 'source-proven' },
+      }],
+      relationCounts: { reads: 1 },
+    },
+  }
+  const HISTORY = {
+    status: 200,
+    body: {
+      history: [{
+        candidateId: 'candidate-real-1', projectId: 'proj-acme', lifecycle: 'applied',
+        patchHash: 'hash-1234abcd', updatedAt: '2026-10-22T09:30:00Z',
+        verification: { state: 'passed', runId: 'run-1' },
+      }],
+    },
+  }
+
+  it('真实模式未打开工程：显示打开工程入口与阻断原因，无演示内容', async () => {
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl: mockFetch({}) })} />)
+    await screen.findByTestId('open-project-form')
+    expect(text('blocked-reason')).toContain('尚未选择工程')
+    expect(screen.queryByTestId('demo-canvas')).toBeNull()
+    expect(screen.queryByTestId('demo-badge')).toBeNull()
+    expect(screen.getByTestId('real-badge')).toBeTruthy()
+  })
+
+  it('打开真实工程：真实页面/目标/历史呈现，审批入口明确未接入', async () => {
+    const fetchImpl = mockFetch({ analyze: ANALYSIS, history: HISTORY, 'project/preview': { status: 503, body: { error: '隔离预演网络池为空' } } })
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl })} />)
+    fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\work\\acme-shop' } })
+    fireEvent.click(screen.getByTestId('open-project-submit'))
+    // 真实工程页面列表与元素
+    await screen.findByTestId('page-item-page:home')
+    expect(text('real-badge')).toContain('真实工程')
+    expect(text('project-status')).toContain('工程就绪')
+    // 预演不可用：准确阻断原因，绝不渲染演示 DOM
+    await screen.findByTestId('real-preview-pending')
+    expect(text('real-preview-pending')).toContain('隔离预演网络池为空')
+    expect(screen.queryByTestId('demo-canvas')).toBeNull()
+    // 真实历史（来自 API 的候选 id），点击不臆造页面切换
+    fireEvent.click(screen.getByTestId('open-history'))
+    await screen.findByTestId('version-candidate-real-1')
+    expect(text('version-candidate-real-1')).toContain('已应用')
+    fireEvent.click(screen.getByTestId('version-candidate-real-1'))
+    // 真实审批未接入；元素可选中并查看真实来源
+    expect(text('real-approval-pending')).toContain('真实审批尚未接入')
+    fireEvent.click(screen.getByTestId('close-filmstrip'))
+    fireEvent.click(screen.getByTestId('canvas-el-data:hero-title'))
+    expect(text('selection-summary')).toContain('src/data/site.ts')
+    expect(text('selection-summary')).toContain('来源已证实')
+  })
+
+  it('打开工程失败：服务端错误如实显示，可修正后重试', async () => {
+    const failing = mockFetch({ analyze: { status: 400, body: { error: '项目路径不是目录' } } })
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl: failing })} />)
+    fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\no\\such' } })
+    fireEvent.click(screen.getByTestId('open-project-submit'))
+    await screen.findByTestId('open-project-error')
+    expect(text('open-project-error')).toContain('项目路径不是目录')
   })
 })
