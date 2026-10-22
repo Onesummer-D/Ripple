@@ -11,6 +11,7 @@
  * → 范围决策 → 前后对照 → 证据/风险/未知 → 版本历史。
  */
 import type { ExperienceAdapter } from './adapter'
+import { projectPageRelations } from './view-model'
 import type { CanvasElementXp, ExperienceViewModel, PageScopeChoiceXp } from './view-model'
 
 const HOME = 'page:home'
@@ -117,12 +118,19 @@ export function createDemoAdapter(): ExperienceAdapter {
     },
     selectElement(current, elementId) {
       const element = current.elements.find(item => item.id === elementId)
+      // 重复点击当前已选目标：不算目标切换，保留该目标下的草稿与范围决定
+      if (current.selectedElementId === elementId) return current
       model = {
         ...current,
         selectedElementId: elementId,
         // 切换目标时清空候选草稿：草稿属于目标，不属于全局输入框
         draftAfterText: '',
         candidateStatus: element?.editable ? 'draft' : 'none',
+        // 页面关系与默认 Scope 全部以当前目标重新投影：
+        // 上一目标留下的同源判定、Scope 决定都不跨目标复用
+        // （演示数据没有"已证明无影响"清单，缺页一律保持未证明，不臆造 unrelated）
+        pages: projectPageRelations(current.pages, element, current.currentPageRef),
+        compare: { ...current.compare, focusArea: element?.label },
         evidence: evidenceForSelection(element, ''),
       }
       return model

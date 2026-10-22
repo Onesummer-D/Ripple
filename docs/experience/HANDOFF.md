@@ -1,30 +1,44 @@
 # Ripple 产品体验工作台（F Agent）交接文档
 
-> 2026-10-22 · 分支 `feat/f-product-experience-20261021` · 基线 `feat/project-first-core-20261018 @ 30d6809`（已合入 PR #13）
+> 2026-10-22（三轮·最终状态一致性整改）· 分支 `feat/f-product-experience-20261021` · 已同步 A 基线 `feat/project-first-core-20261018 @ 83ddff5e`（普通 merge，保留 F 历史）
+
+## 0. 三轮整改记录（最终一致性，2026-10-22）
+
+任务书四项确定性整改，全部完成：
+
+| 任务 | 缺陷 | 修复 | 关键回归 |
+| --- | --- | --- | --- |
+| P1-1 目标切换页面影响同步 | `selectElement()` 只清草稿/部分 Evidence，不重建 `pages[]` 投影，副标题仍显示商品专题同源、旧 Scope 继承 | 新增纯函数 `projectPageRelations()`（view-model.ts）：以当前 `CanvasElementXp` 重算 relation/relationCertainty/默认 Scope；缺页不升级为"已证明无关"（仅显式 `provenUnaffectedRefs` 才表达 unrelated）；重复点击已选目标不算切换 | 单测 6 项 + 演示流「标题→副标题→标题」+ partial/unknown 不提升负例 |
+| P1-2 对照绑定当前目标 | 对照区把原文硬编码为「秋日茶器市集」，候选空时回显旧标题 | `compare-strip.tsx`：Baseline=当前目标 `currentText`，Candidate=同一目标 `draftAfterText`；无目标/无草稿显示「尚未选中要修改的位置」「尚未生成候选」；焦点说明随 `compare.focusArea` 同步；RealShot 逻辑原样保留 | 单测/演示流/e2e 各 1 组空态与副标题对照用例 |
+| P2-3 演示审批反馈失效 | 独立 `feedback` 状态跨目标/草稿/Scope 修订残留 | 新增纯函数 `approvalFeedbackStale()`；统一入口 `apply()` 中任何目标/草稿/页面变化立即清反馈，旧确认不跨修订复用 | 单测 4 项 + 演示流/e2e「审批→改 Scope/草稿/目标→反馈消失、门控重阻断」 |
+| P2-4 编译缓存变更 | `tsconfig.node.tsbuildinfo` 仍在 PR diff（新增 e2e/experience.spec.ts 索引） | 已从 A 基线恢复字节一致；机制见第 6 节 | PR Changed Files 中该文件已移除（见第 6 节） |
+
+同步方式：普通 merge（`--no-ff`）合入 A `83ddff5e`；A 新提交与 F 修改文件零交集，无冲突、未改任何 core 文件。
 
 ## 1. 本轮交付
 
 | 项 | 位置 | 状态 |
 | --- | --- | --- |
 | 体验工作台框架（画布优先布局） | `src/app/experience/experience-workbench.tsx` | 可用 |
-| ViewModel 契约 + 纯函数（范围汇总/审批门控） | `src/app/experience/view-model.ts` | 22 项单测过 |
+| ViewModel 契约 + 纯函数（范围汇总/审批门控/关系投影/反馈失效） | `src/app/experience/view-model.ts` | 20 项单测过 |
 | 适配器接口 | `src/app/experience/adapter.ts` | 定义完成 |
 | 青野演示适配器（DEMO/SIMULATED 全程标记） | `src/app/experience/demo-adapter.ts` | 可用 |
 | 视觉组件（顶栏/页面导航/画布/范围/证据/对照/胶片） | `src/app/experience/components/` | 可用 |
 | 设计系统（ripple-xp- 命名空间） | `src/app/experience/ripple-xp.css` | 可用 |
 | 独立演示入口 | `experience.html` + `src/experience-main.tsx`（已加入 vite 构建输入） | 可用 |
-| 演示流测试（8 项连续操作）+ ViewModel 测试（含二轮新增：审批确定性门控、原文/草稿分离、切换元素清空草稿） | `src/app/experience/*.test.tsx?` | 22/22 过 |
-| 浏览器 E2E（11 项：初始/选中编辑/来源未知/Scope 阻断/无选中无修改不得审批/三视口切换/模拟内容不进 real/历史切换/桌面与窄窗布局/截图/控制台错误 + 原文草稿分离专项） | `e2e/experience.spec.ts` | 11/11 过 |
+| 演示流测试（13 项连续操作，含三轮新增 4 项）+ ViewModel 测试（20 项） | `src/app/experience/*.test.tsx?` | 37/37 过 |
+| 浏览器 E2E（15 项：原有 11 项 + 三轮新增 4 项） | `e2e/experience.spec.ts` | 15/15 过 |
 | 界面截图 | `docs/experience/xp-1-initial.png` ~ `xp-4-history-mobile.png` | 真实 Chromium 截取 |
 | 截图脚本（可复录） | `scripts/xp-screenshot.mjs` | 可用 |
 
-未改 `src/app/ProjectWorkbench.tsx`、`src/main.tsx` 及全部核心文件（model/session/candidate/project/scope/source-annotation/verification-*）。旧系统测试零删减。
+未改 `src/app/ProjectWorkbench.tsx`、`src/main.tsx` 及全部核心文件（model/session/candidate/project/scope/source-annotation/verification-*）。旧系统测试零删减、零跳过、零放宽。
 
 ## 2. 界面状态表
 
 | 状态 | 出现位置 | 表达 |
 | --- | --- | --- |
 | 来源已证实 / 部分证明 / 未知 | 页面导航、选中摘要、范围行 | 三色胶囊（绿/黄/灰），文案统一从 `CERTAINTY_LABEL` 出口 |
+| 对照区：尚未选中 / 尚未生成候选 | 前后对照（演示侧） | 明确状态文案；Baseline 恒为当前目标原文，Candidate 恒为当前目标草稿，不回显旧目标内容 |
 | 工程就绪 / 分析中 / 失败 / 不可用 | 顶栏 | 状态 chip |
 | 候选：无/草稿/已生成/验证/审批/应用/回滚/失效 | 顶栏 | 状态 chip（演示数据下不会越过"候选已生成"——验证之后是真实能力） |
 | 视口 1440/768/375 | 画布工具条 | 主入口按钮 |
@@ -67,18 +81,25 @@
 
 ## 6. 测试与限制
 
-- `npm run typecheck`：通过（app + node，同步 A 基线后重验）。
-- `npm test -- --run --no-file-parallelism`：体验层 22/22 过；全量本机 Windows 29 项失败全部位于 `src/core/*`（project / local-project-api / preview-resource-policy / verification-execution），与 A 在 DEV_HANDOFF 记录的本机环境限制一致（临时 Git 目录权限、loopback relay、需 Linux Chromium），与本轮改动无关——本轮未触碰任何 core 文件，Linux CI 为权威。
+- `npm run typecheck`：通过（app + node，merge A 83ddff5e 后重验）。
+- 体验层定向：`view-model.test.ts` 20/20 + `experience-flow.test.tsx` 17/17 = 37/37 过。
+- 全量本机 Windows `npx vitest run`：422 过 / 2 跳过；4 个失败文件全部位于 `src/core/*`（runtime-identity 34、project 21、preview-resource-policy 2、preview-csp hook 超时），失败原因均为已记录的本机环境限制（临时目录 EPERM——工作区中文路径在临时目录 mangling、loopback relay、需 Linux Chromium/live egress），与本轮改动无关——本轮未触碰任何 core 文件，Linux CI 为权威。体验层与全部 app 层测试零失败。
 - `npm run build`：通过（`dist/experience.html` 与 `dist/index.html` 双入口）。
-- `npx playwright test e2e/experience.spec.ts`：11/11 过（本机 Chromium headless shell）。
-- 全量 Playwright `npx playwright test`：17 过 / 5 跳过 / 1 失败——唯一失败为 `project-workbench.spec.ts` 的 Bolt 真实工程专项（本机 Windows 临时目录 EPERM + 缺 BOLT 私有凭据，环境限制非代码回归，Linux CI 为权威）。
+- `npx playwright test e2e/experience.spec.ts`：15/15 过（本机 Chromium headless shell，含新增 4 项）。
+- 全量 Playwright `npx playwright test`：未重跑全量（本机环境限制同前轮）；新增用例均在 `e2e/experience.spec.ts` 内并通过。Bolt 真实工程专项仍需 Linux CI 权威结论。
 - `npm run test:browser`：NOT RUN（本机无 Linux Docker Playwright 镜像）。
 - 录屏：未录制；可用 `scripts/xp-screenshot.mjs` 同款流程录制。
-- 截图已按二轮修复后行为重截（画布原文稳定、对照区呈现草稿），文件 `xp-1-initial.png` ~ `xp-4-history-mobile.png`。
-- `tsconfig.node.tsbuildinfo` 已还原为基线版本，不再出现在 PR diff 中。
+- 截图：`xp-1-initial.png` ~ `xp-4-history-mobile.png` 仍为二轮修复后行为截取；三轮为状态一致性整改，无视觉变化，未重截。
+- `tsconfig.node.tsbuildinfo`：**已核实并恢复**。产生机制：该文件被纳入版本库，`npm run build` 的 `tsc -b` 会按当前工作区文件集合重写它；F 分支新增了 `e2e/experience.spec.ts`，每次本地 build 后该文件都会把新 spec 写入 root 索引而变脏（旧交接声称已还原，但未在 build 之后复核，导致残留进 PR）。处置：每次本地 build/typecheck 后、提交前，执行 `git checkout origin/feat/project-first-core-20261018 -- tsconfig.node.tsbuildinfo` 恢复为 A 基线字节（本轮已恢复并 diff 核对一致）；不改 tsconfig、不删测试、不关闭增量编译。CI 上 build 不产生提交，无此问题。
 
-## 7. 下一轮建议
+## 7. 下一轮建议与遗留分级
 
 1. 集成方按第 4 节接 `localProjectApiPlugin`，把 demo-adapter 换成 real-adapter（建议留在 `src/app/experience/real-adapter.ts`，由合并阶段统一挂载）。
 2. 390 视口验证状态由 E 的真实证据驱动后移除"验证中"演示标注。
 3. 真实挂载入口（替换 `src/main.tsx` 或并存导航）需负责人决定，体验层已准备好最小集成方案：在 `index.html` 增加 `/experience.html` 链接或在主工作台内嵌 `<ExperienceWorkbench adapter={realAdapter}/>`。
+
+遗留分级（截至三轮整改后）：
+
+- P0：无（四项确定性整改全部关闭，无已知状态串扰路径）。
+- P1：`projectPageRelations()` 的 `provenUnaffectedRefs` 通道等待 B 的真实来源分析提供"已证明无影响"页面清单；未接入前缺页一律保持未证明（安全侧默认，不会误导）。
+- P2：① 演示审批反馈为纯前端状态，接真实 Approval 后应由 Receipt 生命周期替代；② `tsconfig.node.tsbuildinfo` 被版本库跟踪导致 build 后易变脏，建议负责人在 A 侧评估是否将其移出版本控制（超出 F 修改范围，未擅自处理）；③ 本机 Windows 全量 core 测试的环境限制（临时目录权限/loopback/Docker）仍需 Linux CI 作权威结论。

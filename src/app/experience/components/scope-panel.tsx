@@ -19,6 +19,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
   const gate = approvalGate({ pages: model.pages, selectedElement: selected, draftAfterText: model.draftAfterText })
   const editingPage = model.pages.find(page => page.relation === 'editing')
   const sameSourcePages = model.pages.filter(page => page.relation === 'same-source')
+  const unrelatedPages = model.pages.filter(page => page.relation === 'unrelated')
   const unprovenPages = model.pages.filter(page => page.relation === 'unproven')
 
   const scopeRow = (page: PageXp, reason: string, locked: boolean) => (
@@ -73,6 +74,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
     <ul className="ripple-xp-scope-list">
       {editingPage && scopeRow(editingPage, '本次修改的位置', true)}
       {sameSourcePages.map(page => scopeRow(page, '同源页面：修改会一并生效', false))}
+      {unrelatedPages.map(page => scopeRow(page, '来源分析已证明本修改不影响此页', false))}
       {unprovenPages.map(page => scopeRow(page, '影响未证明：选择包含也不会被视为安全', false))}
     </ul>
     <p className="ripple-xp-scope-summary" data-testid="scope-summary">

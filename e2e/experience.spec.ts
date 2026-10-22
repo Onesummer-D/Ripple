@@ -120,6 +120,74 @@ test('桌面与窄窗口布局都可操作', async ({ page }) => {
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
 })
 
+test('任务一：切换编辑目标重建页面关系与默认范围（标题→副标题→标题）', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await expect(page.getByTestId('page-item-page:products')).toContainText('同源关联')
+  await page.getByTestId('scope-protect-page:products').click()
+  // 切换到副标题：商品专题不再虚假显示同源，旧 Scope 决定不残留
+  await page.getByTestId('canvas-el-el:hero-subtitle').click()
+  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('page-item-page:products')).not.toContainText('同源关联')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
+  // 返回标题：默认影响关系与 Scope 恢复
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await expect(page.getByTestId('page-item-page:products')).toContainText('同源关联')
+  await expect(page.getByTestId('scope-include-page:products')).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('任务一负例：partial 目标不产生已证明无关页，来源确定性不被提升', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:seasonal-banner').click()
+  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
+  // 整个页面导航中除当前编辑页外不允许出现"来源已证实"的页面关系
+  await page.getByTestId('canvas-el-el:promo-card').click()
+  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('page-item-page:seasonal')).toContainText('影响未证明')
+})
+
+test('任务二：对照区绑定当前目标，无选中/无草稿显示明确状态', async ({ page }) => {
+  await openExperience(page)
+  await expect(page.getByTestId('compare-baseline')).toContainText('尚未选中要修改的位置')
+  await expect(page.getByTestId('compare-candidate')).toContainText('尚未生成候选')
+  await expect(page.getByTestId('compare-baseline')).not.toContainText('秋日茶器市集')
+  // 副标题原文与草稿对照
+  await page.getByTestId('canvas-el-el:hero-subtitle').click()
+  await expect(page.getByTestId('compare-baseline')).toContainText('以茶会友，以器传心')
+  await page.getByTestId('draft-text-input').fill('以器会友，以茶传心')
+  await expect(page.getByTestId('compare-candidate')).toContainText('以器会友，以茶传心')
+  // 清空草稿：候选侧恢复未生成状态，原文不被伪装成候选
+  await page.getByTestId('draft-text-input').fill('')
+  await expect(page.getByTestId('compare-candidate')).toContainText('尚未生成候选')
+})
+
+test('任务三：演示审批反馈随范围/草稿/目标修订失效', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await page.getByTestId('scope-exclude-page:contact').click()
+  await page.getByTestId('scope-exclude-page:seasonal').click()
+  await page.getByTestId('demo-approve').click()
+  await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认')
+  // 修改范围决策 → 旧反馈消失，门控重新阻断且审批按钮不可用
+  await page.getByTestId('scope-include-page:contact').click()
+  await expect(page.getByTestId('approve-feedback')).toHaveCount(0)
+  await expect(page.getByTestId('approval-area')).toContainText('无法完全证明')
+  await expect(page.getByTestId('demo-approve')).toHaveCount(0)
+  // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
+  await page.getByTestId('scope-exclude-page:contact').click()
+  await page.getByTestId('demo-approve').click()
+  await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认')
+  await page.getByTestId('draft-text-input').fill('初冬茶器市集')
+  await expect(page.getByTestId('approve-feedback')).toHaveCount(0)
+  // 重新审批 → 切换目标 → 旧确认不得跨目标复用
+  await page.getByTestId('demo-approve').click()
+  await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认')
+  await page.getByTestId('canvas-el-el:hero-subtitle').click()
+  await expect(page.getByTestId('approve-feedback')).toHaveCount(0)
+})
+
 test('控制台无错误', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()

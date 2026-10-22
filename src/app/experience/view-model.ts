@@ -131,6 +131,60 @@ export function approvalGate(input: { pages: PageXp[]; selectedElement?: CanvasE
   return { allowed: reasons.length === 0, reasons }
 }
 
+/**
+ * 选中目标后的页面关系投影 + 默认 Scope 生成（纯函数）。
+ *
+ * 规则（全部由当前目标的 CanvasElementXp 决定，与页面名称无关）：
+ * - 未选中目标（element 为 undefined）：页面关系保持不变；
+ * - 当前编辑页：relation 'editing'，scope 固定 'include'；
+ * - 在 impactPageRefs 中：
+ *   - 目标来源 source-proven → 'same-source' / source-proven / 默认 include；
+ *   - 目标来源 partial/unknown → 'unproven' / 目标同级的确定性 / 默认 undecided
+ *     （不得把未完全证明的影响包装成安全同源）；
+ * - 不在 impactPageRefs 中：默认 'unproven' / unknown（或目标的 partial）/ undecided。
+ *   impactPageRefs 只是已知影响清单，缺页不证明"无影响"——不得自动升级为
+ *   source-proven 的 unrelated；只有调用方显式给出 provenUnaffectedRefs
+ *   （真实来源分析已证明不受影响的页面）才表达 'unrelated' / source-proven / exclude。
+ *
+ * 不修改传入数组，返回新数组；默认 Scope 只由当前目标推导，绝不继承上一目标。
+ */
+export function projectPageRelations(
+  pages: PageXp[],
+  element: CanvasElementXp | undefined,
+  currentPageRef: string,
+  provenUnaffectedRefs?: readonly string[],
+): PageXp[] {
+  if (!element) return pages
+  const proven = element.certainty === 'source-proven'
+  const unaffected = new Set(proven ? (provenUnaffectedRefs ?? []) : [])
+  return pages.map(page => {
+    if (page.id === currentPageRef) {
+      return { ...page, relation: 'editing', relationCertainty: 'source-proven', scope: 'include' }
+    }
+    if (element.impactPageRefs.includes(page.id)) {
+      return proven
+        ? { ...page, relation: 'same-source', relationCertainty: 'source-proven', scope: 'include' }
+        : { ...page, relation: 'unproven', relationCertainty: element.certainty, scope: 'undecided' }
+    }
+    if (unaffected.has(page.id)) {
+      return { ...page, relation: 'unrelated', relationCertainty: 'source-proven', scope: 'exclude' }
+    }
+    // 已知影响清单之外：不臆造"无影响"证明，保持未证明 + 默认 undecided
+    return { ...page, relation: 'unproven', relationCertainty: proven ? 'unknown' : element.certainty, scope: 'undecided' }
+  })
+}
+
+/**
+ * 演示审批反馈是否已随修订失效（纯函数）。
+ * 目标、草稿或范围决策任一变化，旧确认结论都必须作废——
+ * 反馈只属于生成它的那一版（目标 + 草稿 + Scope），禁止跨修订复用。
+ */
+export function approvalFeedbackStale(previous: ExperienceViewModel, next: ExperienceViewModel): boolean {
+  return previous.selectedElementId !== next.selectedElementId
+    || previous.draftAfterText !== next.draftAfterText
+    || previous.pages !== next.pages
+}
+
 /** 状态文案（统一术语出口，避免散写）。 */
 export const CERTAINTY_LABEL: Record<SourceCertainty, string> = {
   'source-proven': '来源已证实',

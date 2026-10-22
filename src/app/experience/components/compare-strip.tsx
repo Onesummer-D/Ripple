@@ -31,18 +31,29 @@ function RealShotInner({ side, label }: { side: CompareSide; label: string }) {
 export function CompareStrip({ model }: { model: ExperienceViewModel }) {
   const { baseline, candidate, matchedViewport, focusArea } = model.compare
   const isDemo = model.dataProvenance === 'demo'
+  const selected = model.elements.find(item => item.id === model.selectedElementId)
   const side = (label: string, sideState: CompareSide, testId: string) => (
     <figure className={`ripple-xp-compare-side ripple-xp-compare-${sideState.state}`} data-testid={testId}>
       <div className="ripple-xp-compare-shot" aria-label={`${label}截图`}>
         {isDemo ? (
           sideState.state === 'ready' ? (
-            <>
-              <span className="ripple-xp-compare-page-title">青野文创 · 首页</span>
-              <span className={`ripple-xp-compare-title ${testId === 'compare-candidate' ? 'is-changed' : ''}`}>
-                {testId === 'compare-candidate' && model.draftAfterText ? model.draftAfterText : '秋日茶器市集'}
-              </span>
-              {testId === 'compare-candidate' && <span className="ripple-xp-focus-ring" aria-hidden>⟶ {focusArea}</span>}
-            </>
+            testId === 'compare-baseline' ? (
+              // 修改前 = 当前选中目标的原文；未选中时如实提示，不回显旧目标内容
+              selected
+                ? <span className="ripple-xp-compare-title">{selected.currentText}</span>
+                : <span className="ripple-xp-compare-note">尚未选中要修改的位置</span>
+            ) : (
+              // 候选 = 当前目标的草稿；没有有效草稿时如实提示"尚未生成候选"，
+              // 绝不把原文伪装成修改后结果
+              <>
+                {model.draftAfterText.trim() && selected ? (
+                  <span className="ripple-xp-compare-title is-changed">{model.draftAfterText}</span>
+                ) : (
+                  <span className="ripple-xp-compare-note">尚未生成候选</span>
+                )}
+                {selected && <span className="ripple-xp-focus-ring" aria-hidden>⟶ {focusArea}</span>}
+              </>
+            )
           ) : <span className="ripple-xp-compare-note">{SIDE_STATE_LABEL[sideState.state]}</span>
         ) : <RealShot side={sideState} label={label} />}
       </div>

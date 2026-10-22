@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ExperienceAdapter } from './adapter'
+import { approvalFeedbackStale } from './view-model'
 import type { ExperienceViewModel, PageScopeChoiceXp } from './view-model'
 import { createDemoAdapter } from './demo-adapter'
 import { TopBar } from './components/top-bar'
@@ -22,6 +23,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [panel, setPanel] = useState<'evidence' | 'history' | null>('evidence')
   const [activeVersionId, setActiveVersionId] = useState<string>()
   const [feedback, setFeedback] = useState('')
+  const modelRef = useRef<ExperienceViewModel | undefined>(undefined)
 
   useEffect(() => {
     let active = true
@@ -34,7 +36,17 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   if (error) return <div className="ripple-xp-scope ripple-xp-fatal" role="alert">{error}</div>
   if (!model) return <div className="ripple-xp-scope ripple-xp-loading" role="status">工作台加载中…</div>
 
-  const apply = (next: ExperienceViewModel) => setModel(next)
+  modelRef.current = model
+
+  /**
+   * 状态变更统一入口：模型一旦推进，旧版演示审批反馈立即作废。
+   * 目标切换、草稿修改、范围决策变化（approvalFeedbackStale 判定）都会清掉
+   * "范围决策已确认"横幅——旧确认绝不跨修订复用，approvalGate 重新生效。
+   */
+  const apply = (next: ExperienceViewModel) => {
+    if (modelRef.current && approvalFeedbackStale(modelRef.current, next)) setFeedback('')
+    setModel(next)
+  }
 
   return <div className="ripple-xp-scope ripple-xp-workbench">
     <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} />
