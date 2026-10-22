@@ -276,6 +276,31 @@ export async function executeVerification({
   // Mobile-menu leg of the declared navigation contract (see
   // clickDeclaredControl). Every refusal is an explicit reason, never a
   // positional pick.
+  //
+  // Run #14: opening the menu is only half the contract — the target must be
+  // proven to belong to the menu THIS CLICK opened. Real pages keep footer
+  // nav and in-body CTAs with the same accessible names (the pinned Bolt
+  // project has both), so a page-wide role+name search after the open finds
+  // 2-3 visible matches and cannot decide. Two provable bindings, in priority
+  // order; both must attribute the activation to the click itself:
+  //   1. aria proof: when the toggle carries aria-expanded/aria-controls, the
+  //      page's own declaration owns the decision — the target must be the
+  //      single actionable match inside the resolved, now-visible region, AND
+  //      the open must be attributable to this click: aria-expanded must have
+  //      been absent/'false' before it, or the region/target must demonstrably
+  //      have been invisible/inert before it. A toggle already sitting at
+  //      aria-expanded='true' with an already-actionable region button proves
+  //      nothing about the click — it may be inert (review P1-1).
+  //   2. activation-transition proof (Bolt shape, no aria wiring): probe
+  //      which target matches exist and are ACTIONABLE before the open
+  //      (visible, sized, no pointer-events:none ancestor — isVisible() is
+  //      not enough, opacity-0/pointer-events:none overlays report visible),
+  //      then require exactly one match that is the SAME NODE as a pre-open
+  //      match and transitioned non-actionable -> actionable. Matches
+  //      actionable before AND after (footer, CTAs) are page chrome; a node
+  //      that did not exist before the click is a dynamically inserted
+  //      element, not menu evidence (review P1-2); a no-op toggle produces
+  //      zero transitions. Anything else is an explicit UNKNOWN.
   async function openDeclaredMenuAndClick(page, scope, side, spec) {
     const toggles = page.getByRole(spec.menuControl.role, { name: spec.menuControl.name, exact: true })
     const toggleCount = await toggles.count()
@@ -287,23 +312,116 @@ export async function executeVerification({
     if (visibleToggles.length !== 1) {
       throw new Error(`declared menu control '${spec.menuControl.name}' is ${visibleToggles.length === 0 ? 'missing or hidden' : 'ambiguous'}: ${toggleCount} matches, ${visibleToggles.length} visible; refusing to open a menu by position`)
     }
-    await visibleToggles[0].click({ timeout: actionTimeoutMs })
-    const candidates = page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
-    const matches = await candidates.count()
-    const visible = []
-    for (let index = 0; index < matches; index += 1) {
-      const candidate = candidates.nth(index)
-      if (await candidate.isVisible()) visible.push(candidate)
-    }
-    if (visible.length !== 1) {
-      throw new Error(`after opening declared menu '${spec.menuControl.name}', navigation control '${spec.navigateBy.name}' is ${visible.length === 0 ? 'still not visible (menu open failed?)' : 'ambiguous'}: ${matches} matches, ${visible.length} visible; refusing to pick one arbitrarily`)
-    }
-    await visible[0].click({ timeout: actionTimeoutMs })
+    const target = page.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })
+    const before = await targetProbe(target)
+    const toggle = visibleToggles[0]
+    const ariaBefore = await readToggleAria(toggle)
+    const regionBefore = ariaBefore.controls ? await probeAriaRegion(page, spec, ariaBefore.controls) : null
+    await toggle.click({ timeout: actionTimeoutMs })
+    const proven = await proveActivatedMenuTarget(page, spec, toggle, target, before, ariaBefore, regionBefore)
+    await proven.handle.click({ timeout: actionTimeoutMs })
     scope.note({
       event: 'navigation-menu-disambiguated', pageRef: spec.pageRef, side: side.name, route: diagnosticRoute(spec.path),
-      menuControl: spec.menuControl.name, landmarkMatches: matches, visibleMatches: visible.length, viewport: scope.viewport,
+      menuControl: spec.menuControl.name, proof: proven.kind, regionId: proven.regionId ?? null,
+      preOpenActionable: before.filter(entry => entry.actionable).length, postOpenActionable: proven.postOpenActionable,
+      visibleMatches: 1, viewport: scope.viewport,
     })
     return true
+  }
+
+  // Probes every match of a locator, keeping each element handle paired with
+  // its actionability. ElementHandles stay valid across evaluate calls, so
+  // identity between the pre-open and post-open probes is a plain node
+  // comparison. Handles whose node was replaced by a re-render compare
+  // unequal; the callers treat that as failing closed, never as evidence.
+  async function targetProbe(locator) {
+    const probed = []
+    for (const handle of await locator.elementHandles()) {
+      probed.push({ handle, actionable: await isActionable(handle) })
+    }
+    return probed
+  }
+
+  async function isActionable(handle) {
+    return handle.evaluate(element => {
+      if (!(element instanceof HTMLElement)) return false
+      const rect = element.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return false
+      for (let node = element; node && node instanceof HTMLElement; node = node.parentElement) {
+        const style = getComputedStyle(node)
+        if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false
+      }
+      return true
+    }).catch(() => false)
+  }
+
+  async function readToggleAria(toggle) {
+    return toggle.evaluate(element => ({
+      expanded: element.getAttribute('aria-expanded'),
+      controls: element.getAttribute('aria-controls'),
+    })).catch(() => ({ expanded: null, controls: null }))
+  }
+
+  async function findSameNode(probed, handle) {
+    for (const entry of probed) {
+      if (await handle.evaluate((element, other) => element === other, entry.handle).catch(() => false)) return entry
+    }
+    return null
+  }
+
+  async function probeAriaRegion(page, spec, controls) {
+    const safeId = controls.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    const region = page.locator(`[id="${safeId}"]`)
+    if (await region.count() !== 1) return { resolvable: false, visible: false, probed: [] }
+    return {
+      resolvable: true,
+      visible: await region.first().isVisible().catch(() => false),
+      probed: await targetProbe(region.getByRole(spec.navigateBy.role, { name: spec.navigateBy.name, exact: true })),
+    }
+  }
+
+  async function proveActivatedMenuTarget(page, spec, toggle, target, before, ariaBefore, regionBefore) {
+    const aria = await readToggleAria(toggle)
+    if (aria.expanded !== null || aria.controls !== null) {
+      if (aria.expanded !== 'true' || !aria.controls) {
+        throw new Error(`declared menu control '${spec.menuControl.name}' carries incomplete aria wiring (aria-expanded='${aria.expanded}', aria-controls='${aria.controls}') after the open; refusing to guess the menu region`)
+      }
+      const regionAfter = await probeAriaRegion(page, spec, aria.controls)
+      if (!regionAfter.resolvable || !regionAfter.visible) {
+        throw new Error(`aria-controls='${aria.controls}' does not resolve to exactly one visible region after opening declared menu '${spec.menuControl.name}'; refusing page-wide target search`)
+      }
+      const actionable = regionAfter.probed.filter(entry => entry.actionable)
+      if (actionable.length !== 1) {
+        throw new Error(`aria-controls region '${aria.controls}' holds ${actionable.length} actionable '${spec.navigateBy.name}' controls (expected exactly 1); refusing to pick one arbitrarily`)
+      }
+      if (ariaBefore.expanded === 'true') {
+        // The wiring claimed the menu was ALREADY open before our click; the
+        // click must still demonstrably change the target's reachability,
+        // otherwise the toggle may be inert and the region button was always
+        // clickable (review P1-1).
+        const prior = await findSameNode(regionBefore?.probed ?? [], actionable[0].handle)
+        const becameProvable = !regionBefore?.visible || (prior ? !prior.actionable : false)
+        if (!becameProvable) {
+          throw new Error(`declared menu control '${spec.menuControl.name}' already had aria-expanded='true' before the click and aria-controls region '${aria.controls}' already held an actionable '${spec.navigateBy.name}' control; the open is not attributable to this click; refusing`)
+        }
+      }
+      return { handle: actionable[0].handle, kind: 'aria-controls', regionId: aria.controls, postOpenActionable: actionable.length }
+    }
+    const after = await targetProbe(target)
+    const afterActionable = after.filter(entry => entry.actionable)
+    const beforeActionable = before.filter(entry => entry.actionable)
+    const activated = []
+    for (const entry of afterActionable) {
+      // The SAME NODE must have existed before the click and transitioned
+      // non-actionable -> actionable. Nodes that did not exist before are
+      // dynamically inserted content, not menu evidence (review P1-2).
+      const prior = await findSameNode(before, entry.handle)
+      if (prior && !prior.actionable) activated.push(entry)
+    }
+    if (activated.length !== 1 || afterActionable.length <= beforeActionable.length) {
+      throw new Error(`opening declared menu '${spec.menuControl.name}' did not prove a unique activated target: ${activated.length} '${spec.navigateBy.name}' control(s) transitioned to actionable (${beforeActionable.length} actionable before, ${afterActionable.length} after); refusing to pick by position`)
+    }
+    return { handle: activated[0].handle, kind: 'activation-transition', regionId: null, postOpenActionable: afterActionable.length }
   }
 
   // Binds a text match to the source module that rendered it, via the
