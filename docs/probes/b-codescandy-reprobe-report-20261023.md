@@ -69,7 +69,9 @@ Ripple token 仅支持 `.css` 的 CSS 自定义属性与 tailwind/theme `colors`
 - `scripts/b-thirdparty-reprobe-stats.mjs` — 媒体/TEXT/路由/token 统计探针（媒体口径 = asset-consumer 边）
 - `scripts/b-thirdparty-candidate-gate.mjs` — 候选门控合同测试（v4）：传入检出**严格只读**，
   全部候选操作在脚本自有固定 SHA clone（mkdtemp）上运行；严格断言 CandidateError + 当前预期拒绝原因 +
-  无残留工件/工作树检查；`--selftest` 注入无关错误负例防假绿；`--expect accepted` 供 AC-P2a/AC-P2b 修复后切换，
+  无残留工件/工作树检查；`--selftest` 注入无关错误负例防假绿，且负例断言平台稳定
+  （inside-project 位置拒绝为确定性原因；caller-repo 提案只断言零创建零改动，不绑定拒绝原因——
+  Windows 跨盘路径会被 candidate.ts 互斥检查误拒绝，见 AC-P3）；`--expect accepted` 供 AC-P2a/AC-P2b 修复后切换，
   成功路径会核对补丁字节/patchHash/marker/候选精确编辑字节后才清理
 - `scripts/b-candidate-accepted-fixture.mjs` — **候选成功正例**：脚本自有最小 data-router 工程
   （Component 路由、无 errorElement、无 scss）上执行真实 createCandidate，验证补丁字节、patchHash、

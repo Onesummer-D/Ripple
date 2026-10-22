@@ -70,6 +70,26 @@ autocrlf=false 候选 worktree（`016aee03…`）。
 状态并在建候选 worktree 时显式对齐）或其他方案。
 另：图偏移与候选偏移随 EOL 平移（#2620 ↔ #2691），任何写入源码位置的工件必须携带 EOL 状态。
 
+## AC-P3：候选/工件目录互斥检查缺失 `path.isAbsolute` 守卫（Windows 跨盘误拒绝）
+
+**现象**：`candidate.ts` L482-485 的"候选目录与补丁工件目录必须互不包含"检查对
+`path.relative` 的跨盘结果（Windows 上返回绝对路径如 `D:\…`）缺少 `path.isAbsolute`
+守卫——同函数 `outsideProject`（L60）有该守卫，此处遗漏。后果：Windows 上只要
+`candidateRoot` 与 `artifactRoot` 位于**不同盘符**，即使两个目录完全不相干，也必然被
+误拒绝（`候选目录与补丁工件目录必须互不包含`）。Linux/macOS 上 `path.relative` 总是
+返回相对路径，不触发。
+
+**最小复现**（Windows）：`createCandidate({ projectRoot: <C: 盘工程>, candidateRoot: 'D:\\tmp\\cand', artifactRoot: 'C:\\tmp\\art', … })` →
+CandidateError"候选目录与补丁工件目录必须互不包含"。该行为是 B 的门控 selftest 在
+Linux CI 失败、在 Windows 本地通过的差异根因（负例断言了拒绝原因，而误拒绝恰只发生在
+Windows）。B 已把自身负例改为平台稳定断言（`negative-inside-project-location` 校验
+确定性的 `项目原目录之外` 拒绝；`negative-caller-repo-proposal` 只断言"调用者检出零创建
++ 零改动"，不绑定拒绝原因），本需求不影响 B 现有结论。
+
+**需求**：在 L484-485 的两个条件中补 `&& !path.isAbsolute(candidateRelative)` /
+`&& !path.isAbsolute(artifactRelative)`（与 `outsideProject` 对齐），并为跨盘/UNC 路径
+补一条正例测试（候选与工件分置两盘应成功创建）。
+
 ---
 
 ## English version — ready-to-post GitHub Issue #6 comment
@@ -124,3 +144,23 @@ EOL (#2620 ↔ #2691); artifacts carrying source offsets must record EOL state.
 `scripts/b-thirdparty-reprobe-stats.mjs`, reports in `docs/probes/`
 (`b-codescandy-reprobe-2026-10-23.json`, `b-codescandy-reprobe-stats-20261023.json`,
 `thirdparty-text-blocker-matrix.md` v2).
+
+**AC-P3 — add the missing `path.isAbsolute` guard to the candidate/artifact
+mutual-containment check (false rejection across Windows drives).**
+In `candidate.ts` (~L482-485), the "candidate dir and artifact dir must not
+contain each other" check compares `path.relative` results without an
+`path.isAbsolute` guard — the sibling `outsideProject` (~L60) has one. On
+Windows, `path.relative` returns an absolute path for cross-drive pairs, so
+ANY `candidateRoot`/`artifactRoot` pair on different drives (completely
+disjoint dirs) is wrongly rejected with "候选目录与补丁工件目录必须互不包含".
+Minimal repro: `createCandidate({ projectRoot: <drive C:>, candidateRoot:
+'D:\\tmp\\cand', artifactRoot: 'C:\\tmp\\art', … })`. This was the root cause
+of B's gate selftest failing on Linux CI while passing on Windows (the
+negative case asserted the refusal reason, and the false refusal only happens
+on Windows). B has since made its negatives platform-stable
+(`negative-inside-project-location` asserts the deterministic
+"项目原目录之外" refusal; `negative-caller-repo-proposal` only asserts zero
+creation/mutation in the caller checkout), so this does not affect B's
+conclusions. Ask: add the two `isAbsolute` guards (aligned with
+`outsideProject`) plus a positive test with candidate and artifact on
+separate drives.

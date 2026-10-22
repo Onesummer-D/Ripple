@@ -179,11 +179,27 @@ const main = () => {
       const base = attempt({ slot: 'base' })
       cases.push({ case: 'base-rejection', pass: base.outcome === 'threw' && base.matchesExpectedRejection === true, detail: base })
 
-      const illegalInRepo = path.join(repo, '.gate-inside')
-      const inside = attempt({ slot: 'inside', proposal: { candidateRoot: illegalInRepo } })
+      // Deterministic location rejection: candidateRoot INSIDE the project clone
+      // must be refused by outsideProject on every platform ('项目原目录之外').
+      const insideProject = attempt({ slot: 'inside', proposal: { candidateRoot: path.join(project, '.gate-inside') } })
       cases.push({
-        case: 'negative-wrong-location',
-        pass: inside.outcome === 'threw' && inside.isCandidateError === true && inside.matchesExpectedRejection === false && inside.proposalNeverCreated === true,
+        case: 'negative-inside-project-location',
+        pass: insideProject.outcome === 'threw' && insideProject.isCandidateError === true
+          && insideProject.message.includes('项目原目录之外') && insideProject.proposalNeverCreated === true,
+        detail: insideProject,
+      })
+
+      // Caller-repo proposal: the current provenance gate rejects before any
+      // worktree is created, so the refusal REASON is platform/order-dependent
+      // (on Windows a cross-drive candidateRoot/artifactRoot pair is also
+      // mis-rejected by A's missing isAbsolute guard — reported to A separately).
+      // The safety contract is platform-independent: never create anything in
+      // the caller checkout. Caller-repo integrity is asserted in postChecks.
+      const illegalInRepo = path.join(repo, '.gate-inside')
+      const inside = attempt({ slot: 'caller', proposal: { candidateRoot: illegalInRepo } })
+      cases.push({
+        case: 'negative-caller-repo-proposal',
+        pass: inside.outcome === 'threw' && inside.isCandidateError === true && inside.proposalNeverCreated === true,
         detail: inside,
       })
 
