@@ -164,6 +164,13 @@ describe('Real Adapter · 真实数据映射', () => {
     // 无运行 → 无截图 → 对照不可用而非伪造
     expect(model.compare.candidate.state).toBe('unavailable')
     expect(model.compare.baseline.state).toBe('unavailable')
+    // 候选存在但该视口缺截图 → 如实提示视口不一致；没有候选时不显示该警告
+    expect(model.compare.matchedViewport).toBe(false)
+    const noHistory = { status: 200, body: { history: [] } } as const
+    const { fetchImpl: fetchNone } = mockFetch({ analyze: ANALYSIS, history: noHistory, 'project/preview': PREVIEW })
+    const adapterNone = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl: fetchNone })
+    const emptyModel = await adapterNone.load()
+    expect(emptyModel.compare.matchedViewport).toBe(true)
   })
 
   it('预演启动失败：画布不可用并给出准确阻断原因，其余真实数据不受影响', async () => {
@@ -214,6 +221,10 @@ describe('Real Adapter · 真实数据映射', () => {
     // 再次点击同一目标：不视为切换，草稿不丢
     const reselect = adapter.selectElement(withDraft, 'data:hero-title')
     expect(reselect).toBe(withDraft)
+    // 不存在的目标 id：拒绝选中，模型原样返回（不产生悬空 selectedElementId）
+    const invalid = adapter.selectElement(withDraft, 'data:no-such-target')
+    expect(invalid).toBe(withDraft)
+    expect(invalid.selectedElementId).toBe('data:hero-title')
   })
 
   it('scope 意向是本地状态；工程刷新后旧选择与旧草稿不残留', async () => {

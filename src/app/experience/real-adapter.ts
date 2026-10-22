@@ -404,7 +404,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             state: 'unavailable',
             note: latest ? `该视口暂无真实截图（验证${VERIFICATION_STATE_LABEL[latest.verification.state]}）。` : '验证尚未运行，没有真实截图。',
           },
-      matchedViewport: !!shot,
+      // matchedViewport 语义：有候选且该视口缺截图时才提示"不一致"；
+      // 没有任何候选（无可对照内容）时不显示误导性警告
+      matchedViewport: !!shot || !latest,
       focusArea: elements().find(item => item.id === ui.selectedElementId)?.label,
     }
   }
@@ -453,7 +455,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     try {
       return await action()
     } catch (error) {
-      if (error instanceof StaleResponseError) return buildModel(analysis ? 'ready' : projectRoot?.trim() ? 'unavailable' : 'unavailable')
+      if (error instanceof StaleResponseError) return buildModel('unavailable')
       throw error
     }
   }
@@ -489,7 +491,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     async refresh() {
       const gen = ++generation
       return guarded(async () => {
-        if (!analysis) return buildModel(projectRoot?.trim() ? 'unavailable' : 'unavailable', ['尚未选择工程'])
+        if (!analysis) return buildModel('unavailable', ['尚未选择工程：请输入本机 React/Vite 项目目录。'])
         await loadProjectState(gen)
         stale(gen)
         return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
@@ -517,6 +519,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
 
     selectElement(current, elementId) {
       if (current.selectedElementId === elementId) return current
+      // 不存在的目标 id 一律拒绝：无效选择不得进入模型（否则 buildModel 内部
+      // 清除后又被 spread 覆盖，产生悬空 selectedElementId）
+      if (!elements().some(item => item.id === elementId)) return current
       ui.selectedElementId = elementId
       // 草稿属于目标：切换目标即清空，旧草稿绝不跨目标复用
       ui.draftAfterText = ''
