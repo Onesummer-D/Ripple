@@ -82,7 +82,15 @@ const diffCheckouts = (rootA, rootB) => {
 }
 
 const cloneInto = (dest, autocrlf) => {
-  execFileSync('git', ['-c', `core.autocrlf=${autocrlf}`, 'clone', '--quiet', '--', repo, dest], { stdio: 'pipe' })
+  const args = ['-c', `core.autocrlf=${autocrlf}`, 'clone', '--quiet', '--', repo, dest]
+  try {
+    execFileSync('git', args, { stdio: ['ignore', 'ignore', 'pipe'] })
+  } catch (error) {
+    console.error(`[env1] clone attempt 1 failed (${autocrlf}):`, error instanceof Error ? error.message : error, '— retrying')
+    fs.rmSync(dest, { recursive: true, force: true })
+    execFileSync('git', args, { stdio: 'inherit' })
+  }
+  console.error(`[env1] cloned ${autocrlf} -> ${dest}`)
   if (git(dest, ['rev-parse', 'HEAD']) !== expected) throw new Error(`clone HEAD mismatch in ${dest}`)
 }
 
