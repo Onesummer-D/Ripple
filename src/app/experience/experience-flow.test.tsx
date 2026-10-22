@@ -354,4 +354,81 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     await screen.findByTestId('open-project-error')
     expect(text('open-project-error')).toContain('项目路径不是目录')
   })
+
+// PR #25 浏览器回归夹具：两个真实目标 + 两个页面，覆盖 P1-1 目标切换与 P1-3 生命周期优先级
+const ANALYSIS_TWO_TARGETS = {
+  status: 200,
+  body: {
+    projectRoot: 'D:\\work\\acme-shop',
+    revision: { projectId: 'proj-acme', sourceDigest: 'digest-1', runtimeFingerprint: 'fp-1' },
+    graphId: 'graph-1',
+    unresolved: [],
+    routes: [
+      { id: 'page:home', label: '首页', page: '/' },
+      { id: 'page:about', label: '关于', page: '/about' },
+    ],
+    targets: [
+      {
+        id: 'data:hero-title', kind: 'data', label: '首页标题', value: 'Acme 商店',
+        location: { path: 'src/data/site.ts', start: 10, end: 20 },
+        impact: { pageRefs: ['page:home'], unresolved: [], certainty: 'source-proven' },
+      },
+      {
+        id: 'data:shared-slogan', kind: 'data', label: '共享标语', value: '更好明天',
+        location: { path: 'src/data/site.ts', start: 30, end: 40 },
+        impact: { pageRefs: ['page:home', 'page:about'], unresolved: [], certainty: 'source-proven' },
+      },
+    ],
+    relationCounts: { reads: 2 },
+  },
+}
+
+it('PR #25 P1-1：切换编辑目标后上一目标的 Scope 选择不残留', async () => {
+  const fetchImpl = mockFetch({ analyze: ANALYSIS_TWO_TARGETS, history: HISTORY, 'project/preview': { status: 503, body: { error: '隔离预演网络池为空' } } })
+  render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl })} />)
+  fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\work\\acme-shop' } })
+  fireEvent.click(screen.getByTestId('open-project-submit'))
+  // 目标一（首页标题）：关于页影响未证明，用户选择"排除"
+  fireEvent.click(await screen.findByTestId('canvas-el-data:hero-title'))
+  fireEvent.click(screen.getByTestId('scope-exclude-page:about'))
+  expect(screen.getByTestId('scope-exclude-page:about').getAttribute('aria-pressed')).toBe('true')
+  // 切换目标（共享标语，来源证明影响首页+关于）：范围决策随当前目标重建，
+  // 关于页回到默认"包含"，绝不残留上一目标的排除选择
+  fireEvent.click(screen.getByTestId('canvas-el-data:shared-slogan'))
+  expect(screen.getByTestId('scope-exclude-page:about').getAttribute('aria-pressed')).toBe('false')
+  expect(screen.getByTestId('scope-include-page:about').getAttribute('aria-pressed')).toBe('true')
+  expect(text('page-item-page:about')).toContain('同源关联')
+  expect(text('scope-summary')).toContain('包含 2')
+})
+
+it('PR #25 P1-3：已应用/已回滚候选即使保留审批记录也显示真实生命周期', async () => {
+  const historyWithApproval = (lifecycle: string) => ({
+    status: 200,
+    body: {
+      history: [{
+        candidateId: `candidate-${lifecycle}`, projectId: 'proj-acme', lifecycle,
+        patchHash: 'hash-1234abcd', updatedAt: '2026-10-22T09:30:00Z',
+        // 应用/回滚后审批记录仍保留在 history，不得因此显示"已审批"
+        approval: { verificationRunId: 'run-1', at: '2026-10-22T09:00:00Z' },
+        verification: { state: 'passed', runId: 'run-1' },
+      }],
+    },
+  })
+  async function openWithLifecycle(lifecycle: string, statusText: string) {
+    const fetchImpl = mockFetch({
+      analyze: ANALYSIS,
+      history: historyWithApproval(lifecycle),
+      'project/preview': { status: 503, body: { error: '隔离预演网络池为空' } },
+    })
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl })} />)
+    fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\work\\acme-shop' } })
+    fireEvent.click(screen.getByTestId('open-project-submit'))
+    await screen.findByTestId('page-item-page:home')
+    expect(text('candidate-status')).toContain(statusText)
+    expect(text('candidate-status')).not.toContain('已审批')
+    cleanup()
+  }
+  await openWithLifecycle('applied', '已应用')
+  await openWithLifecycle('rolled-back', '已回滚')
+})
 })

@@ -198,7 +198,15 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     return payload
   }
 
+  /** 尽力停止预演会话（fire-and-forget）：停止失败不阻塞状态重置，也不产生未处理拒绝。 */
+  function stopPreviewSession(session: PreviewSession | undefined): void {
+    if (!session) return
+    void post('project/preview/stop', { projectId: session.projectId, previewId: session.previewId }).catch(() => undefined)
+  }
+
   function resetForProject(): void {
+    // 先停止旧预演会话再清空：reset 后旧 iframe 会话不得遗留为服务端孤儿资源
+    stopPreviewSession(previewSession)
     analysis = undefined
     history = []
     previewSession = undefined
@@ -220,14 +228,24 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
     stale(gen)
     history = (historyPayload.history ?? []).filter(item => item.projectId === projectId)
+    // refresh 场景：替换预演会话前必须先停止旧会话，不得遗留未回收的 iframe 会话
+    stopPreviewSession(previewSession)
     previewSession = undefined
     previewFailedReason = ''
+    let session: PreviewSession | undefined
     try {
-      previewSession = await post<PreviewSession>('project/preview', { projectId })
+      session = await post<PreviewSession>('project/preview', { projectId })
     } catch (error) {
       previewFailedReason = error instanceof Error ? error.message : '项目预演启动失败'
     }
+    if (session && gen !== generation) {
+      // 响应返回时工程已切换/已刷新/已 dispose：过期预览会话先回收再按过期处理，
+      // 绝不让过期会话提交进状态成为泄漏
+      stopPreviewSession(session)
+      session = undefined
+    }
     stale(gen)
+    previewSession = session
   }
 
   function elements(): CanvasElementXp[] {
@@ -273,13 +291,16 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   function candidateStatus(): ExperienceViewModel['candidateStatus'] {
     const latest = latestCandidate()
     if (!latest) return 'none'
-    if (latest.approval) return 'approved'
+    // 真实生命周期优先：候选应用/回滚/失效后审批记录仍保留在 history 里，
+    // 不能因为 latest.approval 存在就显示"已审批"——状态必须反映候选的真实归宿，
+    // 审批标记只在候选仍处于活动阶段（active）时作为门控结果展示。
     switch (latest.lifecycle) {
       case 'applied': return 'applied'
       case 'rolled-back': return 'rolled-back'
       case 'stale': return 'stale'
       case 'discarded': return 'none'
       default:
+        if (latest.approval) return 'approved'
         return latest.verification.state === 'passed' || latest.verification.state === 'risks' ? 'verified' : 'candidate'
     }
   }
@@ -520,6 +541,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       ui.selectedElementId = elementId
       // 草稿属于目标：切换目标即清空，旧草稿绝不跨目标复用
       ui.draftAfterText = ''
+      // 范围意向同样属于（目标 × 页面）这一版修订：切换编辑目标即重置，
+      // 默认 Scope 只由当前目标重新投影（与 demo-adapter / projectPageRelations 规则一致），
+      // 上一目标的排除/保护/包含选择绝不残留到新目标
+      ui.scopes = {}
       // 候选状态反映真实生命周期，不被本地选中动作改写
       return { ...buildModel(current.projectStatus, current.blockedReasons), selectedElementId: elementId, candidateStatus: current.candidateStatus }
     },

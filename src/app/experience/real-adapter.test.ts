@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createRealAdapter } from './real-adapter'
 import type { EvidenceItemXp, ExperienceViewModel } from './view-model'
 
@@ -301,5 +301,182 @@ describe('Real Adapter · 异步契约', () => {
     expect(model.versions).toEqual([])
     expect(model.candidateStatus).toBe('none')
     expect(evidence(model, 'ev:verification').state).toBe('not-run')
+  })
+})
+
+describe('Real Adapter · PR #25 状态整改', () => {
+  it('P1-1 切换编辑目标：上一目标的 Scope 意向不跨目标残留', async () => {
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_NOT_RUN, 'project/preview': PREVIEW })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    // 目标一（首页标题）：首页为编辑页，"关于"页排除（用户范围意向）
+    const hero = adapter.selectElement(loaded, 'data:hero-title')
+    const scoped = adapter.setPageScope(hero, 'page:about', 'exclude')
+    expect(scoped.pages.find(page => page.id === 'page:about')?.scope).toBe('exclude')
+    // 切换目标（共享标语，来源证明影响首页+关于）：范围决策以当前目标重新投影，
+    // 上一目标对"关于"页的排除绝不残留
+    const switched = adapter.selectElement(scoped, 'data:shared-slogan')
+    expect(switched.pages.find(page => page.id === 'page:about')).toMatchObject({ relation: 'same-source', scope: 'include' })
+    expect(switched.pages.every(page => page.scope !== 'exclude')).toBe(true)
+    // 新目标下可以独立做新的范围意向
+    const reScoped = adapter.setPageScope(switched, 'page:about', 'protect')
+    expect(reScoped.pages.find(page => page.id === 'page:about')?.scope).toBe('protect')
+  })
+
+  it('P1-1 重复点击同一目标不算切换：该目标下的草稿与范围意向保留', async () => {
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_NOT_RUN, 'project/preview': PREVIEW })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    const scoped = adapter.setPageScope(adapter.selectElement(loaded, 'data:hero-title'), 'page:about', 'exclude')
+    const withDraft = adapter.setDraftText(scoped, 'Acme 旗舰店')
+    const reselect = adapter.selectElement(withDraft, 'data:hero-title')
+    expect(reselect).toBe(withDraft)
+    expect(reselect.pages.find(page => page.id === 'page:about')?.scope).toBe('exclude')
+  })
+
+  it('P1-3 候选生命周期优先于审批记录：applied/rolled-back/stale 不得显示为已批准', async () => {
+    const base = {
+      candidateId: 'candidate-9', projectId: 'proj-acme', patchHash: 'hash-9999',
+      updatedAt: '2026-10-22T15:00:00Z',
+      approval: { verificationRunId: 'run-9', at: '2026-10-22T14:00:00Z' },
+      verification: { state: 'passed', runId: 'run-9' },
+    }
+    const cases: Array<[string, ExperienceViewModel['candidateStatus']]> = [
+      // 应用/回滚/失效后审批记录仍保留在 history，状态必须显示真实归宿
+      ['applied', 'applied'],
+      ['rolled-back', 'rolled-back'],
+      ['stale', 'stale'],
+      ['discarded', 'none'],
+      // 仍处于活动阶段时审批标记才作为门控结果展示
+      ['active', 'approved'],
+    ]
+    for (const [lifecycle, expected] of cases) {
+      const { fetchImpl } = mockFetch({
+        analyze: ANALYSIS,
+        history: { status: 200, body: { history: [{ ...base, lifecycle }] } },
+        'project/preview': PREVIEW,
+      })
+      const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+      const model = await adapter.load()
+      expect(model.candidateStatus, `lifecycle=${lifecycle} 且含审批记录`).toBe(expected)
+    }
+    // 活动阶段无审批、验证通过 → verified（审批门控未被绕过）
+    const { fetchImpl } = mockFetch({
+      analyze: ANALYSIS,
+      history: { status: 200, body: { history: [{ ...base, lifecycle: 'active', approval: undefined }] } },
+      'project/preview': PREVIEW,
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    expect((await adapter.load()).candidateStatus).toBe('verified')
+  })
+
+  it('P1-2 refresh：替换预演会话前先停止旧会话（停止请求早于新预演创建）', async () => {
+    const { fetchImpl, calls } = mockFetch({
+      analyze: ANALYSIS, history: HISTORY_NOT_RUN,
+      'project/preview': PREVIEW, 'project/preview/stop': PREVIEW_STOP,
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const loaded = await adapter.load()
+    const refreshed = await adapter.refresh?.(loaded)
+    expect(refreshed?.preview?.previewId).toBe('preview-1')
+    const paths = calls.map(call => call.path)
+    const stopIndex = paths.indexOf('project/preview/stop')
+    const lastPreviewIndex = paths.lastIndexOf('project/preview')
+    expect(stopIndex).toBeGreaterThanOrEqual(0)
+    expect(calls[stopIndex].body).toMatchObject({ projectId: 'proj-acme', previewId: 'preview-1' })
+    // 旧会话的停止请求必须早于新预演会话的创建请求
+    expect(stopIndex).toBeLessThan(lastPreviewIndex)
+  })
+
+  it('P1-2 并发切换工程：过期预览响应返回时其会话被回收，不提交进状态', async () => {
+    let analyzeCalls = 0
+    let previewCalls = 0
+    let resolveFirstPreview: ((value: MockResponse) => void) | undefined
+    const otherAnalysis = {
+      status: 200,
+      body: {
+        ...ANALYSIS.body,
+        projectRoot: '/work/other-app',
+        revision: { projectId: 'proj-other', sourceDigest: 'digest-2', runtimeFingerprint: 'fp-2' },
+        routes: [{ id: 'page:main', label: '主页', page: '/' }],
+        targets: [],
+      },
+    }
+    const previewB = { status: 200, body: { ...PREVIEW.body, previewId: 'preview-2', sourceDigest: 'digest-2' } }
+    const { fetchImpl, calls } = mockFetch({
+      analyze: () => {
+        analyzeCalls += 1
+        return Promise.resolve(analyzeCalls === 1 ? ANALYSIS : otherAnalysis)
+      },
+      history: { status: 200, body: { history: [] } },
+      'project/preview': () => {
+        previewCalls += 1
+        // 第一次预演请求故意挂起，第二次（切换后）立即返回
+        if (previewCalls === 1) return new Promise<MockResponse>(resolve => { resolveFirstPreview = resolve })
+        return Promise.resolve(previewB)
+      },
+      'project/preview/stop': PREVIEW_STOP,
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const firstLoad = adapter.load()
+    // 等第一个 load 走到挂起的预演请求，再切换工程制造并发
+    await vi.waitFor(() => { if (!resolveFirstPreview) throw new Error('preview 未发出') })
+    const switched = await adapter.openProject!('/work/other-app')
+    expect(switched.projectIdentity?.projectId).toBe('proj-other')
+    expect(switched.preview?.previewId).toBe('preview-2')
+    // 过期预览响应此刻才返回：会话 preview-1 必须被回收（stop），绝不能残留
+    resolveFirstPreview!(PREVIEW)
+    const staleModel = await firstLoad
+    expect(staleModel.projectIdentity?.projectId).toBe('proj-other')
+    const stops = calls.filter(call => call.path === 'project/preview/stop')
+    expect(stops.some(call => (call.body as { previewId?: string }).previewId === 'preview-1')).toBe(true)
+  })
+
+  it('P1-2 连续切换项目：每次切换都停止上一工程的预演会话，只保留最新会话', async () => {
+    let analyzeCalls = 0
+    const analysisFor = (root: string, projectId: string, digest: string) => ({
+      status: 200,
+      body: {
+        ...ANALYSIS.body,
+        projectRoot: root,
+        revision: { projectId, sourceDigest: digest, runtimeFingerprint: 'fp' },
+        routes: [{ id: 'page:main', label: '主页', page: '/' }],
+        targets: [],
+      },
+    })
+    const previewFor = (previewId: string, digest: string) => ({
+      status: 200,
+      body: { projectId: 'ignored', previewId, sourceDigest: digest, url: `http://127.0.0.1:9999/preview/${previewId}/` },
+    })
+    let previewCalls = 0
+    const { fetchImpl, calls } = mockFetch({
+      analyze: () => {
+        analyzeCalls += 1
+        return Promise.resolve(
+          analyzeCalls === 1 ? ANALYSIS
+            : analyzeCalls === 2 ? analysisFor('/work/app-b', 'proj-b', 'digest-b')
+              : analysisFor('/work/app-c', 'proj-c', 'digest-c'),
+        )
+      },
+      history: { status: 200, body: { history: [] } },
+      'project/preview': () => {
+        // 预演会话按预演请求序返回：首载 preview-1，之后 preview-b / preview-c
+        previewCalls += 1
+        const session = previewCalls === 1 ? previewFor('preview-1', 'digest-1')
+          : previewCalls === 2 ? previewFor('preview-b', 'digest-b')
+            : previewFor('preview-c', 'digest-c')
+        return Promise.resolve(session)
+      },
+      'project/preview/stop': PREVIEW_STOP,
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    await adapter.load() // preview-1（proj-acme）
+    await adapter.openProject!('/work/app-b') // preview-b
+    await adapter.openProject!('/work/app-c') // preview-c
+    const stops = calls.filter(call => call.path === 'project/preview/stop')
+      .map(call => (call.body as { previewId?: string }).previewId)
+    expect(stops).toContain('preview-1')
+    expect(stops).toContain('preview-b')
+    expect(stops).not.toContain('preview-c')
   })
 })
