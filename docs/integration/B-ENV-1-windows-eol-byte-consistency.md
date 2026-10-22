@@ -46,8 +46,10 @@ worktree 的检出 EOL 口径不一致时，摘要校验正确拒绝——但合
 
 - `sourceDigest` 改为对 revision tracked blob 的字节摘要
   （`git ls-files -s` / `cat-file --batch` 口径，与检出无关）。
-- SourceGraph 解析输入与 sourceRef 偏移基于同一份 blob 字节采集
-  （`git show <rev>:<path>`），跨平台、跨 autocrlf 可复现。
+- SourceGraph 解析输入基于同一份 blob 字节采集（`git show <rev>:<path>`），
+  跨平台、跨 autocrlf 可复现。注意：sourceRef 的 `#<offset>` 是 TypeScript AST
+  的 **UTF-16 文本偏移**（非原始字节偏移）；EOL 变化会移动该偏移，因此解析
+  输入必须与快照字节口径同源，偏移才有跨环境可比性。
 - 候选 worktree 维持 `autocrlf=false` 检出（字节天然等于 blob 字节），
   现有 `candidate.ts:499` 校验逻辑不变。
 - 错误提示分级：摘要不匹配时逐文件比对，检出 EOL 签名差异则明确提示
