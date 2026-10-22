@@ -24,8 +24,14 @@ jobs:
           test "$(git -C "$RUNNER_TEMP/codescandy" rev-parse HEAD)" = b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
       - name: Capability stats probe (media / TEXT / routes / tokens)
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-reprobe-stats.mjs "$RUNNER_TEMP/codescandy"
-      - name: "Candidate gate reproduction (expected: correctly rejected, exit 0)"
-        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-candidate-gate.mjs "$RUNNER_TEMP/codescandy" "$RUNNER_TEMP/gate-work"
+      - name: "Candidate gate reproduction (expected: strictly rejected, exit 0)"
+        # Hardened contract test: asserts CandidateError with the exact current
+        # provenance reasons, no surviving patch/worktree/mutation; --selftest
+        # injects unrelated errors to prove no false green. After AC-P2a/AC-P2b
+        # land, switch to: --expect accepted
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-candidate-gate.mjs "$RUNNER_TEMP/codescandy" --selftest --artifacts test-results
+      - name: "B-ENV-1 pinned repro (CRLF/LF working-tree states)"
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-env1-eol-repro.mjs "$RUNNER_TEMP/codescandy" test-results
       - name: "Source proof probe (expected: exit 2 BLOCKED with complete report)"
         # Probe exit semantics: 0 = proof satisfied; 2 = BLOCKED (complete report);
         # 1 = hard failure. Current expected state is 2 — treat it as a passing
@@ -47,5 +53,7 @@ jobs:
           path: |
             test-results/agent-b-codescandy-reprobe.json
             test-results/b-thirdparty-reprobe-stats.json
+            test-results/candidate-gate.json
+            test-results/b-env1-eol-repro.json
           retention-days: 30
           if-no-files-found: warn

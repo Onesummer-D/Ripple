@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
   "graph": {
     "nodes": 4957,
@@ -8,13 +8,34 @@
   },
   "unresolved": [
     "src/main.tsx → ./styles/theme.scss",
-    "data-router src/App.tsx#2358: conditional route fallback consumer is not modeled",
+    "data-router src/App.tsx#2310: conditional route fallback consumer is not modeled",
     "route-coverage: 静态路由表存在无法证明的消费者或条件分支"
   ],
   "media": {
     "assetNodes": 100,
-    "consumptionProofsSourceProven": 161,
-    "consumptionEdgesAll": 278
+    "uniqueConsumed": 100,
+    "unconsumed": 0,
+    "assetConsumer": {
+      "total": 178,
+      "byCertainty": {
+        "source-proven": 61,
+        "semantic-candidate": 117
+      }
+    },
+    "otherEdgesToMediaByKind": {
+      "reads": {
+        "total": 100,
+        "byCertainty": {
+          "source-proven": 100
+        }
+      }
+    },
+    "pageImpactTally": {
+      "source-proven": 0,
+      "partial": 60,
+      "unknown": 40
+    },
+    "comparisonNote": "旧基线 61 = asset-consumer source-proven，与本表 assetConsumer.byCertainty.source-proven 同口径；指向媒体节点的 reads 等其他边不计入该指标。"
   },
   "text": {
     "literalNodes": 2283,
@@ -176,7 +197,8 @@
       "renders": 74
     },
     "unprovenRouteConsumerCount": 0,
-    "unprovenRouteConsumers": []
+    "unprovenRouteConsumers": [],
+    "coverageNote": "unprovenRouteConsumerCount=0 不等于 graph.unresolved=0，也不等于完整路由覆盖已证明；当前 errorElement 条件回退消费者即经 graph.unresolved 记录，而非本计数。"
   },
   "tokens": {
     "tokenNodes": 0,

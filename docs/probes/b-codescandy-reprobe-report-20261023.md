@@ -22,7 +22,8 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs s
 实测（完整数据 `docs/probes/b-codescandy-reprobe-2026-10-23.json`、`b-codescandy-reprobe-stats-20261023.json`）：
 
 - 图 4957 节点 / 5384 边 / **37 route**（旧 4924/5006/**0**）
-- 媒体 100 资产节点 / **161 条 source-proven 消费证明**（旧 61，且旧版 100/100 页面影响 unknown）
+- 媒体 100 资产节点；**asset-consumer 边 178（source-proven 61 / semantic-candidate 117）——source-proven 61 与旧基线 61 完全同口径持平**（v1 报告误将 reads 边计入，已修正）；另有指向媒体节点的 `reads` 边 100 条 source-proven（JSX src 属性，不计入该指标）
+- 媒体页面影响：0 source-proven / 60 partial / 40 unknown（旧版 100/100 unknown）
 - TEXT 2283 data 节点 / 3593 条 source-proven reads 边
 - token 0；悬空 source-proven 边 0；unresolved 3（theme.scss、条件路由回退、route-coverage）
 - 探针 verdict：**exit=2 BLOCKED**（候选门控未满足，报告完整）
@@ -65,8 +66,10 @@ Ripple token 仅支持 `.css` 的 CSS 自定义属性与 tailwind/theme `colors`
 
 ## 复跑脚本与 CI
 
-- `scripts/b-thirdparty-reprobe-stats.mjs` — 媒体/TEXT/路由/token 统计探针
-- `scripts/b-thirdparty-candidate-gate.mjs` — 候选门控实证（以"被正确拒绝"为通过条件，exit 0）
+- `scripts/b-thirdparty-reprobe-stats.mjs` — 媒体/TEXT/路由/token 统计探针（媒体口径 = asset-consumer 边）
+- `scripts/b-thirdparty-candidate-gate.mjs` — 候选门控合同测试：严格断言 CandidateError + 当前预期拒绝原因 +
+  无残留工件/工作树检查；`--selftest` 注入无关错误负例防假绿；`--expect accepted` 供 AC-P2a/AC-P2b 修复后切换
+- `scripts/b-env1-eol-repro.mjs` — B-ENV-1 固定复现（CRLF/LF 双态字节与偏移记录）
 - `scripts/b-debug-wt-digest.mjs` — worktree 字节一致性诊断工具
 - `.github/workflows/agent-b-thirdparty-reprobe.yml` — B 独立 CI：拉取固定 SHA 检出 →
   统计探针 + 门控实证 + 探针工件上传（不触发 Bolt）

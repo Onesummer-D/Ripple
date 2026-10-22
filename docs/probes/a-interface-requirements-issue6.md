@@ -52,12 +52,20 @@ unresolved 记录 `data-router src/App.tsx#2358: conditional route fallback cons
 
 ## B-ENV-1（环境登记，非需求）：Windows EOL × 候选 worktree 字节一致性
 
-CRLF 检出的 codescandy 在首次 `createCandidate` 时被"隔离 worktree 的检出字节与
-原工程不同"拒绝；LF 归一化后 503 文件 digest 完全一致、不再复现。该前置检查本身是
-正确防御，但 Windows + `core.autocrlf` 组合可能使合法项目永远达不到字节一致。
-建议 A 评估：快照中记录 EOL/换行归一化状态，或按归一化内容计算 digest。
-另：图内源码偏移随 EOL 变化（#2691 ↔ #2620），工件需携带 EOL 元数据。
-如需要，B 可提供 Windows 最小复现脚本（当前一次性观察，未稳定复现）。
+已提供**固定复现**（同 HEAD 双工作树状态全记录，含 core.autocrlf、git blob、磁盘字节、
+图偏移、候选偏移、双方摘要）：`docs/probes/b-env1-eol-repro-20261023.md` +
+`b-env1-eol-repro-20261023.json`，复跑脚本 `scripts/b-env1-eol-repro.mjs`。
+
+要点：codescandy 的 git blob 全为 LF；CRLF 工作树仅来自 autocrlf=true 检出且被 git 报为
+"干净"（stat 缓存/过滤幻觉，Ripple 干净检查会放行）；Ripple 以 `-c core.autocrlf=false`
+建候选 worktree 得 LF 字节，与 CRLF 快照摘要必然不一致 → 候选创建被字节一致性检查拒绝
+（`mismatchDemonstrated: true`，可稳定复现）。
+
+**B 不要求、也不建议**把 ProjectRevision/CandidatePatch/补丁范围/工作树完整性的摘要改为
+"归一化文本后计算"——这些摘要必须尊重真实字节，归一化会使摘要与实际补丁不一致。
+请 A 判断：修改**检出策略**（要求/固定 LF 工作树）、修改**源码版本合同**（快照记录 EOL
+状态并在建候选 worktree 时显式对齐）或其他方案。
+另：图偏移与候选偏移随 EOL 平移（#2620 ↔ #2691），任何写入源码位置的工件必须携带 EOL 状态。
 
 ---
 
@@ -65,11 +73,15 @@ CRLF 检出的 codescandy 在首次 `createCandidate` 时被"隔离 worktree 的
 
 **Measured v2 baseline (codescandy frozen SHA `b700bbd…c9f0`, Ripple baseline
 `feat/a-cd-rehearsal-20261023` @ `1485439`):** 4957 nodes / 5384 edges /
-37 routes / 161 source-proven media consumption proofs / 2283 TEXT data nodes /
-3593 source-proven TEXT reads / 0 tokens / 0 dangling source-proven edges /
-unresolved 3. Full TEXT candidate creation is still **BLOCKED** by the
-fail-closed page-impact gate (verified live: `createCandidate` throws
-CandidateError). Route growth is real but does NOT constitute acceptance.
+37 routes / media asset-consumer edges 178 (61 source-proven — identical to
+the v1 baseline on the same metric — plus 117 semantic-candidate; 100
+source-proven `reads` edges to media nodes are a separate kind and not counted
+here) / media page impacts 0 source-proven, 60 partial, 40 unknown /
+2283 TEXT data nodes / 3593 source-proven TEXT reads / 0 tokens /
+0 dangling source-proven edges / unresolved 3. Full TEXT candidate creation
+is still **BLOCKED** by the fail-closed page-impact gate (verified live:
+`createCandidate` throws CandidateError). Route growth is real but does NOT
+constitute acceptance.
 
 **AC-P2a — prove host-DOM propagation for composite JSX children (first blocker).**
 The `<Link>Overview</Link>` literal in ProfileHeader.tsx has only a
@@ -85,11 +97,20 @@ blocks the project-level page-impact proof. Model provable fallbacks into
 the graph (source-proven); keep traceable unresolved for the rest; make the
 `route-coverage` trigger explainable.
 
-**B-ENV-1 (environment note):** on a CRLF checkout, candidate creation was
-once rejected by the worktree byte-identity check; after LF normalization all
-503 tracked file digests match exactly. Consider recording EOL state in the
-snapshot or hashing normalized content; graph offsets shift with EOL
-(#2691 ↔ #2620). Not a blocker; registered for A's awareness.
+**B-ENV-1 (environment note, pinned repro available):** codescandy git blobs
+are LF; a CRLF working tree arises from an `core.autocrlf=true` checkout and is
+reported clean by git (stat-cache/filter illusion), so Ripple's snapshot check
+lets it through; Ripple then builds the candidate worktree with
+`-c core.autocrlf=false` (LF bytes), which can never match the CRLF snapshot
+digest — candidate creation fails the byte-identity check
+(`mismatchDemonstrated: true`). Full two-state record (autocrlf, blob, on-disk
+bytes, graph/candidate offsets, both digests):
+`docs/probes/b-env1-eol-repro-20261023.md`, rerunnable via
+`scripts/b-env1-eol-repro.mjs`. We explicitly do NOT propose hashing
+normalized text — ProjectRevision/CandidatePatch/patch-scope/worktree-integrity
+digests must respect real bytes. Decision (checkout policy vs source-version
+contract recording EOL state) is A's. Graph and candidate offsets shift with
+EOL (#2620 ↔ #2691); artifacts carrying source offsets must record EOL state.
 
 **Repro:** `scripts/b-thirdparty-candidate-gate.mjs`,
 `scripts/b-thirdparty-reprobe-stats.mjs`, reports in `docs/probes/`

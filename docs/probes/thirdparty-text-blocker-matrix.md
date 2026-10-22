@@ -16,8 +16,8 @@
 | 图边 | 5006 | 5384（+378） |
 | route 节点 | **0** | **37** |
 | 媒体资产节点 | 100 | 100 |
-| 媒体 source-proven 消费证明 | 61 | **161** |
-| 媒体页面影响 | 100/100 unknown | 目标页 `/pages/profile` 已可 source-proven 定位 |
+| 媒体 asset-consumer 边（source-proven） | 61 | 61（同口径持平；另有 semantic-candidate 117，合计 178） |
+| 媒体页面影响 | 100/100 unknown | 0 source-proven / 60 partial / 40 unknown；`reads` 类边 100 条 source-proven（JSX src 属性，不计入 asset-consumer 指标） |
 | TEXT data 节点 | 2283 | 2283 |
 | TEXT source-proven reads 边 | —（页面影响全 unknown） | 3593 |
 | token 节点 | 0 | 0（SCSS 体系，见任务三） |
@@ -35,7 +35,7 @@ Profile → ProfileHeader → Overview 三段链路全部 source-proven），但
 
 | # | 环节 | v1 状态 | v2 状态 | 依据 / 前置依赖 |
 | --- | --- | --- | --- | --- |
-| 1 | 项目能力识别与来源证明 | UNSUPPORTED | **PASS（带限制）** | 37 route、161 媒体证明、Overview 目标页面影响定位到 `page:/pages/profile`；限制 4 项如实保留：composite-jsx-child（semantic-candidate）、errorElement 条件回退未建模、route-coverage 未决、theme.scss 导入未解析 |
+| 1 | 项目能力识别与来源证明 | UNSUPPORTED | **PASS（带限制）** | 37 route、媒体 asset-consumer 61 source-proven（与旧基线同口径持平）、Overview 目标页面影响定位到 `page:/pages/profile`；限制 4 项如实保留：composite-jsx-child（semantic-candidate）、errorElement 条件回退未建模、route-coverage 未决、theme.scss 导入未解析 |
 | 2 | 受限预演启动并显示真实网站 | NOT RUN | **PARTIAL EVIDENCE** | Ripple 沙箱预演需要 Candidate（被 #4 门控拒绝）+ Docker 容器（本机无 Docker，仅 CI 可验）。旁证：codescandy 自有工具链 `npm run build` 成功（4632 模块），真实 Chromium 下 `/` 与 `/pages/profile` 均 200、零 page error、「Overview」可见——见 `docs/probes/evidence/codescandy-real-site/`。该旁证不等于 Ripple 受限沙箱已支持 |
 | 3 | DOM→源码可靠定位 | NOT RUN | **NOT RUN** | 依赖 #2 Ripple 沙箱预演；源码侧唯一性已具备（图内目标唯一 + 源码双定位） |
 | 4 | 一次简单 TEXT 候选创建 | BLOCKED | **BLOCKED（实测复现）** | `scripts/b-thirdparty-candidate-gate.mjs` 实测 `createCandidate` 抛 CandidateError：`无法证明目标的完整页面影响：composite-jsx-child…；工程存在尚未证明的 data-router 消费者…`。fail-closed 行为正确，**不得放宽** |
@@ -62,11 +62,14 @@ Profile → ProfileHeader → Overview 三段链路全部 source-proven），但
 
 ## 环境观察项（登记，未自行修改 A 核心）
 
-- **Windows 换行符与候选字节一致性门控**：CRLF 检出的首次 `createCandidate` 曾在
-  worktree 字节一致性检查被拒（`拒绝对错位源码范围应用补丁`）；LF 归一化后诊断脚本
-  确认 503 个受跟踪文件两侧 digest 完全一致（`016aee03…`），门控不再触发。
-  另注意：**同一源码目标的图内偏移随 EOL 变化**（Overview 字面量 #2691 ↔ #2620），
-  证据与工件需记录 EOL 状态。若 A 需要，B 可提供 Windows CRLF 下的最小复现（登记号 B-ENV-1）。
+- **Windows 换行符与候选字节一致性门控（B-ENV-1，已有固定复现）**：机制已确定并稳定复现——
+  codescandy 的 git blob 全为 LF；autocrlf=true 检出的 CRLF 工作树被 git 报为"干净"，
+  Ripple 干净检查放行后按 CRLF 计算快照摘要；而候选 worktree 以 `-c core.autocrlf=false`
+  建立（LF 字节），两侧摘要必然不一致 → 候选创建被拒（`mismatchDemonstrated: true`）。
+  全记录见 `b-env1-eol-repro-20261023.md/.json`（core.autocrlf、blob、磁盘字节、
+  图偏移 #2620↔#2691、候选偏移、双方摘要）。**不建议**把摘要改为归一化文本计算——
+  ProjectRevision/CandidatePatch/补丁范围/工作树完整性必须尊重真实字节；
+  检出策略或源码版本合同由 A 判断。证据与工件需记录 EOL 状态。
 - 本机无 Docker：Ripple 容器预演链只能经 CI 验证；`_scratch` 旁证仅证明第三方工程本身可构建可渲染。
 
 ## 推进条件（进入下一阶段前必须满足）
