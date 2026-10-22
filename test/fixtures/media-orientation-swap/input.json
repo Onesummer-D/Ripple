@@ -1,0 +1,17 @@
+{
+  "previewUrl": "http://127.0.0.1:4632/",
+  "baselineUrl": "http://127.0.0.1:4631/",
+  "candidate": {
+    "candidateId": "fixture-media-orientation-swap",
+    "baseSourceDigest": "fixture-baseline-digest-not-a-real-candidate",
+    "patchHash": "fixture-patch-hash-not-a-real-candidate",
+    "candidateTreeDigest": "fixture-tree-digest-not-a-real-candidate"
+  },
+  "targetRef": "media:fixture/home-hero#hero-landscape.jpg",
+  "operationId": "fixture-orientation-swap",
+  "assetRef": "/media/hero-portrait.jpg",
+  "originalValue": "/media/hero-landscape.jpg",
+  "markerText": "涟漪素材验收案例",
+  "selector": "img[alt=\"hero\"]",
+  "browser": { "headless": true }
+}

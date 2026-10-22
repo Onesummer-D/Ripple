@@ -1,0 +1,37 @@
+# MEDIA 独立模块定向回归：横竖版素材替换四视口场景
+#
+# 触发：手动 dispatch，或 MEDIA 模块 / Fixture / 本工作流自身变更时（paths 过滤，
+# 不进入每次 push 的常规 CI，避免昂贵的 Chromium 重复测试）。
+# 覆盖：四视口双端采集（evidence/dual 哈希回验）、三容器几何测量、产物完整性核验、
+# 缺失资源失败路径负例。真实工程 MEDIA 生命周期验收仍以青野专项 workflow 为准。
+name: MEDIA Fixture Regression
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/integration-media-preparation-20261022
+    paths:
+      - 'test/fixtures/media-orientation-swap/**'
+      - 'src/core/media-*.ts'
+      - 'scripts/media-*.ts'
+      - '.github/workflows/media-fixture-regression.yml'
+
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run 4-viewport orientation-swap scenario
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs test/fixtures/media-orientation-swap/run-scenario.ts test/fixtures/media-orientation-swap/evidence
+      - uses: actions/upload-artifact@v4
+        with:
+          name: media-fixture-evidence
+          path: test/fixtures/media-orientation-swap/evidence
+          retention-days: 30

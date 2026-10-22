@@ -1,0 +1,14 @@
+* { box-sizing: border-box; margin: 0; }
+body { font-family: system-ui, sans-serif; background: #fafafa; color: #222; }
+#root { display: flex; flex-direction: column; gap: 24px; padding: 16px; }
+.site-header h1 { font-size: 22px; }
+.hero { width: 100%; }
+.hero img { width: 100%; height: min(56.25vw, 520px); object-fit: cover; object-position: center; display: block; }
+.hero-caption { padding: 8px 4px; font-size: 14px; color: #555; }
+.activity { width: 100%; }
+.activity-box { width: min(72%, 720px); aspect-ratio: 4 / 3; overflow: hidden; border: 1px solid #ccc; }
+.activity-box img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; display: block; }
+.activity p { padding: 8px 4px; font-size: 14px; color: #555; }
+.product-card { width: 240px; height: 240px; overflow: hidden; border: 1px solid #ccc; position: relative; }
+.product-card img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.product-card span { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; padding: 4px 6px; }
