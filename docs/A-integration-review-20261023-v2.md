@@ -635,3 +635,48 @@ F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验�
 2. E 视觉证据接线；
 3. C+D AC-P2a/b 并行；
 4. D 青野 MEDIA 全链准备同步进行。
+
+
+---
+
+# v19 E PR #30 接线审查入口 + 身份合同接口协调（2026-10-23）
+
+## 0. PR #30 接收
+
+- **正式审查入口：PR #30**（`feat/e-visual-wiring-20261023` @ `750baed`，base = `feat/project-first-core-20261018`，Draft，mergeable=true）。
+- 第一批 `ac307ae`（真实 Docker VerificationRun → run.visualEvidences → API 只读 View）已独立验收通过。
+- 第二批 `750baed`（C+D registry 版本采集 / RuntimePageContext 形态 / identityReasons / 双侧 sourceFileDigest 核验）已实现；**legacy sourceVersion 多文件判断 P1 已交 E 最小修复（不重复派工）**。
+- A 处置：等 E 修复 P1、最新 CI 全绿后，在 `dc8269f` 上建立正式集成预演；冲突或安全门控变化先报告。不合并 main，不触发 Bolt；注意 PR #29 与 #30 重叠代码不得合入两次。
+
+## 1. 身份合同接口协调项（交 C+D 确认，A 汇总；不打断 AC-P2a/b 主线）
+
+以下以 A 核心现状（`dc8269f`）为基准：
+
+### 1.1 identityAssessment（`src/core/runtime-identity.ts:195`）
+
+现有 `RuntimeIdentityAssessment` 字段：`sourceRef / runtimeInstanceId? / certainty / page / locatable / instanceIdentityProven / sameSourceCount / reasons`。
+
+- `instanceIdentityProven` 的通过条件（代码注释已明确，需 C+D 确认对外冻结）：stable certainty + 非空 id + 无采集期 reason + `fileDigest` 读数等于页面注册版本 + 显式 `expectedPage` 且匹配。**E 侧判定严格实例证明不得以 `identityAssessment != null` 代替 `instanceIdentityProven === true`**；`locatable` 仅授权导航，不授权实例级结论。
+- 需 C+D 确认：阻断原因词表（`RuntimeIdentityReason`）对 E 只读冻结范围；`fileDigest` 的项目/候选/来源版本绑定口径（应读"与 SourceGraph 同一修订"的文件摘要，candidate 场景即候选 worktree）。
+
+### 1.2 Runtime observations（`selectableRuntimeObservations`，runtime-identity.ts:170）
+
+- 现有规则：仅收集有 `runtimeInstanceId`、certainty ≠ unknown/unmapped、且无降级 reason 的记录进 source map；position-dependent 保留可导航但 `resolveRuntimeElement` 拒绝作为实例目标。
+- 需 C+D 确认：E 验证容器（Docker 四视口）采集哪些观测值进入 snapshot、如何与当前 VerificationRun 绑定（runId / revision 写入观测工件），以及 `createRuntimeSourceMap` / `resolveRuntimeElement` 的对接边界是否允许 E 只读消费 observation 级数据（不允许 E 侧重评估身份）。
+
+### 1.3 RuntimePageContext（`src/core/model.ts:57`）
+
+- 现有形态仅 `pathname / search / hash`（"Browser location … client routing may use any of the parts"）。
+- 需 C+D 确认：pathname/search/hash 之外是否存在路由树位置、命名空间或实例定位的验证依据；在仅有三元组的现状下，**page-context 从 E `missingEvidence` 中安全移除的最低条件**（候选：双侧 snapshot.page 三元组一致 + 该页面属于 SourceGraph 路由证明集合）。
+
+### 1.4 联合验收红线（E + C+D 合并前后均须成立）
+
+- 视觉证据只读辅助，`view.state` 无 `pass`；
+- `missingEvidence` 不被无依据清空（每项移除需对应证据来源说明）；
+- 严格实例证明必经 C+D `assessRuntimeIdentity()` 完整评估；
+- Approval / Receipt / Apply 安全合同不变；
+- PR #29 与 #30 重叠代码只合入一次。
+
+## 2. 新增公共字段纪律
+
+若接线必须新增公共字段：先给出精确类型 + 最小样例（字段名、取值域、生产者/消费者、版本化策略），交 A 登记、C+D 确认后 E 再接入。
