@@ -1,8 +1,11 @@
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { analyzeProject } from './project'
+import { createCandidate, removeCandidate } from './candidate'
+import type { EditOperation, ScopeDecision } from './model'
 import { sourceProvenPageImpact } from './scope'
 import { makeFixtureRoot, removeTree } from './test-fixture-dir'
 
@@ -121,7 +124,7 @@ describe('agent C: conservative data-router page provenance', () => {
 
 
 describe('agent C P1: app ownership, lexical binding and mutable route safety', () => {
-  it('never turns a route errorElement into an unconditional global page consumer', () => {
+  it('models a provable route errorElement as a page-scoped consumer without an App-level render edge', () => {
     const root = project({
       ...pages,
       'src/pages/NotFound.tsx': 'export function NotFound(){return <p>Error Screen</p>}',
@@ -131,10 +134,15 @@ describe('agent C P1: app ownership, lexical binding and mutable route safety', 
     })
     const graph = analyzeProject(root)
     const errorImpact = impact(graph,'Error Screen')
-    expect(errorImpact.certainty).not.toBe('source-proven')
-    expect(errorImpact.pageRefs).not.toContain('page:/profile')
-    expect(graph.unresolved.join('\n')).toContain('conditional route fallback')
-    expect(impact(graph,'Profile Title').certainty).toBe('partial')
+    // AC-P2b: a statically provable errorElement joins the route consumption
+    // graph for its own page. It still must not become an unconditional
+    // App-level render (route-config JSX is not App's rendered output).
+    expect(errorImpact.certainty).toBe('source-proven')
+    expect(errorImpact.pageRefs).toEqual(['page:/profile'])
+    const notFound = graph.nodes.find(node => node.kind === 'component' && node.label === 'NotFound')!
+    const app = graph.nodes.find(node => node.kind === 'component' && node.label === 'App')!
+    expect(graph.edges.some(edge => edge.from === app.id && edge.to === notFound.id)).toBe(false)
+    expect(impact(graph,'Profile Title').certainty).toBe('source-proven')
   })
 
   it('proves a default-imported route component used by an App-local data router', () => {
@@ -681,5 +689,282 @@ describe('agent C P1 round 3: mutable route table aliases fail closed', () => {
     const graph = analyzeProject(root)
     expect(impact(graph, 'Profile Title')).toMatchObject({ pageRefs: ['page:/profile'], certainty: 'source-proven' })
     expect(graph.unresolved.filter(entry => entry.includes('data-router'))).toEqual([])
+  })
+})
+
+describe('agent C AC-P2a: audited router host propagation (react-router Link/NavLink)', () => {
+  const routerPkg = (version: string, name = 'react-router-dom') => ({
+    [`node_modules/${name}/package.json`]: JSON.stringify({ name, version, main: 'index.js', types: 'index.d.ts' }),
+    [`node_modules/${name}/index.d.ts`]: 'export declare const Link: any; export declare const NavLink: any; export declare const createBrowserRouter: any; export declare const RouterProvider: any;',
+    [`node_modules/${name}/index.js`]: '',
+  })
+  const linkProject = (header: string, extra: Record<string, string> = {}) => project({
+    'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+    'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import Profile from './pages/Profile';
+      export default function App(){const router=createBrowserRouter([{path:'/pages/profile',Component:Profile}]);return <RouterProvider router={router}/>}`,
+    'src/pages/Profile.tsx': `import ProfileHeader from '../sub-components/profile/ProfileHeader';const Profile=()=> <div><ProfileHeader/></div>;export default Profile;`,
+    'src/sub-components/profile/ProfileHeader.tsx': header,
+    ...routerPkg('6.27.0'),
+    ...extra,
+  })
+  const overviewImpact = (graph: ReturnType<typeof analyzeProject>) => {
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value?.trim() === 'Overview')!
+    return { text, result: sourceProvenPageImpact(graph, text.id), edge: graph.edges.find(edge => edge.id.startsWith('composite-jsx-child:') && edge.to === text.id)! }
+  }
+  it('upgrades a verified react-router-dom v6 Link binding to source-proven with an auditable basis', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('source-proven')
+    expect(edge.id).toContain('host-proven:Link:react-router-dom@6.27.0')
+    expect(result).toMatchObject({ pageRefs: ['page:/pages/profile'], certainty: 'source-proven' })
+  })
+  it('upgrades a verified NavLink binding the same way', () => {
+    const graph = analyzeProject(linkProject(`import {NavLink} from 'react-router-dom';
+      const ProfileHeader=()=> <div><NavLink to='#'>Overview</NavLink></div>;export default ProfileHeader;`))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('source-proven')
+    expect(result.certainty).toBe('source-proven')
+  })
+  it('keeps a shadowed local Link lookalike at semantic-candidate', () => {
+    const graph = analyzeProject(linkProject(`function Link({children}:{children?:unknown}){return <a>{children}</a>}
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+    expect(result.unresolved.join('\n')).toContain('composite-jsx-child')
+  })
+  it('refuses an unaudited react-router major even when the name matches', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+      { 'node_modules/react-router-dom/package.json': JSON.stringify({ name: 'react-router-dom', version: '5.3.4', main: 'index.js', types: 'index.d.ts' }) }))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+  it('refuses a Link imported from an unrelated package', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'ui-lib';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+      { 'node_modules/ui-lib/package.json': JSON.stringify({ name: 'ui-lib', version: '1.0.0', main: 'index.js', types: 'index.d.ts' }),
+        'node_modules/ui-lib/index.d.ts': 'export declare const Link: any;',
+        'node_modules/ui-lib/index.js': '' }))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+  const declaredProject = (header: string, dep: string) => {
+    // Declared-fallback tests require that NO installation resolves anywhere:
+    // an ancestor node_modules (for example a repo-sibling workspace with its
+    // own react-router-dom) would let module resolution escape the fixture
+    // root, where the allowlist correctly fails closed. The OS temp root has
+    // no node_modules ancestors on any supported host, keeping these tests
+    // hermetic. (These fixtures only run analyzeProject — never Vite — so the
+    // tsconfck concerns behind makeFixtureRoot do not apply.)
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-agent-c-'))
+    directories.push(root)
+    const contents = {
+      'package.json': JSON.stringify({ name: 'route-proof-test', dependencies: { 'react-router-dom': dep } }),
+      'tsconfig.json': JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }),
+      'index.html': '<script type="module" src="/src/main.tsx"></script>',
+      'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import Profile from './pages/Profile';
+        export default function App(){const router=createBrowserRouter([{path:'/pages/profile',Component:Profile}]);return <RouterProvider router={router}/>}`,
+      'src/pages/Profile.tsx': `import ProfileHeader from '../sub-components/profile/ProfileHeader';const Profile=()=> <div><ProfileHeader/></div>;export default Profile;`,
+      'src/sub-components/profile/ProfileHeader.tsx': header,
+    }
+    for (const [name, value] of Object.entries(contents)) {
+      const target = path.join(root, name)
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.writeFileSync(target, value)
+    }
+    execFileSync('git', ['init', '-q'], { cwd: root })
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'baseline'], { cwd: root })
+    return root
+  }
+  const overviewImpactOf = (graph: ReturnType<typeof analyzeProject>) => {
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value?.trim() === 'Overview')!
+    return { result: sourceProvenPageImpact(graph, text.id), edge: graph.edges.find(edge => edge.id.startsWith('composite-jsx-child:') && edge.to === text.id)! }
+  }
+  it('falls back to an audited declared dependency when no installation exists (clean-clone analyses)', () => {
+    const graph = analyzeProject(declaredProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`, '^6.27.0'))
+    const { result, edge } = overviewImpactOf(graph)
+    expect(edge.certainty).toBe('source-proven')
+    expect(edge.id).toContain('host-proven:Link:react-router-dom@^6.27.0(declared)')
+    expect(result.certainty).toBe('source-proven')
+  })
+  it('refuses an unaudited declared dependency range', () => {
+    const graph = analyzeProject(declaredProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`, '^5.3.0'))
+    const { result, edge } = overviewImpactOf(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+  it('refuses a prerelease installed version even on an audited major', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+      { 'node_modules/react-router-dom/package.json': JSON.stringify({ name: 'react-router-dom', version: '6.4.1-beta.0', main: 'index.js', types: 'index.d.ts' }) }))
+    const { result, edge } = overviewImpactOf(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+  it('refuses declared prerelease, complex and partial ranges', () => {
+    for (const dep of ['^6.27.0-beta.1', '6.0.0 - 8.0.0', '6.27']) {
+      const graph = analyzeProject(declaredProject(`import {Link} from 'react-router-dom';
+        const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`, dep))
+      const { result, edge } = overviewImpactOf(graph)
+      expect(edge.certainty).toBe('semantic-candidate')
+      expect(result.certainty).toBe('partial')
+    }
+  })
+  it('refuses to launder a declared version when module resolution escapes the project root', () => {
+    // node_modules lives ABOVE the analyzed project: the specifier resolves to
+    // an installation that is not the project's own, so the declared ^6.27.0
+    // must NOT be promoted into a host-proven basis.
+    const container = makeFixtureRoot('ripple-agent-c-escaping')
+    directories.push(container)
+    const root = path.join(container, 'app')
+    fs.mkdirSync(root, { recursive: true })
+    for (const [name, value] of Object.entries(routerPkg('6.27.0'))) {
+      const target = path.join(container, name)
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.writeFileSync(target, value)
+    }
+    const contents = {
+      'package.json': JSON.stringify({ name: 'route-proof-test', dependencies: { 'react-router-dom': '^6.27.0' } }),
+      'tsconfig.json': JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }),
+      'index.html': '<script type="module" src="/src/main.tsx"></script>',
+      'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import ProfileHeader from './sub-components/profile/ProfileHeader';
+        export default function App(){const router=createBrowserRouter([{path:'/pages/profile',Component:ProfileHeader}]);return <RouterProvider router={router}/>}`,
+      'src/sub-components/profile/ProfileHeader.tsx': `import {Link} from 'react-router-dom';
+        const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+    }
+    for (const [name, value] of Object.entries(contents)) {
+      const target = path.join(root, name)
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.writeFileSync(target, value)
+    }
+    execFileSync('git', ['init', '-q'], { cwd: root })
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'baseline'], { cwd: root })
+    const graph = analyzeProject(root)
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value?.trim() === 'Overview')!
+    const edge = graph.edges.find(item => item.id.startsWith('composite-jsx-child:') && item.to === text.id)!
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(sourceProvenPageImpact(graph, text.id).certainty).toBe('partial')
+  })
+})
+
+describe('agent C AC-P2b: data-router fallback and conditional consumers', () => {
+  const fallbackPages = {
+    ...pages,
+    'src/pages/NotFound.tsx': 'export function NotFound(){ return <main><h1>Missing</h1></main> }',
+    'src/pages/Splash.tsx': 'export function Splash(){ return <main><h1>Loading</h1></main> }',
+    'src/pages/Crash.tsx': 'export function Crash(){ return <main><h1>Broken</h1></main> }',
+    'src/pages/LazyHome.tsx': 'export default function LazyHome(){ return <main><h1>Lazy Title</h1></main> }',
+    'src/pages/LazyNamed.tsx': 'export function Component(){ return <main><h1>Lazy Named Title</h1></main> }',
+    'src/pages/LazyHidden.tsx': 'function Component(){ return <main><h1>Hidden Title</h1></main> }\nexport const loader = async () => null',
+    'src/pages/LazyAliased.tsx': 'function LazyAliased(){ return <main><h1>Aliased Title</h1></main> }\nexport { LazyAliased as Component }',
+    'src/pages/LazyReexport.tsx': 'export { Home as Component } from \'./Home\'',
+  }
+  it('models a statically provable errorElement as a source-proven page consumer and clears route-coverage', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';
+      const router = createBrowserRouter([{ path: '/', Component: Home, errorElement: <NotFound/> }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('fallback consumer'))).toEqual([])
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(false)
+    const notFound = graph.nodes.find(node => node.kind === 'component' && node.label === 'NotFound')!
+    expect(graph.edges).toContainEqual(expect.objectContaining({ from: 'page:/', to: notFound.id, kind: 'renders', certainty: 'source-proven' }))
+    expect(impact(graph, 'Missing')).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+    expect(impact(graph, 'Home Title')).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+  })
+  it('models component-valued HydrateFallback and ErrorBoundary references', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {Splash} from './pages/Splash'; import {Crash} from './pages/Crash';
+      const router = createBrowserRouter([{ path: '/', Component: Home, HydrateFallback: Splash, ErrorBoundary: Crash }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('fallback consumer'))).toEqual([])
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(false)
+    expect(impact(graph, 'Loading').certainty).toBe('source-proven')
+    expect(impact(graph, 'Broken').certainty).toBe('source-proven')
+  })
+  it('refuses to prove a default-only lazy module (route.lazy has no default route property)', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyHome') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Lazy Title').certainty).not.toBe('source-proven')
+  })
+  it('proves a route.lazy module through its named Component export and gates real Candidates by proven pages', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyNamed') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('runtime-dependent'))).toEqual([])
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value === 'Lazy Named Title')!
+    expect(sourceProvenPageImpact(graph, text.id)).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+    const container = makeFixtureRoot('ripple-agent-c-candidate')
+    directories.push(container)
+    const operation: EditOperation = { id: 'op-lazy-named', targetRef: text.id, kind: 'TEXT', before: 'Lazy Named Title', after: 'Lazy Named Title!' }
+    const scope = (id: string, includedRefs: string[]): ScopeDecision => ({ id, version: 1, strategy: 'shared', includedRefs, excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() })
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'lazy-narrow'), artifactRoot: path.join(container, 'lazy-narrow-artifacts'), graph, scope: scope('scope-lazy-narrow', [text.id]), operations: [operation] })).toThrow(/尚未明确包含受影响页面：page:\//)
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'lazy-full'), artifactRoot: path.join(container, 'lazy-full-artifacts'), graph, scope: scope('scope-lazy-full', [text.id, 'page:/']), operations: [operation] })
+    removeCandidate(candidate)
+  })
+  it('refuses an internal Component that the lazy module never exports', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyHidden') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Hidden Title').certainty).not.toBe('source-proven')
+  })
+  it('refuses a lazy module that only re-exports Component from another file', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyReexport') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Home Title').certainty).not.toBe('source-proven')
+  })
+  it('proves an export-aliased Component (export { X as Component }) and gates real Candidates by proven pages', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyAliased') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('runtime-dependent'))).toEqual([])
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value === 'Aliased Title')!
+    expect(sourceProvenPageImpact(graph, text.id)).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+    const container = makeFixtureRoot('ripple-agent-c-candidate')
+    directories.push(container)
+    const operation: EditOperation = { id: 'op-lazy-aliased', targetRef: text.id, kind: 'TEXT', before: 'Aliased Title', after: 'Aliased Title!' }
+    const scope = (id: string, includedRefs: string[]): ScopeDecision => ({ id, version: 1, strategy: 'shared', includedRefs, excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() })
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'alias-narrow'), artifactRoot: path.join(container, 'alias-narrow-artifacts'), graph, scope: scope('scope-alias-narrow', [text.id]), operations: [operation] })).toThrow(/尚未明确包含受影响页面：page:\//)
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'alias-full'), artifactRoot: path.join(container, 'alias-full-artifacts'), graph, scope: scope('scope-alias-full', [text.id, 'page:/']), operations: [operation] })
+    removeCandidate(candidate)
+  })
+  it('keeps a conditional errorElement fail-closed with a locatable reason and route-coverage', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';
+      const router = createBrowserRouter([{ path: '/', Component: Home, errorElement: Math.random() > 0.5 ? <NotFound/> : <div/> }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('errorElement fallback consumer is not statically provable')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Home Title').certainty).not.toBe('source-proven')
+  })
+  it('keeps a chained lazy import fail-closed', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyHome').then(m => ({ default: m.default })) }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
   })
 })
