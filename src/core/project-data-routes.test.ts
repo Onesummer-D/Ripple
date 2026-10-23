@@ -1,8 +1,11 @@
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { analyzeProject } from './project'
+import { createCandidate, removeCandidate } from './candidate'
+import type { EditOperation, ScopeDecision } from './model'
 import { sourceProvenPageImpact } from './scope'
 import { makeFixtureRoot, removeTree } from './test-fixture-dir'
 
@@ -750,7 +753,14 @@ describe('agent C AC-P2a: audited router host propagation (react-router Link/Nav
     expect(result.certainty).toBe('partial')
   })
   const declaredProject = (header: string, dep: string) => {
-    const root = makeFixtureRoot('ripple-agent-c')
+    // Declared-fallback tests require that NO installation resolves anywhere:
+    // an ancestor node_modules (for example a repo-sibling workspace with its
+    // own react-router-dom) would let module resolution escape the fixture
+    // root, where the allowlist correctly fails closed. The OS temp root has
+    // no node_modules ancestors on any supported host, keeping these tests
+    // hermetic. (These fixtures only run analyzeProject — never Vite — so the
+    // tsconfck concerns behind makeFixtureRoot do not apply.)
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-agent-c-'))
     directories.push(root)
     const contents = {
       'package.json': JSON.stringify({ name: 'route-proof-test', dependencies: { 'react-router-dom': dep } }),
@@ -791,6 +801,60 @@ describe('agent C AC-P2a: audited router host propagation (react-router Link/Nav
     expect(edge.certainty).toBe('semantic-candidate')
     expect(result.certainty).toBe('partial')
   })
+  it('refuses a prerelease installed version even on an audited major', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+      { 'node_modules/react-router-dom/package.json': JSON.stringify({ name: 'react-router-dom', version: '6.4.1-beta.0', main: 'index.js', types: 'index.d.ts' }) }))
+    const { result, edge } = overviewImpactOf(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+  it('refuses declared prerelease, complex and partial ranges', () => {
+    for (const dep of ['^6.27.0-beta.1', '6.0.0 - 8.0.0', '6.27']) {
+      const graph = analyzeProject(declaredProject(`import {Link} from 'react-router-dom';
+        const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`, dep))
+      const { result, edge } = overviewImpactOf(graph)
+      expect(edge.certainty).toBe('semantic-candidate')
+      expect(result.certainty).toBe('partial')
+    }
+  })
+  it('refuses to launder a declared version when module resolution escapes the project root', () => {
+    // node_modules lives ABOVE the analyzed project: the specifier resolves to
+    // an installation that is not the project's own, so the declared ^6.27.0
+    // must NOT be promoted into a host-proven basis.
+    const container = makeFixtureRoot('ripple-agent-c-escaping')
+    directories.push(container)
+    const root = path.join(container, 'app')
+    fs.mkdirSync(root, { recursive: true })
+    for (const [name, value] of Object.entries(routerPkg('6.27.0'))) {
+      const target = path.join(container, name)
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.writeFileSync(target, value)
+    }
+    const contents = {
+      'package.json': JSON.stringify({ name: 'route-proof-test', dependencies: { 'react-router-dom': '^6.27.0' } }),
+      'tsconfig.json': JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }),
+      'index.html': '<script type="module" src="/src/main.tsx"></script>',
+      'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import ProfileHeader from './sub-components/profile/ProfileHeader';
+        export default function App(){const router=createBrowserRouter([{path:'/pages/profile',Component:ProfileHeader}]);return <RouterProvider router={router}/>}`,
+      'src/sub-components/profile/ProfileHeader.tsx': `import {Link} from 'react-router-dom';
+        const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+    }
+    for (const [name, value] of Object.entries(contents)) {
+      const target = path.join(root, name)
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.writeFileSync(target, value)
+    }
+    execFileSync('git', ['init', '-q'], { cwd: root })
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'baseline'], { cwd: root })
+    const graph = analyzeProject(root)
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value?.trim() === 'Overview')!
+    const edge = graph.edges.find(item => item.id.startsWith('composite-jsx-child:') && item.to === text.id)!
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(sourceProvenPageImpact(graph, text.id).certainty).toBe('partial')
+  })
 })
 
 describe('agent C AC-P2b: data-router fallback and conditional consumers', () => {
@@ -800,6 +864,7 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     'src/pages/Splash.tsx': 'export function Splash(){ return <main><h1>Loading</h1></main> }',
     'src/pages/Crash.tsx': 'export function Crash(){ return <main><h1>Broken</h1></main> }',
     'src/pages/LazyHome.tsx': 'export default function LazyHome(){ return <main><h1>Lazy Title</h1></main> }',
+    'src/pages/LazyNamed.tsx': 'export function Component(){ return <main><h1>Lazy Named Title</h1></main> }',
   }
   it('models a statically provable errorElement as a source-proven page consumer and clears route-coverage', () => {
     const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';
@@ -823,13 +888,30 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     expect(impact(graph, 'Loading').certainty).toBe('source-proven')
     expect(impact(graph, 'Broken').certainty).toBe('source-proven')
   })
-  it('proves a single-import lazy route consumer through the default export', () => {
+  it('refuses to prove a default-only lazy module (route.lazy has no default route property)', () => {
     const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
       const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyHome') }]);
       export const App = () => <RouterProvider router={router}/>;` })
     const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Lazy Title').certainty).not.toBe('source-proven')
+  })
+  it('proves a route.lazy module through its named Component export and gates real Candidates by proven pages', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyNamed') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
     expect(graph.unresolved.filter(entry => entry.includes('runtime-dependent'))).toEqual([])
-    expect(impact(graph, 'Lazy Title')).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value === 'Lazy Named Title')!
+    expect(sourceProvenPageImpact(graph, text.id)).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+    const container = makeFixtureRoot('ripple-agent-c-candidate')
+    directories.push(container)
+    const operation: EditOperation = { id: 'op-lazy-named', targetRef: text.id, kind: 'TEXT', before: 'Lazy Named Title', after: 'Lazy Named Title!' }
+    const scope = (id: string, includedRefs: string[]): ScopeDecision => ({ id, version: 1, strategy: 'shared', includedRefs, excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() })
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'lazy-narrow'), artifactRoot: path.join(container, 'lazy-narrow-artifacts'), graph, scope: scope('scope-lazy-narrow', [text.id]), operations: [operation] })).toThrow(/尚未明确包含受影响页面：page:\//)
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'lazy-full'), artifactRoot: path.join(container, 'lazy-full-artifacts'), graph, scope: scope('scope-lazy-full', [text.id, 'page:/']), operations: [operation] })
+    removeCandidate(candidate)
   })
   it('keeps a conditional errorElement fail-closed with a locatable reason and route-coverage', () => {
     const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';

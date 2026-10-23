@@ -72,8 +72,12 @@ export function digestTrackedTree(root: string, files = trackedFiles(gitRoot(roo
 // never matches by component name alone: the local binding must be the same
 // import symbol, which excludes shadowed locals and re-exports from other files.
 const auditedRouterHostMajor = (version: string): boolean => {
-  const major = Number.parseInt(version.split('.')[0] ?? '', 10)
-  return major === 6 || major === 7
+  // Only a complete, stable SemVer release of an audited major qualifies.
+  // Prereleases (6.0.0-beta.0), partial versions (6.4), tagged values (v6.4.1)
+  // or ranges never prove a runtime version; parseInt on the first dotted
+  // segment would wrongly admit several of those.
+  const match = /^(\d+)\.\d+\.\d+$/.exec(version.trim())
+  return match !== null && (match[1] === '6' || match[1] === '7')
 }
 
 const routerHostBasis = (root: string, containingFile: string, specifier: string): string | undefined => {
@@ -109,8 +113,11 @@ const routerHostBasis = (root: string, containingFile: string, specifier: string
       return undefined
     }
     // A resolution that walked past the project root (for example into the
-    // analyzer's own devDependencies) is not the project's installation; fall
-    // through to the declared-dependency check below.
+    // analyzer's own devDependencies) is not the project's installation.
+    // Fail closed: the declared-dependency fallback below may only stand in
+    // for a package that is NOT INSTALLED AT ALL (clean-clone analyses), never
+    // launder a declared value past an installation the project would not use.
+    return undefined
   }
   // Clean-clone analyses (for example B's pinned candidate gate) have no
   // node_modules. Fall back to the version the project DECLARES for the
@@ -122,9 +129,15 @@ const routerHostBasis = (root: string, containingFile: string, specifier: string
     }
     const declared = manifest.dependencies?.[specifier] ?? manifest.devDependencies?.[specifier] ?? manifest.peerDependencies?.[specifier]
     if (!declared) return undefined
-    const match = /^(?:\^|~)?(\d+)\.\d+\.\d+/.exec(declared.trim())
+    // Only a complete, vetted SemVer form may be promoted: an exact x.y.z, or
+    // a caret/tilde range pinned to audited major 6/7 (by construction such a
+    // range cannot cross into an unaudited major). The anchored shape rejects
+    // prereleases (^6.4.1-beta.0), partial versions (6.27), .x ranges,
+    // comparators and hyphen/|| ranges (6.0.0 - 8.0.0) outright; the previous
+    // prefix match admitted several of those.
+    const match = /^(\^|~)?(\d+)\.\d+\.\d+$/.exec(declared.trim())
     if (!match) return undefined
-    if ((match[1] === '6' || match[1] === '7') && !/^[<>]=?|\.x|\|\|/.test(declared.trim())) {
+    if (match[2] === '6' || match[2] === '7') {
       return `${specifier}@${declared.trim()}(declared)`
     }
     return undefined

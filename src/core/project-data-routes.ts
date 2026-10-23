@@ -122,11 +122,19 @@ export function inspectDataRouter(
       return actual.some(d => d === local.node) &&
         components.filter(c => c.file === file && c.name === id.text).length === 1 ? local : undefined
     }
-    // AC-P2b: prove `lazy: () => import('./Page')` when it is a single arrow (or
-    // single-return function) whose body is one dynamic import with a string
-    // literal specifier resolving into the project, and the target module has
-    // a unique default-export component. Anything more dynamic (chained .then,
-    // computed specifiers, multiple returns) stays fail-closed.
+    // AC-P2b (+P0 rework): prove `lazy: () => import('./Page')` per the actual
+    // react-router 6/7 route.lazy contract. The lazy function imports a ROUTE
+    // OBJECT whose properties are merged into the route, so the page component
+    // is the target module's named `Component` export (ErrorBoundary works the
+    // same way). A module `default` export is NOT a valid lazy route property
+    // and must not become a source-proven page consumer — this deliberately
+    // differs from React.lazy(), whose contract is the default export and
+    // which is never proven here. Only a single arrow (or single-return
+    // function) whose body is one dynamic import with a string literal
+    // specifier resolving into the project, whose target module statically
+    // provides exactly one component named `Component`, is proven. Anything
+    // more dynamic (chained .then, computed specifiers, multiple returns),
+    // default-only targets, or ambiguous Component exports stays fail-closed.
     const resolveLazyComponent = (expr: ts.Expression): string | undefined => {
       const fn = unwrap(expr)
       let body: ts.ConciseBody | undefined
@@ -146,7 +154,9 @@ export function inspectDataRouter(
         .resolvedModule?.resolvedFileName
       if (!resolved) return undefined
       const targetFile = path.relative(root, resolved).replaceAll('\\', '/')
-      return byName.get(`${targetFile}#default`)?.id
+      if (targetFile.startsWith('..')) return undefined
+      const matches = components.filter(c => c.file === targetFile && c.name === 'Component')
+      return matches.length === 1 ? matches[0].id : undefined
     }
     const appCandidates = components.filter(c => c.file === file && c.name === 'App')
     if (appCandidates.length > 1) {
