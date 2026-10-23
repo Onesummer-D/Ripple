@@ -1,4 +1,5 @@
 import path from 'node:path'
+import fs from 'node:fs'
 
 function parseConfig(configPath, ts) {
   const absolutePath = path.resolve(configPath)
@@ -74,14 +75,25 @@ function aliasRules(config) {
   const baseUrl = options.baseUrl ?? options.pathsBasePath ?? path.dirname(config.configPath)
   const rules = []
   for (const [pattern, destinations] of Object.entries(options.paths ?? {})) {
-    if (pattern.startsWith('*')) return { status: 'ambiguous', reason: `Alias ${pattern} requires TypeScript file-existence fallback for package imports; the bounded preview alias adapter cannot safely reproduce it.`, rules: [] }
     if (destinations.length !== 1) return { status: 'ambiguous', reason: `Alias ${pattern} has multiple destinations.`, rules: [] }
     const target = destinations[0]
     const wildcardCount = value => [...value].filter(char => char === '*').length
     if (wildcardCount(pattern) > 1 || wildcardCount(target) > 1 || (pattern.includes('*') !== target.includes('*'))) {
       return { status: 'ambiguous', reason: `Alias ${pattern} cannot be represented by the bounded preview resolver.`, rules: [] }
     }
-    rules.push({ pattern, target: path.resolve(baseUrl, target) })
+    if (pattern === '*') {
+      // Bare catch-all (for example codescandy's "*": ["./src/*"]). A regexp
+      // vite alias would capture npm package imports too, so this shape is
+      // represented as an existence-gated fallback: resolve ONLY when a real
+      // file exists under the mapped directory, and otherwise let normal
+      // node_modules resolution proceed. Anything other than the bare '*'
+      // pattern (a leading wildcard with text, e.g. '*/x') cannot be bounded
+      // and stays ambiguous.
+      rules.push({ kind: 'existence-fallback', pattern, target: path.resolve(baseUrl, target) })
+      continue
+    }
+    if (pattern.startsWith('*')) return { status: 'ambiguous', reason: `Alias ${pattern} requires TypeScript file-existence fallback for package imports; the bounded preview alias adapter cannot safely reproduce it.`, rules: [] }
+    rules.push({ kind: 'alias', pattern, target: path.resolve(baseUrl, target) })
   }
   return { status: 'supported', rules }
 }
@@ -109,7 +121,7 @@ export function resolveProjectConfigGraph(inputRoot, ts) {
 
 export function toViteAliasRules(graph) {
   if (graph.aliases.status !== 'supported') return []
-  return graph.aliases.rules.map(({ pattern, target }) => {
+  return graph.aliases.rules.filter(rule => rule.kind === 'alias' || !rule.kind).map(({ pattern, target }) => {
     const wildcard = pattern.indexOf('*')
     if (wildcard < 0) return { find: pattern, replacement: target }
     const prefix = pattern.slice(0, wildcard).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -122,4 +134,38 @@ export function toViteAliasRules(graph) {
       replacement: `${targetPrefix}$1${targetSuffix}`,
     }
   })
+}
+
+// Existence-fallback rules (bare '*' patterns) become absolute directory
+// prefixes; the preview adapter probes real files inside them and falls back
+// to package resolution when nothing exists.
+export function toViteExistenceFallbackPrefixes(graph) {
+  if (graph.aliases.status !== 'supported') return []
+  return graph.aliases.rules
+    .filter(rule => rule.kind === 'existence-fallback')
+    .map(rule => path.resolve(rule.target.slice(0, rule.target.indexOf('*'))))
+}
+
+// TypeScript/Bundler-style probing for the bare-catch-all fallback. Only bare
+// specifiers are considered: relative, absolute and URL-like imports are never
+// captured. A candidate must be a REAL file inside the prefix directory —
+// lexical containment is checked before existence, so '..' segments that
+// escape the mapped root never resolve here and fall through to normal
+// resolution. Returns the absolute file path or null (package fallback).
+const FALLBACK_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs', '.cts', '.cjs', '.json']
+
+export function probeExistenceFallback(prefixDir, specifier, fileExists = (candidate) => {
+  try { return fs.statSync(candidate).isFile() } catch { return false }
+}) {
+  if (typeof specifier !== 'string' || !specifier) return null
+  if (specifier.startsWith('.') || specifier.startsWith('/') || /^[a-z]+:/i.test(specifier)) return null
+  const candidate = path.normalize(path.join(prefixDir, specifier))
+  if (candidate !== prefixDir && !candidate.startsWith(prefixDir + path.sep)) return null
+  const candidates = [candidate, ...FALLBACK_EXTENSIONS.map(extension => candidate + extension)]
+  for (const entry of candidates) if (fileExists(entry)) return entry
+  for (const extension of ['', ...FALLBACK_EXTENSIONS]) {
+    const indexFile = path.join(candidate, `index${extension}`)
+    if (fileExists(indexFile)) return indexFile
+  }
+  return null
 }

@@ -17,7 +17,7 @@ import { attestBrowserExecution } from './verification-receipt'
 import { sourceBindings } from './verification-runner'
 import { verificationContractHash } from './verification-contract'
 import { inspectProjectCapabilities } from './project-capabilities'
-import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
+import { resolveProjectConfigGraph, toViteAliasRules, toViteExistenceFallbackPrefixes } from './project-config-resolver.mjs'
 import { removeTree } from './test-fixture-dir'
 
 const temporaryRoots: string[] = []
@@ -251,7 +251,7 @@ describe('real project graph and candidate executor', () => {
       productionBuild: { status: 'unsupported', value: { executed: false } },
       serverRendering: { status: 'unsupported', value: { executed: false } },
     })
-    expect(capabilities.typescriptAliases.value?.rules).toEqual([{ pattern: '@/*', target: path.join(root, 'src', '*') }])
+    expect(capabilities.typescriptAliases.value?.rules).toEqual([{ kind: 'alias', pattern: '@/*', target: path.join(root, 'src', '*') }])
     const aliasGraph = resolveProjectConfigGraph(root, ts)
     const viteAlias = toViteAliasRules(aliasGraph)
     expect(viteAlias).toHaveLength(1)
@@ -266,18 +266,20 @@ describe('real project graph and candidate executor', () => {
     expect(ambiguous.devPreview.status).toBe('ambiguous')
   })
 
-  it('retains valid TypeScript source aliases when the bounded Vite adapter cannot reproduce their fallback', () => {
+  it('proves source aliases through the existence-gated fallback for bare catch-all mappings', () => {
     const { root } = sampleProject()
     const appPath = path.join(root, 'src', 'App.tsx')
     fs.writeFileSync(appPath, fs.readFileSync(appPath, 'utf8').replace("'./components/Navigation'", "'components/Navigation'"))
     fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler', baseUrl: '.', paths: { '*': ['src/*'] } }, include: ['src'] }))
     git(root, 'add', '.')
-    git(root, 'commit', '-qm', 'use application alias with TypeScript fallback')
+    git(root, 'commit', '-qm', 'use bare catch-all alias with existence fallback')
     const graph = analyzeProject(root)
     expect(graph.edges.some(edge => edge.kind === 'imports' && edge.from === 'file:src/App.tsx' && edge.to === 'file:src/components/Navigation.tsx')).toBe(true)
     const navigation = graph.nodes.find(node => node.kind === 'component' && node.label === 'Navigation')!
     expect(navigation.pages?.sort()).toEqual(['autumn', 'home'])
-    expect(inspectProjectCapabilities(root, graph, 'linux').typescriptAliases.status).toBe('ambiguous')
+    const capabilities = inspectProjectCapabilities(root, graph, 'linux')
+    expect(capabilities.typescriptAliases.status).toBe('supported')
+    expect(toViteExistenceFallbackPrefixes(resolveProjectConfigGraph(root, ts))).toEqual([path.join(root, 'src')])
   })
 
   it('proves component token use but keeps imported CSS token usage unknown without cascade evidence', () => {
