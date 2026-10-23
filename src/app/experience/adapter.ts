@@ -62,4 +62,10 @@ export interface ExperienceAdapter {
   /** 第二阶段：打开/关闭真实候选预演（POST /candidate/preview[/stop]）。 */
   openCandidatePreview?(model: ExperienceViewModel): Promise<ExperienceViewModel>
   closeCandidatePreview?(model: ExperienceViewModel): Promise<ExperienceViewModel>
+  /**
+   * 第二批：运行真实四视口验证（POST /candidate/verify）。
+   * 必须消费服务端 VerificationRun 投影（断言/证据截图/执行记录哈希/E 视觉证据），
+   * 不得自行生成 pass 或模拟验证状态；响应与当前候选不一致时丢弃。
+   */
+  runVerification?(model: ExperienceViewModel): Promise<ExperienceViewModel>
 }

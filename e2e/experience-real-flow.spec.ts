@@ -159,6 +159,25 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await expect(candidateFrame.getByRole('heading', { name: 'Acme 旗舰店标题' })).toBeVisible({ timeout: 120_000 })
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-candidate-1440.png'), fullPage: true })
 
+  // 6b. POST /candidate/verify：真实四视口验证（消费服务端 VerificationRun，F 不自行生成结论）
+  const verifyResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/verify') && response.status() === 200, { timeout: 180_000 })
+  await page.getByTestId('run-verification').click()
+  const verifyPayload = await (await verifyResponse).json() as {
+    candidateId: string
+    verification: { state: string; runId?: string; recordHash?: string; evidence?: Array<{ artifactUrl?: string }> }
+  }
+  expect(verifyPayload.candidateId).toBe(candidatePayload.candidate.id)
+  expect(verifyPayload.verification.runId, '正式验证运行记录必须存在').toBeTruthy()
+  expect(['passed', 'risks', 'incomplete', 'stale']).toContain(verifyPayload.verification.state)
+  // 界面如实展示验证运行：状态、运行 ID、四视口截图
+  const verificationStatus = page.getByTestId('verification-status')
+  await expect(verificationStatus).toBeVisible()
+  await expect(verificationStatus).toContainText(verifyPayload.verification.runId!.slice(0, 12))
+  await expect(page.getByTestId('verification-shots')).toBeVisible()
+  const shotCount = await page.getByTestId('verification-shots').locator('img').count()
+  expect(shotCount, '四视口验证应产出真实截图').toBeGreaterThanOrEqual(1)
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-verified-1440.png'), fullPage: true })
+
   // 7a. 候选 ID 与补丁以服务端历史为权威
   const history = await (await fetch(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
     history: Array<{ candidateId: string; lifecycle: string; patchHash?: string; baseSourceDigest: string }>

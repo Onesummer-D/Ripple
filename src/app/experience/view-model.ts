@@ -158,7 +158,42 @@ export interface ExperienceViewModel {
     /** 候选预演地址（POST /candidate/preview 响应；iframe 唯一可信来源）。 */
     previewUrl?: string
     previewLoading?: boolean
+    /** 四视口验证运行中（POST /candidate/verify 在途；按钮禁用）。 */
+    verificationRunning?: boolean
+    /** 最近一次真实验证运行（POST /candidate/verify 响应投影；服务端权威，F 不自行生成）。 */
+    verification?: CandidateVerificationXp
   }
+}
+
+/** 真实验证运行投影（第二批：POST /candidate/verify；全部字段来自服务端响应）。 */
+export interface CandidateVerificationXp {
+  state: 'not-run' | 'passed' | 'risks' | 'incomplete' | 'stale' | 'failed-to-run'
+  stateLabel: string
+  reason?: string
+  runId?: string
+  patchHash?: string
+  scopeVersion?: number
+  startedAt?: string
+  completedAt?: string
+  /** 执行记录哈希（审批必须绑定此运行，第三批接入）。 */
+  recordHash?: string
+  assertions: Array<{ id: string; result: string; detail: string }>
+  /** 四视口证据截图（imageUrl 已为绝对地址，可直接作 img src）。 */
+  shots: Array<{
+    viewportWidth: number
+    viewportHeight: number
+    result: string
+    runtimeState?: string
+    imageUrl?: string
+    reason?: string
+  }>
+  /** E 只读视觉差异证据（ripple-visual-evidence-view/v1 投影；无则缺省）。 */
+  visualEvidences: Array<{
+    checkId: string
+    route: string
+    result: string
+    resultReason?: string
+  }>
 }
 
 /** 把 scope 选择汇总成一句即时摘要（纯函数，可测）。 */

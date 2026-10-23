@@ -238,6 +238,14 @@
 .ripple-xp-candidate-id code { border-bottom: none; }
 .ripple-xp-candidate-error { margin: 0; font-size: 14px; color: var(--xp-clay); }
 .ripple-xp-candidate-note { margin: 0; font-size: 14px; color: var(--xp-ink-soft); }
+/* 第二批：四视口验证结果（截图/断言/E 视觉证据均来自服务端 VerificationRun） */
+.ripple-xp-verification { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--xp-line); border-radius: 12px; background: var(--xp-paper); }
+.ripple-xp-verification-head { margin: 0; font-size: 14px; font-weight: 600; }
+.ripple-xp-verification-shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ripple-xp-verification-shots figure { margin: 0; display: grid; gap: 4px; }
+.ripple-xp-verification-shots img { width: 100%; border: 1px solid var(--xp-line); border-radius: 8px; background: #fff; }
+.ripple-xp-verification-shots figcaption { font-size: 12px; color: var(--xp-ink-soft); }
+.ripple-xp-visual-evidences { margin: 0; padding-left: 18px; font-size: 13px; color: var(--xp-ink-soft); }
 .ripple-xp-viewport-shell {
   overflow: hidden; border: 1px solid var(--xp-line); border-radius: 16px;
   background: #fff; margin-top: 10px;

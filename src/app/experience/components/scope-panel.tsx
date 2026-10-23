@@ -8,7 +8,7 @@ const SCOPE_LABEL: Record<PageXp['scope'], string> = { include: '包含', exclud
  * 右侧：选中元素 + 修改意图 + 来源信息 + 范围决策。
  * unknown/partial 页面可以被查看，但不得被提升为可安全审批的范围（approvalGate 强制）。
  */
-export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onCreateCandidate, onToggleCandidatePreview, candidateError }: {
+export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onCreateCandidate, onToggleCandidatePreview, onRunVerification, candidateError }: {
   model: ExperienceViewModel
   onDraftText: (text: string) => void
   onPageScope: (pageRef: string, scope: PageXp['scope']) => void
@@ -17,6 +17,8 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   onCreateCandidate?: () => void
   /** 真实模式：打开/关闭候选预演。 */
   onToggleCandidatePreview?: () => void
+  /** 真实模式（第二批）：运行四视口验证（POST /candidate/verify）。 */
+  onRunVerification?: () => void
   /** 真实模式：候选创建/预演失败原因（如实显示）。 */
   candidateError?: string
 }) {
@@ -108,7 +110,57 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                 : model.activeCandidate.previewLoading ? '候选预演加载中…' : '打开候选预演'}
             </button>
             {model.activeCandidate.previewUrl && <p className="ripple-xp-candidate-note">候选预演为真实浏览器会话，隔离属性与项目预演一致。</p>}
-            <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（验证/审批批次接入）</p>
+            {onRunVerification && (
+              <button
+                type="button"
+                className="ripple-xp-primary"
+                data-testid="run-verification"
+                disabled={model.activeCandidate.verificationRunning}
+                onClick={onRunVerification}
+              >
+                {model.activeCandidate.verificationRunning
+                  ? '四视口验证运行中…'
+                  : model.activeCandidate.verification?.runId ? '重新运行四视口验证' : '运行四视口验证'}
+              </button>
+            )}
+            {model.activeCandidate.verification && (
+              <div className="ripple-xp-verification" data-testid="verification-status">
+                <p className="ripple-xp-verification-head">
+                  验证{model.activeCandidate.verification.stateLabel}
+                  {model.activeCandidate.verification.runId && <> · 运行 <code>{model.activeCandidate.verification.runId.slice(0, 12)}…</code></>}
+                  {model.activeCandidate.verification.recordHash && <> · 记录 <code>{model.activeCandidate.verification.recordHash.slice(0, 12)}…</code></>}
+                </p>
+                {model.activeCandidate.verification.reason && <p className="ripple-xp-candidate-note">{model.activeCandidate.verification.reason}</p>}
+                {model.activeCandidate.verification.assertions.length > 0 && (
+                  <p className="ripple-xp-candidate-note">
+                    断言 {model.activeCandidate.verification.assertions.filter(item => item.result === 'pass').length}/{model.activeCandidate.verification.assertions.length} 通过
+                  </p>
+                )}
+                {model.activeCandidate.verification.shots.length > 0 && (
+                  <div className="ripple-xp-verification-shots" data-testid="verification-shots">
+                    {model.activeCandidate.verification.shots.map(shot => (
+                      <figure key={`${shot.viewportWidth}x${shot.viewportHeight}`}>
+                        {shot.imageUrl
+                          ? <img src={shot.imageUrl} alt={`候选验证截图 ${shot.viewportWidth}×${shot.viewportHeight}`} />
+                          : <figcaption>{shot.reason ?? '本视口未生成截图。'}</figcaption>}
+                        <figcaption>{shot.viewportWidth} × {shot.viewportHeight} · {shot.result}{shot.runtimeState ? ` · ${shot.runtimeState}` : ''}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                )}
+                {model.activeCandidate.verification.visualEvidences.length > 0 && (
+                  <ul className="ripple-xp-visual-evidences" data-testid="visual-evidences">
+                    {model.activeCandidate.verification.visualEvidences.map(entry => (
+                      <li key={entry.checkId}>
+                        视觉证据 {entry.route} · {entry.result}{entry.resultReason ? ` · ${entry.resultReason}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="ripple-xp-candidate-note">验证结果由服务端 VerificationRun 生成；审批严格绑定此运行与补丁哈希（审批批次接入）。</p>
+              </div>
+            )}
+            <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（审批批次接入）</p>
           </div>
         ) : (
           <>

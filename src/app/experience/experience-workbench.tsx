@@ -227,6 +227,19 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
       })
   }
 
+  // 第二批：四视口验证（POST /candidate/verify）。结果完全来自服务端 VerificationRun，
+  // 失败（含浏览器验证启动失败）如实透出，绝不用演示默认值兜底。
+  const handleRunVerification = () => {
+    if (!modelRef.current || !activeAdapter.runVerification) return
+    setCandidateError('')
+    activeAdapter.runVerification(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '四视口验证运行失败')
+      })
+  }
+
   return <div ref={scopeRef} className="ripple-xp-scope ripple-xp-workbench">
     <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} />
     {model.dataProvenance === 'real' && model.projectStatus === 'unavailable' && activeAdapter.openProject && (
@@ -280,6 +293,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         }}
         onCreateCandidate={activeAdapter.createCandidate ? handleCreateCandidate : undefined}
         onToggleCandidatePreview={activeAdapter.openCandidatePreview ? handleToggleCandidatePreview : undefined}
+        onRunVerification={activeAdapter.runVerification ? handleRunVerification : undefined}
         candidateError={candidateError}
       />
     </div>

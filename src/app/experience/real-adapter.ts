@@ -69,15 +69,31 @@ interface VerificationView {
   patchHash?: string
   scopeDecisionId?: string
   scopeVersion?: number
+  startedAt?: string
+  completedAt?: string
   assertions?: Array<{ id: string; result: string; detail: string }>
   evidence?: Array<{
     id: string
+    checkId?: string
     result: string
+    pageUrl?: string
     viewport: { width: number; height: number }
-    artifactUrl?: string
+    runtimeState?: string
+    elementRefs?: string[]
     reason?: string
+    artifactUrl?: string
   }>
+  recordUrl?: string
+  recordHash?: string
   browserErrorDetails?: { total: number; byCategory: Record<string, number>; samples: string[]; truncated: boolean }
+  /** E 只读视觉差异证据投影（ripple-visual-evidence-view/v1；字段以 A 为准）。 */
+  visualEvidences?: Array<{
+    checkId: string
+    route: string
+    result: string
+    resultReason?: string
+    view?: unknown
+  }>
 }
 type StoredLifecycle = 'active' | 'discarded' | 'stale' | 'applied' | 'rolled-back'
 interface HistoryItem {
@@ -193,6 +209,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   /** 候选预演会话地址（POST /candidate/preview 响应；iframe 唯一可信来源）。 */
   let candidatePreviewUrl: string | undefined
   let candidatePreviewLoading = false
+  /** 第二批：四视口验证运行状态（POST /candidate/verify 在途）。 */
+  let verificationRunning = false
+  /** 第二批：最近一次真实验证运行投影（服务端权威；F 不自行生成）。 */
+  let activeVerification: VerificationView | undefined
   /** 本地交互状态（草稿/范围意向只属于体验层，绝不写服务端）。 */
   const ui: {
     selectedElementId?: string
@@ -233,6 +253,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     activeCandidate = undefined
     candidatePreviewUrl = undefined
     candidatePreviewLoading = false
+    verificationRunning = false
+    activeVerification = undefined
     ui.selectedElementId = undefined
     ui.draftAfterText = ''
     ui.currentPageRef = ''
@@ -454,7 +476,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         sourceKind: 'user-choice',
         summary: selected.editable
           ? activeCandidate
-            ? `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」；已生成真实候选 ${activeCandidate.candidateId.slice(0, 18)}…（服务端持久化，验证/审批在后续批次接入）。`
+            ? `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」；已生成真实候选 ${activeCandidate.candidateId.slice(0, 18)}…（服务端持久化${activeVerification?.runId ? `，验证${VERIFICATION_STATE_LABEL[activeVerification.state]}` : ''}；审批在后续批次接入）。`
             : `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」（本地意向，尚未生成真实候选）。`
           : `「${selected.label}」来源未完全证明，只能查看，不能承诺修改范围。`,
         detail: identity
@@ -526,6 +548,37 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     }
   }
 
+  /** 第二批：把服务端 VerificationRun 投影转成候选面板可渲染的验证快照（截图地址绝对化）。 */
+  function candidateVerificationView(verification: VerificationView | undefined): import('./view-model').CandidateVerificationXp | undefined {
+    if (!verification) return undefined
+    return {
+      state: verification.state,
+      stateLabel: VERIFICATION_STATE_LABEL[verification.state],
+      reason: verification.reason,
+      runId: verification.runId,
+      patchHash: verification.patchHash,
+      scopeVersion: verification.scopeVersion,
+      startedAt: verification.startedAt,
+      completedAt: verification.completedAt,
+      recordHash: verification.recordHash,
+      assertions: verification.assertions ?? [],
+      shots: (verification.evidence ?? []).map(entry => ({
+        viewportWidth: entry.viewport.width,
+        viewportHeight: entry.viewport.height,
+        result: entry.result,
+        runtimeState: entry.runtimeState,
+        imageUrl: entry.artifactUrl ? `${apiBase}${entry.artifactUrl}` : undefined,
+        reason: entry.reason,
+      })),
+      visualEvidences: (verification.visualEvidences ?? []).map(entry => ({
+        checkId: entry.checkId,
+        route: entry.route,
+        result: entry.result,
+        resultReason: entry.resultReason,
+      })),
+    }
+  }
+
   function buildModel(projectStatus: ExperienceViewModel['projectStatus'], blockedReasons: string[] = []): ExperienceViewModel {
     const targets = elements()
     const selected = targets.find(item => item.id === ui.selectedElementId)
@@ -545,7 +598,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       canvasState: candidatePreviewUrl || previewSession ? 'ready' : 'unavailable',
       pickerAvailable: !!previewSession,
       activeCandidate: activeCandidate
-        ? { ...activeCandidate, previewUrl: candidatePreviewUrl, previewLoading: candidatePreviewLoading }
+        ? {
+            ...activeCandidate,
+            previewUrl: candidatePreviewUrl,
+            previewLoading: candidatePreviewLoading,
+            verificationRunning,
+            verification: candidateVerificationView(activeVerification),
+          }
         : undefined,
       pages: pages(),
       elements: targets,
@@ -871,6 +930,37 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         if (gen !== generation) throw new StaleResponseError()
         candidatePreviewUrl = undefined
         return buildModel(current.projectStatus, current.blockedReasons)
+      })
+    },
+
+    /**
+     * 第二批：运行真实四视口验证（POST /candidate/verify）。
+     * 只消费服务端 VerificationRun 投影（断言/证据截图/记录哈希/E 视觉证据），
+     * 绝不自行生成 pass；响应候选身份不一致或代际过期一律丢弃；
+     * 完成后回读历史，版本胶片/证据/视口覆盖以服务端持久化结果为权威。
+     */
+    async runVerification(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有活跃候选，无法运行验证')
+        verificationRunning = true
+        try {
+          const response = await post<{ candidateId: string; previewUrl: string; verification: VerificationView }>(
+            'candidate/verify', { candidateId: activeCandidate.candidateId },
+          )
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('验证响应与当前候选不一致，已丢弃')
+          activeVerification = response.verification
+          const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+          if (gen === generation) {
+            history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+          }
+          // 必须在 buildModel 前复位（da94ab7 教训）：finally 晚于模型构建执行
+          verificationRunning = false
+          return buildModel(current.projectStatus, current.blockedReasons)
+        } finally {
+          verificationRunning = false
+        }
       })
     },
   } as ExperienceAdapter & {
