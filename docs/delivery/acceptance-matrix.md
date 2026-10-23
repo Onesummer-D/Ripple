@@ -1,6 +1,6 @@
 # 三案例统一验收矩阵
 
-> 日期：2026-10-23（Run #18 最终修订 + 复审小改）。基线：A 主线 `feat/project-first-core-20261018`（文档起草 @ 2525092；Bolt 验收通过时 A @ `16e737c`）。Run #18 证据已归档 `docs/delivery/evidence/run18/`（哈希索引见 INDEX.md）。
+> 日期：2026-10-23（Run #18 最终修订 + 复审小改 + 2026-10-23 晚状态更新）。基线：A 主线 `feat/project-first-core-20261018`（文档起草 @ 2525092；Bolt 验收通过时 A @ `16e737c`；**最新公共基线 @ `45a2d7c`（协调方口径，含 C+D PR #28 与 E PR #30，尚待远端复核）**）。Run #18 证据已归档 `docs/delivery/evidence/run18/`（哈希索引见 INDEX.md）。
 > 状态取值：PASS / RISK / UNKNOWN / NOT RUN。标【已合成】的通过仅为合成工程或 Fixture 证据，不代表真实案例验收。
 > “实际运行结果”列只写真实运行过的内容；没有真实运行的写 NOT RUN 并说明阻断。
 > **主案例真实验收已于 Run #18（2026-10-22，A @ 16e737c）整轮通过**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>。
@@ -42,9 +42,9 @@ Fixture 定义：`src/cases/fixtures.ts`（qiguang 4 个 slot：首页横幅 `/`
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2.1 | 选中节目页 Slot 并上传/选图（PNG/JPEG/WebP/GIF） | `/program` qiguang-program-poster-slot | A 工作台 MEDIA 交互 | 生成 media:// 候选，IndexedDB 资源可复用 | 工作台实现 + Fixture 测试；本地页面 QA JSON | 工作台层可用（本地页面） | PASS【已合成·演示】 | `docs/acceptance/2026-10-15/evidence/` | 浏览器本地资源库不随代码包迁移 | A / F |
 | 2.2 | 三容器裁切对照弹窗（容器 vs 完整原图，Escape 关闭） | 首页 Hero / 展墙 / 购票卡 | A 工作台 | 各容器裁切区域可见 | README 已声明实现；Fixture 层 | 本地页面可用 | PASS【已合成·演示】 | 同上 | 真实工程未验收 | A |
-| 2.3 | 横版素材 → 竖版素材的布局差异展示 | 3 个共享消费位置 | C 概念设计 + A 演示 | 裁切/遮挡/溢出差异可见 | C 三容器展示稿（概念示意标注）；E 几何规则模块（new-clip-overflow 等） | E 视觉模块**未接入 VerificationRunner**，真实 run 无可比较输入 | UNKNOWN（真实） | `docs/design/c/`；`docs/architecture/visual-difference-evidence.md`（E 分支） | E 模块未合入 A、未接入执行器 | E / A |
+| 2.3 | 横版素材 → 竖版素材的布局差异展示 | 3 个共享消费位置 | C 概念设计 + A 演示 | 裁切/遮挡/溢出差异可见 | C 三容器展示稿（概念示意标注）；E 几何规则模块（new-clip-overflow 等）；E 阶段一只读接线已合入 A 主线（PR #30） | E 接线已并入 A；但栖光 MEDIA 真实管线未接入，横竖版替换差异**尚无真实双端截图输入** | UNKNOWN（真实） | `docs/design/c/`；`docs/architecture/visual-evidence-f-consumption.md` | 栖光真实管线接入 + 双端截图采集（B1/B4） | E / A |
 | 2.4 | 真实工程 MEDIA asset-swap 验收 | 青野分类图（同管线） | B（PR #7/#8，Run 39536064634） | 四视口双端 7 断言 + Approval/Apply/Rollback + 原工程未改动 | 真实验收 PASS（青野，非栖光） | 青野分类图 asset-swap：PASS；动态商品图/复杂 variants：NOT RUN（静态不可证明） | PASS（青野单操作）/ NOT RUN（范围外） | [Run 39536064634](https://github.com/Onesummer-D/Ripple/actions/runs/39536064634) | 栖光工程本身未接入真实验收管线 | B / A |
-| 2.5 | E Visual Evidence（像素 diff + 几何证据） | 双端截图 | E | risk/unknown 语义证据，从不 PASS | 合成 fixture 测试 + 真实 Chromium 单测（页面为合成） | 未接入真实运行；baseline 侧截图尚未采集 | NOT RUN（真实） | E 分支 `feat/agent-e-visual-evidence-20261021` | 接入顺序见 E 文档 §7（均未实施） | E |
+| 2.5 | E Visual Evidence（像素 diff + 几何证据） | 双端截图 | E | risk/unknown 语义证据，从不 PASS | 合成 fixture 测试 + 真实 Chromium 单测（页面为合成）+ 真实接线 e2e（Docker 全链路，PR #30） | 阶段一只读接线已合入 A 主线；尚无真实 run 在含接线基线上执行（Run #18 早于接线合入）；栖光 MEDIA 双端截图与 risk/unknown 样本未采集 | NOT RUN（真实） | A 合并提交 71dc6c7；E 分支 `feat/e-visual-wiring-20261023` | 栖光真实管线接入后采集（B2/B3）；严格实例证明阶段二待 C+D 合同冻结 | E |
 
 **栖光结论**：演示层（Fixture/工作台）可录；真实 MEDIA 证据目前只有青野分类图一条线（且为单操作）；栖光自身的横竖版替换视觉验收依赖 E 模块接入，当前 UNKNOWN，不得宣传为已完成。
 
@@ -70,9 +70,11 @@ Fixture 定义：`src/cases/fixtures.ts`（qiguang 4 个 slot：首页横幅 `/`
 | 合成工程全链路 CI（typecheck/Vitest/build/Docker Playwright） | PASS | CI #478（A @ 2525092）；Run 39650178433 408/408；Run 39667915489 426/426 | 只证明合成工程，不证明真实 Bolt 闭环 |
 | Docker 隔离预演（受限 Vite 适配、loopback relay、CSP、资源快照） | PASS【已合成】 | 上述 CI + PR #17 预构建实验 | Windows 原生不支持，需 Linux Docker |
 | D 运行时身份（stable-react-instance 恢复、navigation-only） | PASS | PR #18 已合并；CI 39650178433 | 实例级编辑授权仍关闭 |
+| C+D SourceGraph × Runtime Identity | 已并入 A 主线 | PR #28（集成 HEAD 43f2ea2）；A 合并后验收 742/742 Vitest | AC-P2a/b 精简集成进行中（route.lazy 页面组件导出证明修复 98029cb）；strictInstanceProofAvailable 的唯一升级依据（instanceIdentityProven === true）仍待 C+D 合同冻结 |
 | F 体验工作台（演示流 + 审批门控） | PASS【演示·DEMO 标注】 | PR #14 已合并；e2e 15/15 | 真实审批入口在 real 模式明确不开放 |
+| F 真实 TEXT 候选 + 四视口展示 | 已完成（2026-10-23 协调方口径，待远端复核） | 分支 feat/f-real-text-phase2-20261023 | 消费 E 的 visualEvidences[].view 只读投影；演示界面与真实验收证据来源分开标注 |
 | 生命周期清理 fail-closed / 发布门（Run #12 修复） | PASS【合成 + 真实复验】 | PR #13 已合并；确定性负例 22+9+8；Run #15–#17 真实四视口验证完整产出 execution.json | 真实复验范围 = 验证阶段；预算压力已缓解（PR #17 预构建，DCL 稳态 ~2.3 s→~0.41 s） |
-| E 视觉差异证据 | PASS【合成】/ NOT RUN【真实】 | E 分支 fixture 测试 | 未接入 VerificationRunner，未合入 A |
+| E 视觉差异证据 | PASS【合成】/ 接线已合入 A【真实 run 待跑】 | E 分支 fixture 测试；阶段一只读接线 PR #30（fdd9ee0 → A 合并提交 71dc6c7，专项 CI 与合并后 CI 均 success） | 接线已并入 A 主线：VerificationRun 挂载 visualEvidences 只读 view（含双端配对证据，strictInstanceProofAvailable 恒 false）；Run #18 早于接线合入，尚无真实 run 在含接线基线上执行；栖光 MEDIA 真实样本待采集 |
 
 ## 使用规则
 

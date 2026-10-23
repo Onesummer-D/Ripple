@@ -24,7 +24,7 @@
 | # | 缺失证据 | 采集条件 | 责任方 | 用于 |
 | --- | --- | --- | --- | --- |
 | B1 | 栖光真实工程接入 MEDIA 管线的验收运行（四视口双端截图 + acceptance.json） | B/A 接入真实管线 + 负责人 dispatch | B / A | 矩阵 2.4 |
-| B2 | E 视觉证据真实样本：双端截图的 risk/unknown 证据 JSON + 差异图 | E §7 接入顺序（1) baseline 同参截图 2) 采样器绑定 3) manifest visualComparisons）实施并合入 | E / A | 分镜镜 11；qiguang-materials §5 |
+| B2 | E 视觉证据真实样本：双端截图的 risk/unknown 证据 JSON + 差异图 | 接线已合入 A 主线（PR #30，2026-10-23）；待栖光管线接入后真实 run 自动产出 | E / A | 分镜镜 11；qiguang-materials §5 |
 | B3 | 横→竖替换后三容器真实裁切/遮挡/溢出观测（E 几何规则输出） | 同 B2 | E | qiguang-materials §4 |
 | B4 | 栖光自身 390×844 真实 MEDIA 证据（替换 F 层「验证中」标注） | 栖光工程或媒体测试工程接入真实 MEDIA 管线后采集（同 B1）。注意：Run #18 的 mobile-390 截图只证明青野 TEXT 案例与公共验证器视口能力，不能替代栖光证据 | E / A | 矩阵 2.3 |
 | 已有 | 本地 MEDIA 交互录屏、三容器裁切弹窗、C 概念海报（16:9/4:5，示意标注） | — | A / C | 分镜镜 10 过渡 |

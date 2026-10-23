@@ -55,7 +55,7 @@
 
 ## 6. 不支持 / 尚未验收部分的真实说明
 
-1. **E 视觉差异模块未接入 VerificationRunner**（截至 2026-10-22）：模块在分支 `feat/agent-e-visual-evidence-20261021`，未合入 A 主线；真实 run 目前只截 candidate 侧，**没有可比较的 baseline 截图**，接入顺序见 `docs/architecture/visual-difference-evidence.md` §7（均未实施）。
+1. **E 视觉差异证据阶段一只读接线已并入 A 主线**（2026-10-23，PR #30，E @ fdd9ee0 → A 合并提交 71dc6c7，专项 CI 与合并后 CI 均 success）：VerificationRun 现在挂载 `visualEvidences[].view` 只读投影（含双端配对证据，`strictInstanceProofAvailable` 恒 false）。但 Run #18 早于接线合入，**尚无真实 run 在含接线的基线上执行**，栖光 MEDIA 管线的双端截图与 risk/unknown 真实样本仍待接入后采集（见 evidence-gap-checklist B1/B2/B3/B4）；严格实例证明（阶段二）待 C+D 合同冻结，不由 SourceGraph 推断升级。栖光 Lab 的独立测试不构成「最新 A 公共核心上的完整 MEDIA 生命周期」，不得据此宣传。
 2. **真实工程 MEDIA 验收只在青野分类图一条线上通过**（Run 39536064634：四视口双端 7 断言 + Approval/Apply/Rollback + 原工程未改动）；栖光工程本身未接入真实验收管线。
 3. **明确不支持**：动态商品列表图（类别筛选三元表达式 + 共享 ProductCard，静态不可证明）、复杂 variants、SCSS Token；验收脚本对此 fail-closed 并在 `steps.sourceLocation` 如实标注。
 4. Fixture 证据 `E-VIEW-QIGUANG-001`（/program 裁切结果 768x1024）仍是占位语义，待 B 的真实浏览器结果替换；替换前相关画面不进正式录屏（C 的 E-REF/E-VIEW 占位纪律）。
@@ -71,4 +71,4 @@
 | E 证据格式预期 | ✅ 本文 §5（格式确定；真实样本待接入后采集） |
 | 不支持/未验收说明 | ✅ 本文 §6 |
 | 真实四视口 MEDIA 截图（栖光工程） | ⬜ 待 B/A 接入真实管线后采集 |
-| E 接入后的 risk/unknown 证据样本 | ⬜ 待 E §7 接入顺序实施 |
+| E 接入后的 risk/unknown 证据样本 | ⬜ 接线已合入 A（PR #30）；真实样本待栖光管线接入后采集 |
