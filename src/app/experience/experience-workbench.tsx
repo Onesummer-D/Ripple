@@ -243,6 +243,39 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
       })
   }
 
+  // 第三批：真实生命周期（POST /candidate/approve|apply|rollback）。
+  // 结果完全来自服务端响应；StaleResponseError 表示已有新请求接管，不得提交任何 UI 更新。
+  const handleApproveCandidate = () => {
+    if (!modelRef.current || !activeAdapter.approveCandidate) return
+    setCandidateError('')
+    activeAdapter.approveCandidate(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '审批失败')
+      })
+  }
+  const handleApplyCandidate = () => {
+    if (!modelRef.current || !activeAdapter.applyCandidate) return
+    setCandidateError('')
+    activeAdapter.applyCandidate(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '应用失败')
+      })
+  }
+  const handleRollbackCandidate = () => {
+    if (!modelRef.current || !activeAdapter.rollbackCandidate) return
+    setCandidateError('')
+    activeAdapter.rollbackCandidate(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '回滚失败')
+      })
+  }
+
   // 真实模式刷新：重建预演会话（候选创建后服务端会停止项目预演）并回读服务端状态
   const handleRefresh = () => {
     if (!modelRef.current || !activeAdapter.refresh) return
@@ -309,6 +342,9 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         onCreateCandidate={activeAdapter.createCandidate ? handleCreateCandidate : undefined}
         onToggleCandidatePreview={activeAdapter.openCandidatePreview ? handleToggleCandidatePreview : undefined}
         onRunVerification={activeAdapter.runVerification ? handleRunVerification : undefined}
+        onApproveCandidate={activeAdapter.approveCandidate ? handleApproveCandidate : undefined}
+        onApplyCandidate={activeAdapter.applyCandidate ? handleApplyCandidate : undefined}
+        onRollbackCandidate={activeAdapter.rollbackCandidate ? handleRollbackCandidate : undefined}
         candidateError={candidateError}
       />
     </div>

@@ -162,6 +162,19 @@ export interface ExperienceViewModel {
     verificationRunning?: boolean
     /** 最近一次真实验证运行（POST /candidate/verify 响应投影；服务端权威，F 不自行生成）。 */
     verification?: CandidateVerificationXp
+    /**
+     * 第三批：候选生命周期（全部来自服务端 workflow 响应/历史：active/approved/applied/rolled-back）。
+     * F 绝不自行生成 approved/applied/rolled-back。
+     */
+    lifecycle?: string
+    /** 第三批：服务端审批记录（审批绑定最新 passed 验证的 runId；recordHash 不能代替 runId）。 */
+    approval?: { verificationRunId: string; at?: string }
+    /** 第三批：服务端应用记录时间。 */
+    appliedAt?: string
+    /** 第三批：服务端回滚可用性（唯一权威；缺省时审批/应用/回滚按钮按 lifecycle 推导、服务端兜底拒绝）。 */
+    rollbackAvailable?: boolean
+    /** 第三批：生命周期操作在途（审批/应用/回滚；全部生命周期按钮禁用防重复提交）。 */
+    lifecycleBusy?: 'approving' | 'applying' | 'rolling-back'
   }
 }
 

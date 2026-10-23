@@ -68,4 +68,20 @@ export interface ExperienceAdapter {
    * 不得自行生成 pass 或模拟验证状态；响应与当前候选不一致时丢弃。
    */
   runVerification?(model: ExperienceViewModel): Promise<ExperienceViewModel>
+  /**
+   * 第三批：审批（POST /candidate/approve）。必须传当前 candidateId 与【最新 passed 验证的
+   * runId】——recordHash 是执行记录哈希，不能代替 runId。仅当最新验证状态为 passed 时才可调用；
+   * 服务端是最终门控（候选非活动/验证不 passed/runId 不匹配一律拒绝）。
+   */
+  approveCandidate?(model: ExperienceViewModel): Promise<ExperienceViewModel>
+  /**
+   * 第三批：应用（POST /candidate/apply）。只允许已审批且服务端确认仍可应用的活动候选；
+   * 源码变化、候选过期或脏工作树由服务端拒绝，错误如实透出，不得本地臆造 applied 状态。
+   */
+  applyCandidate?(model: ExperienceViewModel): Promise<ExperienceViewModel>
+  /**
+   * 第三批：回滚（POST /candidate/rollback）。只允许服务端确认仍可回滚的已应用候选；
+   * 回滚成功后工程源码恢复，目标/页面/版本历史必须以服务端重新分析结果刷新。
+   */
+  rollbackCandidate?(model: ExperienceViewModel): Promise<ExperienceViewModel>
 }

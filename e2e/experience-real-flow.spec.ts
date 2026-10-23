@@ -176,6 +176,14 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await expect(page.getByTestId('verification-shots')).toBeVisible()
   const shotCount = await page.getByTestId('verification-shots').locator('img').count()
   expect(shotCount, '四视口验证应产出真实截图').toBeGreaterThanOrEqual(1)
+  // 第三批：七项断言逐条展示；非 passed 时审批按钮禁用并给出准确原因（passed 时开放）
+  await expect(page.getByTestId('verification-assertions')).toBeVisible()
+  if (verifyPayload.verification.state === 'passed') {
+    await expect(page.getByTestId('approve-candidate')).toBeEnabled()
+  } else {
+    await expect(page.getByTestId('approve-candidate')).toBeDisabled()
+    await expect(page.getByTestId('approve-blocked-reason')).toContainText('审批未开放')
+  }
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-verified-1440.png'), fullPage: true })
 
   // 6c. 异步切换路径（Docker E2E 覆盖要求）：刷新重建预演。
@@ -335,6 +343,7 @@ test.describe('A 核心合同负例（真实后端，无 Docker 依赖）', () =
     expect(created.status(), await created.text()).toBe(200)
     const { candidate } = await created.json() as { candidate: { id: string } }
     // 候选创建后改动工作树：候选基线过期（assertCurrentOrRetire 在启动验证【之前】拦截）
+    const originalBytes = fs.readFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'))
     fs.appendFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), '\n// dirty-tree: verify failure path\n')
     try {
       const verify = await request.post(`${API}/candidate/verify`, { data: { candidateId: candidate.id } })
@@ -346,8 +355,46 @@ test.describe('A 核心合同负例（真实后端，无 Docker 依赖）', () =
       const stored = history.history.find(item => item.candidateId === candidate.id)
       expect(stored?.lifecycle).toBe('stale')
     } finally {
-      // 还原工作树：后续测试与 afterAll 清理依赖干净基线
-      execFileSync('git', ['-C', projectRoot, 'checkout', '--', 'src/pages/HomePage.jsx'])
+      // 按原始字节还原工作树：后续候选staging校验字节一致性，git checkout 的行尾
+      // 归一化会改变字节导致后续测试误报 409
+      fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), originalBytes)
     }
+  })
+
+  test('第三批生命周期门控负例（真实后端，无 Docker 依赖）：伪造 runId 审批/未审批应用/未应用回滚一律拒绝', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const titleTarget = analysis.targets.find(item => item.label.includes('Acme 真实首页标题'))!
+    const pageRef = titleTarget.impact.pageRefs[0]
+    const created = await request.post(`${API}/candidate`, { data: {
+      projectId: analysis.revision.projectId,
+      rawIntent: '第三批门控负例',
+      operations: [{ id: 'op-lc-1', kind: 'TEXT', targetRef: titleTarget.id, before: 'Acme 真实首页标题', after: 'Acme 门控标题' }],
+      scope: {
+        id: 'scope-lc-1', version: 1, strategy: 'shared',
+        includedRefs: [titleTarget.id, pageRef], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(created.status(), await created.text()).toBe(200)
+    const { candidate } = await created.json() as { candidate: { id: string } }
+    // 旧 runId / 伪造 runId 一律拒绝（服务端为最终权威，F 只透传）
+    const approve = await request.post(`${API}/candidate/approve`, { data: { candidateId: candidate.id, runId: 'run-forged-or-stale' } })
+    expect(approve.status(), await approve.text()).toBeGreaterThanOrEqual(400)
+    // 未审批候选禁止应用
+    const apply = await request.post(`${API}/candidate/apply`, { data: { candidateId: candidate.id } })
+    expect(apply.status(), await apply.text()).toBeGreaterThanOrEqual(400)
+    // 未应用候选禁止回滚
+    const rollback = await request.post(`${API}/candidate/rollback`, { data: { candidateId: candidate.id } })
+    expect(rollback.status(), await rollback.text()).toBeGreaterThanOrEqual(400)
+    // 不存在的候选：404 身份不存在
+    const ghost = await request.post(`${API}/candidate/approve`, { data: { candidateId: 'candidate-not-exists', runId: 'run-x' } })
+    expect(ghost.status()).toBe(404)
+    // 负例全程不得产生任何审批/应用/回滚状态：历史仍是活动候选
+    const history = await (await request.get(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
+      history: Array<{ candidateId: string; lifecycle: string; approval?: unknown }>
+    }
+    const stored = history.history.find(item => item.candidateId === candidate.id)
+    expect(stored?.lifecycle).toBe('active')
+    expect(stored?.approval).toBeUndefined()
   })
 })

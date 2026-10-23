@@ -96,6 +96,14 @@ interface VerificationView {
   }>
 }
 type StoredLifecycle = 'active' | 'discarded' | 'stale' | 'applied' | 'rolled-back'
+/** 第三批：服务端 workflow 投影（approve/apply/rollback/verify 响应；A local-project-api workflowView）。 */
+interface WorkflowView {
+  lifecycle: string
+  approval?: { verificationRunId: string; by?: string; at?: string }
+  applied?: { appliedAt?: string }
+  rollback?: { rolledBackAt?: string }
+  rollbackAvailable?: boolean
+}
 interface HistoryItem {
   candidateId: string
   projectId: string
@@ -213,6 +221,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let verificationRunning = false
   /** 第二批：最近一次真实验证运行投影（服务端权威；F 不自行生成）。 */
   let activeVerification: VerificationView | undefined
+  /** 第三批：当前跟踪候选的服务端工作流投影（生命周期/审批/应用/回滚全部来自真实响应）。 */
+  let activeWorkflow: WorkflowView | undefined
+  /** 第三批：生命周期操作在途（审批/应用/回滚请求进行中；模型携带以禁用按钮防重复提交）。 */
+  let lifecycleBusy: 'approving' | 'applying' | 'rolling-back' | undefined
   /** 本地交互状态（草稿/范围意向只属于体验层，绝不写服务端）。 */
   const ui: {
     selectedElementId?: string
@@ -255,6 +267,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     candidatePreviewLoading = false
     verificationRunning = false
     activeVerification = undefined
+    activeWorkflow = undefined
+    lifecycleBusy = undefined
     ui.selectedElementId = undefined
     ui.draftAfterText = ''
     ui.currentPageRef = ''
@@ -309,14 +323,39 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
     stale(gen)
     history = (historyPayload.history ?? []).filter(item => item.projectId === projectId)
-    // A 语义：重新分析会使该工程的全部活跃候选退役（fail-closed）。刷新后若本地候选
-    // 已不在服务端活跃历史里，必须清掉本地候选/验证/预演状态——绝不展示"幽灵候选"，
-    // 也不得让旧候选的验证运行挂在新状态上。
-    if (activeCandidate && !history.some(item => item.candidateId === activeCandidate!.candidateId && item.lifecycle === 'active')) {
-      activeCandidate = undefined
-      activeVerification = undefined
-      candidatePreviewUrl = undefined
-      candidatePreviewLoading = false
+    // A 语义：重新分析会使该工程的全部活跃候选退役（fail-closed）。刷新后按服务端
+    // 历史逐生命周期 reconcile 本地跟踪——绝不展示"幽灵候选"，也不得让旧候选的
+    // 验证运行挂在新状态上；applied/rolled-back 终态保留跟踪，供终态展示与回滚入口。
+    if (activeCandidate) {
+      const tracked = history.find(item => item.candidateId === activeCandidate!.candidateId)
+      if (!tracked || tracked.lifecycle === 'stale' || tracked.lifecycle === 'discarded') {
+        activeCandidate = undefined
+        activeWorkflow = undefined
+        activeVerification = undefined
+        candidatePreviewUrl = undefined
+        candidatePreviewLoading = false
+      } else {
+        // 历史回读是持久化权威：验证投影随历史刷新（切换候选后旧验证不残留）
+        activeVerification = tracked.verification
+        if (tracked.lifecycle !== 'active') {
+          candidatePreviewUrl = undefined
+          candidatePreviewLoading = false
+        }
+      }
+    }
+    // 无本地跟踪时跟踪历史最新候选（含审批后/应用后的终态），保证刷新/重开页面后
+    // 审批、应用、回滚状态可继续操作；stale/discarded 一律不复活。
+    if (!activeCandidate && history.length > 0) {
+      const latest = history[0]
+      if (latest.lifecycle === 'active' || latest.lifecycle === 'applied' || latest.lifecycle === 'rolled-back') {
+        activeCandidate = { candidateId: latest.candidateId, patchHash: latest.patchHash }
+        activeVerification = latest.verification
+        activeWorkflow = {
+          lifecycle: latest.lifecycle,
+          approval: latest.approval,
+          rollbackAvailable: latest.lifecycle === 'applied' ? undefined : false,
+        }
+      }
     }
     previewSession = undefined
     previewFailedReason = ''
@@ -646,6 +685,20 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             previewLoading: candidatePreviewLoading,
             verificationRunning,
             verification: candidateVerificationView(activeVerification),
+            // 第三批：生命周期投影全部来自服务端 workflow/历史，绝不本地生成。
+            // A 的 workflow.lifecycle 是候选生命周期（active/applied/rolled-back），
+            // 审批态在 workflow.approval：session 状态 approved 必须映射为界面生命周期 approved
+            lifecycle: activeWorkflow?.applied
+              ? 'applied'
+              : activeWorkflow?.rollback
+                ? 'rolled-back'
+                : activeWorkflow?.approval
+                  ? 'approved'
+                  : activeWorkflow?.lifecycle ?? 'active',
+            approval: activeWorkflow?.approval,
+            appliedAt: activeWorkflow?.applied?.appliedAt,
+            rollbackAvailable: activeWorkflow?.rollbackAvailable,
+            lifecycleBusy,
           }
         : undefined,
       pages: pages(),
@@ -907,7 +960,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           sessionId: string
           candidate: { id: string; patchHash?: string }
           verification: VerificationView
-          workflow: { lifecycle: string }
+          workflow: WorkflowView
         }
         try {
           response = await post('candidate', {
@@ -928,6 +981,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         }
         if (gen !== generation) throw new StaleResponseError()
         activeCandidate = { candidateId: response.candidate.id, patchHash: response.candidate.patchHash }
+        activeWorkflow = response.workflow
         // 新候选不得残留上一个候选的验证：验证严格绑定候选身份（candidateId/patchHash）
         activeVerification = undefined
         // 服务端在候选创建时停止项目预演会话：本地状态如实跟进，不保留失效会话
@@ -991,12 +1045,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         if (!activeCandidate) throw new Error('当前没有活跃候选，无法运行验证')
         verificationRunning = true
         try {
-          const response = await post<{ candidateId: string; previewUrl: string; verification: VerificationView }>(
+          const response = await post<{ candidateId: string; previewUrl: string; verification: VerificationView; workflow?: WorkflowView }>(
             'candidate/verify', { candidateId: activeCandidate.candidateId },
           )
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('验证响应与当前候选不一致，已丢弃')
           activeVerification = response.verification
+          if (response.workflow) activeWorkflow = response.workflow
           const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
           if (gen === generation) {
             history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
@@ -1014,6 +1069,93 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           throw error
         } finally {
           verificationRunning = false
+        }
+      })
+    },
+
+    /**
+     * 第三批：审批（POST /candidate/approve）。
+     * 审批严格绑定【最新 passed 验证的 runId】——recordHash 是执行记录哈希，不能代替
+     * runId（A 核心以 runId 定位运行并校验可信浏览器执行）。门控：仅当 activeVerification
+     * 为 passed 才发请求；服务端仍是最终权威（非活动候选/验证不 passed/runId 不匹配一律
+     * 拒绝，错误如实透出）。
+     */
+    async approveCandidate(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有候选，无法审批')
+        const latestRun = activeVerification
+        if (!latestRun || latestRun.state !== 'passed' || !latestRun.runId) {
+          throw new Error(`只有最新验证为「通过」的候选可以审批（当前：${latestRun ? VERIFICATION_STATE_LABEL[latestRun.state] : '尚未运行'}）`)
+        }
+        lifecycleBusy = 'approving'
+        try {
+          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/approve', {
+            candidateId: activeCandidate.candidateId,
+            runId: latestRun.runId,
+          })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('审批响应与当前候选不一致，已丢弃')
+          activeWorkflow = response.workflow
+          const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+          if (gen === generation) {
+            history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+          }
+          return buildModel(current.projectStatus, current.blockedReasons)
+        } finally {
+          lifecycleBusy = undefined
+        }
+      })
+    },
+
+    /**
+     * 第三批：应用（POST /candidate/apply）。服务端校验：仅已审批且当前活动候选可应用
+     * （源码变化/候选过期/脏工作树一律拒绝，错误如实透出，绝不本地生成 applied）。
+     * 成功后服务端已把候选源码写入工程并重新分析：全量回读重建目标/页面/历史与预演，
+     * 画布与版本历史必须反映应用后的真实工程。
+     */
+    async applyCandidate(_current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有候选，无法应用')
+        lifecycleBusy = 'applying'
+        try {
+          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/apply', { candidateId: activeCandidate.candidateId })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('应用响应与当前候选不一致，已丢弃')
+          activeWorkflow = response.workflow
+          candidatePreviewUrl = undefined
+          candidatePreviewLoading = false
+          await loadProjectState(gen)
+          stale(gen)
+          return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
+        } finally {
+          lifecycleBusy = undefined
+        }
+      })
+    },
+
+    /**
+     * 第三批：回滚（POST /candidate/rollback）。仅服务端确认仍可回滚的已应用候选可回滚；
+     * 成功后源码恢复，同样全量回读刷新真实工程状态与版本记录。
+     */
+    async rollbackCandidate(_current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有候选，无法回滚')
+        lifecycleBusy = 'rolling-back'
+        try {
+          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/rollback', { candidateId: activeCandidate.candidateId })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('回滚响应与当前候选不一致，已丢弃')
+          activeWorkflow = response.workflow
+          candidatePreviewUrl = undefined
+          candidatePreviewLoading = false
+          await loadProjectState(gen)
+          stale(gen)
+          return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
+        } finally {
+          lifecycleBusy = undefined
         }
       })
     },

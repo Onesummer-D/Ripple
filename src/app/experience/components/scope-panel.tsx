@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ExperienceViewModel, PageXp } from '../view-model'
 import { approvalGate, scopeSummary } from '../view-model'
 import { CertaintyPill, SectionTitle } from './status-pill'
@@ -8,7 +9,7 @@ const SCOPE_LABEL: Record<PageXp['scope'], string> = { include: '包含', exclud
  * 右侧：选中元素 + 修改意图 + 来源信息 + 范围决策。
  * unknown/partial 页面可以被查看，但不得被提升为可安全审批的范围（approvalGate 强制）。
  */
-export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onCreateCandidate, onToggleCandidatePreview, onRunVerification, candidateError }: {
+export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onCreateCandidate, onToggleCandidatePreview, onRunVerification, onApproveCandidate, onApplyCandidate, onRollbackCandidate, candidateError }: {
   model: ExperienceViewModel
   onDraftText: (text: string) => void
   onPageScope: (pageRef: string, scope: PageXp['scope']) => void
@@ -19,9 +20,17 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   onToggleCandidatePreview?: () => void
   /** 真实模式（第二批）：运行四视口验证（POST /candidate/verify）。 */
   onRunVerification?: () => void
-  /** 真实模式：候选创建/预演失败原因（如实显示）。 */
+  /** 真实模式（第三批）：审批（POST /candidate/approve，绑定最新 passed 验证的 runId）。 */
+  onApproveCandidate?: () => void
+  /** 真实模式（第三批）：应用（POST /candidate/apply，两步确认后执行）。 */
+  onApplyCandidate?: () => void
+  /** 真实模式（第三批）：回滚（POST /candidate/rollback，两步确认后执行）。 */
+  onRollbackCandidate?: () => void
+  /** 真实模式：候选创建/预演/验证/生命周期失败原因（如实显示）。 */
   candidateError?: string
 }) {
+  // 应用/回滚的两步确认：第一次点击只进入确认态，第二次点击才真正提交
+  const [confirmAction, setConfirmAction] = useState<'apply' | 'rollback' | ''>('')
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const summary = scopeSummary(model.pages)
   const gate = approvalGate({ pages: model.pages, selectedElement: selected, draftAfterText: model.draftAfterText })
@@ -132,9 +141,17 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                 </p>
                 {model.activeCandidate.verification.reason && <p className="ripple-xp-candidate-note">{model.activeCandidate.verification.reason}</p>}
                 {model.activeCandidate.verification.assertions.length > 0 && (
-                  <p className="ripple-xp-candidate-note">
-                    断言 {model.activeCandidate.verification.assertions.filter(item => item.result === 'pass').length}/{model.activeCandidate.verification.assertions.length} 通过
-                  </p>
+                  // 七项断言及具体阻断原因逐条如实展示：未通过项不得隐藏
+                  <ul className="ripple-xp-assertions" data-testid="verification-assertions">
+                    {model.activeCandidate.verification.assertions.map(assertion => (
+                      <li key={assertion.id} data-result={assertion.result}>
+                        <span className={`ripple-xp-assertion-mark ${assertion.result === 'pass' ? 'is-pass' : 'is-fail'}`}>
+                          {assertion.result === 'pass' ? '通过' : '未通过'}
+                        </span>
+                        {' '}{assertion.id}{assertion.detail ? `：${assertion.detail}` : ''}
+                      </li>
+                    ))}
+                  </ul>
                 )}
                 {model.activeCandidate.verification.shots.length > 0 && (
                   <div className="ripple-xp-verification-shots" data-testid="verification-shots">
@@ -163,10 +180,90 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                     ))}
                   </ul>
                 )}
-                <p className="ripple-xp-candidate-note">验证结果由服务端 VerificationRun 生成；审批严格绑定此运行与补丁哈希（审批批次接入）。</p>
+                <p className="ripple-xp-candidate-note">验证结果由服务端 VerificationRun 生成；审批严格绑定此运行 ID 与补丁哈希。</p>
               </div>
             )}
-            <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（审批批次接入）</p>
+            {onApproveCandidate && (() => {
+              const candidate = model.activeCandidate
+              const lifecycle = candidate.lifecycle ?? 'active'
+              const busy = candidate.lifecycleBusy
+              const verification = candidate.verification
+              const approveOpen = !!onApproveCandidate && !busy && lifecycle === 'active'
+              const canApprove = approveOpen && verification?.state === 'passed' && !!verification.runId
+              return (
+                <div className="ripple-xp-lifecycle" data-testid="lifecycle-actions">
+                  {lifecycle === 'active' && (
+                    <button
+                      type="button"
+                      className="ripple-xp-primary"
+                      data-testid="approve-candidate"
+                      disabled={!canApprove}
+                      onClick={onApproveCandidate}
+                    >
+                      {busy === 'approving' ? '审批提交中…' : '审批此候选'}
+                    </button>
+                  )}
+                  {approveOpen && !canApprove && (
+                    <p className="ripple-xp-candidate-note" data-testid="approve-blocked-reason">
+                      审批未开放：{verification ? `最新验证为「${verification.stateLabel}」，须全部断言通过后才能审批` : '四视口验证尚未运行'}
+                    </p>
+                  )}
+                  {lifecycle === 'approved' && (
+                    <>
+                      <button
+                        type="button"
+                        className="ripple-xp-primary"
+                        data-testid="apply-candidate"
+                        disabled={busy === 'applying'}
+                        onClick={() => {
+                          if (confirmAction !== 'apply') { setConfirmAction('apply'); return }
+                          setConfirmAction('')
+                          onApplyCandidate?.()
+                        }}
+                      >
+                        {busy === 'applying' ? '应用提交中…' : confirmAction === 'apply' ? '确认应用到真实工程？' : '应用到真实工程'}
+                      </button>
+                      {confirmAction === 'apply' && (
+                        <button type="button" className="ripple-xp-quiet" data-testid="apply-cancel" onClick={() => setConfirmAction('')}>取消</button>
+                      )}
+                    </>
+                  )}
+                  {lifecycle === 'applied' && (
+                    <>
+                      <button
+                        type="button"
+                        className="ripple-xp-primary"
+                        data-testid="rollback-candidate"
+                        disabled={busy === 'rolling-back'}
+                        onClick={() => {
+                          if (confirmAction !== 'rollback') { setConfirmAction('rollback'); return }
+                          setConfirmAction('')
+                          onRollbackCandidate?.()
+                        }}
+                      >
+                        {busy === 'rolling-back' ? '回滚提交中…' : confirmAction === 'rollback' ? '确认回滚此修改？' : '回滚此修改'}
+                      </button>
+                      {confirmAction === 'rollback' && (
+                        <button type="button" className="ripple-xp-quiet" data-testid="rollback-cancel" onClick={() => setConfirmAction('')}>取消</button>
+                      )}
+                      {candidate.rollbackAvailable === false && (
+                        <p className="ripple-xp-candidate-note" data-testid="rollback-blocked-reason">服务端已确认此候选当前不可回滚（源码在应用后发生变化）。</p>
+                      )}
+                    </>
+                  )}
+                  <p className="ripple-xp-lifecycle-status" data-testid="lifecycle-status">
+                    {lifecycle === 'approved' && candidate.approval
+                      ? <>已审批 · 绑定运行 <code>{candidate.approval.verificationRunId.slice(0, 12)}…</code></>
+                      : lifecycle === 'applied'
+                        ? `已应用${candidate.appliedAt ? ` · ${candidate.appliedAt.slice(0, 16).replace('T', ' ')}` : ''} · 修改已写入真实工程`
+                        : lifecycle === 'rolled-back'
+                          ? '已回滚 · 工程源码已恢复'
+                          : '候选活动 · 验证通过后开放审批'}
+                  </p>
+                  {candidateError && <p className="ripple-xp-candidate-error" role="alert" data-testid="candidate-error">{candidateError}</p>}
+                </div>
+              )
+            })()}
           </div>
         ) : (
           <>
@@ -181,7 +278,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
             </button>
             {candidateError && <p className="ripple-xp-candidate-error" role="alert" data-testid="candidate-error">{candidateError}</p>}
             {!gate.allowed && <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
-            <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（验证/审批批次接入）</p>
+            <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">审批、应用与回滚均走服务端正式接口：创建候选并通过四视口验证后开放。</p>
           </>
         )
       ) : gate.allowed ? (

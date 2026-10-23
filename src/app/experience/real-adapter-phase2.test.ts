@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createRealAdapter } from './real-adapter'
+import { createRealAdapter, StaleResponseError } from './real-adapter'
 import type { PickerEnvelope } from './real-selection'
 
 /**
@@ -535,5 +535,229 @@ describe('第二批复核：候选切换 / 状态如实 / 失败刷新', () => {
     expect(refreshed.candidateStatus).toBe('none')
     expect(refreshed.evidence.find(item => item.id === 'ev:verification')?.state).toBe('not-run')
     expect(refreshed.versions).toHaveLength(0)
+  })
+})
+
+
+describe('第三批：真实生命周期（approve/apply/rollback，全部服务端权威）', () => {
+  const candidate9 = {
+    status: 200,
+    body: {
+      sessionId: 'session-9',
+      candidate: { id: 'candidate-9', patchHash: 'hash-9999abcdef0000' },
+      verification: { state: 'not-run', reason: '浏览器验证尚未运行。' },
+      workflow: { lifecycle: 'active' },
+    },
+  }
+  const VERIFY_PASSED_FULL = {
+    state: 'passed', runId: 'run-42', patchHash: 'hash-9999abcdef0000', scopeVersion: 3,
+    recordHash: 'record-hash-abcdef',
+    assertions: [
+      { id: 'a:1', result: 'pass', detail: '补丁文字出现' },
+      { id: 'a:2', result: 'pass', detail: '其余文字稳定' },
+    ],
+    evidence: [
+      { id: 'ev-1', result: 'pass', viewport: { width: 1440, height: 900 }, runtimeState: 'settled', artifactUrl: '/__ripple/api/candidate/candidate-9/evidence/ev-1' },
+      { id: 'ev-4', result: 'pass', viewport: { width: 390, height: 844 }, runtimeState: 'settled', artifactUrl: '/__ripple/api/candidate/candidate-9/evidence/ev-4' },
+    ],
+  }
+  const verifyPassedRoute = {
+    status: 200,
+    body: {
+      candidateId: 'candidate-9', previewUrl: 'http://127.0.0.1:9999/candidate/candidate-9/',
+      verification: VERIFY_PASSED_FULL, workflow: { lifecycle: 'active' },
+    },
+  }
+  const approveRoute = {
+    status: 200,
+    body: {
+      candidateId: 'candidate-9',
+      // A 语义：workflow.lifecycle 是候选生命周期（审批后仍 active）；审批态在 approval
+      workflow: { lifecycle: 'active', approval: { verificationRunId: 'run-42', by: 'local-user', at: '2026-10-23T12:00:00Z' } },
+    },
+  }
+  const applyRoute = {
+    status: 200,
+    body: {
+      candidateId: 'candidate-9',
+      workflow: { lifecycle: 'applied', applied: { appliedAt: '2026-10-23T12:05:00Z' }, rollbackAvailable: true },
+    },
+  }
+  const rollbackRoute = {
+    status: 200,
+    body: {
+      candidateId: 'candidate-9',
+      workflow: { lifecycle: 'rolled-back', rollback: { rolledBackAt: '2026-10-23T12:10:00Z' }, rollbackAvailable: false },
+    },
+  }
+  const historyItem9 = (lifecycle: string, extras: Record<string, unknown> = {}) => ({
+    candidateId: 'candidate-9', projectId: 'proj-acme', lifecycle,
+    patchHash: 'hash-9999abcdef0000', updatedAt: '2026-10-23T12:00:31Z',
+    verification: VERIFY_PASSED_FULL, ...extras,
+  })
+
+  async function adapterWithPassedCandidate(routes: Record<string, MockResponse>) {
+    const loaded = await loadAdapter({ analyze: ANALYSIS, history: HISTORY_EMPTY, 'project/preview': PREVIEW, candidate: candidate9, ...routes })
+    const selected = loaded.adapter.selectElement(loaded.model, 'data:hero-title')
+    const drafted = loaded.adapter.setDraftText(selected, 'Acme 旗舰店')
+    const decided = loaded.adapter.setPageScope(drafted, 'page:about', 'exclude')
+    const created = await loaded.adapter.createCandidate!(decided, { rawIntent: '改标题' })
+    const verified = await loaded.adapter.runVerification!(created)
+    return { ...loaded, created, verified }
+  }
+
+  it('审批门控：最新验证非 passed 时拒绝且不发出审批请求', async () => {
+    const { adapter, verified, calls } = await adapterWithPassedCandidate({
+      'candidate/verify': {
+        status: 200,
+        body: { candidateId: 'candidate-9', previewUrl: 'x', verification: { state: 'incomplete', runId: 'run-41', reason: '3/7 项断言未通过' }, workflow: { lifecycle: 'active' } },
+      },
+    })
+    expect(verified.activeCandidate?.verification?.state).toBe('incomplete')
+    await expect(adapter.approveCandidate!(verified)).rejects.toThrow('通过')
+    // 门控在前端即阻断：审批请求绝不发出（服务端仍是最终权威）
+    expect(calls.filter(item => item.path === 'candidate/approve')).toHaveLength(0)
+  })
+
+  it('审批成功：请求绑定 candidateId + 最新 passed 验证的 runId（recordHash 不能代替 runId）', async () => {
+    const { adapter, verified, calls } = await adapterWithPassedCandidate({
+      'candidate/verify': verifyPassedRoute,
+      'candidate/approve': approveRoute,
+      // 审批后的历史回读（第 4 次）带 approval，版本胶片/候选状态以服务端持久化为权威
+      history: { status: 200, body: (index: number) => ({
+        history: index >= 3 ? [historyItem9('active', { approval: { verificationRunId: 'run-42' } })] : [],
+      }) },
+    })
+    const approved = await adapter.approveCandidate!(verified)
+    const call = calls.find(item => item.path === 'candidate/approve')
+    expect(call?.body).toMatchObject({ candidateId: 'candidate-9', runId: 'run-42' })
+    expect((call?.body as { runId: string }).runId).not.toBe('record-hash-abcdef')
+    // 审批态来自服务端 workflow（approval 存在即界面生命周期 approved）
+    expect(approved.activeCandidate?.lifecycle).toBe('approved')
+    expect(approved.activeCandidate?.approval?.verificationRunId).toBe('run-42')
+    expect(approved.candidateStatus).toBe('approved')
+  })
+
+  it('审批负例：服务端拒绝（runId 不匹配/验证不 passed）错误如实透出，状态不被本地提升', async () => {
+    const { adapter, verified } = await adapterWithPassedCandidate({
+      'candidate/verify': verifyPassedRoute,
+      'candidate/approve': { status: 409, body: { error: 'Approval must bind to the latest passed verification run of the current candidate' } },
+    })
+    await expect(adapter.approveCandidate!(verified)).rejects.toThrow('latest passed verification run')
+    // 失败绝不本地生成 approved：同步重建模型仍无审批态
+    const observed = adapter.setDraftText(verified, 'Acme 旗舰店二号')
+    expect(observed.activeCandidate?.lifecycle).not.toBe('approved')
+  })
+
+  it('应用负例：未审批候选被服务端拒绝，绝不本地生成 applied', async () => {
+    const { adapter, verified } = await adapterWithPassedCandidate({
+      'candidate/verify': verifyPassedRoute,
+      'candidate/apply': { status: 409, body: { error: 'Candidate must be approved before applying' } },
+    })
+    await expect(adapter.applyCandidate!(verified)).rejects.toThrow('approved before applying')
+    expect(verified.activeCandidate?.lifecycle).not.toBe('applied')
+    void adapter
+  })
+
+  it('应用成功：lifecycle applied + 回滚可用；全量回读重建真实工程状态与预演', async () => {
+    const { adapter, verified, calls } = await adapterWithPassedCandidate({
+      'candidate/verify': verifyPassedRoute,
+      'candidate/approve': approveRoute,
+      'candidate/apply': applyRoute,
+      // 历史回读：审批后带 approval；应用触发的回读（第 5 次起）以 applied 终态为权威
+      history: { status: 200, body: (index: number) => ({
+        history: index >= 4
+          ? [historyItem9('applied', { approval: { verificationRunId: 'run-42' } })]
+          : index >= 2 ? [historyItem9('active', { approval: { verificationRunId: 'run-42' } })] : [],
+      }) },
+    })
+    const approved = await adapter.approveCandidate!(verified)
+    const before = calls.filter(item => item.path === 'analyze').length
+    const applied = await adapter.applyCandidate!(approved)
+    // 生命周期与回滚可用性来自服务端 workflow
+    expect(applied.activeCandidate?.lifecycle).toBe('applied')
+    expect(applied.activeCandidate?.appliedAt).toBe('2026-10-23T12:05:00Z')
+    expect(applied.activeCandidate?.rollbackAvailable).toBe(true)
+    expect(applied.candidateStatus).toBe('applied')
+    // 应用后全量回读：重新分析 + 重建项目预演（画布反映应用后的真实工程）
+    expect(calls.filter(item => item.path === 'analyze').length).toBeGreaterThan(before)
+    expect(calls.filter(item => item.path === 'project/preview').length).toBeGreaterThanOrEqual(2)
+    expect(applied.canvasState).toBe('ready')
+  })
+
+  it('回滚成功：lifecycle rolled-back，回滚后再次全量回读刷新源码状态', async () => {
+    const { adapter, verified, calls } = await adapterWithPassedCandidate({
+      'candidate/verify': verifyPassedRoute,
+      'candidate/approve': approveRoute,
+      'candidate/apply': applyRoute,
+      'candidate/rollback': rollbackRoute,
+      history: { status: 200, body: (index: number) => ({
+        history: index >= 2
+          ? [historyItem9(index >= 4 ? 'rolled-back' : 'active', { approval: { verificationRunId: 'run-42' } })]
+          : [],
+      }) },
+    })
+    const approved = await adapter.approveCandidate!(verified)
+    const applied = await adapter.applyCandidate!(approved)
+    const before = calls.filter(item => item.path === 'analyze').length
+    const rolled = await adapter.rollbackCandidate!(applied)
+    expect(rolled.activeCandidate?.lifecycle).toBe('rolled-back')
+    expect(rolled.activeCandidate?.rollbackAvailable).toBe(false)
+    expect(rolled.candidateStatus).toBe('rolled-back')
+    expect(calls.filter(item => item.path === 'analyze').length).toBeGreaterThan(before)
+  })
+
+  it('回滚负例：未应用的候选被服务端拒绝', async () => {
+    const { adapter, verified } = await adapterWithPassedCandidate({
+      'candidate/verify': verifyPassedRoute,
+      'candidate/rollback': { status: 409, body: { error: '只有仍与原应用状态一致的候选可以回滚' } },
+    })
+    await expect(adapter.rollbackCandidate!(verified)).rejects.toThrow('回滚')
+  })
+
+  it('竞态：审批在途时刷新接管（generation 前进）→ StaleResponseError，不得提交 UI 状态', async () => {
+    const { adapter, verified } = await adapterWithPassedCandidate({ 'candidate/verify': verifyPassedRoute, 'candidate/approve': approveRoute })
+    const pending = adapter.approveCandidate!(verified)
+    // 同步插入刷新：generation 前进，在途审批响应必须按过期丢弃
+    await adapter.refresh!(verified)
+    await expect(pending).rejects.toBeInstanceOf(StaleResponseError)
+  })
+
+  it('重开/刷新后跟踪历史最新候选：applied 终态保留回滚入口，stale/discarded 不复活', async () => {
+    // 初始历史即有已应用候选（上一轮会话的产物）：load 即跟踪，提供回滚入口
+    const { model } = await loadAdapter({
+      analyze: ANALYSIS,
+      history: { status: 200, body: { history: [historyItem9('applied')] } },
+      'project/preview': PREVIEW,
+    })
+    expect(model.activeCandidate?.lifecycle).toBe('applied')
+    expect(model.activeCandidate?.rollbackAvailable).toBeUndefined()
+    expect(model.candidateStatus).toBe('applied')
+    // stale 终态绝不复活为可操作候选
+    const { model: staleModel } = await loadAdapter({
+      analyze: ANALYSIS,
+      history: { status: 200, body: { history: [historyItem9('stale')] } },
+      'project/preview': PREVIEW,
+    })
+    expect(staleModel.activeCandidate).toBeUndefined()
+    expect(staleModel.candidateStatus).toBe('stale')
+  })
+
+  it('应用后刷新：终态候选不被重新分析退役，回滚入口保持可用', async () => {
+    const { adapter, verified } = await adapterWithPassedCandidate({
+      'candidate/verify': verifyPassedRoute,
+      'candidate/approve': approveRoute,
+      'candidate/apply': applyRoute,
+      // 审批后历史回读带 approval；应用后历史保持 applied 终态
+      history: { status: 200, body: (index: number) => ({
+        history: index >= 2 ? [historyItem9(index >= 3 ? 'applied' : 'active', { approval: { verificationRunId: 'run-42' } })] : [],
+      }) },
+    })
+    const approved = await adapter.approveCandidate!(verified)
+    const applied = await adapter.applyCandidate!(approved)
+    const refreshed = await adapter.refresh!(applied)
+    expect(refreshed.activeCandidate?.lifecycle).toBe('applied')
+    expect(refreshed.activeCandidate?.rollbackAvailable).toBe(true)
+    expect(refreshed.candidateStatus).toBe('applied')
   })
 })

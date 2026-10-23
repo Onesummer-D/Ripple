@@ -324,7 +324,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
             />
           ) : (
             <div className="ripple-xp-canvas-state ripple-xp-canvas-unavailable" role="status" data-testid="real-preview-pending">
-              {model.activeCandidate
+              {model.activeCandidate && (model.activeCandidate.lifecycle ?? 'active') !== 'applied' && (model.activeCandidate.lifecycle ?? 'active') !== 'rolled-back'
                 ? '项目预演已在候选创建时停止；候选预演入口在下方提供。'
                 : model.blockedReasons?.length ? `真实预览不可用：${model.blockedReasons[0]}` : '真实预览尚未接入'}
               {model.blockedReasons?.length === 0 && model.projectStatus === 'failed' && <button type="button" className="ripple-xp-quiet" onClick={() => window.location.reload()}>重试</button>}
