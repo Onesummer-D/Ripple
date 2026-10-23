@@ -123,6 +123,8 @@ export interface RealAdapterOptions {
   /** API 前缀（测试注入用；默认同源 /__ripple/api）。 */
   apiBase?: string
   fetchImpl?: typeof fetch
+  /** 瞬时锁冲突退避间隔（测试注入用；默认 700ms）。 */
+  busyRetryDelayMs?: number
 }
 
 /* ---------- C+D 数据合同预留（第四部分：来源关系与运行时实例身份） ---------- */
@@ -207,6 +209,7 @@ function provenSinglePageRef(target: TargetSummary): string {
 export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceAdapter {
   const apiBase = options.apiBase ?? ''
   const fetchImpl = options.fetchImpl ?? fetch
+  const busyRetryDelayMs = options.busyRetryDelayMs ?? 700
   let projectRoot = options.projectRoot
   /** generation 守卫：每次 load/openProject/refresh/dispose 自增，过期响应一律丢弃。 */
   let generation = 0
@@ -259,6 +262,27 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const payload = await response.json().catch(() => ({})) as T & { error?: string }
     if (!response.ok) throw new Error(payload.error ?? `请求失败（${response.status}）`)
     return payload
+  }
+
+  /**
+   * A 核心的项目预览锁是瞬时互斥。跨页 reload 时旧页面 dispose 的 preview/stop
+   * 与新页面 load 的 analyze / preview/start 可能在服务端锁上短暂相撞，撞出的
+   * 「正在执行」错误是瞬时的（stop 完成即释放），不代表工程状态异常。
+   * 对此类错误做有限退避重试：期间遵守 generation 过期语义，持续失败仍如实抛出
+   * （fail-closed，绝不把持续锁冲突伪装成成功，也不放宽任何 A 核心门控）。
+   */
+  async function postWithBusyRetry<T>(gen: number, path: string, body: unknown, attempts = 5, delayMs = busyRetryDelayMs): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      stale(gen)
+      try {
+        return await post<T>(path, body)
+      } catch (error) {
+        if (error instanceof StaleResponseError) throw error
+        const message = error instanceof Error ? error.message : ''
+        if (attempt >= attempts - 1 || !message.includes('正在执行')) throw error
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+      }
+    }
   }
 
   function resetForProject(): void {
@@ -399,7 +423,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     previewSession = undefined
     previewFailedReason = ''
     try {
-      const session = await post<PreviewSession>('project/preview', { projectId })
+      // 重试仅覆盖 reload 时与旧页 dispose 相撞的瞬时锁冲突；持续失败仍走下方降级
+      const session = await postWithBusyRetry<PreviewSession>(gen, 'project/preview', { projectId })
       if (gen !== generation) {
         // 请求期间已切换/失效：立即回收刚创建的会话，再按过期处理
         await stopPreview(session)
@@ -416,7 +441,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
   async function loadProjectState(gen: number): Promise<void> {
     if (!projectRoot?.trim()) return
-    const analyzed = await post<AnalysisResponse>('analyze', { projectRoot })
+    // reload 时旧页 dispose 的 preview/stop 可能仍持有服务端预览锁，
+    // analyze 内部按项目收锁，撞锁是瞬时错误——有限重试后仍失败才如实抛出
+    const analyzed = await postWithBusyRetry<AnalysisResponse>(gen, 'analyze', { projectRoot })
     stale(gen)
     analysis = analyzed
     // 刷新（同一工程）保留用户已编辑的合同草案；只有工程切换/首次加载才提出初始建议
