@@ -178,11 +178,14 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   expect(shotCount, '四视口验证应产出真实截图').toBeGreaterThanOrEqual(1)
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-verified-1440.png'), fullPage: true })
 
-  // 6c. 异步切换路径（Docker E2E 覆盖要求）：刷新重建预演 → 点选第二个目标 → 新候选不得残留旧验证
+  // 6c. 异步切换路径（Docker E2E 覆盖要求）：刷新重建预演。
+  // A 语义：重新分析使活跃候选退役（fail-closed）——F 必须清掉本地候选与旧验证，绝不展示幽灵候选。
   await page.getByTestId('refresh-project').click()
   await expect(page.getByTestId('real-preview-frame')).toBeVisible({ timeout: 150_000 })
-  // 刷新如实关闭候选预演入口状态（旧候选预演地址不再假定可用）
-  await expect(page.getByTestId('candidate-preview-toggle')).toContainText('打开候选预演')
+  // 刷新完成后：候选盒与验证状态一并消失（服务端已退役候选-1），状态芯片如实显示
+  await expect(page.getByTestId('candidate-box')).toHaveCount(0)
+  await expect(page.getByTestId('verification-status')).toHaveCount(0)
+  await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
   // 点选第二目标（正文段落）
   await page.getByTestId('picker-toggle').click()
   await expect(page.getByTestId('picker-hint')).toBeVisible()

@@ -309,6 +309,15 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
     stale(gen)
     history = (historyPayload.history ?? []).filter(item => item.projectId === projectId)
+    // A 语义：重新分析会使该工程的全部活跃候选退役（fail-closed）。刷新后若本地候选
+    // 已不在服务端活跃历史里，必须清掉本地候选/验证/预演状态——绝不展示"幽灵候选"，
+    // 也不得让旧候选的验证运行挂在新状态上。
+    if (activeCandidate && !history.some(item => item.candidateId === activeCandidate!.candidateId && item.lifecycle === 'active')) {
+      activeCandidate = undefined
+      activeVerification = undefined
+      candidatePreviewUrl = undefined
+      candidatePreviewLoading = false
+    }
     previewSession = undefined
     previewFailedReason = ''
     try {

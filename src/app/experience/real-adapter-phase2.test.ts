@@ -520,4 +520,20 @@ describe('第二批复核：候选切换 / 状态如实 / 失败刷新', () => {
     const refreshed = await adapter.refresh!(observed)
     expect(refreshed.candidateStatus).toBe('stale')
   })
+
+  it('复核点 1 补充：刷新后服务端已退役候选时，本地绝不展示幽灵候选或旧验证', async () => {
+    // A 语义：重新分析（refresh 会触发）使活跃候选退役。历史第 3 次回读（refresh）起为空。
+    const { adapter, created } = await adapterWithVerifiedCandidate({
+      'candidate/verify': { status: 200, body: () => verifyResponse(VERIFY_PASSED_RUN).body },
+      history: { status: 200, body: (index: number) => ({ history: index >= 2 ? [] : [historyItem9('active', { state: 'not-run' })] }) },
+    })
+    const verified = await adapter.runVerification!(created)
+    expect(verified.activeCandidate?.verification?.runId).toBe('run-42')
+    const refreshed = await adapter.refresh!(verified)
+    // 服务端已无活跃候选：本地候选/验证/候选预演全部清掉，状态如实为 none
+    expect(refreshed.activeCandidate).toBeUndefined()
+    expect(refreshed.candidateStatus).toBe('none')
+    expect(refreshed.evidence.find(item => item.id === 'ev:verification')?.state).toBe('not-run')
+    expect(refreshed.versions).toHaveLength(0)
+  })
 })
