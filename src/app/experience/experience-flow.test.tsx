@@ -653,6 +653,11 @@ describe('F 体验工作台 · 第三批生命周期 UI（审批门控/两步确
     render(<ExperienceWorkbench adapter={blocked.adapter} />)
     await screen.findByTestId('lifecycle-actions')
     expect(text('rollback-blocked-reason')).toContain('不可回滚')
+    expect((screen.getByTestId('rollback-candidate') as HTMLButtonElement).disabled).toBe(true)
+    // 禁用状态下点击不得触发接口调用
+    fireEvent.click(screen.getByTestId('rollback-candidate'))
+    await act(async () => Promise.resolve())
+    expect(blocked.adapter.rollbackCandidate).not.toHaveBeenCalled()
     cleanup()
     // 已回滚：状态如实，回滚入口消失（服务端 rollbackAvailable=false）
     const rolledModel: ExperienceViewModel = {

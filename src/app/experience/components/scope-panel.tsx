@@ -234,7 +234,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                         type="button"
                         className="ripple-xp-primary"
                         data-testid="rollback-candidate"
-                        disabled={busy === 'rolling-back'}
+                        disabled={busy === 'rolling-back' || candidate.rollbackAvailable === false}
                         onClick={() => {
                           if (confirmAction !== 'rollback') { setConfirmAction('rollback'); return }
                           setConfirmAction('')
