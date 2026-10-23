@@ -19,7 +19,9 @@ test.beforeAll(() => {
   fs.mkdirSync(path.join(projectRoot, 'src', 'pages'), { recursive: true })
   fs.writeFileSync(path.join(projectRoot, '.gitignore'), 'node_modules/\n')
   fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'ripple-xp-flow-fixture', private: true, type: 'module' }))
-  fs.writeFileSync(path.join(projectRoot, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.jsx"></script>')
+  // 必须是合法 HTML 文档：A 核心的点选桥脚本经 transformIndexHtml 替换 </body> 注入，
+  // 缺少 body 标签的片段会导致桥缺失（标注仍在、点选握手永不激活）。
+  fs.writeFileSync(path.join(projectRoot, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"><title>Ripple XP Flow Fixture</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>')
   fs.writeFileSync(path.join(projectRoot, 'src', 'main.jsx'), "import { createRoot } from 'react-dom/client'; import { App } from './App.jsx'; createRoot(document.getElementById('root')).render(<App />)\n")
   fs.writeFileSync(path.join(projectRoot, 'src', 'App.jsx'), "import { useState } from 'react'; import { HomePage } from './pages/HomePage.jsx'; import { AboutPage } from './pages/AboutPage.jsx'; export function App(){const [page,setPage]=useState('home'); return <><nav><button onClick={()=>setPage('home')}>Home</button><button onClick={()=>setPage('about')}>About</button></nav>{page==='home' ? <HomePage/> : <AboutPage/>}</>}\n")
   // 固定来源：JSX 文本节点，静态分析可完全证明页面影响
@@ -102,12 +104,18 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await expect(page.getByTestId('picker-hint')).toHaveCount(0)
   await page.getByTestId('picker-toggle').click() // 重新进入
   await expect(page.getByTestId('picker-hint')).toBeVisible()
+  let probeLog = '[]'
   await expect
-    .poll(readProbe, { timeout: 10_000, message: '预演 iframe 未收到 ripple:selection-mode（F 侧 postMessage 未送达）' })
+    .poll(async () => { probeLog = await readProbe(); return probeLog }, { timeout: 10_000, message: '预演 iframe 未收到 ripple:selection-mode（F 侧 postMessage 未送达）' })
     .toContain('"type":"ripple:selection-mode"')
+  // 消息必须来自父页（D 桥同样校验 event.source === window.parent）
+  expect(probeLog, 'selection-mode 必须来自父页窗口').toContain('"fromParent":true')
   await expect
     .poll(() => previewFrame.evaluate(() => document.documentElement.style.cursor), { timeout: 10_000 })
     .toBe('crosshair')
+    .catch((error: unknown) => {
+      throw new Error(`D 桥未进入点选模式（桥脚本未注入或信封被拒）。探针=${probeLog}`, { cause: error })
+    })
   const cursorAfterHandshake = await previewFrame.evaluate(() => document.documentElement.style.cursor)
   if (cursorAfterHandshake !== 'crosshair') {
     throw new Error(`D 桥未进入点选模式。探针=${await readProbe()} cursor=${cursorAfterHandshake}`)
