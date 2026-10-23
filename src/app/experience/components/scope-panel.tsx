@@ -60,8 +60,10 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   // 工作台根容器的作用域类（携带 min-height:100vh / 整页 flex），右侧面板
   // 误用会继承整页高度，造成大面积空白与布局错乱。
   return <aside className="ripple-xp-scope-panel reveal" data-testid="scope-panel">
-    {/* 决策面板按操作顺序组织：选中元素 → 修改内容 → 影响范围 → 阻断原因 → 候选操作 → 验证摘要 */}
-    <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>选中位置</SectionTitle>
+    {/* 决策面板按编辑器流程组织：1 选择元素 → 2 编辑修改内容 → 3 影响范围 → 4 生成候选并检查 */}
+    <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>
+      <span className="ripple-xp-stage-num" aria-hidden>1</span>选择元素
+    </SectionTitle>
     {selected ? (
       <div className="ripple-xp-selection-block">
         <strong>{selected.label}</strong>
@@ -70,24 +72,27 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       </div>
     ) : <p className="ripple-xp-panel-hint">在中间画布点选想要修改的位置。</p>}
 
-    <SectionTitle>修改内容</SectionTitle>
+    <SectionTitle><span className="ripple-xp-stage-num" aria-hidden>2</span>编辑修改内容</SectionTitle>
     {selected?.editable ? (
-      <label className="ripple-xp-intent">
-        改成
-        <input
-          data-testid="draft-text-input"
-          value={model.draftAfterText}
-          placeholder="输入修改后的文字"
-          onChange={event => onDraftText(event.target.value)}
-        />
-      </label>
+      <div className="ripple-xp-intent-block">
+        <p className="ripple-xp-current-text">当前内容：{selected.currentText}</p>
+        <label className="ripple-xp-intent">
+          修改后
+          <input
+            data-testid="draft-text-input"
+            value={model.draftAfterText}
+            placeholder="输入修改后的文字"
+            onChange={event => onDraftText(event.target.value)}
+          />
+        </label>
+      </div>
     ) : (
       <p className="ripple-xp-panel-hint">
         {selected ? '来源未知的元素不能承诺修改，只能查看。' : '选中可修改的元素后，在这里输入修改后的文字。'}
       </p>
     )}
 
-    <SectionTitle>影响范围</SectionTitle>
+    <SectionTitle><span className="ripple-xp-stage-num" aria-hidden>3</span>影响范围</SectionTitle>
     <ul className="ripple-xp-scope-list">
       {editingPage && scopeRow(editingPage, '本次修改的位置', true)}
       {sameSourcePages.map(page => scopeRow(page, '同源页面', false))}
@@ -98,7 +103,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       包含 {summary.included} · 保护 {summary.protected} · 排除 {summary.excluded} · 未决定 {summary.undecided}
     </p>
 
-    <SectionTitle>候选操作</SectionTitle>
+    <SectionTitle><span className="ripple-xp-stage-num" aria-hidden>4</span>生成候选并检查</SectionTitle>
     <div className="ripple-xp-approval" data-testid="approval-area">
       {model.dataProvenance !== 'demo' ? (
         model.activeCandidate ? (

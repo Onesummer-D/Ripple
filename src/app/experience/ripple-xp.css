@@ -27,7 +27,7 @@
   --xp-amber-tint: #f6efdd;
   --xp-clay: #a44434;
   --xp-clay-tint: #f7e8e4;
-  --xp-stone: #8a8f88;
+  --xp-stone: #6d726b;
   --xp-stone-tint: #efedea;
   /* 统一控件尺度：按钮/输入高度、圆角（6–10px 为主）、间距 */
   --xp-control-h: 36px;
@@ -102,6 +102,10 @@
 .ripple-xp-brand strong {
   display: block; font-family: var(--xp-font); font-size: 16px; font-weight: 700; letter-spacing: 0.01em;
   color: var(--xp-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ripple-xp-brand-sub {
+  display: block; font-size: 12px; color: var(--xp-stone);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ripple-xp-topbar-status { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
@@ -182,6 +186,31 @@
 }
 .ripple-xp-body .ripple-xp-section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
 
+/* 中列：预览 + 底部标签页面板同属一个工作空间 */
+.ripple-xp-center { display: grid; gap: 0; align-content: start; min-width: 0; }
+.ripple-xp-deck { margin-top: 18px; border-top: 1px solid var(--xp-line); }
+.ripple-xp-deck-tabs {
+  display: flex; gap: 4px; padding: 10px 0 0;
+}
+.ripple-xp-deck-tab {
+  border: none; background: none; border-radius: var(--xp-radius);
+  padding: 6px 12px; font-size: 14px; font-weight: 500; color: var(--xp-ink-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ripple-xp-deck-tab:hover { background: var(--xp-surface); }
+.ripple-xp-deck-tab.is-active {
+  background: var(--xp-brand-tint); color: var(--xp-brand); font-weight: 600;
+}
+.ripple-xp-deck-tab:focus-visible { outline: 2px solid var(--xp-brand); outline-offset: 1px; }
+.ripple-xp-deck-hidden { display: none; }
+.ripple-xp-deck .ripple-xp-evidence,
+.ripple-xp-deck .ripple-xp-compare,
+.ripple-xp-deck .ripple-xp-filmstrip { margin: 0; border-top: none; padding: 8px 0 20px; }
+/* 标签页内的分区不再重复大标题（标签本身已说明），但保留对照区的诚实性标注 */
+.ripple-xp-deck .ripple-xp-compare .ripple-xp-section-title { margin-top: 4px; padding-top: 0; border-top: none; }
+.ripple-xp-deck .ripple-xp-compare .ripple-xp-section-title h3 { display: none; }
+.ripple-xp-deck .ripple-xp-filmstrip .ripple-xp-film-head h3 { display: none; }
+
 /* 左：页面导航——图标菜单式浅色导航；墨绿只用于当前项短竖线与图标点缀 */
 .ripple-xp-page-rail {
   background: none; padding: 4px 0;
@@ -241,7 +270,7 @@
  * 只有待复核（琥珀）与失败/风险（红）使用淡色背景强调。 */
 .ripple-xp-pill {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 1px 0; font-size: 12px; font-weight: 500;
+  padding: 1px 0; font-size: 13px; font-weight: 500;
   background: none; color: var(--xp-stone);
   white-space: nowrap; letter-spacing: 0.01em;
 }
@@ -475,11 +504,12 @@
 .ripple-xp-scope-actions button.is-active {
   border-color: var(--xp-brand); color: var(--xp-paper); background: var(--xp-brand); font-weight: 600;
 }
-.ripple-xp-scope-mark { margin-left: auto; font-size: 12px; font-weight: 700; }
-.ripple-xp-mark-include { color: var(--xp-brand); }
+/* 范围决定标记：已决定的中性色，「未决定」是需要用户操作的事项才用琥珀色 */
+.ripple-xp-scope-mark { margin-left: auto; font-size: 13px; font-weight: 600; }
+.ripple-xp-mark-include { color: var(--xp-ink); }
 .ripple-xp-mark-protect { color: var(--xp-amber); }
-.ripple-xp-mark-exclude { color: var(--xp-ink-soft); }
-.ripple-xp-mark-undecided { color: var(--xp-clay); }
+.ripple-xp-mark-exclude { color: var(--xp-stone); }
+.ripple-xp-mark-undecided { color: var(--xp-amber); }
 .ripple-xp-scope-summary { font-size: 13px; color: var(--xp-ink-soft); margin: 12px 0 0; }
 .ripple-xp-approval { margin-top: 0; display: grid; gap: 10px; }
 /* 主操作按钮：实心墨绿（品牌色仅在此类关键动作上重色出现） */
@@ -494,6 +524,16 @@
 .ripple-xp-real-approval-pending { margin: 0; color: var(--xp-ink-soft); font-size: 13px; }
 .ripple-xp-panel-hint { margin: 0; font-size: 14px; color: var(--xp-stone); }
 
+/* 编辑器流程的阶段序号：小圆环数字，克制不抢层级 */
+.ripple-xp-stage-num {
+  display: inline-grid; place-items: center; width: 18px; height: 18px;
+  border-radius: 50%; border: 1px solid var(--xp-line);
+  font-size: 11px; font-weight: 600; color: var(--xp-stone);
+  margin-right: 7px; vertical-align: 2px;
+}
+.ripple-xp-intent-block { display: grid; gap: 8px; }
+.ripple-xp-current-text { margin: 0; font-size: 14px; color: var(--xp-ink-soft); }
+
 /* ============ 底部：证据 / 对照 / 胶片——细分隔线平面分区，不用大卡片 ============ */
 .ripple-xp-evidence, .ripple-xp-compare, .ripple-xp-filmstrip {
   background: none; border-top: 1px solid var(--xp-line);
@@ -507,7 +547,7 @@
 .ripple-xp-evidence-head { display: contents; border: none; background: none; text-align: left; cursor: pointer; }
 .ripple-xp-ev-head, .ripple-xp-evidence-head strong { font-size: 15px; }
 .ripple-xp-ev-summary { flex: 1; min-width: 220px; color: var(--xp-ink-soft); font-size: 14px; }
-.ripple-xp-src-kind { font-size: 12px; font-weight: 600; color: var(--xp-stone); }
+.ripple-xp-src-kind { font-size: 13px; font-weight: 600; color: var(--xp-stone); }
 .ripple-xp-ev-detail { width: 100%; margin: 4px 0 0; font-size: 14px; color: var(--xp-ink-soft); border-top: 1px dashed var(--xp-line); padding-top: 10px; }
 
 /* 前后对照：任务状态驱动。未生成候选时收为紧凑占位，不再渲染两块高大空白面板 */
@@ -536,6 +576,18 @@
 .ripple-xp-match-note.is-mismatch { color: var(--xp-clay); }
 .ripple-xp-match-note.is-empty { color: var(--xp-stone); }
 .ripple-xp-match-note.is-demo { color: var(--xp-amber); }
+
+/* 文字修改的对照：紧凑差异行——标签在上、内容一行，不再用高大卡片撑空间 */
+.ripple-xp-compare.is-demo-mode .ripple-xp-compare-row { grid-template-columns: 1fr; gap: 10px; }
+.ripple-xp-compare.is-demo-mode .ripple-xp-compare-side { gap: 5px; }
+.ripple-xp-compare.is-demo-mode .ripple-xp-compare-shot {
+  min-height: 0; padding: 12px 16px; justify-items: start; align-content: center;
+}
+.ripple-xp-compare.is-demo-mode .ripple-xp-compare-shot.is-placeholder { min-height: 0; }
+.ripple-xp-compare.is-demo-mode .ripple-xp-compare-title { font-size: 20px; text-align: left; }
+.ripple-xp-compare.is-demo-mode .ripple-xp-focus-ring {
+  position: static; margin-top: 6px; justify-self: start;
+}
 
 /* 版本胶片：smartify 式横向轮播，大图圆角矩形 + 悬停缩放 */
 .ripple-xp-film-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 12px; }

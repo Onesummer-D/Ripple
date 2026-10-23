@@ -15,14 +15,16 @@ import { VersionFilmstrip } from './components/version-filmstrip'
 
 /**
  * F 体验工作台（画布优先布局）：
- * 顶栏（工程/候选状态/历史入口）+ 左页面导航 + 中央真实画布 + 右侧范围决策
- * + 底部证据与前后对照。演示数据全程标记，不与真实生命周期混用。
+ * 顶栏（工程/候选状态/历史入口）+ 左页面导航 + 中央真实画布 + 右侧范围决策；
+ * 证据、前后对照与历史记录收进中列底部的标签页面板，与预览/修改操作处于同一
+ * 工作空间，宽屏尽量一屏完成，不再拆成相距很远的上下两个区域。
+ * 演示数据全程标记，不与真实生命周期混用。
  */
 export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }) {
   const [activeAdapter] = useState<ExperienceAdapter>(() => adapter ?? createDemoAdapter())
   const [model, setModel] = useState<ExperienceViewModel>()
   const [error, setError] = useState('')
-  const [panel, setPanel] = useState<'evidence' | 'history' | null>('evidence')
+  const [deckTab, setDeckTab] = useState<'evidence' | 'compare' | 'history'>('evidence')
   const [activeVersionId, setActiveVersionId] = useState<string>()
   const [feedback, setFeedback] = useState('')
   const [openProjectPath, setOpenProjectPath] = useState('')
@@ -256,7 +258,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   }
 
   return <div ref={scopeRef} className="ripple-xp-scope ripple-xp-workbench">
-    <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} onRefresh={activeAdapter.refresh ? handleRefresh : undefined} />
+    <TopBar model={model} onOpenHistory={() => setDeckTab('history')} onRefresh={activeAdapter.refresh ? handleRefresh : undefined} />
     {model.dataProvenance === 'real' && model.projectStatus === 'unavailable' && activeAdapter.openProject && (
       // 真实模式：尚未打开工程时提供"打开工程"入口；失败原因如实显示
       <form
@@ -288,16 +290,56 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         // 真实模式第一阶段：预演 iframe 不支持页面切换，导航停用并明确标注（不误导用户）
         navigationDisabled={model.dataProvenance === 'real'}
       />
-      <CanvasStage
-        model={model}
-        onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}
-        onViewportChange={id => apply(activeAdapter.setViewport(model, id) ?? model)}
-        pickerActive={pickerActive}
-        pickerNonce={pickerNonce}
-        pickerError={pickerError}
-        onTogglePicker={togglePicker}
-        onPicked={handlePicked}
-      />
+      <div className="ripple-xp-center">
+        <CanvasStage
+          model={model}
+          onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}
+          onViewportChange={id => apply(activeAdapter.setViewport(model, id) ?? model)}
+          pickerActive={pickerActive}
+          pickerNonce={pickerNonce}
+          pickerError={pickerError}
+          onTogglePicker={togglePicker}
+          onPicked={handlePicked}
+        />
+        {/* 底部标签页面板：证据 / 对照 / 历史与预览同属一个工作空间。
+         * 三个面板始终挂载、仅用 CSS 隐藏非激活页——状态（展开的证据项、胶片
+         * 滚动位置）不因切换丢失，也无内容闪烁。 */}
+        <div className="ripple-xp-deck" data-testid="work-deck">
+          <div className="ripple-xp-deck-tabs" role="tablist" aria-label="工作区面板">
+            {([['evidence', '证据与解释'], ['compare', '前后对照'], ['history', '历史记录']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={deckTab === id}
+                className={`ripple-xp-deck-tab ${deckTab === id ? 'is-active' : ''}`}
+                data-testid={`tab-${id}`}
+                onClick={() => setDeckTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className={deckTab === 'evidence' ? '' : 'ripple-xp-deck-hidden'}>
+            <EvidenceDrawer items={model.evidence} />
+          </div>
+          <div className={deckTab === 'compare' ? '' : 'ripple-xp-deck-hidden'}>
+            <CompareStrip model={model} />
+          </div>
+          <div className={deckTab === 'history' ? '' : 'ripple-xp-deck-hidden'}>
+            <VersionFilmstrip
+              model={model}
+              activeVersionId={activeVersionId}
+              onSelect={version => {
+                setActiveVersionId(version.id)
+                // 真实历史不提供页面归属（pageRef 为空）时不切换页面，不臆造定位
+                if (version.pageRef) apply(activeAdapter.setPage(model, version.pageRef) ?? model)
+              }}
+              onClose={() => setDeckTab('evidence')}
+            />
+          </div>
+        </div>
+      </div>
       <ScopePanel
         model={model}
         onDraftText={text => apply(activeAdapter.setDraftText(model, text) ?? model)}
@@ -318,19 +360,5 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         <button type="button" className="ripple-xp-quiet" data-testid="dismiss-feedback" onClick={() => setFeedback('')}>知道了</button>
       </div>
     )}
-    {panel === 'evidence' && <EvidenceDrawer items={model.evidence} onClose={() => setPanel(null)} />}
-    {panel === 'history' && (
-      <VersionFilmstrip
-        model={model}
-        activeVersionId={activeVersionId}
-        onSelect={version => {
-          setActiveVersionId(version.id)
-          // 真实历史不提供页面归属（pageRef 为空）时不切换页面，不臆造定位
-          if (version.pageRef) apply(activeAdapter.setPage(model, version.pageRef) ?? model)
-        }}
-        onClose={() => setPanel(null)}
-      />
-    )}
-    <CompareStrip model={model} />
   </div>
 }

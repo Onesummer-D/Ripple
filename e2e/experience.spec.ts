@@ -35,6 +35,7 @@ test('选中与编辑：标题更新、候选状态推进、前后对照同步',
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
   await page.getByTestId('draft-text-input').fill('冬日茶器市集')
   await expect(page.getByTestId('candidate-status')).toContainText('候选已生成')
+  await page.getByTestId('tab-compare').click()
   await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
   await expect(page.getByTestId('compare-baseline')).toContainText('秋日茶器市集')
   await expect(page.getByTestId('canvas-el-el:hero-title')).toHaveAttribute('aria-pressed', 'true')
@@ -47,7 +48,9 @@ test('原文与草稿分离：逐字输入不改画布原文，切换元素清�
   await input.pressSequentially('冬日茶器市集')
   // 画布上的原文保持「秋日茶器市集」；候选值只出现在对照区
   await expect(page.getByTestId('canvas-el-el:hero-title')).toContainText('秋日茶器市集')
+  await page.getByTestId('tab-compare').click()
   await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+  await page.getByTestId('tab-evidence').click()
   await expect(page.getByTestId('evidence-ev:expect')).toContainText('把「秋日茶器市集」改为「冬日茶器市集」')
   // 切换元素：草稿清空，Evidence 换成新目标的原文
   await page.getByTestId('canvas-el-el:hero-subtitle').click()
@@ -180,6 +183,7 @@ test('任务一负例：partial 目标不产生已证明无关页，来源确定
 
 test('任务二：对照区绑定当前目标，无选中/无草稿显示明确状态', async ({ page }) => {
   await openExperience(page)
+  await page.getByTestId('tab-compare').click()
   await expect(page.getByTestId('compare-baseline')).toContainText('尚未选中要修改的位置')
   await expect(page.getByTestId('compare-candidate')).toContainText('尚未生成候选')
   await expect(page.getByTestId('compare-baseline')).not.toContainText('秋日茶器市集')
@@ -277,6 +281,7 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
   // 真实审批未接入；对照区无真实截图时明确提示
   await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
+  await page.getByTestId('tab-compare').click()
   await expect(page.getByText('尚无真实截图').first()).toBeVisible()
   // 选中真实目标：摘要显示真实源码路径；本地草稿不推进真实候选生命周期
   await page.getByTestId('target-strip').getByRole('button', { name: /Acme 真实首页标题/ }).click()

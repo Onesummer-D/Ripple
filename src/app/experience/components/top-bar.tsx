@@ -13,7 +13,9 @@ export function TopBar({ model, onOpenHistory, onRefresh }: { model: ExperienceV
     <div className="ripple-xp-brand">
       <span className="ripple-xp-logo" aria-hidden>≈</span>
       <div>
-        <strong>{model.projectName}</strong>
+        <strong>网页变更工作台</strong>
+        {/* 顶栏标识工具本身；被编辑网站的品牌只出现在预览内部，两者不混用 */}
+        <span className="ripple-xp-brand-sub">{model.projectName}</span>
       </div>
     </div>
     <div className="ripple-xp-topbar-status">

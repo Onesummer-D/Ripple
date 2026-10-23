@@ -50,6 +50,9 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
       : sideState.state !== 'ready' || !sideState.imageUrl
     return (
       <figure className={`ripple-xp-compare-side ripple-xp-compare-${sideState.state}`} data-testid={testId}>
+        <figcaption>
+          <strong>{label}</strong>
+        </figcaption>
         <div className={`ripple-xp-compare-shot ${placeholder ? 'is-placeholder' : ''}`} aria-label={`${label}截图`}>
           {isDemo ? (
             sideState.state === 'ready' ? (
@@ -73,9 +76,6 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
             ) : <span className="ripple-xp-compare-note">{SIDE_STATE_LABEL[sideState.state]}</span>
           ) : <RealShot side={sideState} label={label} />}
         </div>
-        <figcaption>
-          <strong>{label}</strong>
-        </figcaption>
       </figure>
     )
   }
@@ -93,7 +93,7 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
       : compareState === 'partial'
         ? '真实截图尚未齐全：运行四视口验证后，这里会补齐各视口的对照证据。'
         : ''
-  return <section className={`ripple-xp-compare reveal ${guide ? 'is-guided' : ''}`} aria-label="前后对照" data-testid="compare-strip">
+  return <section className={`ripple-xp-compare reveal ${isDemo ? 'is-demo-mode' : ''} ${guide ? 'is-guided' : ''}`} aria-label="前后对照" data-testid="compare-strip">
     <SectionTitle aside={<span className={`ripple-xp-match-note ${note.className}`} data-testid="viewport-match-note">
       {note.text}
     </span>}>
@@ -102,7 +102,7 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
     {guide && <p className="ripple-xp-compare-guide" data-testid="compare-guide">{guide}</p>}
     <div className="ripple-xp-compare-row">
       {side('修改前', baseline, 'compare-baseline')}
-      {side('候选修改后', candidate, 'compare-candidate')}
+      {side('修改后 · 候选', candidate, 'compare-candidate')}
     </div>
   </section>
 }
