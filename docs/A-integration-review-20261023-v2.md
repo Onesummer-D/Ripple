@@ -503,3 +503,38 @@ D N4–N10 负例（P1-a 空数组无 unresolved / P1-b 文本类型名查找）
 ## 4. 下一次主线交付重点
 
 F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验收）、D 残留点修复后的公共核心合并预演、AC-P3 实现排期。
+
+
+---
+
+# v13 D MEDIA 公共核心合并预演（2026-10-23）
+
+## 0. 预演设置
+
+- A 远端最新 HEAD 核对：`d08a8f0`（不固定旧 SHA）。D 补丁：`d7b358f`。
+- 独立工作树 `_scratch/wt-media`，分支 `feat/a-media-core-integration-20261023`。
+- merge(d08a8f0, d7b358f) **零冲突**；A 的 F #25、C+D 身份链、B-ENV-1 / AC-P3 文档全部保留（差异仅 4 文件：project.ts +120、project.test.ts +324、scripts/evidence-n11.ts、scripts/evidence-n8-prefix.ts）。
+
+## 1. 差异与旧逻辑核查
+
+- 仅一套收窄实现（`narrowMediaByReceiverType`，符号身份 + 数据流闭包 + 不确定边保留）；**未带入** 209cf4f 文本区间方案，不存在两套并存逻辑。
+
+## 2. 三边界审查结果
+
+1. `relatedToTarget()` 仅用于 `cover(body)` 扩大闭包（保留不确定边），路径上无 semantic-candidate → source-proven 升级通道；收窄返回子集只发生在 `pool` 过滤（`?? pool` 兜底不收窄）。**通过**。
+2. `checker.isTypeAssignableTo` 在锁定 TS 5.9.3 下实测存在（运行期验证）。
+   **发现并修复一项**：原实现 API 不可用时静默排除工厂体——已最小加固为过度保留方向（返回 true 覆盖函数体，含 catch 分支）；改后 N11 测试通过。
+3. N11 真实 CandidateError 拒绝原因与 PageImpact 不完整的一致性：
+   **发现并修复一项**：原测试仅断言 `toThrow(CandidateError)`，可因其他原因假通过——已改为断言 `/无法证明目标的完整页面影响/`（candidate.ts:94 唯一来源），改后测试通过。
+
+## 3. 本地门与回归
+
+- typecheck ✓；build ✓；N11 定向测试（16.4s）✓；narrow 相关测试 2/2 ✓。
+- 完整 Vitest / Playwright 由集成 CI 执行（Windows 本地单文件超时限制，Linux CI 为权威门）。
+- **A/F/C+D 不回退证据**：merge 差异仅触及 `src/core/project.ts`（纯新增收窄函数与 N11 分支）；`candidate.ts` / `runtime-identity.ts` / `project-data-routes.ts` / `real-adapter.ts` 零改动；C+D 三文件定向测试在本树待 CI 覆盖。
+
+## 4. 待办
+
+- 集成 CI（09e4c075）终态；绿后提交正式合并建议。
+- scripts/evidence-n11.ts 临时目录清理为 P2 整理项，不重开算法开发。
+- PR #26（78a5484）仍为另一条 MEDIA 准备线，不等于本次 d7b358f 补丁；青野全链验收待公共核心稳定后由 D 整理。
