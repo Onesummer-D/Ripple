@@ -96,6 +96,10 @@ jobs:
         with:
           ref: ${{ env.A_CORE_SHA }}
           path: a-core
+          # full history is required: the provenance check (and the gate's own
+          # coreVerification) runs merge-base --is-ancestor against the AC-P2a/b
+          # lineage, which a shallow fetch cannot resolve
+          fetch-depth: 0
       - name: Verify A core provenance (HEAD equals declared SHA and carries AC-P2a/b lineage)
         run: |
           test "$(git -C a-core rev-parse HEAD)" = "$A_CORE_SHA"
