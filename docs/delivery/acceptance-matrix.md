@@ -1,6 +1,6 @@
 # 三案例统一验收矩阵
 
-> 日期：2026-10-23（Run #18 最终修订 + 复审小改 + 2026-10-23 晚状态更新）。基线：A 主线 `feat/project-first-core-20261018`（文档起草 @ 2525092；Bolt 验收通过时 A @ `16e737c`；**最新公共基线 @ `45a2d7c`（协调方口径，含 C+D PR #28 与 E PR #30，尚待远端复核）**）。Run #18 证据已归档 `docs/delivery/evidence/run18/`（哈希索引见 INDEX.md）。
+> 日期：2026-10-23（Run #18 最终修订 + 复审小改 + 2026-10-23 晚状态更新）。基线：A 主线 `feat/project-first-core-20261018`（文档起草 @ 2525092；Bolt 验收通过时 A @ `16e737c`；**最新公共基线 @ `45a2d7c`（已远端复核，含 AC-P2a/b 精简集成）**）。Run #18 证据已归档 `docs/delivery/evidence/run18/`（哈希索引见 INDEX.md）。
 > 状态取值：PASS / RISK / UNKNOWN / NOT RUN。标【已合成】的通过仅为合成工程或 Fixture 证据，不代表真实案例验收。
 > “实际运行结果”列只写真实运行过的内容；没有真实运行的写 NOT RUN 并说明阻断。
 > **主案例真实验收已于 Run #18（2026-10-22，A @ 16e737c）整轮通过**：<https://github.com/Onesummer-D/Ripple/actions/runs/39808500782>。
