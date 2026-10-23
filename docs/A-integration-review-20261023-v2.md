@@ -564,3 +564,29 @@ F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验�
 - 已登记另两个 P1：点选异步 nonce 失效检查、退出 iframe 点选模式未通知。
 - **处置**：F 最小返工 + 真实 E2E（协调人已直接派工，A 不重复派工）。**A 不放宽 Candidate/Scope 校验**；由 F 构造符合现有合同的请求。
 - F 修复并交付真实候选成功证据后，由 A 审查并决定进入**第二批：四视口 Verification 联合集成**。
+
+
+---
+
+# v16 MEDIA 安全补丁正式并入 A（2026-10-23）
+
+## 0. 合并记录
+
+- 授权核验：A 远端 HEAD = d08a8f0（与授权一致）；`--no-ff` merge 09e4c075，未用 reset/force push/squash。
+- **新 A HEAD：`dc8269f871c543ff30c200641a9e253cd68b53f2`**；合并提交即集成差异（4 文件，无 A/F/C+D 回退）。
+- 正式 A 分支完整 CI [39882489628](https://github.com/Onesummer-D/Ripple/actions/runs/39882489628) **SUCCESS**。未合并 main，未触发 Bolt；PR #26 继续保持 Draft（另一条完整集成线）。
+
+## 1. 新基线分发
+
+| 线 | 基线 | 任务 |
+|---|---|---|
+| D | `dc8269f` | 停止 N 系列扩展；PR #26 适配新基线；青野固定 SHA（f7e4998a）真实 MEDIA 全链验收 |
+| F | `dc8269f` | 修复第二批第一批 P0 合同阻断（shared Scope 不携带 localPageRef；includedRefs 必含 operation.targetRef）+ 真实浏览器 E2E 候选成功证据；A 不放宽门控 |
+| E | `dc8269f` | 视觉证据接线按新基线重新核对，保持 Approval/Receipt/Apply 只读隔离 |
+| B | `dc8269f` | 冻结待命，等 AC-P2a/b 后 codescandy 复验 |
+| C+D | `dc8269f` | AC-P2a/b 继续；AC-P3 / B-ENV-1 独立兼容性任务（先设计验证后编码） |
+
+## 2. E / F 联合验收安排
+
+- F 交付真实候选成功证据（真实 DOM 点选 → 合同合规 Scope → Candidate 成功）后，A 审查并决定进入第二批四视口 Verification 联合集成。
+- E 接线在新基线上重新 merge E（0dd2e91）产新协调分支（替代 2acf7ea），完成 VerificationRunner 只读挂载后做联合回归。
