@@ -13,7 +13,11 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 2026-10-23: observed Azure apt mirror throttling to ~24 kB/s on
+    # playwright --with-deps (12 min for 16.9 MB alone) twice in a row,
+    # eating the 20-minute budget before any test ran. Raised to 30 to
+    # absorb transient mirror slowness; all gates unchanged.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
