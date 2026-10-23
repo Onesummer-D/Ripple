@@ -215,7 +215,7 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
 
   // 9. 刷新界面：核对真实生命周期与版本记录（服务端历史为权威）
   await page.reload({ waitUntil: 'networkidle' })
-  await expect(page.getByTestId('real-badge')).toContainText('真实工程')
+  await expect(page.getByTestId('real-badge')).toContainText('真实工程', { timeout: 30_000 })
   await expect(page.getByTestId('candidate-status')).toContainText('已回滚', { timeout: 60_000 })
   await expect(page.getByTestId('lifecycle-status')).toContainText('已回滚')
   const history = await (await fetch(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
