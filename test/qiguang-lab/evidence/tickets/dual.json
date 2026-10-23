@@ -1,6 +1,6 @@
 {
   "collection": {
-    "capturedAt": "2026-10-22T18:28:21.643Z",
+    "capturedAt": "2026-10-23T11:50:06.398Z",
     "viewports": [
       {
         "viewport": {
@@ -184,5 +184,5 @@
       }
     ]
   },
-  "sha256": "26aa6aa234f8fd21e06d1bdc2d7c1b067e9c9d56694277756269c03ffceadbab"
+  "sha256": "5bb7e7e53996ceb08762200ce3c0cb68b2a621325dd142abc8edca5e3035cfd8"
 }

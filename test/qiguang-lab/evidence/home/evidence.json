@@ -1,7 +1,7 @@
 {
   "report": {
     "schemaVersion": "ripple-media-viewport-evidence/v1",
-    "capturedAt": "2026-10-22T18:28:15.296Z",
+    "capturedAt": "2026-10-23T11:50:02.730Z",
     "browser": {
       "name": "chromium"
     },
@@ -255,5 +255,5 @@
       }
     ]
   },
-  "sha256": "16140460a304a1d2cf1ba50564dc7a663463ffde2db43bc1f907cd0afdda8a86"
+  "sha256": "c1a61bcd39436427ed58e143ba496259553501011f04de1961ddf0cc7c0673cc"
 }
