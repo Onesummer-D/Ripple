@@ -777,3 +777,28 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 ## 2. 纪律
 
 不合并 main，不触发 Bolt；E 阶段二与 C+D 合同并行协调，不随本次进入 A。
+
+
+---
+
+# v24 离开期间复核与下一轮总集成安排（2026-10-23 16:47）
+
+## 0. 总览
+
+| 线 | 当前提交 | CI | 状态 | 待办 / 下一次集成入口 |
+|---|---|---|---|---|
+| A 主线 | `71dc6c7` | 39897930197 SUCCESS | 基线（E #30 已并入，#29 已关闭） | 等 F / C+D 预演 |
+| F 第一批 | `feat/f-real-text-phase2-20261023 @ da94ab7` | #39897848604 SUCCESS（596/66+1 跳） | **真实 TEXT 候选与预演闭环验收通过，待 A 集成**（旧 P0/nonce/iframe 三项全修复，Docker E2E 实证） | F 从 71dc6c7 merge 同步 → 回归 → 冻结集成提交供 A 审查；A 建独立预演；F 并行开发第二批 |
+| C+D | `27d4bd6` | #39900833633 SUCCESS（602/61+1 跳） | route.lazy default + SemVer 白名单已修；**新 P0：resolveLazyComponent() 以 `components.filter(c.name === 'Component')` 判断消费者，未验证 Component 是否为目标模块真实命名导出**（内部函数可能被误证 source-proven）→ C+D 最小修复中 | P0 修复 + 真实负例 + CI 后，A 从最新 A HEAD 建独立预演，**只选公共代码/测试/必要合同文档**（分支落后 A 22 提交且混有 B 历史报告，不整支合入）；PR #28 为历史 merged PR，不作新补丁入口 |
+| E | 阶段一已入 A | — | 冻结待命 | 阶段二待 C+D 合同（instanceIdentityProven === true） |
+| D | 基于 71dc6c7 | — | 青野 f7e4998a 全链准备 | 继续 |
+| B | 冻结 cf44193 | — | 待命 | C+D 公共补丁入 A 后恢复 codescandy `--expect accepted`（显式完整 Scope） |
+
+## 1. 集成顺序（按协调人安排）
+
+1. F 从 `71dc6c7` 同步、回归、冻结集成提交 → A 独立预演；
+2. C+D P0 修复 → 真实负例 + CI → A 独立预演（两线**不混合**，各过联合 CI）；
+3. C+D 补丁入 A 后通知 B 恢复复验；
+4. E 阶段一不重复合并；阶段二独立规划。
+
+纪律不变：不合并 main、不触发 Bolt、不 force push 覆盖 Agent 成果。

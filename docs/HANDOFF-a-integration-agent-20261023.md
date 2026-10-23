@@ -29,8 +29,8 @@ A 的职责（只做这些，不越界）：
 | 线 | 分支 / HEAD | 状态 | 下一步 |
 |---|---|---|---|
 | E 视觉证据 | `feat/e-visual-wiring-20261023` @ fdd9ee0（PR #30 已合入 A 并关闭） | **阶段一完成，E 冻结待命** | 阶段二（严格实例证明接线）等 C+D 正式合同；必须 `instanceIdentityProven === true`，禁止仅查对象非空 |
-| C+D | AC-P2a/b 工作分支（bd321d8/6359ccb/a1b2a24，CI #39893117386 绿） | **有 P0 待修**：`resolveLazyComponent()` 把 route.lazy 的 default 导出误当页面组件升级 source-proven；另需补 SemVer 边界检查 | P0 修复后，A 从最新 A HEAD 建 AC-P2a/b 集成预演（集成口径：只带公共代码/测试/必要文档，不带过期探针报告；E 身份合同文档 a1b2a24 可接收但 runtimeIdentity 新字段与 page-context 清除规则暂不冻结） |
-| F | `feat/f-real-text-phase2-20261023` @ 1201a6a | 第一批 CI 绿但**真实候选合同 P0 待修**：shared Scope 携带 localPageRef、includedRefs 漏 operation.targetRef（均 assertScope 拒绝）；另有 nonce 失效、iframe 退出两个 P1；mock fetch 测试 ≠ 联合验收 | F 返工 + 真实浏览器 E2E；证据到达后 A 审查 → 第二批四视口 Verification 联合集成 |
+| C+D | AC-P2a/b 工作分支 @ `27d4bd6`（CI #39900833633 绿：602/61+1 跳） | route.lazy default 误证明与 SemVer 白名单**已修复**；**新 P0 待修**：`resolveLazyComponent()` 用 `components.filter(c.name === 'Component')` 判断消费者，未验证 Component 是否目标模块的真实命名导出（内部函数可能被误证 source-proven） | C+D 最小修复 + 真实负例 + CI → A 从最新 A HEAD 建独立预演，**只选公共代码/测试/必要合同文档**（分支落后 A 22 提交且混 B 历史报告，不整支合入；PR #28 为历史 merged PR，不作新入口）；E 身份合同文档可接收但 runtimeIdentity 字段与 page-context 清除规则暂不冻结 |
+| F | `feat/f-real-text-phase2-20261023` @ `da94ab7`（CI #39897848604 绿：596/66+1 跳） | **第一批正式验收通过**：真实 Docker E2E 闭环（iframe 点选→source-selection→显式 Scope→createCandidate→preview→历史核对/原工程不变/会话关闭）；原两项 Scope P0 + nonce 竞态 + iframe 退出均已修复；**待 A 集成** | F 从 `71dc6c7` merge 同步 → 回归 → 冻结集成提交供 A 审查；A 独立预演；F 并行开发第二批 |
 | D MEDIA | 安全补丁已在 A；PR #26 @ 78a5484 仍 Draft | 预演与正式合并均完成 | D 基于 71dc6c7 做 PR #26 新基线适配 + 青野固定 SHA **`f7e4998a`**（github.com/Onesummer-D/Ripple 的真实工程仓库 Onesummer-D/ripple-qingye-bolt）MEDIA 全链验收（素材暂存→候选→四视口→视觉证据→Approval/Apply/Rollback→工件留存；Lab 通过 ≠ 正式验收） |
 | B | 冻结 SHA `cf44193`（工具冻结通过） | 待命 | 等 AC-P2a/b 入 A 后，在 codescandy 固定 SHA `b700bbd` 上构造**含目标及受影响页面的显式 Scope** 执行 `--expect accepted` 真实候选复验；codescandy 探针 exit 2 BLOCKED 是已接受边界，不写成 PASS |
 
@@ -90,10 +90,10 @@ A 的职责（只做这些，不越界）：
 9. 向协调人提交预演报告（集成 SHA / 冲突 / CI URL / 安全门控不变证据 / 是否满足合入条件）；
 10. 拿到 merge 授权后：wt-base 里 `--no-ff` merge 集成 SHA → push A → 等新 A HEAD 全量 CI SUCCESS → 分发基线 → 处理 PR（关闭被取代者并评论说明、在合入 PR 上记录 A merge SHA）。
 
-## 五、下一步规划（按优先级）
+## 五、下一步规划（按优先级，2026-10-23 16:47 协调人复核后更新）
 
-1. **C+D route.lazy P0 修复到达** → 从当时最新 A HEAD 建 AC-P2a/b 集成预演（注意 v22 §1 的五项口径）→ 预演报告 → 授权后合入 → 通知 B 启动 codescandy 显式 Scope 复验。
-2. **F 第一批返工到达**（合同合规 Scope + 真实浏览器候选成功 E2E）→ 审查 → 第二批四视口 Verification 联合集成预演。
+1. **F 第一批集成**：F 从 `71dc6c7` merge 同步并冻结集成提交 → A 建独立工作树预演（merge da94ab7 系）→ 本地门 + 全量 CI → 报告 → 授权后合入；F 并行开发第二批。
+2. **C+D 命名导出 P0 修复到达**（resolveLazyComponent 验证 Component 为真实命名导出 + 真实负例 + CI）→ A 从最新 A HEAD 建 AC-P2a/b 独立预演，**只选公共代码/测试/必要合同文档**（不整支合入、不混 F 线，两线各过联合 CI）→ 授权后合入 → 通知 B 恢复 codescandy `--expect accepted`（显式完整 Scope @ b700bbd）。
 3. **C+D 三项身份合同书面确认** → E 阶段二启动（严格实例证明接线，instanceIdentityProven === true 口径）。
 4. **D 青野 MEDIA 全链验收**（f7e4998a，正式验收非 Lab）。
 5. P2 支线（不阻塞主线）：B-ENV-1 设计验证 6 项 → 批准后才动公共核心；AC-P3 最小修复 + 6 组正反例。
