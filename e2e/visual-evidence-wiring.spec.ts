@@ -25,7 +25,7 @@ test.beforeAll(() => {
   fs.writeFileSync(path.join(projectRoot, 'index.html'), '<!doctype html><html><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>')
   fs.writeFileSync(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
   fs.writeFileSync(path.join(projectRoot, 'src', 'main.tsx'), "import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />)\n")
-  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), "import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; export function App(){const [page,setPage]=useState('home'); return <><Navigation/><HomePage/></>}\n")
+  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), "import { useState } from 'react'; import { Navigation } from './components/Navigation'; import { HomePage } from './pages/HomePage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <><Navigation/><HomePage/></>}</>}\n")
   fs.writeFileSync(path.join(projectRoot, 'src', 'components', 'Navigation.tsx'), 'export function Navigation(){return <nav aria-label="Primary"><a>Visual wiring brand</a></nav>}\n')
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), "export function HomePage(){return <main><h1>Visual wiring baseline title</h1><p>stable paragraph</p></main>}\n")
   fs.symlinkSync(path.join(process.cwd(), 'node_modules'), path.join(projectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')

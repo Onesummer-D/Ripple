@@ -11,7 +11,7 @@
 import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { sampleDomGeometryInPage } from './visual-geometry-sampler.mjs'
+import { buildDomGeometrySampler } from './visual-geometry-sampler.mjs'
 
 export const VISUAL_CAPTURE_STATE = 'rendered'
 export const VISUAL_CAPTURE_DIR = 'visual'
@@ -51,7 +51,7 @@ export function planVisualCaptures(input) {
 export async function captureVisualSide(page, options) {
   const {
     side, route, interactionState = VISUAL_CAPTURE_STATE, sourceDigest, runtimeFingerprint, browser,
-    screenshot = 'full', awaitFonts = true,
+    screenshot = 'full', awaitFonts = true, collectorSource,
   } = options
   const fontsReady = await page.evaluate(async shouldAwait => {
     if (!document.fonts || document.fonts.status === 'loaded') return true
@@ -59,7 +59,11 @@ export async function captureVisualSide(page, options) {
     await document.fonts.ready
     return document.fonts.status === 'loaded'
   }, awaitFonts).catch(() => null)
-  const geometry = await page.evaluate(sampleDomGeometryInPage, { side, interactionState })
+  // The sampler with C+D's collectRuntimeIdentitySnapshot embedded comes from
+  // the host via input.json; without it the sampler degrades to null identity
+  // reasons (still reads the version registry).
+  const sampler = buildDomGeometrySampler(collectorSource)
+  const geometry = await page.evaluate(sampler, { side, interactionState })
   let bytes = null
   let stable = null
   if (screenshot === 'full') {

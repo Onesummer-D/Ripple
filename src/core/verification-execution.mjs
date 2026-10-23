@@ -906,10 +906,12 @@ export async function executeVerification({
             () => captureVisualSide(sides.find(side => side.name === 'candidate').page, {
               side: 'candidate', route: item.route, interactionState: VISUAL_CAPTURE_STATE,
               sourceDigest: input.candidateTreeDigest, runtimeFingerprint: input.runtimeFingerprint, browser: browserInfo,
+              collectorSource: input.visualSamplerIdentity?.collectorSource,
             }),
             () => captureVisualSide(sides.find(side => side.name === 'baseline').page, {
               side: 'baseline', route: item.route, interactionState: VISUAL_CAPTURE_STATE,
               sourceDigest: input.baseSourceDigest, runtimeFingerprint: input.runtimeFingerprint, browser: browserInfo,
+              collectorSource: input.visualSamplerIdentity?.collectorSource,
             }),
           )
           return {

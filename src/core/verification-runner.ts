@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { analyzeProject } from './project'
+import { collectRuntimeIdentitySnapshot } from './runtime-identity'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type BrowserErrorDetails, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
@@ -372,6 +373,11 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
       verificationContract: session.verificationContract,
       resourceSnapshots: resourceSnapshotResult.snapshots,
       unavailableResources: resourceSnapshotResult.unavailable,
+      // C+D's own page collector, serialised for the container's sampler (the
+      // same embedding pattern as candidate-preview-vite.config.mjs). The
+      // container runs plain Node without a TS transform, so the function
+      // source travels as data, never as a module import.
+      visualSamplerIdentity: { collectorSource: collectRuntimeIdentitySnapshot.toString() },
     }), { flag: 'wx' })
     await docker([
       'run', '--rm', '--pull=never', '--init', '--name', containerName,

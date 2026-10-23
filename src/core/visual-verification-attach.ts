@@ -19,9 +19,11 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { CandidateRecord } from './candidate'
 import type { ProjectRevision, VerificationRun, VisualRunEvidence } from './model'
+import { sourceFileDigest } from './project'
 import { expectedIdentityFor } from './visual-capture'
 import { VisualResourceLimitError } from './visual-diff'
 import { analyzeVisualDifference, readScreenshotFile, serializeVisualEvidence, type ScreenshotInput, type VisualDifferenceEvidence } from './visual-evidence'
+import { sourceFileFromSourceRef } from './visual-geometry'
 import { toVisualEvidenceView } from './visual-evidence-view'
 import { DEFAULT_PNG_LIMITS } from './visual-png'
 
@@ -150,6 +152,29 @@ export function attachVisualEvidence(
   }
   if (!Array.isArray(captures)) return run
   const expected = expectedIdentityFor(candidate, revision)
+  // Host-verified expected served versions, per side, bound to each side's OWN
+  // revision via C+D `sourceFileDigest` (baseline tree = the project working
+  // tree the baseline preview serves; candidate tree = the candidate worktree
+  // the candidate preview serves). A file that cannot be read contributes no
+  // entry: unverified, never a match, never invented. Cached per run because
+  // captures across viewports share the same files.
+  const digestCache = { baseline: new Map<string, string | undefined>(), candidate: new Map<string, string | undefined>() }
+  const digestFor = (side: 'baseline' | 'candidate', file: string): string | undefined => {
+    const cache = digestCache[side]
+    if (!cache.has(file)) {
+      try {
+        cache.set(file, sourceFileDigest(side === 'baseline' ? candidate.projectRoot : candidate.candidateRoot!, file))
+      } catch {
+        cache.set(file, undefined)
+      }
+    }
+    return cache.get(file)
+  }
+  const referencedFilesOf = (geometry: unknown): string[] => {
+    const raw = geometry as { elements?: Array<{ sourceRef?: unknown }> } | null
+    if (!raw || !Array.isArray(raw.elements)) return []
+    return [...new Set(raw.elements.map(element => sourceFileFromSourceRef(typeof element?.sourceRef === 'string' ? element.sourceRef : null)).filter((file): file is string => file !== null))].sort()
+  }
   const subject = {
     candidateId: run.candidateId, projectId: revision.projectId, patchHash: run.patchHash,
     baseSourceDigest: run.baseSourceDigest, candidateTreeDigest: run.candidateTreeDigest,
@@ -198,8 +223,18 @@ export function attachVisualEvidence(
       const diffRel = `${VISUAL_ANALYSIS_DIR}/${index}/diff.png`
       let outcome: { evidence: VisualDifferenceEvidence; diffPng: Uint8Array | null }
       try {
+        const expectedSourceVersions: { baseline: Record<string, string>; candidate: Record<string, string> } = { baseline: {}, candidate: {} }
+        for (const file of referencedFilesOf(baseline.geometry)) {
+          const digest = digestFor('baseline', file)
+          if (digest) expectedSourceVersions.baseline[file] = digest
+        }
+        for (const file of referencedFilesOf(cand.geometry)) {
+          const digest = digestFor('candidate', file)
+          if (digest) expectedSourceVersions.candidate[file] = digest
+        }
         outcome = analyzeVisualDifference({
           checkId: entry.checkId, subject, expected, targets: { sourceRefs: targetSourceRefs, ...(dualTargetRefs ? { dual: dualTargetRefs } : {}) },
+          expectedSourceVersions,
           baseline: { descriptor: entry.baseline.descriptor, screenshot: baseline.screenshot, geometry: baseline.geometry },
           candidate: { descriptor: entry.candidate.descriptor, screenshot: cand.screenshot, geometry: cand.geometry },
           analyzedAt, diffArtifactPath: diffRel,

@@ -14,7 +14,46 @@
 // maxElements + 1 elements are returned, which the host-side parser rejects.
 // The caller records the screenshot SHA-256 in `screenshotSha256` after taking
 // the screenshot, binding the sample to those exact bytes.
-export function sampleDomGeometryInPage(options) {
+//
+// Identity wiring (read-only, best-effort, never throws):
+// - Per-file served source versions are read from C+D's runtime registry
+//   (globalThis[Symbol.for('ripple.runtime-identity')].sourceVersions) — the
+//   same registry C+D's collector reads; E never hashes source itself.
+// - Collection-time identity reasons come from C+D's own
+//   collectRuntimeIdentitySnapshot, embedded by buildDomGeometrySampler via
+//   its serialised source (same pattern as candidate-preview-vite.config.mjs).
+//   Elements are correlated by the C+D-sanctioned label attribute pattern.
+// - Any failure degrades every new field to null ("evidence unavailable"),
+//   never to an invented value; the geometry itself still samples.
+
+/**
+ * Page function WITHOUT the C+D collector: identity reasons stay null; the
+ * version registry is still read. Built at module load by inlining
+ * runSampler's source so the function stays self-contained under
+ * page.evaluate serialization (no module-scope reference survives).
+ */
+export const sampleDomGeometryInPage = new Function('options', `return (${runSampler.toString()})(options, null);`)
+
+/**
+ * Builds a self-contained page function with C+D's
+ * collectRuntimeIdentitySnapshot embedded. `collectorSource` must be the
+ * function's serialised source (fn.toString()); the result is directly
+ * page.evaluate-able because new Function closes over nothing.
+ */
+export function buildDomGeometrySampler(collectorSource) {
+  if (typeof collectorSource !== 'string' || !collectorSource) return sampleDomGeometryInPage
+  try {
+    // Sanity: the source must parse as a function expression.
+    new Function(`return (${collectorSource});`)
+  } catch {
+    return sampleDomGeometryInPage
+  }
+  return new Function('options', `return (${runSampler.toString()})(options, (${collectorSource}));`)
+}
+
+// Self-contained by contract: serialized whole by buildDomGeometrySampler and
+// by page.evaluate(sampleDomGeometryInPage). No module-scope references.
+function runSampler(options, collectRuntimeIdentitySnapshot) {
   const maxElements = Number.isInteger(options?.maxElements) && options.maxElements > 0 ? options.maxElements : 2000
   const documentSpace = options?.coordinateSpace !== 'viewport'
   const certainties = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
@@ -28,6 +67,72 @@ export function sampleDomGeometryInPage(options) {
   }
   const nodes = Array.from(document.querySelectorAll('[data-ripple-source]')).slice(0, maxElements + 1)
   const ids = new Map(nodes.map((node, index) => [node, `e${index}`]))
+
+  // --- C+D runtime-identity wiring (read-only) -----------------------------
+  // A file whose registry history holds more than one digest (HMR /
+  // re-evaluation) cannot attribute its DOM to either version: omit it.
+  const sourceFileOf = ref => {
+    const match = typeof ref === 'string' ? /^jsx:(.+)#\d+$/.exec(ref) : null
+    return match ? match[1] : null
+  }
+  let sourceFileVersions = null
+  let pageContext = null
+  let reasonByIndex = null
+  try {
+    const registry = globalThis[Symbol.for('ripple.runtime-identity')]
+    const versions = registry && registry.sourceVersions instanceof Map ? registry.sourceVersions : null
+    const history = registry && registry.sourceVersionHistory instanceof Map ? registry.sourceVersionHistory : null
+    const files = [...new Set(nodes.map(node => sourceFileOf(node.getAttribute('data-ripple-source'))).filter(Boolean))].sort()
+    if (versions && files.length) {
+      const map = {}
+      for (const file of files) {
+        const digest = versions.get(file)
+        const seen = history instanceof Map ? history.get(file) : undefined
+        if (typeof digest === 'string' && /^[a-f0-9]{64}$/.test(digest) && !(seen instanceof Set && seen.size > 1)) map[file] = digest
+      }
+      if (Object.keys(map).length) sourceFileVersions = map
+    }
+    pageContext = { pathname: location.pathname, search: location.search, hash: location.hash }
+    if (typeof collectRuntimeIdentitySnapshot === 'function') {
+      // Correlate every sampled node with one collector record using C+D's
+      // label pattern (same as the selection bridge): the collector copies the
+      // value of the named attribute into record.label.
+      const marker = 'data-ripple-visual-corr'
+      nodes.forEach((node, index) => { node.setAttribute(marker, `v${index}`) })
+      let snapshot = null
+      try {
+        snapshot = collectRuntimeIdentitySnapshot({ label: marker })
+      } catch {
+        snapshot = null
+      } finally {
+        nodes.forEach(node => { node.removeAttribute(marker) })
+      }
+      if (snapshot && Array.isArray(snapshot.records)) {
+        reasonByIndex = new Map()
+        for (const record of snapshot.records) {
+          const label = record && typeof record.label === 'string' ? record.label : ''
+          const match = /^v(\d+)$/.exec(label)
+          if (!match) continue
+          const index = Number(match[1])
+          if (!Number.isInteger(index) || index < 0 || index >= nodes.length || reasonByIndex.has(index)) continue
+          if (!Array.isArray(record.reasons)) continue
+          const reasons = record.reasons.slice(0, 8).map(reason => String(reason).slice(0, 64)).filter(Boolean)
+          reasonByIndex.set(index, reasons)
+        }
+        if (!reasonByIndex.size) reasonByIndex = null
+      }
+    }
+  } catch {
+    sourceFileVersions = null
+    pageContext = null
+    reasonByIndex = null
+  }
+  // Legacy single-file field: only meaningful when every annotated element of
+  // this page comes from exactly one file whose version resolved. Multi-file
+  // pages keep null here; the per-file map above carries the truth.
+  const sourceFileList = sourceFileVersions ? Object.keys(sourceFileVersions) : []
+  const sourceVersion = sourceFileVersions && sourceFileList.length === 1 ? sourceFileVersions[sourceFileList[0]] : null
+
   // Whether `ancestor` establishes the containing block that positioned
   // descendants escape to: absolute boxes skip static ancestors, fixed boxes
   // skip everything except transformed / filtered / contained ancestors.
@@ -37,7 +142,7 @@ export function sampleDomGeometryInPage(options) {
   // A cutting axis is bounded by the padding box; the other axis of the same
   // ancestor only scrolls (CSS turns visible into auto), so it stays unbounded.
   const UNBOUNDED = 1e6
-  const elements = nodes.map(node => {
+  const elements = nodes.map((node, index) => {
     let parentId = null
     for (let parent = node.parentElement; parent; parent = parent.parentElement) {
       if (ids.has(parent)) { parentId = ids.get(parent); break }
@@ -59,13 +164,11 @@ export function sampleDomGeometryInPage(options) {
       clip = clip ? intersect(clip, padding) : padding
       const cuts = value => value === 'hidden' || value === 'clip'
       const cutX = cuts(style.overflowX), cutY = cuts(style.overflowY)
-      if (cutX || cutY) {
-        const area = {
-          x: cutX ? padding.x : -UNBOUNDED, width: cutX ? padding.width : 2 * UNBOUNDED,
-          y: cutY ? padding.y : -UNBOUNDED, height: cutY ? padding.height : 2 * UNBOUNDED,
-        }
-        hiddenClip = hiddenClip ? intersect(hiddenClip, area) : area
+      const area = {
+        x: cutX ? padding.x : -UNBOUNDED, width: cutX ? padding.width : 2 * UNBOUNDED,
+        y: cutY ? padding.y : -UNBOUNDED, height: cutY ? padding.height : 2 * UNBOUNDED,
       }
+      hiddenClip = hiddenClip ? intersect(hiddenClip, area) : area
     }
     const style = getComputedStyle(node)
     const rect = node.getBoundingClientRect()
@@ -80,6 +183,7 @@ export function sampleDomGeometryInPage(options) {
       sourceRef: node.getAttribute('data-ripple-source') || null,
       runtimeInstanceId: node.getAttribute('data-ripple-instance') || null,
       identityCertainty: certainties.includes(certainty) ? certainty : null,
+      identityReasons: reasonByIndex && reasonByIndex.has(index) ? reasonByIndex.get(index) : null,
       rect: place(rect),
       clipRect: clip ? place(clip) : null,
       hiddenClipRect: hiddenClip ? place(hiddenClip) : null,
@@ -100,10 +204,16 @@ export function sampleDomGeometryInPage(options) {
     scroll: { x: scrollX, y: scrollY },
     documentSize: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight },
     screenshotSha256: null,
-    // Served-file sha256 of the annotated source (C+D sourceVersion). Not yet
-    // collected: null means "version evidence unavailable" for pairing, never
-    // a match. Wiring contract: docs/architecture/visual-sampler-identity-rfc.md
-    sourceVersion: null,
+    // Served-file sha256 of the annotated source (C+D sourceVersion). Only
+    // populated for single-file pages; see sourceFileVersions for the general
+    // per-file binding.
+    sourceVersion,
+    // C+D registry-derived served-version per referenced source file
+    // (project-relative path -> sha256). Null means version evidence
+    // unavailable; never an empty object.
+    sourceFileVersions,
+    // C+D RuntimePageContext for this sample ({pathname, search, hash}).
+    pageContext,
     elements,
   }
 }

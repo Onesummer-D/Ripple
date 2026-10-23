@@ -14,3 +14,10 @@ export type RawDomGeometrySample = Omit<DomGeometrySample, 'locationSuffixSha256
 
 /** Runs inside the page through page.evaluate; returns an unvalidated sample for parseDomGeometrySample. */
 export function sampleDomGeometryInPage(options: DomGeometrySamplerOptions): RawDomGeometrySample
+
+/**
+ * Builds a self-contained page function with C+D's collectRuntimeIdentitySnapshot
+ * embedded (`collectorSource` = the function's serialised source, fn.toString()).
+ * Falls back to `sampleDomGeometryInPage` when the source is missing or invalid.
+ */
+export function buildDomGeometrySampler(collectorSource: string | undefined | null): (options: DomGeometrySamplerOptions) => RawDomGeometrySample

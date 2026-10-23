@@ -367,3 +367,74 @@ describe('P1 negative cases: strict-proof downgrades', () => {
     expect(view.crossVersion!.counts.instanceCandidate).toBe(0)
   })
 })
+
+describe('P2 wiring: per-side expected version verification (C+D sourceFileDigest)', () => {
+  const H1 = '1'.repeat(64)
+  const H2 = '2'.repeat(64)
+  const HBAD = 'b'.repeat(64)
+  const withFileVersions = (side: 'baseline' | 'candidate', elements: Element[], versions: Record<string, string>): DomGeometrySample => {
+    const parsed = parseDomGeometrySample(rawSample(side, elements, { sourceFileVersions: versions }), side)
+    if (!parsed.ok) throw new Error(parsed.detail)
+    return parsed.sample
+  }
+
+  it('正例: 合法跨版本哈希差异（各自有效）不再降级，维持 instance-candidate', () => {
+    const baseline = withFileVersions('baseline', [el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10])], { 'src/App.tsx': H1 })
+    const candidate = withFileVersions('candidate', [el('h', 'jsx:src/App.tsx#156', [0, 0, 20, 10])], { 'src/App.tsx': H2 })
+    const pairing = pairCrossVersionElements(baseline, candidate, { expectedSourceVersions: { baseline: { 'src/App.tsx': H1 }, candidate: { 'src/App.tsx': H2 } } })
+    expect(pairing.instanceCandidate).toHaveLength(1)
+    expect(pairing.instanceCandidate[0].reasons).toEqual([])
+    expect(pairing.unproven).toHaveLength(0)
+    // 双侧均已对自身修订核验，source-version 不再列入缺失证据。
+    expect(pairing.scope.missingEvidence).not.toContain('source-version')
+    // 但没有 C+D 完整身份评估，严格实例证明仍然不可用。
+    expect(pairing.scope.strictInstanceProofAvailable).toBe(false)
+  })
+
+  it('负例: offset 漂移下 candidate 自身版本失效必须识别（不依赖 sourceRef 字符串一致）', () => {
+    const baseline = withFileVersions('baseline', [el('h', 'jsx:src/App.tsx#120', [0, 0, 20, 10])], { 'src/App.tsx': H1 })
+    const candidate = withFileVersions('candidate', [el('h', 'jsx:src/App.tsx#148', [0, 0, 20, 10])], { 'src/App.tsx': HBAD })
+    const pairing = pairCrossVersionElements(baseline, candidate, { expectedSourceVersions: { baseline: { 'src/App.tsx': H1 }, candidate: { 'src/App.tsx': H2 } } })
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.unproven).toHaveLength(1)
+    expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
+    expect(pairing.scope.missingEvidence).toContain('source-version')
+  })
+
+  it('负例: baseline 侧自身版本失效同样识别（两侧独立核验）', () => {
+    const baseline = withFileVersions('baseline', [el('h', 'jsx:src/App.tsx#120', [0, 0, 20, 10])], { 'src/App.tsx': HBAD })
+    const candidate = withFileVersions('candidate', [el('h', 'jsx:src/App.tsx#120', [0, 0, 20, 10])], { 'src/App.tsx': H2 })
+    const pairing = pairCrossVersionElements(baseline, candidate, { expectedSourceVersions: { baseline: { 'src/App.tsx': H1 }, candidate: { 'src/App.tsx': H2 } } })
+    expect(pairing.instanceCandidate).toHaveLength(0)
+    expect(pairing.unproven).toHaveLength(1)
+    expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
+  })
+
+  it('预期摘要缺失的文件保持未核验：不判失效，缺失证据继续列出', () => {
+    const baseline = withFileVersions('baseline', [el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10])], { 'src/App.tsx': H1 })
+    const candidate = withFileVersions('candidate', [el('h', 'jsx:src/App.tsx#156', [0, 0, 20, 10])], { 'src/App.tsx': H2 })
+    // Host gave no expected digest for the file: unverified, NOT invalid.
+    const pairing = pairCrossVersionElements(baseline, candidate, { expectedSourceVersions: { baseline: {}, candidate: {} } })
+    expect(pairing.unproven.every(pair => !pair.reasons.includes('source-version-mismatch'))).toBe(true)
+    expect(pairing.scope.missingEvidence).toContain('source-version')
+    // 实例候选配对是标注级事实，不因预期摘要缺失而隐藏。
+    expect(pairing.instanceCandidate).toHaveLength(1)
+  })
+
+  it('元素级多文件版本映射：逐文件核验，单文件哈希不能代表整页', () => {
+    const baseline = withFileVersions('baseline', [
+      el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10]),
+      el('f', 'jsx:src/Footer.tsx#9', [0, 20, 20, 10], { runtimeInstanceId: '/:f' }),
+    ], { 'src/App.tsx': H1, 'src/Footer.tsx': H1 })
+    const candidate = withFileVersions('candidate', [
+      el('h', 'jsx:src/App.tsx#156', [0, 0, 20, 10]),
+      el('f', 'jsx:src/Footer.tsx#9', [0, 20, 20, 10], { runtimeInstanceId: '/:f' }),
+    ], { 'src/App.tsx': H2, 'src/Footer.tsx': H1 })
+    const pairing = pairCrossVersionElements(baseline, candidate, {
+      expectedSourceVersions: { baseline: { 'src/App.tsx': H1, 'src/Footer.tsx': H1 }, candidate: { 'src/App.tsx': H2, 'src/Footer.tsx': H1 } },
+    })
+    // Footer 跨版本未变（哈希相同合法），App 合法不同：全部各自有效。
+    expect(pairing.instanceCandidate).toHaveLength(2)
+    expect(pairing.scope.missingEvidence).not.toContain('source-version')
+  })
+})

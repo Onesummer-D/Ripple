@@ -91,6 +91,15 @@ export interface VisualComparisonRequest {
    * for traceability.
    */
   targets?: { sourceRefs?: string[] | null; dual?: { baseline?: unknown; candidate?: unknown } | null } | null
+  /**
+   * Host-verified expected served-version digests per source file, per side
+   * (C+D `sourceFileDigest` against each side's own tree). Passed verbatim to
+   * cross-version pairing: a side whose collected version differs from its OWN
+   * expected digest is a real mismatch; legal cross-version differences stay
+   * legal. Omit to keep the legacy conservative rule (any declared difference
+   * downgrades). E never invents these digests.
+   */
+  expectedSourceVersions?: { baseline?: Record<string, string>; candidate?: Record<string, string> } | null
   parameters?: Partial<Omit<VisualDiffParameters, 'png' | 'geometry'>> & { png?: Partial<PngLimits>; geometry?: Partial<GeometryLimits> }
   analyzedAt?: string
   /** Evidence-relative path the caller will write the diff PNG to. */
@@ -383,11 +392,23 @@ function parseGeometryOnce(raw: unknown, side: VisualSide, limits: GeometryLimit
  */
 function digestSampleJson(sample: DomGeometrySample): string {
   const stripElement = ({ identityReasons: _omit, ...element }: DomGeometrySample['elements'][number]) => element
-  if (sample.sourceVersion === null && sample.elements.every(element => element.identityReasons === null)) {
-    const { sourceVersion: _omit, ...rest } = sample
-    return JSON.stringify({ ...rest, elements: rest.elements.map(stripElement) })
+  // The additive identity fields are omitted when they carry no data, so
+  // samples collected before those fields existed keep their historical
+  // digest byte-for-byte; once populated the digest naturally changes, which
+  // is the desired hash-binding behavior for new information.
+  const {
+    sourceVersion: _omitVersion, sourceFileVersions: _omitFileVersions, pageContext: _omitPageContext,
+    ...rest
+  } = sample
+  const empty = sample.sourceVersion === null && sample.sourceFileVersions === null && sample.pageContext === null &&
+    sample.elements.every(element => element.identityReasons === null)
+  const serialized: Record<string, unknown> = { ...rest, elements: rest.elements.map(stripElement) }
+  if (!empty) {
+    if (sample.sourceVersion !== null) serialized.sourceVersion = sample.sourceVersion
+    if (sample.sourceFileVersions !== null) serialized.sourceFileVersions = sample.sourceFileVersions
+    if (sample.pageContext !== null) serialized.pageContext = sample.pageContext
   }
-  return JSON.stringify({ ...sample, elements: sample.elements.map(stripElement) })
+  return JSON.stringify(serialized)
 }
 
 function resolveParameters(input: VisualComparisonRequest['parameters']): VisualDiffParameters {
@@ -560,7 +581,7 @@ export function analyzeVisualDifference(request: VisualComparisonRequest): Visua
     targetMarginPx = Math.ceil(parameters.targetMarginCssPx * dpr)
     const diff = diffPixels(baselinePng.data, candidatePng.data, candidatePng.width, candidatePng.height, { threshold: parameters.threshold, includeAA: parameters.includeAA, mergeDistancePx })
     const reportedIndexes = selectReportedRegions(diff, parameters.maxRegions)
-    const analysed = analyseGeometry(bGeometry, cGeometry, b.descriptor, c.descriptor, baselinePng, candidatePng, diff, reportedIndexes, declaredRefs, parameters, targetMarginPx, dual)
+    const analysed = analyseGeometry(bGeometry, cGeometry, b.descriptor, c.descriptor, baselinePng, candidatePng, diff, reportedIndexes, declaredRefs, parameters, targetMarginPx, dual, request.expectedSourceVersions)
     geometry = analysed.report
     if (geometry.status === 'unavailable') limitations.push({ code: 'geometry-unavailable', detail: 'No DOM geometry sample was supplied; changed regions cannot be related to elements or targets.' })
     if (!baselinePng.opaque || !candidatePng.opaque) limitations.push({ code: 'transparent-pixels', detail: 'A screenshot has non-opaque pixels; pixelmatch compares them blended over a checkerboard.', baseline: baselinePng.opaque, candidate: candidatePng.opaque })
@@ -705,6 +726,7 @@ function analyseGeometry(
   bGeometry: PreparsedGeometry, cGeometry: PreparsedGeometry, bDesc: VisualCaptureDescriptor, cDesc: VisualCaptureDescriptor, bPng: DecodedPng, cPng: DecodedPng,
   diff: PixelDiff, reportedIndexes: number[], declaredRefs: string[], parameters: VisualDiffParameters, targetMarginPx: number,
   dual: { baseline: string[]; candidate: string[] } | null,
+  expectedSourceVersions: VisualComparisonRequest['expectedSourceVersions'],
 ): { report: GeometryReport; regions: VisualRegion[] } {
   const bGeo = sideGeometry(bGeometry.result, bDesc, bPng)
   const cGeo = sideGeometry(cGeometry.result, cDesc, cPng)
@@ -855,7 +877,7 @@ function analyseGeometry(
     // which targets exist on one side only, which are proven across versions
     // and which stay unproven (never upgraded from text/position/URL).
     if (dual) {
-      const pairing = pairCrossVersionElements(bGeo.accepted.sample, cGeo.accepted.sample)
+      const pairing = pairCrossVersionElements(bGeo.accepted.sample, cGeo.accepted.sample, expectedSourceVersions ? { expectedSourceVersions } : undefined)
       const pairs = cap([...pairing.instanceCandidate, ...pairing.sameSourceRefObserved, ...pairing.unproven], limit)
       report.crossVersion = {
         scope: pairing.scope,
