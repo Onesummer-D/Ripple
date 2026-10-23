@@ -27,14 +27,20 @@ jobs:
       - name: "Candidate gate reproduction (expected: strictly rejected, exit 0)"
         # Hardened contract test: asserts CandidateError with the exact current
         # provenance reasons, no surviving patch/worktree/mutation; --selftest
-        # injects unrelated errors to prove no false green. After AC-P2a/AC-P2b
-        # land, switch to: --expect accepted
+        # injects unrelated errors to prove no false green. This frozen negative
+        # probe is kept verbatim as regression evidence; the real success path
+        # (--expect accepted) runs on the A public core in the
+        # accepted-on-a-core job below and locally in b-formal-run.
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-candidate-gate.mjs "$RUNNER_TEMP/codescandy" --selftest --artifacts test-results
       - name: "Candidate accepted positive case (real createCandidate, no mock)"
         # Minimal data-router fixture in a script-owned mkdtemp repo: proves the
         # success contract end-to-end — real patch bytes, patchHash, marker,
         # exact-edit candidate bytes, tree digest, no worktree/artifact residue.
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-candidate-accepted-fixture.mjs --artifacts test-results
+      - name: "Accepted-summary unit tests (P0-1: booleans-only pass predicate)"
+        # Positive case: all real checks true ⇒ pass === true. Negative cases:
+        # any false, non-boolean metadata mixed in, or uncreated candidate ⇒ false.
+        run: node --test scripts/b-gate-accepted-summary.test.mjs
       - name: "B-ENV-1 pinned repro (read-only source, independent LF/CRLF clones)"
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-env1-eol-repro.mjs "$RUNNER_TEMP/codescandy" --selftest --artifacts test-results
       - name: "Source proof probe (expected: exit 2 BLOCKED with complete report)"
@@ -61,5 +67,57 @@ jobs:
             test-results/candidate-gate.json
             test-results/candidate-accepted-fixture.json
             test-results/b-env1-eol-repro.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Formal ACCEPTED run: the gate script executes against the A public core
+  # integration SHA (not the B branch core). The gate hard-fails unless HEAD
+  # equals --core-sha and carries the AC-P2a/b lineage ancestor, so a stale or
+  # substituted core cannot produce a green ACCEPTED.
+  accepted-on-a-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      A_CORE_SHA: 45a2d7cda2271ea5c212c8e0f3a469eb62dded31
+      ACP2_ANCESTOR: f804c7e0908e6dc8831c46ca55b92d357df72c10
+      CODESCANDY_SHA: b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch exact codescandy source (do not execute its dependencies)
+        run: |
+          git clone --filter=blob:none https://github.com/codescandy/dash-ui-react-vitejs-typescript.git "$RUNNER_TEMP/codescandy"
+          git -C "$RUNNER_TEMP/codescandy" checkout --detach "$CODESCANDY_SHA"
+          test "$(git -C "$RUNNER_TEMP/codescandy" rev-parse HEAD)" = "$CODESCANDY_SHA"
+      - name: Check out A public core integration SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.A_CORE_SHA }}
+          path: a-core
+      - name: Verify A core provenance (HEAD equals declared SHA and carries AC-P2a/b lineage)
+        run: |
+          test "$(git -C a-core rev-parse HEAD)" = "$A_CORE_SHA"
+          git -C a-core merge-base --is-ancestor "$ACP2_ANCESTOR" HEAD
+      - name: Install A core dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: a-core
+      - name: Transplant B gate scripts onto A core byte-for-byte
+        run: |
+          cp scripts/b-thirdparty-candidate-gate.mjs a-core/scripts/b-thirdparty-candidate-gate.mjs
+          cp scripts/b-gate-accepted-summary.mjs a-core/scripts/b-gate-accepted-summary.mjs
+          cp scripts/ts-extension-loader.mjs a-core/scripts/ts-extension-loader.mjs
+          cmp scripts/b-thirdparty-candidate-gate.mjs a-core/scripts/b-thirdparty-candidate-gate.mjs
+          cmp scripts/b-gate-accepted-summary.mjs a-core/scripts/b-gate-accepted-summary.mjs
+      - name: "Formal ACCEPTED candidate run on A core (--expect accepted)"
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-thirdparty-candidate-gate.mjs "$RUNNER_TEMP/codescandy" --expect accepted --core-sha "$A_CORE_SHA" --artifacts test-results
+        working-directory: a-core
+      - name: Retain accepted candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-b-accepted-on-a-core-${{ github.run_id }}
+          path: a-core/test-results/candidate-gate.json
           retention-days: 30
           if-no-files-found: warn

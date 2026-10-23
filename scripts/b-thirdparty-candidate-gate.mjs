@@ -19,13 +19,23 @@
  *    The default request intentionally keeps the INCOMPLETE scope
  *    (includedRefs: [target.id]) — this frozen negative proves the gate.
  *  --expect accepted: run only on A's PUBLICLY INTEGRATED core — requires
- *    --core-sha <SHA> (or B_GATE_CORE_SHA) naming that core. Builds the FULL
- *    scope from the actual PageImpact (target + every impacted page included,
- *    all other routes explicitly excluded), passes it to createCandidate,
- *    verifies the Scope the core actually received, then checks the real
- *    CandidateRecord: patch bytes vs record.patchHash, marker consistency, and
- *    that the candidate worktree bytes equal the exact source edit
- *    (original[0:start] + after + original[end:]) before cleanup.
+ *    --core-sha <SHA> (or B_GATE_CORE_SHA) naming that core. The script then
+ *    VERIFIES the claim with Git before anything runs: the checkout's
+ *    `git rev-parse HEAD` must equal --core-sha exactly, and HEAD must descend
+ *    from the audited AC-P2a/b lineage (B_GATE_ACP2_ANCESTOR, default the
+ *    f804c7e integration). Any mismatch refuses before createCandidate is
+ *    called; a non-empty SHA on a forked core cannot impersonate the public
+ *    integration. Builds the FULL scope from the actual PageImpact (target +
+ *    every impacted page included, all other routes explicitly excluded),
+ *    passes it to createCandidate, verifies the Scope the core actually
+ *    received, then checks the real CandidateRecord: patch bytes vs
+ *    record.patchHash, marker consistency, and that the candidate worktree
+ *    bytes equal the exact source edit (original[0:start] + after +
+ *    original[end:]) before cleanup. If createCandidate throws, the final JSON
+ *    keeps errorName/message/isCandidateError so a first-attempt failure is
+ *    immediately diagnosable. `pass` is computed by
+ *    b-gate-accepted-summary.mjs (booleans only — metadata never enters the
+ *    verdict groups; see its node:test suite).
  *  --selftest: negative injections, sentinel byte-invariance, crash path,
  *    double cleanup (rejected-mode contract; unchanged). For a positive
  *    end-to-end see scripts/b-candidate-accepted-fixture.mjs.
@@ -38,6 +48,11 @@ import { execFileSync } from 'node:child_process'
 import { analyzeProject, digestTrackedTree } from '../src/core/project.ts'
 import { sourceProvenPageImpact } from '../src/core/scope.ts'
 import { createCandidate, CandidateError } from '../src/core/candidate.ts'
+import { acceptedPass } from './b-gate-accepted-summary.mjs'
+import { fileURLToPath } from 'node:url'
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+const coreRepoRoot = path.resolve(scriptDir, '..')
 
 const argv = process.argv.slice(2)
 const repo = path.resolve(argv[0])
@@ -306,17 +321,44 @@ const main = () => {
   }
 
   // ---- expect accepted: real success contract, evidence before cleanup ----
-  // Formal-execution guard: the run MUST name the A core SHA it executes on —
-  // a rehearsal/pre-integration SHA must never produce an ACCEPTED verdict.
+  // Formal-execution guard (P0-2): the run MUST name the A core SHA AND the
+  // checkout must actually BE that SHA — a non-empty flag alone proves nothing.
+  // coreVerification binds the declared SHA to the running checkout via Git:
+  //   1. coreSha must be non-empty;
+  //   2. `git rev-parse HEAD` of THIS checkout must equal coreSha exactly —
+  //      any mismatch refuses before createCandidate is ever called;
+  //   3. HEAD must descend from the audited AC-P2a/b lineage (default f804c7e,
+  //      overridable for future integrations) — a forked/rebased core with the
+  //      right-looking SHA cannot impersonate the public integration.
+  const ACP2_LINEAGE = process.env.B_GATE_ACP2_ANCESTOR ?? 'f804c7e0908e6dc8831c46ca55b92d357df72c10'
+  const coreHead = execFileSync('git', ['-C', coreRepoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+  const lineageOk = (() => { try { execFileSync('git', ['-C', coreRepoRoot, 'merge-base', '--is-ancestor', ACP2_LINEAGE, 'HEAD'], { stdio: 'pipe' }); return true } catch { return false } })()
+  const coreVerification = {
+    declared: coreSha || null,
+    actualHead: coreHead,
+    headMatchesDeclared: !!coreSha && coreHead === coreSha,
+    acp2Ancestor: ACP2_LINEAGE,
+    acp2LineagePresent: lineageOk,
+  }
   if (!coreSha) throw new Error('--expect accepted requires --core-sha <A-integrated-SHA> (or B_GATE_CORE_SHA) so the evidence names the core it ran on')
+  if (!coreVerification.headMatchesDeclared) throw new Error(`--core-sha ${coreSha} does not match the running checkout HEAD ${coreHead} — refusing to attribute this run to a core it is not`)
+  if (!coreVerification.acp2LineagePresent) throw new Error(`running checkout HEAD ${coreHead} does not descend from the audited AC-P2a/b lineage ${ACP2_LINEAGE} — refusing non-integrated cores`)
   const gateResult = attempt({ slot: 'main-accepted', proposal: { scope: fullScope }, preserveOnCreate: true })
   const acceptance = { created: gateResult.outcome === 'created' }
+  // P1: a thrown createCandidate must not lose the diagnosis — keep error type,
+  // message and CandidateError classification in the final JSON either way.
+  if (gateResult.outcome === 'threw') {
+    acceptance.error = { errorName: gateResult.errorName, message: gateResult.message, isCandidateError: gateResult.isCandidateError }
+  } else if (gateResult.outcome !== 'created') {
+    acceptance.error = { outcome: gateResult.outcome, reason: gateResult.reason ?? null, coreNotCalled: gateResult.coreNotCalled }
+  }
   // Scope wiring check: the Scope the core actually received must be the full
   // PageImpact-derived scope (target + every impacted page included), never
   // the incomplete default. Reference identity proves no middleware swapped it.
+  // Booleans ONLY — metadata (coreSha) lives in coreVerification / the envelope
+  // (P0-1: a string field inside this group made every real ACCEPTED fail).
   const requiredIncluded = [target.id, ...impact.pageRefs]
   acceptance.scopeVerification = {
-    coreSha,
     actualScopePresent: !!gateResult.actualScope,
     actualScopeIsFullScope: gateResult.actualScope === fullScope,
     targetIncluded: !!gateResult.actualScope && gateResult.actualScope.includedRefs.includes(target.id),
@@ -362,18 +404,16 @@ const main = () => {
     callerProjectCleanAfterCandidateRemoval: gitRead(project, ['status', '--porcelain']) === '',
     noOwnedWorktreeLeft: !fs.existsSync(gateResult.localCandidateRoot ?? path.join(tempRoot, 'none')),
   }
-  const pass = acceptance.created
-    && Object.values(acceptance.verification ?? {}).every(v => v === true)
-    && Object.values(acceptance.scopeVerification).every(v => v === true)
-    && Object.values(postChecks).every(v => v === true)
+  const pass = acceptedPass(acceptance, postChecks)
   return {
-    schemaVersion: 5, mode: 'expect-accepted', codescandySha: actual, coreSha, projectClone: 'script-owned',
+    schemaVersion: 6, mode: 'expect-accepted', codescandySha: actual, projectClone: 'script-owned',
     target: { id: target.id, path: target.location.path },
     impact,
-    scope: { proposed: fullScope, actual: gateResult.actualScope },
+    scope: { proposed: fullScope, actual: gateResult.actualScope ?? null },
+    coreVerification,
     gate: { outcome: gateResult.outcome },
     acceptance, postChecks, pass,
-    note: '候选创建成功仅证明门控放行；preview/approval/apply/rollback 仍为独立 NOT RUN 项。正式 ACCEPTED 只能在 A 公共集成 SHA（coreSha）上宣告。',
+    note: '候选创建成功仅证明门控放行；preview/approval/apply/rollback 仍为独立 NOT RUN 项。coreVerification 以 Git 提交关系绑定声明 SHA 与实际运行检出（HEAD 相等 + AC-P2a/b 祖先链），非集成核心无法产出本结论。',
   }
 }
 
