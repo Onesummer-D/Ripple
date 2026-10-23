@@ -163,13 +163,15 @@ try {
   execFileSync('git', ['-c', 'core.autocrlf=false', 'clone', '--quiet', '--', repo, project], { stdio: ['ignore', 'ignore', 'pipe'] })
   execFileSync('git', ['-C', project, 'config', 'core.autocrlf', 'false'], { stdio: 'pipe' })
   if (gitRead(project, ['rev-parse', 'HEAD']) !== EXPECTED_CODESCANDY) throw new Error('clone HEAD mismatch')
-  // Preview containers mount projectRoot/node_modules: reuse the trusted,
-  // pre-installed dependency tree instead of executing project install scripts.
-  // info/exclude keeps the symlink from dirtying the clone's tracked snapshot.
-  fs.appendFileSync(path.join(project, '.git', 'info', 'exclude'), 'node_modules\n')
-  fs.symlinkSync(fs.realpathSync(path.join(repo, 'node_modules')), path.join(project, 'node_modules'), 'dir')
-
-  const graph = analyzeProject(project)
+  // ANALYSIS BASELINE = the gated ACCEPTED baseline: the dependency-free clone
+  // (CI policy: fetch exact source, do not execute/install its dependencies).
+  // Measured difference (b-analyze-probe): with node_modules present the
+  // analyzer resolves one more consumer edge (composite-jsx-child ProfileHeader
+  // #131 → literal #2620) whose provenance cannot be source-proven, dropping
+  // PageImpact certainty source-proven → partial and failing createCandidate's
+  // proof. Deps are therefore added ONLY for the browser preview runtime, after
+  // candidate creation, and are excluded from the tracked snapshot.
+  const graph = analyzeProject(project, true)
   const target = graph.nodes.find(n => n.kind === 'data' && n.value?.trim() === 'Overview' && n.location?.path.endsWith('ProfileHeader.tsx'))
   if (!target) throw new Error('Overview TEXT target not found')
   const impact = sourceProvenPageImpact(graph, target.id)
@@ -207,6 +209,16 @@ try {
     scopeDecisionId: record.scopeDecisionId, scopeVersion: record.scopeVersion,
     patchArtifact: record.artifactPath,
   }
+  // Browser runtime deps: preview containers mount projectRoot/node_modules.
+  // Reuse the trusted pre-installed tree (never run project install scripts);
+  // info/exclude keeps the symlink out of the tracked snapshot so
+  // assertCandidateCurrent keeps matching the analysis-time digest.
+  fs.appendFileSync(path.join(project, '.git', 'info', 'exclude'), 'node_modules\n')
+  fs.symlinkSync(fs.realpathSync(path.join(repo, 'node_modules')), path.join(project, 'node_modules'), 'dir')
+  state.environment.push({
+    where: 'analysis-vs-runtime-deps',
+    message: 'analysis baseline is the dependency-free clone (gated ACCEPTED baseline); node_modules added after candidate creation for the browser preview runtime only',
+  })
 
   await preparePreviewNetworkPool()
   const preview = await startCandidatePreview(record, [])
