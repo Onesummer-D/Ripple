@@ -342,6 +342,52 @@ describe('F 体验工作台 · REAL 模式异步竞态', () => {
     expect(screen.getByTestId('page-item-page:home').getAttribute('aria-current')).toBe('page')
     expect((screen.getByTestId('real-preview-frame') as HTMLIFrameElement).src).toBe(model.preview!.url)
   })
+
+  it('候选创建成功后再次进入点选：旧点选会话不得把下一次点击误判为退出（6c 回归）', async () => {
+    const model: ExperienceViewModel = {
+      projectName: 'acme-shop', projectStatus: 'ready', candidateStatus: 'none', dataProvenance: 'real',
+      currentPageRef: 'page:home', draftAfterText: '', activeViewportId: 'desktop', canvasState: 'ready',
+      pages: [
+        { id: 'page:home', label: '首页', path: '/', relation: 'editing', relationCertainty: 'source-proven', scope: 'include' },
+      ],
+      elements: [
+        {
+          id: 'el:title', label: '首页标题', demoSelector: '', currentText: '原标题',
+          sourceRef: 'jsx:src/pages/HomePage.jsx#1', sourcePath: 'src/pages/HomePage.jsx',
+          certainty: 'source-proven', impactPageRefs: ['page:home'], unresolvedReasons: [], editable: true,
+        },
+      ],
+      viewports: VIEWPORTS, evidence: [], versions: [],
+      compare: { baseline: { state: 'unavailable' }, candidate: { state: 'unavailable' }, compareState: 'none' },
+      preview: { url: 'http://127.0.0.1:9999/preview/p1/', projectId: 'p', previewId: 'p1', sourceDigest: 'd' },
+      pickerAvailable: true,
+      projectIdentity: { projectId: 'p', sourceDigest: 'd' },
+    }
+    const adapter: ExperienceAdapter = {
+      provenance: 'real',
+      load: async () => model,
+      selectElement: (m, elementId) => ({ ...m, selectedElementId: elementId }),
+      setDraftText: (m, text) => ({ ...m, draftAfterText: text }),
+      setPageScope: m => m,
+      setViewport: m => m,
+      setPage: m => m,
+      createCandidate: async m => ({ ...m, candidateStatus: 'candidate' }),
+    }
+    render(<ExperienceWorkbench adapter={adapter} />)
+    await screen.findByTestId('picker-toggle')
+    // 第一轮：进入点选 → 选中 + 草稿 → 生成候选（成功后自动退出点选）
+    fireEvent.click(screen.getByTestId('picker-toggle'))
+    expect(screen.queryByTestId('picker-hint')).not.toBeNull()
+    fireEvent.click(screen.getByTestId('canvas-el-el:title'))
+    fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新标题' } })
+    await act(async () => { fireEvent.click(screen.getByTestId('create-candidate')) })
+    expect(screen.queryByTestId('picker-hint')).toBeNull()
+    // 第二轮（6c 真实切换路径）：点击必须重新进入点选。
+    // 回归根因：候选创建只清了 pickerNonce state，pickerSessionRef 残留旧会话，
+    // 以 ref 判定的 toggle 会把本次点击当成"退出"，点选永远进不去。
+    fireEvent.click(screen.getByTestId('picker-toggle'))
+    expect(screen.queryByTestId('picker-hint')).not.toBeNull()
+  })
 })
 
 describe('F 体验工作台 · 真实/演示隔离', () => {

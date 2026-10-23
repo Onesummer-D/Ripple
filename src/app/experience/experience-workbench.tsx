@@ -172,9 +172,12 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
 
   const togglePicker = () => {
     setPickerError('')
-    // ref 同步改写：同一事件循环内后续的迟到响应立即失效，不等 state 刷新
-    pickerSessionRef.current = pickerSessionRef.current ? '' : createSelectionNonce()
-    setPickerNonce(pickerSessionRef.current)
+    // 以 state 判定当前是否在点选会话中：候选创建成功等路径只清了 state，
+    // 若读 ref 会把下一次点击误判为"退出"，导致点选永远进不去（6c 回归根因）。
+    // ref 仍须在同一事件循环内同步改写：迟到响应立即失效，不等 state 刷新。
+    const next = pickerNonce ? '' : createSelectionNonce()
+    pickerSessionRef.current = next
+    setPickerNonce(next)
   }
 
   /** 合法信封到达（D 桥已校验会话）：走 source-selection 服务端授权路径。 */
@@ -206,7 +209,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
     const rawIntent = selected && draft ? `把「${selected.currentText}」改为「${draft}」` : '真实文本修改'
     setCandidateError('')
     activeAdapter.createCandidate(modelRef.current, { rawIntent })
-      .then(next => { apply(next); setPickerNonce('') })
+      .then(next => { apply(next); pickerSessionRef.current = ''; setPickerNonce('') })
       .catch(cause => {
         if (cause instanceof StaleResponseError) return
         setCandidateError(cause instanceof Error ? cause.message : '创建真实候选失败')
