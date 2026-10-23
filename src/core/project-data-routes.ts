@@ -166,6 +166,20 @@ export function inspectDataRouter(
       if (!moduleSymbol) return undefined
       const exported = checker.getExportsOfModule(moduleSymbol).filter(item => item.name === 'Component')
       if (exported.length !== 1) return undefined
+      // A type-only export (`export type { X as Component }`, or the inline
+      // `export { type X as Component }`) creates NO runtime module property,
+      // so route.lazy would find no Component at runtime. Require at least one
+      // value export declaration; otherwise this proof stays fail-closed even
+      // if the alias resolves to a component declaration in this file.
+      const exportDeclarations = exported[0].declarations ?? []
+      const isTypeOnlySpecifier = (declaration: ts.Declaration): boolean => {
+        if (!ts.isExportSpecifier(declaration)) return false
+        if (declaration.isTypeOnly) return true
+        const named = declaration.parent
+        return ts.isNamedExports(named) && ts.isExportDeclaration(named.parent) && named.parent.isTypeOnly
+      }
+      const hasValueExport = exportDeclarations.some(declaration => !isTypeOnlySpecifier(declaration))
+      if (!hasValueExport) return undefined
       const bound = exported[0].flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported[0]) : exported[0]
       const boundDeclarations = bound.declarations ?? []
       const matches = components.filter(c => c.file === targetFile && boundDeclarations.some(declaration => declaration === c.node))
