@@ -6,6 +6,7 @@ on:
       - feat/agent-e-visual-evidence-20261021
       - feat/integration-e-visual-evidence-20261022
       - feat/e-visual-verification-integration-20261023
+      - feat/e-visual-wiring-20261023
   workflow_dispatch:
 
 permissions:
