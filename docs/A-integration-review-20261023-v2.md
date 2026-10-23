@@ -751,3 +751,29 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 - **不批准 C+D 全分支直接合并**。等 P0 修复后，从当时最新 A HEAD 建独立 AC-P2a/b 集成预演，核查差异（按 §1.4 口径）与正式 CI。
 - E PR #30 阶段一预演 CI 已绿（v21），待合入授权；F 真实 TEXT 并行推进。
 - 不合并 main，不触发 Bolt。
+
+
+---
+
+# v23 E 阶段一正式并入 A（2026-10-23）
+
+## 0. 合并记录
+
+- **新 A HEAD：`71dc6c7a91b64eb5a66a2932b1f5409938f698a0`**（fa21af9 + merge b10ee9da，`--no-ff`，无 reset/force push）。
+- A 分支完整 CI [39897930197](https://github.com/Onesummer-D/Ripple/actions/runs/39897930197) **SUCCESS**。
+- PR #30：GitHub 检出合并（自动关闭），已评论记录 A merge SHA 71dc6c7 与阶段一验收摘要。
+- PR #29：已关闭不合并，评论注明由 #30 取代及防止双合的原因。
+
+## 1. 新基线分发（71dc6c7）
+
+| 线 | 任务 |
+|---|---|
+| E | 阶段一完成转冻结待命；阶段二等 C+D 正式合同（必须 instanceIdentityProven === true，不允许非空检查） |
+| F | 真实候选合同 P0 修复 + 浏览器 E2E（继续） |
+| D | 青野 f7e4998a MEDIA 全链准备（继续） |
+| C+D | route.lazy default P0 最小修复 → 修复后从最新 A HEAD 建 AC-P2a/b 集成预演 |
+| B | 冻结待命（AC-P2a/b 入 A 后显式 Scope 复验） |
+
+## 2. 纪律
+
+不合并 main，不触发 Bolt；E 阶段二与 C+D 合同并行协调，不随本次进入 A。
