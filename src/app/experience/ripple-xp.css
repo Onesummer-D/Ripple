@@ -182,12 +182,21 @@
 }
 .ripple-xp-body .ripple-xp-section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
 
-/* 左：页面导航——浅色安静导航；墨绿只用于当前项点缀 */
+/* 左：页面导航——图标菜单式浅色导航；墨绿只用于当前项短竖线与图标点缀 */
 .ripple-xp-page-rail {
   background: none; padding: 4px 0;
   align-self: start; position: sticky; top: 62px;
 }
-.ripple-xp-page-rail h3 { color: var(--xp-stone); padding: 0 10px; font-weight: 600; }
+.ripple-xp-page-rail h3 {
+  display: flex; align-items: center; justify-content: space-between;
+  color: var(--xp-stone); padding: 0 10px; font-weight: 600;
+}
+.ripple-xp-rail-count {
+  min-width: 20px; padding: 1px 7px; border-radius: 999px;
+  background: var(--xp-surface); border: 1px solid var(--xp-line);
+  font-size: 11px; font-weight: 500; color: var(--xp-stone);
+  text-align: center; line-height: 1.5;
+}
 .ripple-xp-nav-pending {
   margin: 12px 10px 0; font-size: 12px; color: var(--xp-stone);
   border-left: 2px solid var(--xp-line); padding: 4px 0 4px 10px;
@@ -196,18 +205,42 @@
 .ripple-xp-page-item:disabled { cursor: not-allowed; opacity: 0.6; }
 .ripple-xp-page-item {
   width: 100%; text-align: left; border: none; border-radius: var(--xp-radius);
-  background: none; padding: 8px 10px; display: grid; gap: 4px;
+  background: none; padding: 8px 10px;
+  display: flex; align-items: flex-start; gap: 9px;
   transition: background 0.15s ease;
 }
 .ripple-xp-page-item:hover:not(:disabled) { background: var(--xp-surface); }
-.ripple-xp-page-item.is-current { background: var(--xp-brand-tint); }
+.ripple-xp-page-item.is-current {
+  background: var(--xp-brand-tint);
+  box-shadow: inset 3px 0 0 var(--xp-brand);
+}
 .ripple-xp-page-item:focus-visible { outline: 2px solid var(--xp-brand); outline-offset: 1px; }
+.ripple-xp-page-icon { flex: none; margin-top: 2px; color: var(--xp-stone); }
+.ripple-xp-page-item.is-current .ripple-xp-page-icon { color: var(--xp-brand); }
+.ripple-xp-page-main { display: grid; gap: 3px; min-width: 0; }
 .ripple-xp-page-label { font-weight: 500; font-size: 15px; color: var(--xp-ink-soft); }
 .ripple-xp-page-item.is-current .ripple-xp-page-label { color: var(--xp-brand); font-weight: 600; }
 .ripple-xp-page-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ripple-xp-relation { font-size: 12px; color: var(--xp-stone); }
 .ripple-xp-relation-editing { color: var(--xp-brand); font-weight: 600; }
 .ripple-xp-relation-unproven { color: var(--xp-amber); }
+
+/* 导航内的网站概览：细分隔线 + 与全局状态语言一致的统计行 */
+.ripple-xp-rail-overview { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--xp-line-soft); }
+.ripple-xp-rail-overview h4 {
+  margin: 0; padding: 0 10px; font-size: 12px; font-weight: 600;
+  color: var(--xp-stone); letter-spacing: 0.02em;
+}
+.ripple-xp-rail-overview ul { margin-top: 8px; }
+.ripple-xp-rail-overview-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px; font-size: 13px; color: var(--xp-ink-soft);
+}
+.ripple-xp-rail-overview-label { flex: 1; min-width: 0; }
+.ripple-xp-rail-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--xp-stone); }
+.ripple-xp-rail-dot-source-proven { background: var(--xp-brand); }
+.ripple-xp-rail-dot-partial { background: var(--xp-amber); }
+.ripple-xp-rail-dot-unknown { background: var(--xp-stone); }
 
 /* 确定性 / 证据 / 生命周期：默认「小圆点 + 文字」的轻量标记；
  * 只有待复核（琥珀）与失败/风险（红）使用淡色背景强调。 */
