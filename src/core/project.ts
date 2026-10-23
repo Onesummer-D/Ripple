@@ -289,8 +289,9 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     const targetDeclaredType = checker.getDeclaredTypeOfSymbol(targetSymbol)
     const isTypeAssignableTo = (checker as unknown as { isTypeAssignableTo?: (source: ts.Type, target: ts.Type) => boolean }).isTypeAssignableTo
     const isAssignableSafe = (type: ts.Type): boolean => {
-      if (!isTypeAssignableTo) return false
-      try { return isTypeAssignableTo(type, targetDeclaredType) } catch { return false }
+      // 类型关系判断不可用时不得静默排除潜在真实消费者：按过度保留方向覆盖（安全方向）。
+      if (!isTypeAssignableTo) return true
+      try { return isTypeAssignableTo(type, targetDeclaredType) } catch { return true }
     }
     const relatedToTarget = (type: ts.Type | undefined, seen: Set<ts.Type> = new Set()): boolean => {
       if (!type || seen.has(type)) return false

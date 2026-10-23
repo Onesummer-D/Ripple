@@ -598,7 +598,7 @@ export function AutumnPage() {
     expect(() => createCandidate({
       projectRoot: root, candidateRoot: path.join(container, 'n11-rejected'), artifactRoot: path.join(container, 'n11-artifacts'),
       graph, scope: rejectedScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
-    })).toThrow(CandidateError)
+    })).toThrow(/无法证明目标的完整页面影响/)
   }, 60_000)
 
   it('does not execute a structured action through the literal candidate replacement path', () => {
