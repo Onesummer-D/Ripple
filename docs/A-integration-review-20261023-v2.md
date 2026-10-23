@@ -991,3 +991,18 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 
 - P0 修复**允许 B 恢复 codescandy 真实候选验收**（B 仍需先修其工具侧 SHA 校验问题，见协调人 20:08 意见）。
 - 根边界解析与候选门**建议合入 A**（走正式集成审查流程，不自行合并）。
+
+## v31（2026-10-23 23:5x）｜最终集成预演：四线合入 dc32c5f，双 CI 绿，fixture 全链路于集成 SHA 复验通过
+
+- 集成分支 `feat/a-final-integration-20261023` @ `dc32c5f5d0f9da9399296e8d63be27839d21b9f3`，基线 A `45a2d7c`，**未合并 main、未触发 Bolt**。
+- 合入顺序与来源（四分支均以 `45a2d7c` 为 base，ahead-only，**零冲突、无重复引入**）：
+  1. `ce7bc60` ← codescandy 兼容修复 `6f22551`
+  2. `d31af6f` ← passed fixture `7a3ec43`
+  3. `96278d5` ← D 媒体最小集成 `c5df07f`
+  4. `dc32c5f` ← F 真实工作台第二三批 `3f65cb1`
+- 集成 Ripple CI [#39979826313 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/39979826313)（首次运行被并发组取消，重跑后全绿）：typecheck ✓、build ✓、**866/866 Vitest**、**69 Playwright**、Docker 视觉核验 ✓。（866 = 45a2d7c 基线 765 + codescandy +2 + D 媒体 +F e2e 增量；计数取自 CI 原始日志。）
+- 统一工作台全链路：fixture E2E 工作流 [#39980104684 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/39980104684) 在**集成 SHA dc32c5f** 上运行（经 `feat/a-passed-fixture-integration-check` 分支触发，仅作 CI 入口，代码与 dc32c5f 完全一致）。两轮独立候选均 7/7 passed（target-change / non-target-preserved / scope-propagation / interaction / responsive-layout / source-mapping / browser-errors），recordUrl+GET 200、apply/rollback 整文件逐字节校验、同一 candidateId 连续证据链、两轮 patchHash 一致。证据工件 `passed-fixture-evidence-39980104684`。
+- 本地 Windows 核验：typecheck/build ✓；Vitest core 668✓ + app 126✓；2 项失败均为预存环境性失败（junction configPath 拼写、symlink 摄入拒绝），干净基线同样失败，Linux CI 全过。
+- 门控核查：Scope 缺页 409 负例、Candidate 字节一致性、Verification 七断言、Approval passed 前置、Runtime Identity fail-closed 全部未放宽；无任何伪造成功状态。
+- DEMO 站点（81.70.40.146:8082）交互缺口已登记为 F 的交付项：最终部署应以本集成分支构建的真实工作台替换 DEMO 占位页，或 F 补全 DEMO 点击链路，二选一后复验。
+- 待负责人决策：dc32c5f 可否作为最终作品构建基线并冻结；通过后按流程并入 `feat/project-first-core-20261018`（不合并 main）。
