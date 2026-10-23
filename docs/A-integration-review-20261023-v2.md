@@ -472,3 +472,34 @@ D N4–N10 负例（P1-a 空数组无 unresolved / P1-b 文本类型名查找）
 2. E 只读视觉证据接线（新基线重 merge E 0dd2e91）。
 3. D N11 → A 审查 → MEDIA 公共核心合并决定。
 4. B P0 修复 + AC-P3 最小修复；C+D AC-P2a/b；均独立推进，互不为前置。
+
+
+---
+
+# v12 AC-P3 修订 + E 新基线预演 + D N11 审查（2026-10-23）
+
+## 0. A 文档 HEAD
+
+- `d08a8f0`：AC-P3 设计修订——盘符不同**不直接等于不相交**；规则改为经规范化 + realpath 物理归属检查、**能证明相互不包含才允许**，无法确认的 subst/UNC/符号链接别名关系一律 fail-closed；正常跨盘不相关目录必须可创建。正反例表同步更新。
+
+## 1. E 新基线接线预演
+
+- 分支 `feat/a-e-visual-wiring-20261023` 更新至 `2acf7ea` = merge(E 0dd2e91, A d08a8f0 含 F #25 + AC-P3)。
+- 合并冲突一处（package.json scripts）已解：两侧脚本并存。
+- **只读合同代码核验**：`visualEvidence(s)` 仅出现在 `model.ts`（类型）、`visual-verification-attach.ts` 及其测试；`verification-runner.ts` / `apply.ts` / `session.ts` 零引用——视觉证据当前不进入 Approval/Receipt/Apply 链路。第一阶段接线实现时必须保持该隔离。
+- 本地门：typecheck ✓ / build ✓ / Vitest 77/77 ✓；CI 运行中（推送触发）。
+- PR #29 保持非 Draft 状态、暂缓直接合并（待负责人 Convert to draft）。
+
+## 2. D N11 审查（3bda2b7 + CI retrigger d7b358f，CI #39874712688 SUCCESS）
+
+- N11 修复方向认可：工厂函数推断返回类型结构兼容目标类型（含联合成员/typeArguments 递归，经 `isTypeAssignableTo` 判定）时同样覆盖函数体——与"宁可过度保留"的安全方向一致；负例 + 证据脚本（scripts/evidence-n11.ts）+ 55 行测试在提交内。
+- **残留审查点（要求 D 最小加固后再进合并预演）**：`isAssignableSafe` 在内部 API 不可用时返回 false，此时未标注工厂体回退为仅 `typeMatches`——若该环境下推断类型不文本匹配，函数体仍会被静默排除，恰为 N11 要堵的失效模式。要求：API 不可用时**覆盖函数体**（过度保留方向），或显式记录 unresolved；不接受静默排除。
+- 另维持 v11 口径：N11 场景需补完整候选链路验证（不止图计算级）。
+
+## 3. F 第二阶段
+
+- 已由协调人直接通知 F 同步 `fdf4a07` 后开发；A 不建重复分支，职责为接口协调与后续集成验收。第一批：真实 DOM 点选 / source-selection / Scope / Candidate。
+
+## 4. 下一次主线交付重点
+
+F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验收）、D 残留点修复后的公共核心合并预演、AC-P3 实现排期。
