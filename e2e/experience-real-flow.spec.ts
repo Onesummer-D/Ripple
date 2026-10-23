@@ -87,9 +87,31 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   const previewFrame = page.frames().find(candidate => candidate !== page.mainFrame())!
   const sourceRef = await previewFrame.locator('h1').getAttribute('data-ripple-source')
   expect(sourceRef, '预演必须把 h1 标注到 JSX 源码').toMatch(/^jsx:src\/pages\/HomePage\.jsx#\d+$/)
+  // 送达探针：记录预演文档收到的全部 postMessage（区分 F 侧未发出 / 桥未激活）
+  await previewFrame.evaluate(() => {
+    const w = window as unknown as { __rippleProbe: unknown[] }
+    w.__rippleProbe = []
+    window.addEventListener('message', event => {
+      const data = event.data as { type?: string; enabled?: boolean } | null
+      w.__rippleProbe.push({ type: data?.type ?? null, enabled: data?.enabled ?? null, fromParent: event.source === window.parent })
+    })
+  })
+  const readProbe = () => previewFrame.evaluate(() => JSON.stringify((window as unknown as { __rippleProbe: unknown[] }).__rippleProbe))
+  // 退出再重进：验证 enabled:false 送达（不残留旧点选模式）+ nonce 轮换
+  await page.getByTestId('picker-toggle').click() // 关闭（第 80 行已开启）
+  await expect(page.getByTestId('picker-hint')).toHaveCount(0)
+  await page.getByTestId('picker-toggle').click() // 重新进入
+  await expect(page.getByTestId('picker-hint')).toBeVisible()
+  await expect
+    .poll(readProbe, { timeout: 10_000, message: '预演 iframe 未收到 ripple:selection-mode（F 侧 postMessage 未送达）' })
+    .toContain('"type":"ripple:selection-mode"')
   await expect
     .poll(() => previewFrame.evaluate(() => document.documentElement.style.cursor), { timeout: 10_000 })
     .toBe('crosshair')
+  const cursorAfterHandshake = await previewFrame.evaluate(() => document.documentElement.style.cursor)
+  if (cursorAfterHandshake !== 'crosshair') {
+    throw new Error(`D 桥未进入点选模式。探针=${await readProbe()} cursor=${cursorAfterHandshake}`)
+  }
 
   // 3. 真实 sourceRef：D 桥信封 → 服务端 /project/source-selection 授权
   // 先等任意状态的响应（4xx 也会被捕获并带正文报错，避免整体超时无诊断）
