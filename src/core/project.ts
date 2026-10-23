@@ -244,6 +244,124 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     addEdge(component.id, `file:${component.file}`, 'imports', `source:${component.id}`)
   }
 
+  // 接收方类型定向收窄（符号身份 + 类型流闭包）：
+  // product.image 这类成员访问解析不到字面量声明时，旧逻辑按属性名链接到全项目同名媒体
+  // （会把 categories[].image 误挂到 ProductCard）；209cf4f 起改为按接收方声明类型收窄，
+  // 但纯文本区间匹配会把别名/展开/返回值等真实数据流误排除，导致消费者边静默丢失——
+  // PageImpact 漏掉真实页面且误成 source-proven，候选在缺页 Scope 下被误放行。
+  // 现规则：仅当候选媒体字面量位于「类型 T 的构造闭包」内才保留——
+  // ① T 由 checker 符号身份解析（interface/type alias；同名异模块类型不混淆）；
+  // ② 闭包覆盖 T 标注/推断绑定初始化、T 返回函数体、T 形参/JSX 属性实参，
+  //    并沿别名变量、展开元素、属性访问声明递归追踪；
+  // ③ 闭包外的候选视为可证明排除；类型不可解析时返回 undefined 走原名级候选（fail-closed）。
+  // 已知残余风险（如实记录）：显式不安全断言（as unknown as T）、any 边界改写、
+  // 计算属性动态键——这些路径类型系统本身不保证，收窄不宣称覆盖。
+  const typeFlowRangesBySymbol = new Map<ts.Symbol, Array<{ path: string; start: number; end: number }> | undefined>()
+  const narrowMediaByReceiverType = (node: ts.PropertyAccessExpression, pool: SourceNode[]): SourceNode[] | undefined => {
+    if (pool.length <= 1) return pool
+    const symbol = checker.getTypeAtLocation(node.expression).getSymbol()
+    const declaration = symbol?.declarations?.[0]
+    if (!symbol || !declaration || (!ts.isInterfaceDeclaration(declaration) && !ts.isTypeAliasDeclaration(declaration))) return undefined
+    if (!typeFlowRangesBySymbol.has(symbol)) typeFlowRangesBySymbol.set(symbol, collectTypeFlowRanges(symbol))
+    const ranges = typeFlowRangesBySymbol.get(symbol)
+    if (!ranges) return undefined
+    return pool.filter(media => {
+      const location = media.location
+      return location !== undefined && ranges.some(range => range.path === location.path && location.start !== undefined && location.end !== undefined && location.start >= range.start && location.end <= range.end)
+    })
+  }
+  const collectTypeFlowRanges = (targetSymbol: ts.Symbol): Array<{ path: string; start: number; end: number }> | undefined => {
+    const declaration = targetSymbol.declarations?.[0]
+    if (!declaration || (!ts.isInterfaceDeclaration(declaration) && !ts.isTypeAliasDeclaration(declaration))) return undefined
+    const typeMatches = (type: ts.Type | undefined, seen: Set<ts.Type> = new Set()): boolean => {
+      if (!type || seen.has(type)) return false
+      seen.add(type)
+      if (type.symbol === targetSymbol || type.aliasSymbol === targetSymbol) return true
+      const unionLike = type as ts.UnionOrIntersectionType
+      if (Array.isArray(unionLike.types) && unionLike.types.length) return unionLike.types.some(entry => typeMatches(entry, seen))
+      const reference = type as ts.TypeReference
+      if (Array.isArray(reference.typeArguments)) return reference.typeArguments.some(entry => typeMatches(entry, seen))
+      return false
+    }
+    // N11：无显式返回标注的工厂函数。推断返回类型结构兼容 T（含数组元素/联合成员，
+    // 经 checker 赋值关系判定）时同样覆盖函数体——返回体内的媒体是真实消费，
+    // 静默排除会让下游把缺失关系当作不存在、来源证明误升级。宁可过度保留（安全方向）。
+    const targetDeclaredType = checker.getDeclaredTypeOfSymbol(targetSymbol)
+    const isTypeAssignableTo = (checker as unknown as { isTypeAssignableTo?: (source: ts.Type, target: ts.Type) => boolean }).isTypeAssignableTo
+    const isAssignableSafe = (type: ts.Type): boolean => {
+      // 类型关系判断不可用时不得静默排除潜在真实消费者：按过度保留方向覆盖（安全方向）。
+      if (!isTypeAssignableTo) return true
+      try { return isTypeAssignableTo(type, targetDeclaredType) } catch { return true }
+    }
+    const relatedToTarget = (type: ts.Type | undefined, seen: Set<ts.Type> = new Set()): boolean => {
+      if (!type || seen.has(type)) return false
+      seen.add(type)
+      if (typeMatches(type) || isAssignableSafe(type)) return true
+      const unionLike = type as ts.UnionOrIntersectionType
+      if (Array.isArray(unionLike.types) && unionLike.types.length) return unionLike.types.some(entry => relatedToTarget(entry, seen))
+      const reference = type as ts.TypeReference
+      if (Array.isArray(reference.typeArguments) && reference.typeArguments.length) return reference.typeArguments.some(entry => relatedToTarget(entry, seen))
+      return false
+    }
+    const ranges: Array<{ path: string; start: number; end: number }> = []
+    const visited = new Set<ts.Node>()
+    const cover = (expression: ts.Node): void => {
+      if (visited.has(expression)) return
+      visited.add(expression)
+      const sourceFile = expression.getSourceFile()
+      ranges.push({ path: relativeTo(snapshot.root, normalize(sourceFile.fileName)), start: expression.getStart(sourceFile), end: expression.getEnd() })
+      // 数据流追踪：别名变量 / 展开元素 / 属性访问声明 → 递归覆盖其初始化表达式
+      const trace = (current: ts.Node): void => {
+        if (ts.isSpreadElement(current) || ts.isSpreadAssignment(current)) { cover(current.expression); return }
+        if (ts.isShorthandPropertyAssignment(current)) { trace(current.name); return }
+        if (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current)) {
+          const accessSymbol = checker.getSymbolAtLocation(ts.isPropertyAccessExpression(current) ? current.name : current.argumentExpression)
+          const accessDeclaration = accessSymbol?.valueDeclaration ?? accessSymbol?.declarations?.[0]
+          if (accessDeclaration && (ts.isPropertyAssignment(accessDeclaration) || ts.isVariableDeclaration(accessDeclaration)) && accessDeclaration.initializer) cover(accessDeclaration.initializer)
+          return
+        }
+        if (ts.isIdentifier(current)) {
+          const identifierSymbol = checker.getSymbolAtLocation(current)
+          let identifierDeclaration = identifierSymbol?.valueDeclaration ?? identifierSymbol?.declarations?.[0]
+          if (identifierDeclaration && (ts.isImportSpecifier(identifierDeclaration) || ts.isImportClause(identifierDeclaration) || ts.isNamespaceImport(identifierDeclaration)) && identifierSymbol) {
+            const aliased = checker.getAliasedSymbol(identifierSymbol)
+            if (aliased && !(aliased as { unresolved?: boolean }).unresolved) identifierDeclaration = aliased.valueDeclaration ?? aliased.declarations?.[0]
+          }
+          if (identifierDeclaration && ts.isVariableDeclaration(identifierDeclaration) && identifierDeclaration.initializer) cover(identifierDeclaration.initializer)
+          else if (identifierDeclaration && ts.isBindingElement(identifierDeclaration)) {
+            const bindingSource = identifierDeclaration.parent?.parent
+            if (bindingSource && ts.isVariableDeclaration(bindingSource) && bindingSource.initializer) cover(bindingSource.initializer)
+          }
+          return
+        }
+        ts.forEachChild(current, trace)
+      }
+      trace(expression)
+    }
+    for (const [, source] of sourceFiles) {
+      const visit = (current: ts.Node): void => {
+        if (ts.isVariableDeclaration(current) && current.initializer) {
+          const matches = current.type ? typeMatches(checker.getTypeFromTypeNode(current.type)) : typeMatches(checker.getTypeAtLocation(current.initializer))
+          if (matches) cover(current.initializer)
+        } else if (ts.isFunctionLike(current)) {
+          const body = (current as ts.FunctionLikeDeclaration).body
+          const signature = body ? checker.getSignatureFromDeclaration(current as ts.SignatureDeclaration) : undefined
+          if (body && signature && relatedToTarget(signature.getReturnType())) cover(body)
+        } else if (ts.isCallExpression(current)) {
+          for (const argument of current.arguments) {
+            const contextual = checker.getContextualType(argument) ?? checker.getTypeAtLocation(argument)
+            if (typeMatches(contextual)) cover(argument)
+          }
+        } else if (ts.isJsxAttribute(current)) {
+          const expression = current.initializer && ts.isJsxExpression(current.initializer) ? current.initializer.expression : undefined
+          if (expression && typeMatches(checker.getContextualType(expression) ?? checker.getTypeAtLocation(expression))) cover(expression)
+        }
+        ts.forEachChild(current, visit)
+      }
+      visit(source)
+    }
+    return ranges
+  }
   const tokenNodes = new Map<string, SourceNode[]>()
   const mediaNodes = new Map<string, SourceNode[]>()
   const mediaBySource = new Map<string, SourceNode>()
@@ -399,7 +517,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
           }
         }
         if (!linked) {
-          for (const media of mediaNodes.get(node.name.text) ?? []) {
+          const pool = mediaNodes.get(node.name.text) ?? []
+          for (const media of narrowMediaByReceiverType(node, pool) ?? pool) {
             addEdge(ownerComponent.id, media.id, 'asset-consumer', `asset-candidate:${ownerComponent.id}:${media.id}:${node.getStart(source)}`, 'semantic-candidate')
           }
         }
