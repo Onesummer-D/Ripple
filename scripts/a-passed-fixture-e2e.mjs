@@ -175,7 +175,7 @@ if (serverUp) {
     if (verification.recordUrl) {
       const record = await getJson(verification.recordUrl)
       fs.writeFileSync(path.join(outDir, `cycle-${cycle}-record.json`), JSON.stringify(record.data, null, 2))
-      const assertions = record.data?.manifest?.assertions ?? []
+      const assertions = record.data?.assertions ?? []
       for (const id of REQUIRED_ASSERTIONS) {
         const found = assertions.find(item => item.id === id)
         check(`cycle-${cycle} 断言 ${id} pass`, found?.result === 'pass', found ? `${found.result}: ${found.detail}` : '缺失')
