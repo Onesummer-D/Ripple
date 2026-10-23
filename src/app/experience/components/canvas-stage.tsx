@@ -63,7 +63,9 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const realFrameRef = useRef<HTMLIFrameElement>(null)
+  const demoContentRef = useRef<HTMLDivElement>(null)
   const [hostWidth, setHostWidth] = useState(0)
+  const [demoContentHeight, setDemoContentHeight] = useState(0)
   const [hoveredId, setHoveredId] = useState<string>()
   const [demoCanvasState, setDemoCanvasState] = useState<ExperienceViewModel['canvasState']>('ready')
   const viewport = model.viewports.find(item => item.id === model.activeViewportId) ?? model.viewports[0]
@@ -72,6 +74,11 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   const currentPage = model.pages.find(page => page.id === model.currentPageRef)
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const isReal = model.dataProvenance !== 'demo'
+  // 演示模式：外壳高度跟随网页实际内容（上限为当前模拟视口高度）；
+  // 真实模式：iframe 是真实浏览器视口，始终按声明视口高度渲染。
+  const shellHeight = !isReal && demoContentHeight > 0
+    ? Math.max(120, Math.round(Math.min(viewport.height, demoContentHeight) * scale))
+    : Math.round(viewport.height * scale)
 
   /**
    * 点选模式同步：把【当前有效状态】发给预演 iframe——进入携带 nonce、退出发
@@ -122,6 +129,19 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+
+  // 演示画布内容实测高度：预览外壳按网页实际可视高度收放（contentHeight × scale），
+  // 不再撑满整个模拟视口——消除网页内容下方的无意义空白。
+  // 真实模式 iframe 是真实浏览器视口，仍按声明的视口高度渲染。
+  useEffect(() => {
+    const element = demoContentRef.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => {
+      setDemoContentHeight(entries[0]?.contentRect.height ?? 0)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [model.dataProvenance, canvasState, currentPage?.id])
 
   const renderElement = (element: CanvasElementXp, children: ReactNode) => {
     const isSelected = element.id === model.selectedElementId
@@ -190,6 +210,16 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   )
 
   return <section className="ripple-xp-stage reveal" aria-label="网页画布" data-testid="canvas-stage">
+    {currentPage && (
+      // 页面标题层级：面包屑 + 一级标题（18–22px），让中间列先有「在改什么」再是工具
+      <div className="ripple-xp-page-head">
+        <span className="ripple-xp-page-crumb">页面列表 / {currentPage.label}</span>
+        <h2 className="ripple-xp-page-title">
+          {currentPage.label}
+          <CertaintyPill certainty={currentPage.relationCertainty} />
+        </h2>
+      </div>
+    )}
     <div className="ripple-xp-stage-toolbar">
       <div className="ripple-xp-stage-toolbar-group">
         <div className="ripple-xp-viewport-switch" role="group" aria-label="视口选择">
@@ -295,9 +325,9 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
       className="ripple-xp-viewport-shell"
       ref={hostRef}
       data-testid="viewport-shell"
-      // surface 使用 transform: scale()，不参与布局：外壳必须显式给出缩放后的高度，
-      // 否则画布渲染出来高度塌陷（空白根因修复）
-      style={{ height: Math.round(viewport.height * scale) }}
+      // surface 使用 transform: scale()，不参与布局：外壳必须显式给出缩放后的高度。
+      // 演示模式用实测内容高度（上限视口高），真实模式用声明视口高度。
+      style={{ height: shellHeight }}
     >
       <div
         className="ripple-xp-viewport-surface"
@@ -334,18 +364,23 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
               {model.blockedReasons?.length === 0 && model.projectStatus === 'failed' && <button type="button" className="ripple-xp-quiet" onClick={() => window.location.reload()}>重试</button>}
             </div>
           )
-        ) : canvasState === 'ready' ? (
-          currentPage?.id === 'page:home' ? demoPage : (
-            <div className="ripple-xp-demo-page is-placeholder" data-testid="demo-canvas-placeholder">
-              <h2>{currentPage?.label}</h2>
-              <p>演示数据：该页面的画布内容未包含在本轮演示中。</p>
-              <p>页面关系：{currentPage?.relation === 'same-source' ? '与当前修改同源，修改会随范围决策生效。' : '影响范围未证明。'}</p>
-            </div>
-          )
         ) : (
-          <div className={`ripple-xp-canvas-state ripple-xp-canvas-${canvasState}`} role="status" data-testid="canvas-state-banner">
-            {CANVAS_STATE_LABEL[canvasState]}
-            {canvasState === 'failed' && <button type="button" className="ripple-xp-quiet" data-testid="canvas-retry" onClick={() => setDemoCanvasState('ready')}>重试</button>}
+          // 演示模式：实测内容高度（含状态横幅），外壳随网页真实可视高度收放
+          <div ref={demoContentRef} className="ripple-xp-demo-measure">
+            {canvasState === 'ready' ? (
+              currentPage?.id === 'page:home' ? demoPage : (
+                <div className="ripple-xp-demo-page is-placeholder" data-testid="demo-canvas-placeholder">
+                  <h2>{currentPage?.label}</h2>
+                  <p>演示数据：该页面的画布内容未包含在本轮演示中。</p>
+                  <p>页面关系：{currentPage?.relation === 'same-source' ? '与当前修改同源，修改会随范围决策生效。' : '影响范围未证明。'}</p>
+                </div>
+              )
+            ) : (
+              <div className={`ripple-xp-canvas-state ripple-xp-canvas-${canvasState}`} role="status" data-testid="canvas-state-banner">
+                {CANVAS_STATE_LABEL[canvasState]}
+                {canvasState === 'failed' && <button type="button" className="ripple-xp-quiet" data-testid="canvas-retry" onClick={() => setDemoCanvasState('ready')}>重试</button>}
+              </div>
+            )}
           </div>
         )}
       </div>
