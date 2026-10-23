@@ -590,3 +590,14 @@ F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验�
 
 - F 交付真实候选成功证据（真实 DOM 点选 → 合同合规 Scope → Candidate 成功）后，A 审查并决定进入第二批四视口 Verification 联合集成。
 - E 接线在新基线上重新 merge E（0dd2e91）产新协调分支（替代 2acf7ea），完成 VerificationRunner 只读挂载后做联合回归。
+
+
+---
+
+# v17 E / C+D 并行开发线恢复（2026-10-23）
+
+## 状态：已恢复开发（等待实际提交，不提前登记完成）
+
+- **E**：E Agent 已接收视觉证据真实挂载 + C+D 身份版本接线任务；起点 = 现有 `2acf7ea` 协调成果 + 最新 A HEAD `dc8269f`；不重复开发已有视觉挂载器。A 负责接口协调、审查、联合回归与正式合并。
+- **C+D**：C+D Agent 已接收 AC-P2a（composite JSX 子代消费证明）与 AC-P2b（data-router 条件消费者修复）；从最新 A HEAD `dc8269f` 建独立分支。A 负责审查与合并。
+- 其他线不变：F 修复真实候选 Scope 合同（P0）并推进 TEXT UI；D 准备青野 `f7e4998a` 正式 MEDIA 全链验收；B 冻结待命（等 AC-P2a/b 后 codescandy 复验）。
