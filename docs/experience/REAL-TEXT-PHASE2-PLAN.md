@@ -98,6 +98,27 @@ F 必须：
 - 明确边界：四视口 Verification、Approval、Apply、Rollback 未接入，界面如实显示
   「真实审批尚未接入（验证/审批批次接入）」；审批/应用/回滚绝不在前端模拟。
 
+### 4.2 第一批独立审查修复记录（2026-10-23 第二轮）
+
+- **P0 ScopeDecision 合同**：`createCandidate` 不再携带 `localPageRef`（A 核心
+  assertScope 拒绝 shared+localPageRef）；`includedRefs` 显式加入当前编辑目标 +
+  用户本轮明确包含的页面（去重）；服务端拒绝时本地预演会话如实失效——A 的
+  POST /candidate 在创建候选【前】停止项目预演，被拒后绝不保留看似可用的旧会话。
+- **P1 点选竞态**：`handlePicked` 改用同步 ref（pickerSessionRef）作代际令牌，
+  退出/重进在同一事件循环内使旧 nonce 响应失效；闭包快照比较（恒假）已移除。
+- **P1 iframe 模式同步**：退出点选向 iframe 发送 `enabled:false`（按有效状态键
+  去重，不刷屏）；iframe 重新加载后经 `onReady` 重新同步当前模式与 nonce。
+- **真实浏览器 E2E**：新增 `e2e/experience-real-flow.spec.ts`——主链路
+  （analyze → iframe 实际点选 → source-selection 真实 sourceRef → 草稿 + 显式
+  Scope → /candidate 真实 CandidateRecord → /candidate/preview 真实预演 →
+  历史/补丁/源文件未改动/会话清理核对）在 CI（ubuntu + Docker）全链路执行；
+  本机无 Docker 时如实跳过。负例 4 项走真实 A 后端：过期会话 source-selection
+  409、Scope 引用不存在对象、缺页 Scope 冲突、P0 双合同回归（shared+localPageRef、
+  includedRefs 缺 targetRef）。
+- 测试：体验层 78/78 单测绿；e2e 23 通过 + 1 Docker 门控跳过（CI 全执行）；
+  shared+localPageRef 负例由 A 核心真实拒绝（'不能携带局部页面引用'），
+  includedRefs 缺 targetRef 由 stageOperations invariant 真实拒绝（'unscoped target'）。
+
 ## 5. 验收标准
 
 - 用户从 F 统一界面完成 §0 全链路，无需离开工作台；

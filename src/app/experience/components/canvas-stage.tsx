@@ -13,7 +13,7 @@ const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
  * sandbox/referrerPolicy 与 A 的工作台预演面板一致；加载状态明确标记，
  * 加载失败不回退任何模拟内容。预览会话的清理由适配器 dispose 负责。
  */
-function RealPreviewFrame({ preview, width, height, frameRef }: { preview: RealPreviewXp; width: number; height: number; frameRef?: React.RefObject<HTMLIFrameElement | null> }) {
+function RealPreviewFrame({ preview, width, height, frameRef, onReady }: { preview: RealPreviewXp; width: number; height: number; frameRef?: React.RefObject<HTMLIFrameElement | null>; onReady?: () => void }) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
   useEffect(() => { setLoaded(false); setFailed(false) }, [preview.url])
@@ -35,7 +35,8 @@ function RealPreviewFrame({ preview, width, height, frameRef }: { preview: RealP
       height={height}
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
-      onLoad={() => setLoaded(true)}
+      // iframe 每次重新加载后桥脚本重新注入：必须把当前有效的点选模式与 nonce 重新同步
+      onLoad={() => { setLoaded(true); onReady?.() }}
       onError={() => setFailed(true)}
       style={{ display: 'block', opacity: loaded ? 1 : 0, border: 0, background: '#fff' }}
     />
@@ -72,13 +73,31 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const isReal = model.dataProvenance !== 'demo'
 
-  // 点选模式：向预演 iframe 同步开关状态（进入/退出/iframe 重新加载后）
-  useEffect(() => {
-    if (!isReal || !model.preview || !pickerActive) return
+  /**
+   * 点选模式同步：把【当前有效状态】发给预演 iframe——进入携带 nonce、退出发
+   * enabled=false（绝不残留 iframe 内的旧点选模式）、令牌轮换按新 nonce 生效。
+   * 只在有效状态变化时发送，避免每次模型重建都向 iframe 刷屏；
+   * iframe 重新加载后的同步由 RealPreviewFrame onReady 完成。
+   */
+  const syncPickerMode = () => {
+    if (!isReal || !model.preview) return
     const frame = realFrameRef.current
     if (!frame?.contentWindow) return
-    frame.contentWindow.postMessage(selectionModeMessage(pickerNonce ?? '', model.preview.previewId, !!pickerNonce), '*')
-  }, [isReal, model.preview, pickerActive, pickerNonce, canvasState])
+    frame.contentWindow.postMessage(
+      selectionModeMessage(pickerNonce ?? '', model.preview.previewId, !!pickerActive && !!pickerNonce),
+      '*',
+    )
+  }
+  const pickerSyncKeyRef = useRef('')
+  useEffect(() => {
+    const key = isReal && model.preview
+      ? `${model.preview.previewId}|${pickerActive && pickerNonce ? pickerNonce : ''}`
+      : ''
+    if (!key || pickerSyncKeyRef.current === key) return
+    pickerSyncKeyRef.current = key
+    syncPickerMode()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncPickerMode 读取的均为本 effect 已列出的值
+  }, [isReal, model.preview, pickerActive, pickerNonce])
 
   // 点选信封监听：来源窗口 + previewId + token 必须与当前会话一致（A 核心校验），
   // 过期/跨会话信封一律丢弃
@@ -301,6 +320,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
               width={viewport.width}
               height={viewport.height}
               frameRef={realFrameRef}
+              onReady={syncPickerMode}
             />
           ) : (
             <div className="ripple-xp-canvas-state ripple-xp-canvas-unavailable" role="status" data-testid="real-preview-pending">

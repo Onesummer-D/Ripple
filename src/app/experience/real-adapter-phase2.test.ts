@@ -196,10 +196,12 @@ describe('Scope 用户决策 → 真实候选创建', () => {
 
     const call = calls.find(item => item.path === 'candidate')
     expect(call?.body).toMatchObject({ projectId: 'proj-acme', rawIntent: '把首页标题改为旗舰店文案' })
-    const body = call?.body as { scope: { strategy: string; includedRefs: string[]; excludedRefs: string[]; decidedBy: string }; operations: Array<{ kind: string; targetRef: string; before: string; after: string }> }
+    const body = call?.body as { scope: { strategy: string; localPageRef?: string; includedRefs: string[]; excludedRefs: string[]; decidedBy: string }; operations: Array<{ kind: string; targetRef: string; before: string; after: string }> }
     expect(body.scope).toMatchObject({
-      strategy: 'shared', includedRefs: ['page:home'], excludedRefs: ['page:about'], decidedBy: 'local-user',
+      strategy: 'shared', includedRefs: ['data:hero-title', 'page:home'], excludedRefs: ['page:about'], decidedBy: 'local-user',
     })
+    // A 核心 assertScope：shared Scope 不得携带 localPageRef（否则服务端直接拒绝）
+    expect(body.scope.localPageRef).toBeUndefined()
     expect(body.operations).toHaveLength(1)
     expect(body.operations[0]).toMatchObject({ kind: 'TEXT', targetRef: 'data:hero-title', before: 'Acme 商店', after: 'Acme 旗舰店' })
 
@@ -208,6 +210,32 @@ describe('Scope 用户决策 → 真实候选创建', () => {
     expect(created.candidateStatus).toBe('candidate')
     expect(created.preview).toBeUndefined()
     expect(created.blockedReasons?.some(reason => reason.includes('项目预演已由服务端停止'))).toBe(true)
+  })
+
+  it('候选被服务端拒绝：预演会话如实失效（不留看似可用的旧会话），刷新后重建预演', async () => {
+    const { adapter, model, calls } = await loadAdapter({
+      analyze: ANALYSIS,
+      history: HISTORY_EMPTY,
+      'project/preview': PREVIEW,
+      // A 在创建候选前停止项目预演：拒绝时服务端预演已消失
+      candidate: { status: 409, body: { error: '共享来源 Scope 不能携带局部页面引用' } },
+      'project/preview/stop': PREVIEW_STOP,
+    })
+    const selected = adapter.selectElement(model, 'data:hero-title')
+    const drafted = adapter.setDraftText(selected, 'Acme 旗舰店')
+    const decided = adapter.setPageScope(drafted, 'page:about', 'exclude')
+    await expect(adapter.createCandidate!(decided, { rawIntent: '改标题' })).rejects.toThrow('局部页面引用')
+
+    // 旧预演会话不再可用：重建模型后无预演、点选能力关闭（绝不保留失效会话充数）
+    const observed = adapter.setDraftText(decided, 'Acme 旗舰店')
+    expect(observed.preview).toBeUndefined()
+    expect(observed.pickerAvailable).toBe(false)
+
+    // 刷新重建预演：重新 analyze + 启动新预演会话，恢复点选能力
+    const refreshed = await adapter.refresh!(observed)
+    expect(calls.filter(item => item.path === 'project/preview')).toHaveLength(2)
+    expect(refreshed.preview).toMatchObject({ previewId: 'preview-1' })
+    expect(refreshed.pickerAvailable).toBe(true)
   })
 })
 

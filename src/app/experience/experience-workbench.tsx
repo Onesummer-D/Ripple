@@ -33,6 +33,13 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const scopeRef = useRef<HTMLDivElement>(null)
   /** 画布点选令牌：空串 = 未激活；每次进入轮换一次性 nonce。 */
   const [pickerNonce, setPickerNonce] = useState('')
+  /**
+   * 当前点选会话的同步可读令牌（state 的镜像）。异步响应判定必须读这里：
+   * 闭包里的 pickerNonce 只是调用时刻的快照，退出再进入后旧快照比较是恒假，
+   * 无法识别"旧 nonce 的迟到响应"。ref 在退出/重进时同步改写，迟到响应
+   * 一律与当前会话比对，不符即丢弃。
+   */
+  const pickerSessionRef = useRef('')
   const [pickerError, setPickerError] = useState('')
   const [candidateError, setCandidateError] = useState('')
 
@@ -134,7 +141,10 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   useEffect(() => {
     if (!pickerNonce) return
     const current = modelRef.current
-    if (!current || current.dataProvenance === 'demo' || !current.preview) setPickerNonce('')
+    if (!current || current.dataProvenance === 'demo' || !current.preview) {
+      pickerSessionRef.current = ''
+      setPickerNonce('')
+    }
   }, [pickerNonce, model])
 
   if (error) return (
@@ -162,22 +172,29 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
 
   const togglePicker = () => {
     setPickerError('')
-    setPickerNonce(current => (current ? '' : createSelectionNonce()))
+    // ref 同步改写：同一事件循环内后续的迟到响应立即失效，不等 state 刷新
+    pickerSessionRef.current = pickerSessionRef.current ? '' : createSelectionNonce()
+    setPickerNonce(pickerSessionRef.current)
   }
 
   /** 合法信封到达（D 桥已校验会话）：走 source-selection 服务端授权路径。 */
   const handlePicked = (envelope: PickerEnvelope) => {
     if (!activeAdapter.applyPickedSource || !modelRef.current) return
-    const nonce = pickerNonce
+    // 捕获当前会话令牌；响应回来时与【同步 ref】比对——退出再进入后旧 nonce
+    // 的响应必然不匹配，不得覆盖新会话的选择；工程切换/预演刷新的过期响应
+    // 由 adapter 的 generation 守卫以 StaleResponseError 拒绝。
+    const session = pickerSessionRef.current
+    if (!session) return
     activeAdapter.applyPickedSource(modelRef.current, { sourceRef: envelope.sourceRef, envelope })
       .then(next => {
-        if (pickerNonce !== nonce) return
+        if (pickerSessionRef.current !== session) return
         setPickerError('')
         apply(next)
       })
       .catch(cause => {
         if (cause instanceof StaleResponseError) return
-        if (pickerNonce === nonce) setPickerError(cause instanceof Error ? cause.message : '点选落位失败')
+        if (pickerSessionRef.current !== session) return
+        setPickerError(cause instanceof Error ? cause.message : '点选落位失败')
       })
   }
 

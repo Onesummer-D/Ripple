@@ -776,12 +776,18 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         if (summary.undecided > 0) throw new Error(`还有 ${summary.undecided} 个受影响页面未决定范围`)
         if (summary.unprovenIncluded > 0) throw new Error('修改范围包含来源未完全证明的页面，不能创建候选')
         if (summary.included === 0) throw new Error('没有任何页面被包含进修改范围')
+        // A 核心 assertScope 合同（src/core/candidate.ts）：
+        // 1. strategy 'shared' 不得携带 localPageRef（否则"共享来源 Scope 不能携带局部页面引用"）；
+        // 2. includedRefs 必须包含 operation.targetRef（否则"Scope 不允许修改目标"）。
+        // includedRefs = 当前编辑目标 + 用户本轮明确包含的页面引用（去重，绝不自动升级未证明页面）。
         const scope: ScopeDecision = {
           id: `scope-${crypto.randomUUID()}`,
           version: 1,
           strategy: 'shared',
-          localPageRef: pagesNow.find(page => page.relation === 'editing')?.id,
-          includedRefs: pagesNow.filter(page => page.scope === 'include').map(page => page.id),
+          includedRefs: [...new Set([
+            selected.id,
+            ...pagesNow.filter(page => page.scope === 'include').map(page => page.id),
+          ])],
           excludedRefs: pagesNow.filter(page => page.scope === 'exclude').map(page => page.id),
           protectedRefs: pagesNow.filter(page => page.scope === 'protect').map(page => page.id),
           decidedBy: 'local-user',
@@ -794,17 +800,29 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           before: selected.currentText,
           after: ui.draftAfterText,
         }]
-        const response = await post<{
+        let response: {
           sessionId: string
           candidate: { id: string; patchHash?: string }
           verification: VerificationView
           workflow: { lifecycle: string }
-        }>('candidate', {
-          projectId: analysis.revision.projectId,
-          rawIntent: input.rawIntent,
-          operations,
-          scope,
-        })
+        }
+        try {
+          response = await post('candidate', {
+            projectId: analysis.revision.projectId,
+            rawIntent: input.rawIntent,
+            operations,
+            scope,
+          })
+        } catch (error) {
+          // A 的 POST /candidate 在创建候选【之前】停止项目预演（local-project-api.ts）：
+          // 候选被拒绝时服务端预演也已失效。本地绝不留存看似可用的旧会话状态，
+          // 一律失效化并给出如实原因，由刷新/重新打开工程重建预演。
+          const stoppedSession = previewSession
+          previewSession = undefined
+          if (stoppedSession) cleanupFailures.delete(stoppedSession.previewId)
+          previewFailedReason = previewFailedReason || '候选处理已停止项目预演会话，请刷新工程重新建立预演。'
+          throw error
+        }
         if (gen !== generation) throw new StaleResponseError()
         activeCandidate = { candidateId: response.candidate.id, patchHash: response.candidate.patchHash }
         // 服务端在候选创建时停止项目预演会话：本地状态如实跟进，不保留失效会话
