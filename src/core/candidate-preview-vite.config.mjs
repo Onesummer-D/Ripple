@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { isIP } from 'node:net'
-import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
+import { resolveProjectConfigGraph, toViteAliasRules, toViteExistenceFallbackPrefixes, probeExistenceFallback } from './project-config-resolver.mjs'
 import { sourceAnnotationPlugin } from './source-annotation.ts'
 import { previewCspForRequest } from './preview-csp.mjs'
 import { analyzeNodeModulesDeps } from './preview-optimize-deps-excludes.mjs'
@@ -146,7 +146,26 @@ function selectionBridge() {
 function typescriptAliases() {
   const graph = resolveProjectConfigGraph('/work', ts)
   if (graph.aliases.status === 'ambiguous') throw new Error(graph.aliases.reason)
-  return toViteAliasRules(graph)
+  return { alias: toViteAliasRules(graph), existenceFallbackPrefixes: toViteExistenceFallbackPrefixes(graph) }
+}
+
+// Bare '*' tsconfig paths ("*": ["./src/*"], e.g. codescandy) map bare
+// specifiers onto the project source ONLY when a real file exists there;
+// package imports keep flowing to node_modules. The lexical containment and
+// extension probing live in the shared resolver so the behavior is unit-tested
+// on the host and identical inside the container.
+function existenceFallback(prefixes) {
+  return {
+    name: 'ripple-existence-fallback-alias',
+    resolveId(source) {
+      if (!prefixes.length) return null
+      for (const prefix of prefixes) {
+        const resolved = probeExistenceFallback(prefix, source)
+        if (resolved) return resolved
+      }
+      return null
+    },
+  }
 }
 
 // Dependency-origin classification for the restricted discovery below. A
@@ -155,11 +174,13 @@ function typescriptAliases() {
 // previous noDiscovery behavior.
 const depDiscovery = analyzeNodeModulesDeps('/work')
 
+const typescriptAliasConfig = typescriptAliases()
+
 export default {
   configFile: false,
   root: '/work',
-  plugins: [requestCsp(), sourceAnnotationPlugin('/work'), react(), selectionBridge()],
-  resolve: { alias: typescriptAliases(), preserveSymlinks: true },
+  plugins: [requestCsp(), sourceAnnotationPlugin('/work'), react(), existenceFallback(typescriptAliasConfig.existenceFallbackPrefixes), selectionBridge()],
+  resolve: { alias: typescriptAliasConfig.alias, preserveSymlinks: true },
   cacheDir: '/tmp/ripple-vite-cache',
   // Restricted dependency discovery (approved experiment, coordinator
   // 2026-10-22): esbuild statically scans the entry and prebundles bare

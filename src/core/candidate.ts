@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import type { CandidatePatch, EditOperation, ScopeDecision, SourceGraph, SourceNode } from './model'
-import { analyzeProject, digestTrackedTree, readProjectSnapshot } from './project'
+import { analyzeProject, declaredHostProofsDiverged, digestTrackedTree, readProjectSnapshot } from './project'
 import { ensureRuntimeImports, findPageOverrideMarkers, newPageOverrideTargetId, readPageOverrideRegistry, removeRuntimeImports, writePageOverrideRegistry, type PageOverrideMarker } from './page-overrides'
 import { evaluateOperationPageScope, sourceProvenPageImpact } from './scope'
 import { assertCandidateOperationRegistry, findCandidateOperationExecutor, hasStructuredOperationFields, type CandidateOperationRegistry, type CandidateSourceEdit } from './candidate-operation-executors'
@@ -477,6 +477,8 @@ export function createCandidate(request: CandidateRequest): CandidateRecord {
   const snapshot = readProjectSnapshot(request.projectRoot)
   if (snapshot.revision.sourceDigest !== request.graph.revision.sourceDigest) throw new CandidateError('候选图不再对应项目当前源码')
   if (snapshot.revision.gitCommit !== request.graph.revision.gitCommit) throw new CandidateError('候选图不再对应项目当前 Git 基线')
+  const diverged = declaredHostProofsDiverged(request.graph, snapshot.root)
+  if (diverged.length) throw new CandidateError(`依赖状态已变化（${diverged.join('、')} 的宿主解析基座与采集图不一致）；声明基座的来源证明不再权威，请重新分析项目后再创建候选`)
   const candidateRoot = outsideProject(snapshot.root, request.candidateRoot, '候选 worktree')
   const artifactRoot = outsideProject(snapshot.root, request.artifactRoot, '补丁工件目录')
   const candidateRelative = path.relative(candidateRoot, artifactRoot)
