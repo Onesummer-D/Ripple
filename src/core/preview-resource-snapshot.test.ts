@@ -3,9 +3,10 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { isPublicPreviewResourceAddress, pinnedPublicLookup, SnapshotFetchError, snapshotAuthorizedPreviewResources, type DownloadedResource } from './preview-resource-snapshot'
+import { removeTree } from './test-fixture-dir'
 
 const tempDirs: string[] = []
-afterEach(() => { for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true }) })
+afterEach(() => { for (const dir of tempDirs.splice(0)) removeTree(dir) })
 function tempDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-snapshot-'))
   tempDirs.push(dir)

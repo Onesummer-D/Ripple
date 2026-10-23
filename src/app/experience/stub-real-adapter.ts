@@ -33,7 +33,7 @@ const emptyModel: ExperienceViewModel = {
   compare: {
     baseline: { state: 'unavailable' },
     candidate: { state: 'unavailable' },
-    matchedViewport: true,
+    compareState: 'none',
   },
 }
 

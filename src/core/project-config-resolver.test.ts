@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import ts from 'typescript'
 import { afterEach, describe, expect, it } from 'vitest'
 import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
+import { removeTree } from './test-fixture-dir'
 
 const roots: string[] = []
 function project(configs: Record<string, unknown>) {
@@ -18,7 +19,7 @@ function project(configs: Record<string, unknown>) {
   return root
 }
 
-afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }) })
+afterEach(() => { for (const root of roots.splice(0)) removeTree(root) })
 
 describe('shared application config resolution', () => {
   it('does not borrow aliases from a tool config when the application declares none', () => {

@@ -65,7 +65,7 @@ function initialModel(): ExperienceViewModel {
     compare: {
       baseline: { state: 'ready', note: '演示数据：原网页渲染' },
       candidate: { state: 'ready', note: '演示数据：候选渲染（未经过真实浏览器验证）' },
-      matchedViewport: true, focusArea: '活动标题',
+      compareState: 'comparable', focusArea: '活动标题',
     },
   }
 }

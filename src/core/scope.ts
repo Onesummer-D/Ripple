@@ -151,6 +151,9 @@ export function sourceProvenPageImpact(graph: SourceGraph, sourceRef: string): P
     if (reachableFiles.has(importer)) unresolved.push(`受影响子图含有未解析依赖：${dependency}`)
   }
 
+  if (pageRefs.size && graph.unresolved.some(item => item.startsWith('route-coverage:'))) {
+    unresolved.push('工程存在尚未证明的 data-router 消费者，无法确认页面影响全集')
+  }
   if (!pageRefs.size) unresolved.push(`目标没有可证明的页面消费者：${sourceRef}`)
   const uniqueUnresolved = [...new Set(unresolved)]
   return {
