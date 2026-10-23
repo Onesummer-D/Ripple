@@ -867,3 +867,35 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 ## 2. 纪律
 
 不将 incomplete 放宽为 passed；不直接批准不完整验证；不触发 Bolt；C+D 精简集成按独立流程推进，F 不必等待。
+
+---
+
+## v27（2026-10-23 19:5x）｜AC-P2a/b 正式纳入 A；新基线 45a2d7c
+
+### 1. AC-P2a/b 最终集成（已完成）
+
+- **新 A HEAD：`45a2d7cda2271ea5c212c8e0f3a469eb62dded31`**（`feat/project-first-core-core-20261018`，由 71dc6c7 merge `--no-ff` 集成分支 eba4660 得到）。
+- 集成内容（白名单 5 文件）：`src/core/project.ts`、`src/core/project-data-routes.ts`、`src/core/project-data-routes.test.ts`、`docs/architecture/e-pr30-identity-contract-confirmation.md`、`.github/workflows/ci.yml`（checks 超时 20→30 min，理由：GitHub Azure apt 镜像当日两次限速至 ~24 kB/s，playwright `--with-deps` 一步耗尽 20 min 预算导致两次 job 超时取消；测试门控零变化）。
+- C+D 最终增量：`8f177b6` over `98029cb`（route.lazy 两种 type-only 导出 `export type {X as Component}` / `export {type X as Component}` 保持 unresolved；普通命名导出正例未回退）。
+- 三类证据分明：
+  1. C+D 独立 CI #39935048872 SUCCESS（607 Vitest / 61 Playwright）。
+  2. A+C+D 集成 CI #39944961968 SUCCESS（761 Vitest / 62 Playwright / typecheck / build / Docker 浏览器链）。
+  3. F·E 兼容：本地 199 测试（scope / visual-attach / runtime-identity×2 / real-adapter）通过；codescandy 固定 `b700bbd` 探针复跑 exit 0 source proof satisfied。
+- **AC-P2a/b 无剩余 P0。** route.lazy 命名导出 + type-only 导出负例均在正式 A CI 中执行。
+- PR #31 已评论并关闭（内容经直接 merge 进入 A，不经 PR 二次合并）。REST API 无法转 Draft（PATCH draft 被静默忽略），以关闭代替。
+- 本地新增提交对应路由测试 83/83（含 2 个新 type-only 导出负例）。
+
+### 2. B 恢复通知（有效）
+
+**B 可恢复 codescandy `--expect accepted` 验收**：以 A 新基线 `45a2d7c` 为准，固定 codescandy SHA `b700bbd`，构造包含目标及全部受影响页面的显式 Scope（includedRefs = 全部 pageRefs + targetRef，不携带 localPageRef），执行真实 Candidate ACCEPTED 路径。B-ENV-1 / AC-P3 仍按 Windows 兼容性支线推进，不混入本次验收。
+
+### 3. 环境异常登记（非代码问题）
+
+- 主仓库 `ripple-app` 本地对象库损坏：46 个 broken link（缺失提交/树），`git fetch origin` 因 17 个未解析 delta 失败；部分缺失对象 GitHub 返回 not our ref，无法按 SHA 补取。**Git 写操作已切换到全新克隆 `_scratch/merge-fresh`。** 影响：主仓库 fetch 不可用直至重建对象库；各 worktree 的本地提交/推送不受影响。待办：择机用 merge-fresh 全量对象重建主仓库 `.git/objects`（或重新 clone 并挂接 worktree）。
+
+### 4. 当前主线
+
+1. **F 第二批 P0**（候选替换后旧验证证据残留）由 F 修复中；F 第一批（da94ab7）验收通过状态不变。
+2. **passed fixture**：构建多页 data-router fixture（共享 footer 文本 + 声明交互 + 唯一 marker），真实 Docker 运行器跑 7/7 passed，交 F 第三批。开发分支 `feat/a-passed-fixture-20261023`（待建，基于 45a2d7c）。
+3. E 阶段二严格实例证明接线等待 C+D 三项合同冻结（instanceIdentityProven === true）。
+4. D 青野 MEDIA 全链准备基于 45a2d7c。
