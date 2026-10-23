@@ -75,6 +75,11 @@ function runSampler(options, collectRuntimeIdentitySnapshot) {
     const match = typeof ref === 'string' ? /^jsx:(.+)#\d+$/.exec(ref) : null
     return match ? match[1] : null
   }
+  // The page's ACTUAL referenced source-file set, independent of what later
+  // resolves in the registry. Single-file-ness is decided on this set, never
+  // on the resolved map (a multi-file page whose other file is ambiguous or
+  // unregistered would otherwise masquerade as single-file).
+  const files = [...new Set(nodes.map(node => sourceFileOf(node.getAttribute('data-ripple-source'))).filter(Boolean))].sort()
   let sourceFileVersions = null
   let pageContext = null
   let reasonByIndex = null
@@ -82,7 +87,6 @@ function runSampler(options, collectRuntimeIdentitySnapshot) {
     const registry = globalThis[Symbol.for('ripple.runtime-identity')]
     const versions = registry && registry.sourceVersions instanceof Map ? registry.sourceVersions : null
     const history = registry && registry.sourceVersionHistory instanceof Map ? registry.sourceVersionHistory : null
-    const files = [...new Set(nodes.map(node => sourceFileOf(node.getAttribute('data-ripple-source'))).filter(Boolean))].sort()
     if (versions && files.length) {
       const map = {}
       for (const file of files) {
@@ -127,11 +131,14 @@ function runSampler(options, collectRuntimeIdentitySnapshot) {
     pageContext = null
     reasonByIndex = null
   }
-  // Legacy single-file field: only meaningful when every annotated element of
-  // this page comes from exactly one file whose version resolved. Multi-file
-  // pages keep null here; the per-file map above carries the truth.
-  const sourceFileList = sourceFileVersions ? Object.keys(sourceFileVersions) : []
-  const sourceVersion = sourceFileVersions && sourceFileList.length === 1 ? sourceFileVersions[sourceFileList[0]] : null
+  // Legacy single-file field: filled ONLY when the page actually references
+  // exactly one source file AND that file's version resolved. Multi-file
+  // pages, partially-resolved pages and ambiguous versions all keep null,
+  // even when the resolved map happens to contain a single entry; the
+  // per-file map above carries the truth.
+  const sourceVersion = files.length === 1 && sourceFileVersions !== null && typeof sourceFileVersions[files[0]] === 'string'
+    ? sourceFileVersions[files[0]]
+    : null
 
   // Whether `ancestor` establishes the containing block that positioned
   // descendants escape to: absolute boxes skip static ancestors, fixed boxes

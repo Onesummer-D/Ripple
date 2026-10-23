@@ -177,6 +177,35 @@ describe('visual difference evidence from real Chromium captures', () => {
     it('omits ambiguous-version files instead of attributing them to either digest', async () => {
       const { sample } = await captureWithRegistry(page(20), { 'src/App.tsx': APP_V, 'src/Hero.tsx': HERO_V, 'src/Card.tsx': CARD_V }, ['src/Hero.tsx'])
       expect(sample.sourceFileVersions).toEqual({ 'src/App.tsx': APP_V, 'src/Card.tsx': CARD_V })
+      // 页面实际引用多个文件：歧义文件被省略后 legacy 单字段必须保持 null，
+      // 即使解析后的映射恰好只剩一个条目。
+      expect(sample.sourceVersion).toBeNull()
+    })
+
+    it('P1 负例: 两个来源文件只有一个有效版本时 sourceVersion 必须为 null', async () => {
+      // 页面实际引用 App.tsx 与 Hero.tsx；Hero.tsx 未注册（版本缺失），
+      // 解析映射只剩 App.tsx 一个条目。单文件判定必须依据页面实际引用
+      // 集合，而不是解析后映射的条目数。
+      const twoFiles = `<!doctype html><html><body>
+        <main data-ripple-source="jsx:src/App.tsx#1" data-ripple-instance="App" data-ripple-identity-certainty="stable-react-instance" style="position:relative;width:200px;height:100px">
+          <h1 data-ripple-source="jsx:src/Hero.tsx#2" data-ripple-instance="App/h1" data-ripple-identity-certainty="stable-react-instance" style="margin:0;width:100px;height:20px">T</h1>
+        </main>
+      </body></html>`
+      const { sample, parsed } = await captureWithRegistry(twoFiles, { 'src/App.tsx': APP_V })
+      expect(parsed.ok).toBe(true)
+      expect(sample.sourceFileVersions).toEqual({ 'src/App.tsx': APP_V })
+      expect(sample.sourceVersion).toBeNull()
+    })
+
+    it('P1 正例: 真实单文件页且版本有效时才填 legacy sourceVersion', async () => {
+      const oneFile = `<!doctype html><html><body>
+        <main data-ripple-source="jsx:src/App.tsx#1" data-ripple-instance="App" data-ripple-identity-certainty="stable-react-instance" style="position:relative;width:200px;height:100px">
+          <h1 data-ripple-source="jsx:src/App.tsx#2" data-ripple-instance="App/h1" data-ripple-identity-certainty="stable-react-instance" style="margin:0;width:100px;height:20px">T</h1>
+        </main>
+      </body></html>`
+      const { sample } = await captureWithRegistry(oneFile, { 'src/App.tsx': APP_V })
+      expect(sample.sourceFileVersions).toEqual({ 'src/App.tsx': APP_V })
+      expect(sample.sourceVersion).toBe(APP_V)
     })
 
     it('degrades to null identity reasons without a collector source but still reads the registry', async () => {
