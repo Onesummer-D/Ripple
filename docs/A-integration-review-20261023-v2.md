@@ -952,3 +952,42 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 - fixture SHA 不变：`ffa54331dd5437b5497f3a46e6d1b6fc66042fa2`。
 - 证据工件 `passed-fixture-evidence-39955423994`（30 天保留），本地副本 `_scratch/fixture-evidence3/`。
 - 已具备移交 F 条件：测试工程 + 驱动脚本 + 固定输入契约 + 全套连续证据。
+
+## v30（2026-10-23 22:5x）｜codescandy 兼容性边界修复完成，独立分支 CI 绿
+
+- 分支 `feat/a-codescandy-compat-20261023` @ `6f22551`（基于 A `45a2d7c`），8 文件改动，**未合并 A/main，未触发 Bolt**。
+- 正式 CI [#39972195615 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/39972195615)：typecheck ✓、build ✓、**765/765 Vitest**（+2 新增）、**62/62 Playwright**。
+
+### 一、P0 通配别名：根因与修复
+
+- 根因：`project-config-resolver.mjs` 的 `aliasRules()` 对 `pattern.startsWith('*')` 一律判 ambiguous，codescandy 的 `"paths": { "*": ["./src/*"] }`（合法 TypeScript/Bundler 语义 = 裸 specifier 本地文件存在则映射、否则回退 npm 包）被误杀，预览拒绝启动。
+- 修复：裸 `*` + 单目的地 `./dir/*` 建模为 `kind: 'existence-fallback'` 规则；预览适配器新增 `existenceFallback` 插件按前缀做真实文件探测（先词法包含校验、后存在性探测，`..` 逃逸永不命中），未命中回退正常 node_modules 解析。**未删除任何拒绝规则，未放行 `*` 通配捕获**。
+- fail-closed 负例（全部回归通过）：`*/x`、`*a*`、目标 `*/*`、裸 `*` 双目的地、裸 `*` 无目标 `*` 仍 ambiguous；`probeExistenceFallback` 对相对/绝对/URL/`node:` specifier 一律不捕获，`../outside`、`pages/../../outside`、`..` 恒真存在性下仍拒绝。
+
+### 二、来源证明一致性：根因与修复
+
+- 根因（三条实证）：`routerHostBasis()` 用 `ts.resolveModuleName(..., ts.sys)` 解析 react-router；`ts.sys` 会**向上逃逸项目根**——无依赖检出解析到父目录 `Ripple涟漪/node_modules/react-router-dom@7.18.4`（未审计 major），旧代码对根外解析直接 definitive 拒绝并抑制声明回退 → semantic-candidate/BLOCKED；有依赖时解析到项目内 6.27.0 → source-proven。**同一源码树因依赖存在与否得到相反裁决**。
+- 修复：根外解析不再抑制声明回退，分析建模与 Docker 预览相同的世界边界（容器只挂项目根，父目录安装永远不可能影响运行时）；声明回退仍只接受精确 x.y.z 或 ^/~ 钉在 major 6/7（宽松范围/预发/部分版本全部拒绝，原有负例未回归）。
+- 候选门：`createCandidate` 新增 `declaredHostProofsDiverged` 检查——声明基座采集后项目内出现（或消失）实际安装时，拒绝候选并强制重新分析，防止信任异态依赖状态下采集的图。
+- 改写负例：根逃逸场景现断言基座为 `(declared)` 且永不出现 `(installed)`；补充分叉门控断言（项目内后装 6.27.0 → `declaredHostProofsDiverged` 返回该 specifier）。
+
+### 三、codescandy 固定工程双状态回归（b700bbd）
+
+| 状态 | 修复前 | 修复后 |
+|-|-|-|
+| 有依赖（6.27.0 项目内安装） | PROVEN（exit 0） | PROVEN（exit 0），edges/nodes/srcProven/routes 与修复前**逐字段一致**（5352/4957/4340/37） |
+| 无依赖（干净克隆） | **BLOCKED（exit 2，非确定）** | **PROVEN（exit 0），与有依赖状态字段完全一致** |
+
+- 唯一 unresolved 保持 `src/main.tsx → ./styles/theme.scss`（既有已知边界），danglingSourceProven=0。
+- 结论：依赖状态不再翻转 PageImpact 裁决，双态结果稳定且与真实容器语义一致。
+
+### 四、未解决风险
+
+1. esbuild dep-scan 对裸 specifier 的预打包分类可能与运行时回退存在差异，需在 B 的真实候选验收中观察（已在预览插件注释层面接受，不影响门控）。
+2. `(declared)` 基座在验证前安装依赖会触发候选门强制重分析——属设计内行为，但需在 B 的验收脚本中显式处理（先装依赖再分析，或分析后勿动依赖）。
+3. 本地 `_scratch` junction 环境下 `project.test.ts` 的 configPath 大小写路径用例有 1 项环境性失败（干净 HEAD 同样失败，Linux CI 通过），与本次改动无关。
+
+### 五、结论
+
+- P0 修复**允许 B 恢复 codescandy 真实候选验收**（B 仍需先修其工具侧 SHA 校验问题，见协调人 20:08 意见）。
+- 根边界解析与候选门**建议合入 A**（走正式集成审查流程，不自行合并）。
