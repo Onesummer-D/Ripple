@@ -122,6 +122,74 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-b-accepted-on-a-core-${{ github.run_id }}
-          path: a-core/test-results/candidate-gate.json
+          path: |
+            a-core/test-results/candidate-gate.json
+            a-core/test-results/*.patch
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Formal third-party Verification: re-creates the ACCEPTED candidate on the A
+  # public core and drives A's real browser verification (Docker Vite preview +
+  # isolated Playwright container, 4 viewports). Requires a Linux host with
+  # Docker — the runner and preview explicitly refuse other platforms.
+  thirdparty-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      A_CORE_SHA: 45a2d7cda2271ea5c212c8e0f3a469eb62dded31
+      ACP2_ANCESTOR: f804c7e0908e6dc8831c46ca55b92d357df72c10
+      CODESCANDY_SHA: b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            a-core/package-lock.json
+            codescandy-src/package-lock.json
+      - name: Check out A public core integration SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.A_CORE_SHA }}
+          path: a-core
+          fetch-depth: 0
+      - name: Verify A core provenance (HEAD equals declared SHA and carries AC-P2a/b lineage)
+        run: |
+          test "$(git -C a-core rev-parse HEAD)" = "$A_CORE_SHA"
+          git -C a-core merge-base --is-ancestor "$ACP2_ANCESTOR" HEAD
+      - name: Install A core dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: a-core
+      - name: Fetch pinned codescandy with dependencies (trusted install step)
+        run: |
+          git clone --quiet https://github.com/codescandy/dash-ui-react-vitejs-typescript.git codescandy-src
+          git -C codescandy-src checkout --detach "$CODESCANDY_SHA"
+          test "$(git -C codescandy-src rev-parse HEAD)" = "$CODESCANDY_SHA"
+          cd codescandy-src
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Pre-pull isolated runner images
+        run: |
+          docker pull mcr.microsoft.com/playwright:v1.64.0-noble
+          docker pull node:22-bookworm-slim
+      - name: Transplant B verification script onto A core byte-for-byte
+        run: |
+          cp scripts/b-candidate-verify.mjs a-core/scripts/b-candidate-verify.mjs
+          cp scripts/ts-extension-loader.mjs a-core/scripts/ts-extension-loader.mjs
+          cmp scripts/b-candidate-verify.mjs a-core/scripts/b-candidate-verify.mjs
+      - name: "Formal candidate Verification on A core (Docker browser runner)"
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-candidate-verify.mjs "$GITHUB_WORKSPACE/codescandy-src" --core-sha "$A_CORE_SHA" --artifacts test-results/verification
+        working-directory: a-core
+      - name: Retain verification evidence (run record, screenshots, patch, report)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-b-verification-${{ github.run_id }}
+          path: |
+            a-core/test-results/verification/verification-report.json
+            a-core/test-results/verification/verification-run.json
+            a-core/test-results/verification/candidate-record.json
+            a-core/test-results/verification/*.patch
+            a-core/test-results/verification/evidence/**
           retention-days: 30
           if-no-files-found: warn
