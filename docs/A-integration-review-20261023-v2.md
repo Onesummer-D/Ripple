@@ -549,3 +549,18 @@ F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验�
 - AC-P3、B-ENV-1 按 Windows 兼容性支线推进，不阻塞 Linux 第三方复验。
 - B 在其独立分支上编辑的旧版 v2 审查表段落（含 PR #28 / F #25 过期状态）**不合入** A 主线，状态以本表为准。
 - 主线不变：F 第二阶段、E 真实接线、D MEDIA 核心集成（预演 CI 已绿，待合并授权）。
+
+
+---
+
+# v15 F 第二阶段第一批审查登记（2026-10-23）
+
+## F 第二阶段第一批（HEAD `1201a6a`，CI #39879624586 SUCCESS）
+
+- 状态：**代码已提交、CI 全绿；真实候选创建合同 P0 待修，尚未通过端到端正式验收。**
+- **P0-a**：`strategy='shared'` 同时携带 `localPageRef`——A `assertScope` 明确拒绝（合同违反）。
+- **P0-b**：`includedRefs` 只含页面、遗漏 `operation.targetRef`——A `assertScope` 明确拒绝（合同违反）。
+- 新增测试主要使用 mock fetch，**未执行**真实浏览器到 createCandidate 成功的联合验收。
+- 已登记另两个 P1：点选异步 nonce 失效检查、退出 iframe 点选模式未通知。
+- **处置**：F 最小返工 + 真实 E2E（协调人已直接派工，A 不重复派工）。**A 不放宽 Candidate/Scope 校验**；由 F 构造符合现有合同的请求。
+- F 修复并交付真实候选成功证据后，由 A 审查并决定进入**第二批：四视口 Verification 联合集成**。
