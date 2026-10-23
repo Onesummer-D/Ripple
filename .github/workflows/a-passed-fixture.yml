@@ -1,0 +1,38 @@
+name: A Passed Fixture E2E
+
+# 7/7 passed 全链路标准回归：仅在需要时手动触发，或推送 fixture 分支时运行。
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feat/a-passed-fixture-**']
+
+jobs:
+  passed-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install the pinned React/Vite/Tailwind preview fixture
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix test/fixtures/react-vite-tailwind
+      - run: npx playwright install --with-deps chromium
+      - name: Require Docker for isolated verification runtime
+        run: docker info --format '{{.ServerVersion}}'
+      - name: Warm the isolated Playwright verification image
+        run: docker pull mcr.microsoft.com/playwright:v1.64.0-noble
+      - name: Run the 7/7 passed fixture lifecycle (2 cycles)
+        run: node scripts/a-passed-fixture-e2e.mjs --out test-results/passed-fixture
+        env:
+          PASSED_FIXTURE_REPEAT: '2'
+      - name: Preserve fixture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passed-fixture-evidence-${{ github.run_id }}
+          path: test-results/passed-fixture
+          if-no-files-found: warn
+          retention-days: 30
