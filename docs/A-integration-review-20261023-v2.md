@@ -840,3 +840,30 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 
 - 预演通过；是否正式纳入 A 待协调人决定（在 C+D export-type 测试验收前不建议宣布最终通过）。
 - **暂不唤醒 B**：待 C+D 公共补丁正式入 A + export-type 测试验收后，再通知 B 恢复 `--expect accepted`。
+
+
+---
+
+# v26 F 第二批结论 + 第三批 passed fixture 测试条件确认（2026-10-23 18:xx）
+
+## 0. F 第二批登记
+
+- F `3105fc1`，CI #39929160168 SUCCESS：真实候选调用 `/candidate/verify`，展示 runId / 哈希 / 四视口证据 / incomplete 状态。
+- **F 侧 P0（协调人已派工）**：候选替换后旧验证证据可能残留；E 视觉 view 展示与运行中状态补齐。A 不改 F 界面代码。
+
+## 1. 五问答复（基于 A 核心 `71dc6c7` 代码核实）
+
+1. **是否有固定可重复的 passed 真实 TEXT fixture？——没有。** 现有证据：`page-override-lifecycle.spec.ts` 的 approve 全链是合成 `registerVerification`（手工构造 checks 全过 + 断言），非真实 Docker 运行器产出；真实运行器的 7 断言从未在固定 fixture 上全 pass（F 实测 4/7 incomplete 是首例真实数据）。
+2. **最小合法成功 fixture 规格**（断言级要求，摘自 `verification-execution.mjs:960-1030`，正式断言与身份校验不变）：
+   - target-change / source-mapping：编辑目标需唯一 source→渲染绑定（单实例、带运行时身份标注），全部 4 视口渲染成功；
+   - scope-propagation：需 supportedScopeContract——纯 TEXT 操作、Scope 覆盖**全部**合同页面、每操作绑定单 sourceRef + 每页 pageExpectations（baseline/candidate 文本），且页面带声明式 route marker、双侧 route identity 'verified' → 即**多页共享文本源 + 显式标记**场景；
+   - interaction：声明可访问交互（按钮/链接）+ 预期可见状态，全部视口双侧通过且 route identity verified；
+   - responsive-layout：桌面/平板/移动三档无横向文档溢出；
+   - browser-errors：零 console/页面错误且授权资源零不可用（任一 blocked 资源即 risk，永不 pass）。
+3. **incomplete fixture 保留为审批阻断负例**：`session.ts:201` passed = 无 risks ∧ 强制证据全过 ∧ 七断言全 pass；4/7 必为 incomplete，`approve()`（session.ts:272）正确拒绝。**不得放宽**。
+4. **Approval → Apply → Rollback 合同**（`apply.ts:58/120`、`session.ts:272/285`）：Apply 要求 session.status='approved' + approval 记录 + **run.status='passed'** + runId/patchHash 与 approval 绑定一致 + 最新可信（非 stale）；Rollback 要求"原始 passed 验证运行"的 runId/patchHash 在回滚记录中且工程版本未漂移；历史核对 = 服务端 run 记录、patchHash、工程 revision 三者一致。
+5. **测试证据交付 F**：A 下一步构建最小成功 fixture（多页共享 footer 文本 + 声明交互 + route marker + 身份标注，走真实 Docker 运行器）并实测 7/7 pass 后，将 fixture + input.json + run 工件交 F 做第三批 E2E。未完成前 F 不得自行放宽断言凑 passed。
+
+## 2. 纪律
+
+不将 incomplete 放宽为 passed；不直接批准不完整验证；不触发 Bolt；C+D 精简集成按独立流程推进，F 不必等待。
