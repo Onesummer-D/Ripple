@@ -802,3 +802,41 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 4. E 阶段一不重复合并；阶段二独立规划。
 
 纪律不变：不合并 main、不触发 Bolt、不 force push 覆盖 Agent 成果。
+
+
+---
+
+# v25 AC-P2a/b 精简集成预演（2026-10-23 17:xx）
+
+## 0. 预演设置
+
+- A 实际基线：`71dc6c7`（ls-remote 复核一致）；C+D `98029cb`（一致；P0 命名导出修复已含）。
+- 集成树 `_scratch/wt-acp2`，分支 `feat/a-acp2-slim-integration-20261023`，集成提交 `f804c7e`，**Draft PR #31**（base=A，head=精简分支）。
+- 方式：路径白名单引入（非整分支 merge、非盲目 cherry-pick）。
+
+## 1. 文件白名单与排除
+
+- **白名单（4 文件）**：`project-data-routes.ts`（+83，AC-P2b fallback/条件消费者）、`project-data-routes.test.ts`（+295）、`project.ts`（+120，AC-P2a Link/NavLink 审计白名单 SemVer 三段式 v6/v7 + route.lazy Component 命名导出验证）、`docs/architecture/e-pr30-identity-contract-confirmation.md`（必要合同文档）。
+- **排除（13 项 B 历史文件）**：`docs/probes/*` 全部 12 项（含 codescandy 证据图）+ `scripts/b-thirdparty-candidate-gate.mjs`（B 冻结线 cf44193 自行维护）。
+
+## 2. 联合回归证据（三类证据分明）
+
+| 证据层 | 结果 |
+|---|---|
+| C+D 独立 CI | #39930329395 SUCCESS（98029cb） |
+| **A+C+D 集成 CI** | [39934358811](https://github.com/Onesummer-D/Ripple/actions/runs/39934358811)（f804c7e）**SUCCESS** |
+| F/E 兼容 | F real-adapter 17/17 ✓；E visual-verification-attach + scope + 双身份文件 182/182 ✓ |
+
+- 本地门：typecheck ✓ / build ✓ / routes 81/81（含 lazy 正反例、fallback 建模用例）✓。
+- **codescandy 固定 SHA b700bbd 来源探针：exit 0，source proof satisfied，danglingSourceProven=0**——AC-P2a/b 目标达成（原 exit 2 BLOCKED 边界解除）。
+- 安全门控：PageImpact/Scope/createCandidate 相关测试 182/182 无回退；Candidate 缺页拒绝路径未动。
+
+## 3. 剩余 P0/P1
+
+- **P1（C+D 交付中）**：`export type` 运行时导出边界测试——正式验收前不宣布 C+D 最终集成通过；交付后把增量补入同一精简分支（PR #31）。
+- 备注：本地 routes 测试 81/81 通过但进程退出码 1，为 vitest Windows RPC teardown 超时（非测试失败），Linux CI 权威绿。
+
+## 4. 结论
+
+- 预演通过；是否正式纳入 A 待协调人决定（在 C+D export-type 测试验收前不建议宣布最终通过）。
+- **暂不唤醒 B**：待 C+D 公共补丁正式入 A + export-type 测试验收后，再通知 B 恢复 `--expect accepted`。
