@@ -388,6 +388,24 @@ const main = () => {
         candidateBytesExactEdit: candidateBytes === expectedCandidate,
         candidateTreeDigestMatches: digestTrackedTree(localCandidateRoot) === record.candidateTreeDigest,
       }
+      // Evidence retention for the formal ACCEPTED deliverable: copy the patch
+      // bytes into the EXTERNAL artifacts dir before the owned root is removed,
+      // and pin the immutable record identifiers in the report. Strings only —
+      // acceptedPass reads verification/scopeVerification/postChecks booleans,
+      // so this metadata can never pollute the pass predicate (P0-1).
+      const patchEvidencePath = path.join(artifactsDir, `${record.id}.patch`)
+      fs.mkdirSync(artifactsDir, { recursive: true })
+      fs.writeFileSync(patchEvidencePath, patchBytes)
+      acceptance.recordEvidence = {
+        id: record.id,
+        modifiedPaths: record.modifiedPaths,
+        baseSourceDigest: record.baseSourceDigest,
+        candidateTreeDigest: record.candidateTreeDigest,
+        patchHash: record.patchHash,
+        patchBytes: patchBytes.length,
+        patchEvidencePath,
+        marker: marker ? { id: marker.id, baseSourceDigest: marker.baseSourceDigest } : null,
+      }
     }
   } finally {
     // ALWAYS release the preserved candidate after verification (or failure)
