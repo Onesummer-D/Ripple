@@ -118,6 +118,27 @@ export const App = () => <RouterProvider router={router} />;
 
 **最终建议：#28 具备解除 Draft 条件**，前提是 P1 修复 + 合同文档入库后新 CI 通过；codescandy BLOCKED 作为已接受的边界记录在案。
 
+## 十一、B 第三方验收工具状态（A 审查结论，2026-10-23 更新）
+
+| 项 | 状态 |
+|----|------|
+| B 分支 / HEAD | `feat/b-thirdparty-reprobe-20261023` @ `cf44193` |
+| B 专项 CI | ✅ #39874184628 |
+| Ripple 全量 CI | ✅ #39874184669 |
+| **审查结论** | **第三方验收工具冻结通过，等待公共 SourceGraph 接口更新**（不再标记"P0 待修"） |
+
+冻结依据（A 独立审查确认）：非自有 candidateRoot/artifactRoot 由 harness 前置拒绝（unsafe-proposal，
+不进入真实 createCandidate）；自有 clone 内非法位置继续以真实 CandidateError 验证公共合同；六项
+selftest 与调用者仓库完整性检查通过；独立最小 data-router 工程的真实候选成功正例通过（补丁哈希、
+精确编辑字节、树摘要、清理合同）；codescandy 固定 SHA 真实候选仍 BLOCKED，原阻断语义未变。
+
+待 A/C+D 处理（B 侧已登记接口需求/复现，见 `docs/probes/a-interface-requirements-issue6.md` v3）：
+**AC-P2a**（composite JSX 子代传播）、**AC-P2b**（data-router 条件回退消费者）、**AC-P3**
+（Windows 跨盘目录兼容性）、**B-ENV-1**（Git EOL 与源码字节一致性）。
+
+后续衔接：AC-P2a/b 修复并经 A 合并后，通知 B 在固定 codescandy SHA 上把门控切到
+`--expect accepted`，随后执行真实候选预演与完整 TEXT 生命周期验收（当前 NOT RUN，不触发 Bolt）。
+
 ## 附：CI 链接
 
 - #28 checks（1dbaa539，success）：https://github.com/Onesummer-D/Ripple/actions/runs/39828686217
