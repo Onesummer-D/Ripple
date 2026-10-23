@@ -680,3 +680,21 @@ F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验�
 ## 2. 新增公共字段纪律
 
 若接线必须新增公共字段：先给出精确类型 + 最小样例（字段名、取值域、生产者/消费者、版本化策略），交 A 登记、C+D 确认后 E 再接入。
+
+
+---
+
+# v20 接口需求实际交付 + 两阶段执行确认（2026-10-23）
+
+## 0. 交付方式确认
+
+三项接口需求**已实际交付**：独立合同文档 `docs/architecture/e-visual-identity-interface-requests.md` 合入 A 公共核心（新 A 文档 HEAD `fa21af9`，纯文档）。C+D Agent 自 A HEAD 切独立分支即接收；协调人亦已认可三项要求（instanceIdentityProven === true / locatable 仅导航 / missingEvidence 保留）。
+
+## 1. 两阶段执行（按协调人调整）
+
+- **阶段一（不以 C+D 书面确认为前置）**：E 修复 legacy sourceVersion 多文件 P1 + 最新 CI 全绿 → A 立即启动 PR #30 只读视觉证据集成预演（基线 `dc8269f` 系）。验收范围：真实 VerificationRun、`run.visualEvidences` API 只读 View、证据隔离、原审批门控不变。此阶段 `strictInstanceProofAvailable` 保持 false（E 当前保留 page-context / collection-reasons / graph-membership 缺失项），完整严格实例证明继续禁用。
+- **阶段二（C+D 合同到位后单独验收）**：严格实例证明接线与升级验收；必须验证 `instanceIdentityProven`、版本一致与运行身份匹配，不得仅检查对象非空。
+
+## 2. 纪律不变
+
+不直接合并 PR #30；不合并 main；不触发 Bolt；PR #29/#30 重叠代码只合一次。
