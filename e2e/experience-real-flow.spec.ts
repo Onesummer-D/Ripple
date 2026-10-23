@@ -56,7 +56,7 @@ async function analyzeFixture() {
 }
 
 test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候选创建 → 候选预演 → 会话清理', async ({ page }) => {
-  test.setTimeout(300_000)
+  test.setTimeout(420_000)
   await page.setViewportSize({ width: 1440, height: 1000 })
   const analysis = await analyzeFixture()
   const titleTarget = analysis.targets.find(item => item.label.includes('Acme 真实首页标题'))
@@ -82,11 +82,23 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   const projectFrame = page.frameLocator('[data-testid="real-preview-frame"]')
   await expect(projectFrame.getByRole('heading', { name: 'Acme 真实首页标题' })).toBeVisible({ timeout: 90_000 })
 
+  // 2b. 预演标注与点选模式握手核查（D 桥注入 + ripple:selection-mode 送达）：
+  // h1 必须带 data-ripple-source；桥激活时 documentElement 光标变为 crosshair。
+  const previewFrame = page.frames().find(candidate => candidate !== page.mainFrame())!
+  const sourceRef = await previewFrame.locator('h1').getAttribute('data-ripple-source')
+  expect(sourceRef, '预演必须把 h1 标注到 JSX 源码').toMatch(/^jsx:src\/pages\/HomePage\.jsx#\d+$/)
+  await expect
+    .poll(() => previewFrame.evaluate(() => document.documentElement.style.cursor), { timeout: 10_000 })
+    .toBe('crosshair')
+
   // 3. 真实 sourceRef：D 桥信封 → 服务端 /project/source-selection 授权
-  const selectionResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/source-selection') && response.status() === 200)
+  // 先等任意状态的响应（4xx 也会被捕获并带正文报错，避免整体超时无诊断）
+  const selectionResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/source-selection'), { timeout: 60_000 })
   await projectFrame.getByRole('heading', { name: 'Acme 真实首页标题' }).click()
-  const selection = await (await selectionResponse).json() as { element: { id: string } }
-  expect(selection.element.id).toMatch(/^jsx:src\/pages\/HomePage\.jsx#\d+$/)
+  const selectionHttp = await selectionResponse
+  expect(selectionHttp.ok(), `source-selection 未成功：${await selectionHttp.text()}`).toBe(true)
+  const selection = await selectionHttp.json() as { element: { id: string } }
+  expect(selection.element.id).toBe(sourceRef)
   await expect(page.getByTestId('selection-summary')).toBeVisible()
   await expect(page.getByTestId('runtime-identity')).toBeVisible()
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-picked-1440.png'), fullPage: true })
