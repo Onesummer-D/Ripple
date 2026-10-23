@@ -698,3 +698,31 @@ F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验�
 ## 2. 纪律不变
 
 不直接合并 PR #30；不合并 main；不触发 Bolt；PR #29/#30 重叠代码只合一次。
+
+
+---
+
+# v21 E PR #30 阶段一集成预演（2026-10-23）
+
+## 0. 预演设置
+
+- E P1 终审通过（fdd9ee0，双 CI SUCCESS，742/742 Vitest，Docker 视觉 E2E 过）。
+- 集成树 `_scratch/wt-e30`，分支 `feat/a-e30-integration-20261023` = merge(fa21af9, fdd9ee0)，merge 提交 `b10ee9da`，零冲突。
+
+## 1. 七项验收点核验结果
+
+1. **#29/#30 重叠**：#29 tip 非 #30 祖先；改动文件交集 104 个 → **#30 取代 #29**，#29 关闭不合入（合 #30 后 #29 永久 Draft/关闭，杜绝双合）。
+2. VerificationRunner Docker 采集 / manifest / 视觉挂载 / API 只读 View：随 E 批次一/二进入，集成 CI 全量验证中。
+3. 双侧版本摘要各自匹配对应修订：sourceFileVersions 逐文件映射（第二批实现）在差异内，定向测试 39/39 过。
+4. sourceVersion 多文件 P1 修复未回退：集成树含 fdd9ee0 修复，无相关回退。
+5. **strictInstanceProofAvailable 阶段一恒 false**：接线层（visual-verification-attach / verification-runner）不传递 identityAssessment → availability 公式短路为 false；missingEvidence 默认从空列表按缺失项逐项填充（source-version 等）。
+6. **审批链路零引用**：visualEvidence 在 verification-runner / apply / session / candidate 零引用；VerificationRun 通过条件、Approval、Receipt、Apply 文件零改动。
+7. **A/F/C+D/MEDIA 不回退**：diff fa21af9→集成树仅 E 模块、E 文档、fixture 与 workflow；candidate/apply/session/scope/project/runtime-identity/project-data-routes/real-adapter 零改动。
+
+## 2. 本地门
+
+typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，b10ee9da）运行中。
+
+## 3. 遗留观察（阶段二，不阻塞阶段一）
+
+- `visual-geometry.ts:640` availability 公式含 `identityAssessment != null` 项——阶段一因接线层不传递而恒 false，可用；**阶段二 C+D 合同到位后必须改为以 `instanceIdentityProven === true` 为准**（已写入 v19/v20 合同文档红线）。
