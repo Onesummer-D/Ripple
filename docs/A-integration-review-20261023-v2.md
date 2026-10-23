@@ -726,3 +726,28 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 ## 3. 遗留观察（阶段二，不阻塞阶段一）
 
 - `visual-geometry.ts:640` availability 公式含 `identityAssessment != null` 项——阶段一因接线层不传递而恒 false，可用；**阶段二 C+D 合同到位后必须改为以 `instanceIdentityProven === true` 为准**（已写入 v19/v20 合同文档红线）。
+
+
+---
+
+# v22 C+D AC-P2a/b 进展登记 + P0（2026-10-23）
+
+## 0. 状态
+
+- C+D 提交：AC-P2a `bd321d8` / AC-P2b `6359ccb` / E 身份合同 `a1b2a24`；CI #39893117386 SUCCESS。
+- AC-P2a（Link/NavLink 来源传播）与 AC-P2b（fallback 建模）方向均获认可。
+- **P0（交 C+D 最小修复 + 正反例回归）**：`resolveLazyComponent()` 将 `route.lazy(() => import('./Page'))` 的 **default 导出**直接认定为页面组件并升级 source-proven——React Router route.lazy 加载的是路由属性对象，default 不是合法的 route.lazy 页面组件键，会产生错误页面消费证明。
+
+## 1. 五项附带登记
+
+1. AC-P2a 版本白名单需补 **SemVer 边界检查**。
+2. B 冻结 candidate-gate 脚本与 `cf44193` 完全一致 ✓；当前 codescandy "PROVEN" 为 C+D 实测报告口径，正式 Candidate 仍被缺页 Scope 正确拒绝。
+3. AC-P2a/b 修复合入 A 后，通知 B 在固定 SHA（b700bbd）上构造**含目标及受影响页面的显式 Scope** 执行 `--expect accepted`。
+4. C+D 分支含 B 旧探针报告与脚本——**集成时限定公共代码、测试及必要文档**，过期报告不作为最新状态合入。
+5. E 身份合同文档（a1b2a24）可接收；但 **VerificationRun.runtimeIdentity 新字段与 page-context 缺失项清除规则暂不冻结**——同 pathname 仍可能对应不同路由匹配或错误边界状态，需补可信路由身份（C+D 后续合同项）。
+
+## 2. 处置
+
+- **不批准 C+D 全分支直接合并**。等 P0 修复后，从当时最新 A HEAD 建独立 AC-P2a/b 集成预演，核查差异（按 §1.4 口径）与正式 CI。
+- E PR #30 阶段一预演 CI 已绿（v21），待合入授权；F 真实 TEXT 并行推进。
+- 不合并 main，不触发 Bolt。
