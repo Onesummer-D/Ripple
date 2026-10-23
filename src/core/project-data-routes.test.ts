@@ -865,6 +865,9 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     'src/pages/Crash.tsx': 'export function Crash(){ return <main><h1>Broken</h1></main> }',
     'src/pages/LazyHome.tsx': 'export default function LazyHome(){ return <main><h1>Lazy Title</h1></main> }',
     'src/pages/LazyNamed.tsx': 'export function Component(){ return <main><h1>Lazy Named Title</h1></main> }',
+    'src/pages/LazyHidden.tsx': 'function Component(){ return <main><h1>Hidden Title</h1></main> }\nexport const loader = async () => null',
+    'src/pages/LazyAliased.tsx': 'function LazyAliased(){ return <main><h1>Aliased Title</h1></main> }\nexport { LazyAliased as Component }',
+    'src/pages/LazyReexport.tsx': 'export { Home as Component } from \'./Home\'',
   }
   it('models a statically provable errorElement as a source-proven page consumer and clears route-coverage', () => {
     const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';
@@ -911,6 +914,40 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     const scope = (id: string, includedRefs: string[]): ScopeDecision => ({ id, version: 1, strategy: 'shared', includedRefs, excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() })
     expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'lazy-narrow'), artifactRoot: path.join(container, 'lazy-narrow-artifacts'), graph, scope: scope('scope-lazy-narrow', [text.id]), operations: [operation] })).toThrow(/尚未明确包含受影响页面：page:\//)
     const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'lazy-full'), artifactRoot: path.join(container, 'lazy-full-artifacts'), graph, scope: scope('scope-lazy-full', [text.id, 'page:/']), operations: [operation] })
+    removeCandidate(candidate)
+  })
+  it('refuses an internal Component that the lazy module never exports', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyHidden') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Hidden Title').certainty).not.toBe('source-proven')
+  })
+  it('refuses a lazy module that only re-exports Component from another file', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyReexport') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Home Title').certainty).not.toBe('source-proven')
+  })
+  it('proves an export-aliased Component (export { X as Component }) and gates real Candidates by proven pages', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyAliased') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('runtime-dependent'))).toEqual([])
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value === 'Aliased Title')!
+    expect(sourceProvenPageImpact(graph, text.id)).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+    const container = makeFixtureRoot('ripple-agent-c-candidate')
+    directories.push(container)
+    const operation: EditOperation = { id: 'op-lazy-aliased', targetRef: text.id, kind: 'TEXT', before: 'Aliased Title', after: 'Aliased Title!' }
+    const scope = (id: string, includedRefs: string[]): ScopeDecision => ({ id, version: 1, strategy: 'shared', includedRefs, excludedRefs: [], protectedRefs: [], decidedBy: 'test-user', decidedAt: new Date().toISOString() })
+    expect(() => createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'alias-narrow'), artifactRoot: path.join(container, 'alias-narrow-artifacts'), graph, scope: scope('scope-alias-narrow', [text.id]), operations: [operation] })).toThrow(/尚未明确包含受影响页面：page:\//)
+    const candidate = createCandidate({ projectRoot: root, candidateRoot: path.join(container, 'alias-full'), artifactRoot: path.join(container, 'alias-full-artifacts'), graph, scope: scope('scope-alias-full', [text.id, 'page:/']), operations: [operation] })
     removeCandidate(candidate)
   })
   it('keeps a conditional errorElement fail-closed with a locatable reason and route-coverage', () => {

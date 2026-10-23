@@ -155,7 +155,20 @@ export function inspectDataRouter(
       if (!resolved) return undefined
       const targetFile = path.relative(root, resolved).replaceAll('\\', '/')
       if (targetFile.startsWith('..')) return undefined
-      const matches = components.filter(c => c.file === targetFile && c.name === 'Component')
+      // route.lazy provides ROUTE OBJECT properties: only a module export
+      // literally named `Component` can supply the page component, and it must
+      // bind to exactly one statically known JSX component declaration IN THIS
+      // MODULE. An internal (unexported) component declaration, a re-export
+      // whose declaration lives in another file, or an unresolvable alias all
+      // stay fail-closed.
+      const targetSource = sources.get(toSourceKey(resolved))
+      const moduleSymbol = targetSource ? checker.getSymbolAtLocation(targetSource) : undefined
+      if (!moduleSymbol) return undefined
+      const exported = checker.getExportsOfModule(moduleSymbol).filter(item => item.name === 'Component')
+      if (exported.length !== 1) return undefined
+      const bound = exported[0].flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported[0]) : exported[0]
+      const boundDeclarations = bound.declarations ?? []
+      const matches = components.filter(c => c.file === targetFile && boundDeclarations.some(declaration => declaration === c.node))
       return matches.length === 1 ? matches[0].id : undefined
     }
     const appCandidates = components.filter(c => c.file === file && c.name === 'App')
