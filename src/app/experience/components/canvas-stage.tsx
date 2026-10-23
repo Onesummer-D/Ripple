@@ -307,7 +307,6 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
       <p className="ripple-xp-selection-summary" data-testid="selection-summary">
         已选中：{selected.label} · 源码 <code>{selected.sourcePath ?? '（未定位）'}</code>
         <CertaintyPill certainty={selected.certainty} />
-        {selected.impactPageRefs.length > 0 && <span> · 影响 {selected.impactPageRefs.length} 个页面</span>}
       </p>
     )}
     {selected?.runtimeIdentity && (

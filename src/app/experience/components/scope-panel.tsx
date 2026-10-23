@@ -65,9 +65,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
     {selected ? (
       <div className="ripple-xp-selection-block">
         <strong>{selected.label}</strong>
-        <p>来源：{selected.sourcePath ? <code>{selected.sourcePath}</code> : '运行时内容，静态来源未定位'}</p>
         {selected.unresolvedReasons.map(reason => <p key={reason} className="ripple-xp-warn">· {reason}</p>)}
-        {selected.impactPageRefs.length > 0 && <p>源码证明会影响：{selected.impactPageRefs.map(ref => model.pages.find(page => page.id === ref)?.label ?? ref).join('、')}</p>}
         {!selected.editable && <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
       </div>
     ) : <p className="ripple-xp-panel-hint">在中间画布点选想要修改的位置。</p>}
@@ -92,9 +90,9 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
     <SectionTitle>影响范围</SectionTitle>
     <ul className="ripple-xp-scope-list">
       {editingPage && scopeRow(editingPage, '本次修改的位置', true)}
-      {sameSourcePages.map(page => scopeRow(page, '同源页面：修改会一并生效', false))}
-      {unrelatedPages.map(page => scopeRow(page, '来源分析已证明本修改不影响此页', false))}
-      {unprovenPages.map(page => scopeRow(page, '影响未证明：选择包含也不会被视为安全', false))}
+      {sameSourcePages.map(page => scopeRow(page, '同源页面', false))}
+      {unrelatedPages.map(page => scopeRow(page, '已证明不受影响', false))}
+      {unprovenPages.map(page => scopeRow(page, '影响未证明', false))}
     </ul>
     <p className="ripple-xp-scope-summary" data-testid="scope-summary">
       包含 {summary.included} · 保护 {summary.protected} · 排除 {summary.excluded} · 未决定 {summary.undecided}
