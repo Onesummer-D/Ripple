@@ -1,0 +1,144 @@
+{
+  "debug": {
+    "appConfigStatus": "supported",
+    "appConfigPath": "tsconfig.app.json",
+    "paths": {
+      "*": [
+        "./src/*"
+      ]
+    },
+    "pathsBasePath": "<checkout-root>",
+    "profileAliasResolved": "src\\pages\\dashboard\\pages\\Profile.tsx",
+    "appProfileImportEdges": [
+      {
+        "id": "import:src/App.tsx:597",
+        "from": "file:src/App.tsx",
+        "to": "file:src/pages/dashboard/pages/Profile.tsx",
+        "kind": "imports",
+        "certainty": "source-proven",
+        "evidenceRefs": []
+      }
+    ],
+    "profileComponents": [
+      {
+        "id": "component:src/pages/dashboard/pages/Profile.tsx#345",
+        "path": "src/pages/dashboard/pages/Profile.tsx"
+      }
+    ]
+  },
+  "schemaVersion": 1,
+  "rippleSha": "local-unpinned (branch feat/b-thirdparty-reprobe-20261023 @ 1485439 base)",
+  "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+  "graph": {
+    "nodes": 4957,
+    "edges": 5384,
+    "routes": 37
+  },
+  "unresolved": [
+    "src/main.tsx → ./styles/theme.scss",
+    "data-router src/App.tsx#2358: conditional route fallback consumer is not modeled",
+    "route-coverage: 静态路由表存在无法证明的消费者或条件分支"
+  ],
+  "graphIntegrity": {
+    "sourceProvenEdges": 4294,
+    "danglingSourceProvenCount": 0,
+    "danglingSourceProven": []
+  },
+  "profileRoute": {
+    "id": "page:/pages/profile",
+    "source": {
+      "path": "src/App.tsx",
+      "start": 2685
+    },
+    "edges": [
+      {
+        "id": "data-router:src/App.tsx:2685:component:src/layouts/RootLayout.tsx#314:/pages/profile",
+        "certainty": "source-proven",
+        "componentId": "component:src/layouts/RootLayout.tsx#314",
+        "component": "RootLayout",
+        "componentSource": "src/layouts/RootLayout.tsx",
+        "componentProvenance": [
+          "file:src/layouts/RootLayout.tsx"
+        ]
+      },
+      {
+        "id": "data-router:src/App.tsx:2685:component:src/pages/dashboard/pages/Profile.tsx#345:/pages/profile",
+        "certainty": "source-proven",
+        "componentId": "component:src/pages/dashboard/pages/Profile.tsx#345",
+        "component": "Profile",
+        "componentSource": "src/pages/dashboard/pages/Profile.tsx",
+        "componentProvenance": [
+          "file:src/pages/dashboard/pages/Profile.tsx"
+        ]
+      }
+    ]
+  },
+  "overviewTargets": [
+    {
+      "id": "literal:src/sub-components/profile/ProfileHeader.tsx#2691",
+      "path": "src/sub-components/profile/ProfileHeader.tsx",
+      "offset": 2691,
+      "value": "Overview\r\n              ",
+      "impact": {
+        "pageRefs": [
+          "page:/pages/profile"
+        ],
+        "unresolved": [
+          "目标存在非确定的消费者关系：composite-jsx-child:component:src/sub-components/profile/ProfileHeader.tsx#135:literal:src/sub-components/profile/ProfileHeader.tsx#2691",
+          "工程存在尚未证明的 data-router 消费者，无法确认页面影响全集"
+        ],
+        "certainty": "partial"
+      },
+      "provenConsumptionPath": [
+        {
+          "from": "page:/pages/profile",
+          "to": "component:src/pages/dashboard/pages/Profile.tsx#345",
+          "kind": "renders",
+          "certainty": "source-proven",
+          "id": "data-router:src/App.tsx:2685:component:src/pages/dashboard/pages/Profile.tsx#345:/pages/profile",
+          "fromLabel": "/pages/profile",
+          "toLabel": "Profile"
+        },
+        {
+          "from": "component:src/pages/dashboard/pages/Profile.tsx#345",
+          "to": "component:src/sub-components/profile/ProfileHeader.tsx#135",
+          "kind": "renders",
+          "certainty": "source-proven",
+          "id": "render:component:src/pages/dashboard/pages/Profile.tsx#345:465",
+          "fromLabel": "Profile",
+          "toLabel": "ProfileHeader"
+        },
+        {
+          "from": "component:src/sub-components/profile/ProfileHeader.tsx#135",
+          "to": "literal:src/sub-components/profile/ProfileHeader.tsx#2691",
+          "kind": "reads",
+          "certainty": "source-proven",
+          "id": "literal-read:literal:src/sub-components/profile/ProfileHeader.tsx#2691",
+          "fromLabel": "ProfileHeader",
+          "toLabel": "Overview"
+        }
+      ],
+      "compositeChildDomRisks": [
+        {
+          "id": "composite-jsx-child:component:src/sub-components/profile/ProfileHeader.tsx#135:literal:src/sub-components/profile/ProfileHeader.tsx#2691",
+          "from": "component:src/sub-components/profile/ProfileHeader.tsx#135",
+          "kind": "reads",
+          "certainty": "semantic-candidate"
+        }
+      ],
+      "jsxSourceNodes": []
+    }
+  ],
+  "candidateGate": "BLOCKED: 目标存在非确定的消费者关系：composite-jsx-child:component:src/sub-components/profile/ProfileHeader.tsx#135:literal:src/sub-components/profile/ProfileHeader.tsx#2691; 工程存在尚未证明的 data-router 消费者，无法确认页面影响全集",
+  "notes": [
+    "Graph proof does not imply project preview support or completed lifecycle.",
+    "Composite <Link> children are statically passed in JSX but their DOM propagation is not proven.",
+    "Unsupported dynamic routes, SCSS and other unproven constructs stay reported as limitations, never as passes.",
+    "Static analysis only; target code was never executed."
+  ],
+  "verdict": {
+    "exitCode": 2,
+    "satisfied": false,
+    "danglingSourceProvenCount": 0
+  }
+}

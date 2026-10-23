@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "mode": "candidate-accepted-fixture",
+  "fixture": "script-owned minimal data-router project (Component routes, no errorElement, no scss)",
+  "target": {
+    "id": "literal:src/pages/HomePage.tsx#53",
+    "path": "src/pages/HomePage.tsx",
+    "value": "\"Hello Ripple\""
+  },
+  "impact": {
+    "pageRefs": [
+      "page:/"
+    ],
+    "unresolved": [],
+    "certainty": "source-proven"
+  },
+  "creation": {
+    "created": true,
+    "recordId": "b-accepted-fixture-1",
+    "errorName": null,
+    "isCandidateError": false,
+    "message": null
+  },
+  "verification": {
+    "recordShapeOk": true,
+    "modifiedTarget": true,
+    "patchHashMatchesBytes": true,
+    "patchNotEmpty": true,
+    "markerMatchesRecord": true,
+    "candidateBytesExactEdit": true,
+    "candidateHasReplacement": true,
+    "candidateTreeDigestMatches": true
+  },
+  "removalError": null,
+  "postChecks": {
+    "worktreeListEmpty": true,
+    "candidateDirRemoved": true,
+    "candidateArtifactsRemoved": true,
+    "fixtureProjectCleanAfterRemoval": true
+  },
+  "pass": true,
+  "note": "真实 createCandidate 成功正例：补丁字节、patchHash、marker、候选工作树精确编辑字节与树摘要全部核对通过，且无 worktree/工件残留。"
+}

@@ -683,3 +683,107 @@ describe('agent C P1 round 3: mutable route table aliases fail closed', () => {
     expect(graph.unresolved.filter(entry => entry.includes('data-router'))).toEqual([])
   })
 })
+
+describe('agent C AC-P2a: audited router host propagation (react-router Link/NavLink)', () => {
+  const routerPkg = (version: string, name = 'react-router-dom') => ({
+    [`node_modules/${name}/package.json`]: JSON.stringify({ name, version, main: 'index.js', types: 'index.d.ts' }),
+    [`node_modules/${name}/index.d.ts`]: 'export declare const Link: any; export declare const NavLink: any; export declare const createBrowserRouter: any; export declare const RouterProvider: any;',
+    [`node_modules/${name}/index.js`]: '',
+  })
+  const linkProject = (header: string, extra: Record<string, string> = {}) => project({
+    'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+    'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import Profile from './pages/Profile';
+      export default function App(){const router=createBrowserRouter([{path:'/pages/profile',Component:Profile}]);return <RouterProvider router={router}/>}`,
+    'src/pages/Profile.tsx': `import ProfileHeader from '../sub-components/profile/ProfileHeader';const Profile=()=> <div><ProfileHeader/></div>;export default Profile;`,
+    'src/sub-components/profile/ProfileHeader.tsx': header,
+    ...routerPkg('6.27.0'),
+    ...extra,
+  })
+  const overviewImpact = (graph: ReturnType<typeof analyzeProject>) => {
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value?.trim() === 'Overview')!
+    return { text, result: sourceProvenPageImpact(graph, text.id), edge: graph.edges.find(edge => edge.id.startsWith('composite-jsx-child:') && edge.to === text.id)! }
+  }
+  it('upgrades a verified react-router-dom v6 Link binding to source-proven with an auditable basis', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('source-proven')
+    expect(edge.id).toContain('host-proven:Link:react-router-dom@6.27.0')
+    expect(result).toMatchObject({ pageRefs: ['page:/pages/profile'], certainty: 'source-proven' })
+  })
+  it('upgrades a verified NavLink binding the same way', () => {
+    const graph = analyzeProject(linkProject(`import {NavLink} from 'react-router-dom';
+      const ProfileHeader=()=> <div><NavLink to='#'>Overview</NavLink></div>;export default ProfileHeader;`))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('source-proven')
+    expect(result.certainty).toBe('source-proven')
+  })
+  it('keeps a shadowed local Link lookalike at semantic-candidate', () => {
+    const graph = analyzeProject(linkProject(`function Link({children}:{children?:unknown}){return <a>{children}</a>}
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+    expect(result.unresolved.join('\n')).toContain('composite-jsx-child')
+  })
+  it('refuses an unaudited react-router major even when the name matches', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+      { 'node_modules/react-router-dom/package.json': JSON.stringify({ name: 'react-router-dom', version: '5.3.4', main: 'index.js', types: 'index.d.ts' }) }))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+  it('refuses a Link imported from an unrelated package', () => {
+    const graph = analyzeProject(linkProject(`import {Link} from 'ui-lib';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`,
+      { 'node_modules/ui-lib/package.json': JSON.stringify({ name: 'ui-lib', version: '1.0.0', main: 'index.js', types: 'index.d.ts' }),
+        'node_modules/ui-lib/index.d.ts': 'export declare const Link: any;',
+        'node_modules/ui-lib/index.js': '' }))
+    const { result, edge } = overviewImpact(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+  const declaredProject = (header: string, dep: string) => {
+    const root = makeFixtureRoot('ripple-agent-c')
+    directories.push(root)
+    const contents = {
+      'package.json': JSON.stringify({ name: 'route-proof-test', dependencies: { 'react-router-dom': dep } }),
+      'tsconfig.json': JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }),
+      'index.html': '<script type="module" src="/src/main.tsx"></script>',
+      'src/main.tsx': `import App from './App';import {createRoot} from 'react-dom/client';createRoot(document.getElementById('root')!).render(<App/>);`,
+      'src/App.tsx': `import {createBrowserRouter,RouterProvider} from 'react-router-dom';import Profile from './pages/Profile';
+        export default function App(){const router=createBrowserRouter([{path:'/pages/profile',Component:Profile}]);return <RouterProvider router={router}/>}`,
+      'src/pages/Profile.tsx': `import ProfileHeader from '../sub-components/profile/ProfileHeader';const Profile=()=> <div><ProfileHeader/></div>;export default Profile;`,
+      'src/sub-components/profile/ProfileHeader.tsx': header,
+    }
+    for (const [name, value] of Object.entries(contents)) {
+      const target = path.join(root, name)
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.writeFileSync(target, value)
+    }
+    execFileSync('git', ['init', '-q'], { cwd: root })
+    execFileSync('git', ['add', '.'], { cwd: root })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'baseline'], { cwd: root })
+    return root
+  }
+  const overviewImpactOf = (graph: ReturnType<typeof analyzeProject>) => {
+    const text = graph.nodes.find(node => node.kind === 'data' && node.value?.trim() === 'Overview')!
+    return { result: sourceProvenPageImpact(graph, text.id), edge: graph.edges.find(edge => edge.id.startsWith('composite-jsx-child:') && edge.to === text.id)! }
+  }
+  it('falls back to an audited declared dependency when no installation exists (clean-clone analyses)', () => {
+    const graph = analyzeProject(declaredProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`, '^6.27.0'))
+    const { result, edge } = overviewImpactOf(graph)
+    expect(edge.certainty).toBe('source-proven')
+    expect(edge.id).toContain('host-proven:Link:react-router-dom@^6.27.0(declared)')
+    expect(result.certainty).toBe('source-proven')
+  })
+  it('refuses an unaudited declared dependency range', () => {
+    const graph = analyzeProject(declaredProject(`import {Link} from 'react-router-dom';
+      const ProfileHeader=()=> <div><Link to='#'>Overview</Link></div>;export default ProfileHeader;`, '^5.3.0'))
+    const { result, edge } = overviewImpactOf(graph)
+    expect(edge.certainty).toBe('semantic-candidate')
+    expect(result.certainty).toBe('partial')
+  })
+})

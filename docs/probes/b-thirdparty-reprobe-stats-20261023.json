@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 2,
+  "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+  "graph": {
+    "nodes": 4957,
+    "edges": 5384,
+    "routes": 37
+  },
+  "unresolved": [
+    "src/main.tsx → ./styles/theme.scss",
+    "data-router src/App.tsx#2310: conditional route fallback consumer is not modeled",
+    "route-coverage: 静态路由表存在无法证明的消费者或条件分支"
+  ],
+  "media": {
+    "assetNodes": 100,
+    "uniqueConsumedAnyEdge": 100,
+    "uniqueConsumedProvenAssetConsumer": 61,
+    "consumptionDistinctionNote": "uniqueConsumedAnyEdge 只表示\"存在任意指向媒体的边\"（含未证明的 asset-consumer 与 reads）；uniqueConsumedProvenAssetConsumer 才是\"存在 source-proven asset-consumer 消费关系\"的媒体数量，两者不得混用。",
+    "unconsumed": 0,
+    "assetConsumer": {
+      "total": 178,
+      "byCertainty": {
+        "source-proven": 61,
+        "semantic-candidate": 117
+      }
+    },
+    "otherEdgesToMediaByKind": {
+      "reads": {
+        "total": 100,
+        "byCertainty": {
+          "source-proven": 100
+        }
+      }
+    },
+    "pageImpactTally": {
+      "source-proven": 0,
+      "partial": 60,
+      "unknown": 40
+    },
+    "comparisonNote": "旧基线 61 = asset-consumer source-proven，与本表 assetConsumer.byCertainty.source-proven 同口径；指向媒体节点的 reads 等其他边不计入该指标。"
+  },
+  "text": {
+    "literalNodes": 2283,
+    "sourceProvenReadsEdges": 3593
+  },
+  "routes": {
+    "count": 37,
+    "sample": [
+      {
+        "id": "page:/",
+        "page": "/"
+      },
+      {
+        "id": "page:/pages/profile",
+        "page": "/pages/profile"
+      },
+      {
+        "id": "page:/pages/settings",
+        "page": "/pages/settings"
+      },
+      {
+        "id": "page:/pages/billing",
+        "page": "/pages/billing"
+      },
+      {
+        "id": "page:/pages/pricing",
+        "page": "/pages/pricing"
+      },
+      {
+        "id": "page:/pages/api-demo",
+        "page": "/pages/api-demo"
+      },
+      {
+        "id": "page:/documentation",
+        "page": "/documentation"
+      },
+      {
+        "id": "page:/changelog",
+        "page": "/changelog"
+      },
+      {
+        "id": "page:/layout-vertical",
+        "page": "/layout-vertical"
+      },
+      {
+        "id": "page:/components/accordions",
+        "page": "/components/accordions"
+      },
+      {
+        "id": "page:/components/alerts",
+        "page": "/components/alerts"
+      },
+      {
+        "id": "page:/components/badges",
+        "page": "/components/badges"
+      },
+      {
+        "id": "page:/components/breadcrumbs",
+        "page": "/components/breadcrumbs"
+      },
+      {
+        "id": "page:/components/button-group",
+        "page": "/components/button-group"
+      },
+      {
+        "id": "page:/components/buttons",
+        "page": "/components/buttons"
+      },
+      {
+        "id": "page:/components/cards",
+        "page": "/components/cards"
+      },
+      {
+        "id": "page:/components/carousels",
+        "page": "/components/carousels"
+      },
+      {
+        "id": "page:/components/close-button",
+        "page": "/components/close-button"
+      },
+      {
+        "id": "page:/components/collapse",
+        "page": "/components/collapse"
+      },
+      {
+        "id": "page:/components/dropdowns",
+        "page": "/components/dropdowns"
+      },
+      {
+        "id": "page:/components/list-group",
+        "page": "/components/list-group"
+      },
+      {
+        "id": "page:/components/modal",
+        "page": "/components/modal"
+      },
+      {
+        "id": "page:/components/navbar",
+        "page": "/components/navbar"
+      },
+      {
+        "id": "page:/components/navs",
+        "page": "/components/navs"
+      },
+      {
+        "id": "page:/components/offcanvas",
+        "page": "/components/offcanvas"
+      },
+      {
+        "id": "page:/components/overlays",
+        "page": "/components/overlays"
+      },
+      {
+        "id": "page:/components/pagination",
+        "page": "/components/pagination"
+      },
+      {
+        "id": "page:/components/popovers",
+        "page": "/components/popovers"
+      },
+      {
+        "id": "page:/components/progress",
+        "page": "/components/progress"
+      },
+      {
+        "id": "page:/components/spinners",
+        "page": "/components/spinners"
+      },
+      {
+        "id": "page:/components/tables",
+        "page": "/components/tables"
+      },
+      {
+        "id": "page:/components/toasts",
+        "page": "/components/toasts"
+      },
+      {
+        "id": "page:/components/tooltips",
+        "page": "/components/tooltips"
+      },
+      {
+        "id": "page:/auth",
+        "page": "/auth"
+      },
+      {
+        "id": "page:/auth/sign-in",
+        "page": "/auth/sign-in"
+      },
+      {
+        "id": "page:/auth/sign-up",
+        "page": "/auth/sign-up"
+      },
+      {
+        "id": "page:/auth/forget-password",
+        "page": "/auth/forget-password"
+      }
+    ],
+    "routeEdgeKinds": {
+      "renders": 74
+    },
+    "unprovenRouteConsumerCount": 0,
+    "unprovenRouteConsumers": [],
+    "coverageNote": "unprovenRouteConsumerCount=0 不等于 graph.unresolved=0，也不等于完整路由覆盖已证明；当前 errorElement 条件回退消费者即经 graph.unresolved 记录，而非本计数。"
+  },
+  "tokens": {
+    "tokenNodes": 0,
+    "scssFiles": [
+      "src/styles/_user-variables.scss",
+      "src/styles/_user.scss",
+      "src/styles/theme.scss",
+      "src/styles/theme/_theme.scss",
+      "src/styles/theme/_utilities.scss",
+      "src/styles/theme/_variables.scss",
+      "src/styles/theme/components/_avatar.scss",
+      "src/styles/theme/components/_badge.scss",
+      "src/styles/theme/components/_button.scss",
+      "src/styles/theme/components/_card.scss",
+      "src/styles/theme/components/_docs.scss",
+      "src/styles/theme/components/_dropdown.scss",
+      "src/styles/theme/components/_forms.scss",
+      "src/styles/theme/components/_layout.scss",
+      "src/styles/theme/components/_nav.scss",
+      "src/styles/theme/components/_navbar-vertical.scss",
+      "src/styles/theme/components/_navbar.scss",
+      "src/styles/theme/components/_reboot.scss",
+      "src/styles/theme/components/_scrollspy.scss",
+      "src/styles/theme/components/_sidenav.scss",
+      "src/styles/theme/components/_social-button.scss",
+      "src/styles/theme/components/_table.scss",
+      "src/styles/theme/utilities/_background.scss",
+      "src/styles/theme/utilities/_border.scss",
+      "src/styles/theme/utilities/_icon-shape.scss",
+      "src/styles/theme/utilities/_position.scss",
+      "src/styles/theme/utilities/_shadows.scss",
+      "src/styles/theme/utilities/_text.scss",
+      "src/styles/theme/vendor/apexChart/_apexchart.scss",
+      "src/styles/theme/vendor/prismJs/_prism.scss"
+    ]
+  }
+}

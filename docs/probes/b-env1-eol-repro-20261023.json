@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 2,
+  "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+  "recordedAt": "2026-10-22T22:23:14.474Z",
+  "sourceRepo": {
+    "role": "read-only",
+    "note": "传入检出仅执行 git 读命令；全部实验在脚本自有临时 clone 中进行。"
+  },
+  "gitConfig": {
+    "clonePolicyLf": "core.autocrlf=false",
+    "clonePolicyCrlf": "core.autocrlf=true",
+    "mechanism": "blob 为 LF；autocrlf=true 检出的工作树为 CRLF 且 git 视角干净；Ripple 用 -c core.autocrlf=false 建候选 worktree 得到 LF 字节 → 与 CRLF 快照摘要不一致。"
+  },
+  "gitBlob": {
+    "blobName": "a5b756e1b97e43444d8cd888f7ff4c0deea977b3",
+    "blobSha256": "68dc1bf1a7d90b37edd98bb7f366ef708706f9a0fc816f470400e1c7f0f17d9b",
+    "blobBytes": 3517,
+    "blobEol": "LF"
+  },
+  "states": {
+    "lf": {
+      "state": "LF (script-owned clone, autocrlf=false)",
+      "eol": "LF",
+      "fileBytes": 3517,
+      "fileSha256": "68dc1bf1a7d90b37edd98bb7f366ef708706f9a0fc816f470400e1c7f0f17d9b",
+      "gitClean": true,
+      "snapshotDigest": "016aee03ac1a1fdb64f5f81cfec8a74c1b5d26463b13d4e0766d6142977cdced",
+      "graphOffsets": {
+        "literalId": "literal:src/sub-components/profile/ProfileHeader.tsx#2620",
+        "candidateStart": 2620,
+        "candidateEnd": 2643
+      }
+    },
+    "crlf": {
+      "state": "CRLF (script-owned clone, autocrlf=true)",
+      "eol": "CRLF",
+      "fileBytes": 3624,
+      "fileSha256": "314fb6f766463cd51fafb129c8077d6797a137f99f25e7853dcd12bff82311ea",
+      "gitClean": true,
+      "snapshotDigest": "a3d59740fc5eb5b67e9dbb7aeb94492265549375796e29fb040a20a8f89cf18c",
+      "graphOffsets": {
+        "literalId": "literal:src/sub-components/profile/ProfileHeader.tsx#2691",
+        "candidateStart": 2691,
+        "candidateEnd": 2715
+      }
+    }
+  },
+  "worktreeDigests": {
+    "worktreeAutocrlfFalse": "016aee03ac1a1fdb64f5f81cfec8a74c1b5d26463b13d4e0766d6142977cdced",
+    "worktreeAutocrlfTrue": "a3d59740fc5eb5b67e9dbb7aeb94492265549375796e29fb040a20a8f89cf18c"
+  },
+  "mismatchDemonstrated": true,
+  "crlfSnapshotVsFreshAutocrlfTrueWorktree": {
+    "explanation": "v2（clone 法）：CRLF 原工程摘要 a3d59740… 与新建 autocrlf=true worktree 摘要完全一致（differingFiles=0）——两者都经 git 同一换行过滤。v1（手工 sed 转换法）曾得到第三个摘要 bdb283ff…，原因是手工转换把 git 视为非文本的文件（部分 .svg 等）也转成了 CRLF，超出了 git 过滤器范围；该值是测量法伪影，已被 v2 取代。operative 不一致仅存在于 CRLF 快照（a3d59740…）与 Ripple 建候选用的 autocrlf=false worktree（016aee03…）之间。",
+    "differingFiles": []
+  },
+  "selftest": {
+    "cases": [
+      {
+        "case": "dirty-source-read-only",
+        "pass": true,
+        "detail": {
+          "measureError": "项目工作树不干净；先提交或收起现有改动，再创建候选"
+        }
+      },
+      {
+        "case": "sentinel-byte-invariance",
+        "pass": true
+      }
+    ],
+    "postChecks": {
+      "sourceRepoHeadUnchanged": true,
+      "sourceRepoDigestUnchanged": true,
+      "sourceRepoPorcelainUnchanged": true,
+      "sourceRepoWorktreesUnchanged": true
+    },
+    "allPass": true
+  }
+}
