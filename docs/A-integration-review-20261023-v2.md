@@ -899,3 +899,42 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 2. **passed fixture**：构建多页 data-router fixture（共享 footer 文本 + 声明交互 + 唯一 marker），真实 Docker 运行器跑 7/7 passed，交 F 第三批。开发分支 `feat/a-passed-fixture-20261023`（待建，基于 45a2d7c）。
 3. E 阶段二严格实例证明接线等待 C+D 三项合同冻结（instanceIdentityProven === true）。
 4. D 青野 MEDIA 全链准备基于 45a2d7c。
+
+---
+
+## v28（2026-10-23 20:3x）｜7/7 passed fixture 全链路实跑成功
+
+### 1. 交付物
+
+- 分支：`feat/a-passed-fixture-20261023` @ `d83adb5`（基于 A `45a2d7c`）。
+- 测试工程：`test/fixtures/passed-text-lifecycle/`（两页 createBrowserRouter：/ + /about；SiteFooter 共享文本源；每页唯一 h1 marker；首页声明式按钮交互；零外部资源；`.gitattributes` 锁 LF）。
+- 驱动脚本：`scripts/a-passed-fixture-e2e.mjs`（正式公共 API 全程，无模拟）。
+- 工作流：`.github/workflows/a-passed-fixture.yml`（Linux + Docker，`workflow_dispatch` 或推送触发）。
+
+### 2. 验收证据（CI run [#39953345840](https://github.com/Onesummer-D/Ripple/actions/runs/39953345840) SUCCESS）
+
+- **fixture 固定源码 SHA：`ffa54331dd5437b5497f3a46e6d1b6fc66042fa2`**（固定作者时间，可复现）。
+- 修改前 PageImpact 即 source-proven 覆盖 `page:/` + `page:/about`，unresolved=[]（analyze 输出实测）。
+- 显式完整 Scope 候选创建成功；**缺页 Scope 负例被 409 拒绝**（门控有效）。
+- 真实 Docker VerificationRunner（mcr playwright v1.64.0-noble）：
+  - **cycle 1：7/7 pass**（target-change / non-target-preserved / scope-propagation / interaction / responsive-layout / source-mapping / browser-errors），4 视口 × 双侧观察齐备（scopeObservations 8、interactionObservations 4、baselineComparisons 4、不可用资源 0）。
+  - **cycle 2：7/7 pass**（重复运行稳定）。
+  - runIds：`verification-17fda0db-…`、`verification-11a531df-…`；patchHash 两轮一致 `f38c99e9c596c3ff…`；recordHash 各 `0d319766…` / `d0ffcc46…`。
+- **同一候选连续生命周期**：两 cycle 均 candidate → verify(passed) → approve → apply（磁盘字节断言为候选文案）→ rollback（磁盘字节还原基线），同一 candidateId 链完整。
+- 证据工件：`passed-fixture-evidence-39953345840`（summary.json、两轮 record.json、workflow 各步、运行工件含 16 张截图），保留 30 天。
+- 可重复命令：`node scripts/a-passed-fixture-e2e.mjs --out test-results/passed-fixture`（需 Linux + Docker + 预热镜像）。
+
+### 3. 衔接
+
+- F 第三批可直接以该 fixture + 驱动脚本为输入做统一工作台完整生命周期 E2E。
+- 未改动任何审批门控/验证断言；fixture 无任何特殊放行。
+
+### 4. 状态总表
+
+| 线 | 状态 |
+|---|---|
+| A 公共核心 | `45a2d7c`，AC-P2a/b 已收束，主线 CI 绿 |
+| passed fixture | ✅ 7/7 × 2 cycle 全链路通过，待 F 消费 |
+| F | 第二批 P0 修复中（协调人直派） |
+| B | 工具 P0 修复后再恢复 codescandy 验收 |
+| D / E / C+D | 按 19:38 协调人安排推进 |
