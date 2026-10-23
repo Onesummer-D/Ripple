@@ -66,7 +66,7 @@ try {
   if (await page.getByTestId('demo-badge').count()) throw new Error('验收失败：真实模式出现演示标记')
   await assert('真实页面', page.getByTestId('page-item-page:home'), 'home')
   await assert('验证未运行如实呈现', page.getByTestId('evidence-ev:verification'), '尚未运行')
-  await assert('真实审批未接入', page.getByTestId('real-approval-pending'), '真实审批尚未接入')
+  await assert('真实审批未接入', page.getByTestId('real-approval-pending'), '审批、应用与回滚均走服务端正式接口')
   // 画布两态：Docker 可用出 iframe，不可用出准确原因；均不得出现演示 DOM
   if (await page.getByTestId('demo-canvas').count()) throw new Error('验收失败：真实模式渲染了演示画布')
   if (await page.getByTestId('real-preview-frame').isVisible().catch(() => false)) {

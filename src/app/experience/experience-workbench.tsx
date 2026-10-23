@@ -4,6 +4,7 @@ import { approvalFeedbackStale } from './view-model'
 import type { ExperienceViewModel, PageScopeChoiceXp } from './view-model'
 import { createDemoAdapter } from './demo-adapter'
 import { StaleResponseError } from './real-adapter'
+import { createSelectionNonce, type PickerEnvelope } from './real-selection'
 import { TopBar } from './components/top-bar'
 import { PageRail } from './components/page-rail'
 import { CanvasStage } from './components/canvas-stage'
@@ -30,6 +31,17 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [reloadToken, setReloadToken] = useState(0)
   const modelRef = useRef<ExperienceViewModel | undefined>(undefined)
   const scopeRef = useRef<HTMLDivElement>(null)
+  /** 画布点选令牌：空串 = 未激活；每次进入轮换一次性 nonce。 */
+  const [pickerNonce, setPickerNonce] = useState('')
+  /**
+   * 当前点选会话的同步可读令牌（state 的镜像）。异步响应判定必须读这里：
+   * 闭包里的 pickerNonce 只是调用时刻的快照，退出再进入后旧快照比较是恒假，
+   * 无法识别"旧 nonce 的迟到响应"。ref 在退出/重进时同步改写，迟到响应
+   * 一律与当前会话比对，不符即丢弃。
+   */
+  const pickerSessionRef = useRef('')
+  const [pickerError, setPickerError] = useState('')
+  const [candidateError, setCandidateError] = useState('')
 
   // 点击涟漪：产品名 Ripple 的核心触感。任何点击在落点扩散一枚茶青圆环。
   // 涟漪节点必须挂在 .ripple-xp-scope 作用域内（--xp-brand 只在该作用域定义）；
@@ -124,6 +136,17 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
       .finally(() => { if (openProjectSeq.current === seq) setOpenProjectBusy(false) })
   }
 
+  // 点选会话随预演会话失效（候选创建/工程切换会停止预演）：自动退出，不残留激活态。
+  // 注意：此 hook 必须位于所有提前 return 之前（Rules of Hooks），用 ref 读取当前模型。
+  useEffect(() => {
+    if (!pickerNonce) return
+    const current = modelRef.current
+    if (!current || current.dataProvenance === 'demo' || !current.preview) {
+      pickerSessionRef.current = ''
+      setPickerNonce('')
+    }
+  }, [pickerNonce, model])
+
   if (error) return (
     <div className="ripple-xp-scope ripple-xp-fatal" role="alert" data-testid="load-error">
       <p>{error}</p>
@@ -144,8 +167,129 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
     setModel(next)
   }
 
+  const isReal = model.dataProvenance !== 'demo'
+  const pickerActive = isReal && !!pickerNonce && !!model.preview
+
+  const togglePicker = () => {
+    setPickerError('')
+    // 以 state 判定当前是否在点选会话中：候选创建成功等路径只清了 state，
+    // 若读 ref 会把下一次点击误判为"退出"，导致点选永远进不去（6c 回归根因）。
+    // ref 仍须在同一事件循环内同步改写：迟到响应立即失效，不等 state 刷新。
+    const next = pickerNonce ? '' : createSelectionNonce()
+    pickerSessionRef.current = next
+    setPickerNonce(next)
+  }
+
+  /** 合法信封到达（D 桥已校验会话）：走 source-selection 服务端授权路径。 */
+  const handlePicked = (envelope: PickerEnvelope) => {
+    if (!activeAdapter.applyPickedSource || !modelRef.current) return
+    // 捕获当前会话令牌；响应回来时与【同步 ref】比对——退出再进入后旧 nonce
+    // 的响应必然不匹配，不得覆盖新会话的选择；工程切换/预演刷新的过期响应
+    // 由 adapter 的 generation 守卫以 StaleResponseError 拒绝。
+    const session = pickerSessionRef.current
+    if (!session) return
+    activeAdapter.applyPickedSource(modelRef.current, { sourceRef: envelope.sourceRef, envelope })
+      .then(next => {
+        if (pickerSessionRef.current !== session) return
+        setPickerError('')
+        apply(next)
+      })
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        if (pickerSessionRef.current !== session) return
+        setPickerError(cause instanceof Error ? cause.message : '点选落位失败')
+      })
+  }
+
+  /** 生成真实候选：审批门未过按钮已禁用，这里再兜底捕获服务端拒绝原因。 */
+  const handleCreateCandidate = () => {
+    if (!activeAdapter.createCandidate || !modelRef.current) return
+    const selected = modelRef.current.elements.find(item => item.id === modelRef.current?.selectedElementId)
+    const draft = modelRef.current.draftAfterText.trim()
+    const rawIntent = selected && draft ? `把「${selected.currentText}」改为「${draft}」` : '真实文本修改'
+    setCandidateError('')
+    activeAdapter.createCandidate(modelRef.current, { rawIntent })
+      .then(next => { apply(next); pickerSessionRef.current = ''; setPickerNonce('') })
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '创建真实候选失败')
+      })
+  }
+
+  const handleToggleCandidatePreview = () => {
+    if (!modelRef.current) return
+    const opening = !modelRef.current.activeCandidate?.previewUrl
+    const action = opening ? activeAdapter.openCandidatePreview : activeAdapter.closeCandidatePreview
+    if (!action) return
+    setCandidateError('')
+    action.call(activeAdapter, modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '候选预演操作失败')
+      })
+  }
+
+  // 第二批：四视口验证（POST /candidate/verify）。结果完全来自服务端 VerificationRun，
+  // 失败（含浏览器验证启动失败）如实透出，绝不用演示默认值兜底。
+  const handleRunVerification = () => {
+    if (!modelRef.current || !activeAdapter.runVerification) return
+    setCandidateError('')
+    activeAdapter.runVerification(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '四视口验证运行失败')
+      })
+  }
+
+  // 第三批：真实生命周期（POST /candidate/approve|apply|rollback）。
+  // 结果完全来自服务端响应；StaleResponseError 表示已有新请求接管，不得提交任何 UI 更新。
+  const handleApproveCandidate = () => {
+    if (!modelRef.current || !activeAdapter.approveCandidate) return
+    setCandidateError('')
+    activeAdapter.approveCandidate(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '审批失败')
+      })
+  }
+  const handleApplyCandidate = () => {
+    if (!modelRef.current || !activeAdapter.applyCandidate) return
+    setCandidateError('')
+    activeAdapter.applyCandidate(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '应用失败')
+      })
+  }
+  const handleRollbackCandidate = () => {
+    if (!modelRef.current || !activeAdapter.rollbackCandidate) return
+    setCandidateError('')
+    activeAdapter.rollbackCandidate(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '回滚失败')
+      })
+  }
+
+  // 真实模式刷新：重建预演会话（候选创建后服务端会停止项目预演）并回读服务端状态
+  const handleRefresh = () => {
+    if (!modelRef.current || !activeAdapter.refresh) return
+    setCandidateError('')
+    activeAdapter.refresh(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '刷新工程状态失败')
+      })
+  }
+
   return <div ref={scopeRef} className="ripple-xp-scope ripple-xp-workbench">
-    <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} />
+    <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} onRefresh={activeAdapter.refresh ? handleRefresh : undefined} />
     {model.dataProvenance === 'real' && model.projectStatus === 'unavailable' && activeAdapter.openProject && (
       // 真实模式：尚未打开工程时提供"打开工程"入口；失败原因如实显示
       <form
@@ -181,6 +325,11 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         model={model}
         onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}
         onViewportChange={id => apply(activeAdapter.setViewport(model, id) ?? model)}
+        pickerActive={pickerActive}
+        pickerNonce={pickerNonce}
+        pickerError={pickerError}
+        onTogglePicker={togglePicker}
+        onPicked={handlePicked}
       />
       <ScopePanel
         model={model}
@@ -190,6 +339,13 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
           // 演示审批只产生可见反馈，绝不进入真实 Approval/Apply。
           setFeedback('演示范围决策已确认，未执行真实应用')
         }}
+        onCreateCandidate={activeAdapter.createCandidate ? handleCreateCandidate : undefined}
+        onToggleCandidatePreview={activeAdapter.openCandidatePreview ? handleToggleCandidatePreview : undefined}
+        onRunVerification={activeAdapter.runVerification ? handleRunVerification : undefined}
+        onApproveCandidate={activeAdapter.approveCandidate ? handleApproveCandidate : undefined}
+        onApplyCandidate={activeAdapter.applyCandidate ? handleApplyCandidate : undefined}
+        onRollbackCandidate={activeAdapter.rollbackCandidate ? handleRollbackCandidate : undefined}
+        candidateError={candidateError}
       />
     </div>
     {feedback && (

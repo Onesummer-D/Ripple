@@ -129,7 +129,7 @@ test('模拟内容不得进入 real 模式：real 桩下无演示 DOM，显示�
   await expect(page.getByTestId('demo-badge')).toHaveCount(0)
   await expect(page.getByTestId('demo-approve')).toHaveCount(0)
   // real 模式没有可执行审批入口，明确提示未接入（不会点击后回演示确认）
-  await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
+  await expect(page.getByTestId('real-approval-pending')).toContainText('正式接口')
 })
 
 test('历史切换：胶片展示生命周期，点击定位页面', async ({ page }) => {
@@ -276,7 +276,7 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await expect(page.getByTestId('evidence-ev:verification')).toContainText('尚未运行')
   await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
   // 真实审批未接入；对照区无真实截图时明确提示
-  await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
+  await expect(page.getByTestId('real-approval-pending')).toContainText('正式接口')
   await expect(page.getByText('尚无真实截图').first()).toBeVisible()
   // 选中真实目标：摘要显示真实源码路径；本地草稿不推进真实候选生命周期
   await page.getByTestId('target-strip').getByRole('button', { name: /Acme 真实首页标题/ }).click()

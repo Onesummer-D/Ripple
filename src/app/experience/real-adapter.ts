@@ -21,7 +21,13 @@
  * 工程全部数据失效；dispose 停止预演会话并取消在途请求。
  */
 import type { ExperienceAdapter } from './adapter'
-import { projectPageRelations } from './view-model'
+import type { EditOperation, ScopeDecision } from '../../core/model'
+import {
+  assessDisplayIdentity,
+  isBoundProjectSelection,
+  type ProjectSourceSelectionResponse,
+} from './real-selection'
+import { projectPageRelations, scopeSummary } from './view-model'
 import type {
   CanvasElementXp,
   EvidenceItemXp,
@@ -29,6 +35,7 @@ import type {
   ExperienceViewModel,
   PageScopeChoiceXp,
   PageXp,
+  RuntimeIdentityXp,
   VersionItemXp,
   ViewportXp,
 } from './view-model'
@@ -62,17 +69,41 @@ interface VerificationView {
   patchHash?: string
   scopeDecisionId?: string
   scopeVersion?: number
+  startedAt?: string
+  completedAt?: string
   assertions?: Array<{ id: string; result: string; detail: string }>
   evidence?: Array<{
     id: string
+    checkId?: string
     result: string
+    pageUrl?: string
     viewport: { width: number; height: number }
-    artifactUrl?: string
+    runtimeState?: string
+    elementRefs?: string[]
     reason?: string
+    artifactUrl?: string
   }>
+  recordUrl?: string
+  recordHash?: string
   browserErrorDetails?: { total: number; byCategory: Record<string, number>; samples: string[]; truncated: boolean }
+  /** E 只读视觉差异证据投影（ripple-visual-evidence-view/v1；字段以 A 为准）。 */
+  visualEvidences?: Array<{
+    checkId: string
+    route: string
+    result: string
+    resultReason?: string
+    view?: unknown
+  }>
 }
 type StoredLifecycle = 'active' | 'discarded' | 'stale' | 'applied' | 'rolled-back'
+/** 第三批：服务端 workflow 投影（approve/apply/rollback/verify 响应；A local-project-api workflowView）。 */
+interface WorkflowView {
+  lifecycle: string
+  approval?: { verificationRunId: string; by?: string; at?: string }
+  applied?: { appliedAt?: string }
+  rollback?: { rolledBackAt?: string }
+  rollbackAvailable?: boolean
+}
 interface HistoryItem {
   candidateId: string
   projectId: string
@@ -119,6 +150,11 @@ export interface RealRuntimeIdentityObservation {
   reasons: string[]
   sourceVersion?: string
   pageContext?: { pathname: string; search: string; hash: string }
+  /** 评估达 stable-* 时的运行时实例 id（显示用，不构成授权）。 */
+  runtimeInstanceId?: string
+  sameSourceCount?: number
+  tagName?: string
+  runtimeText?: string
 }
 
 /* ---------- 内部工具 ---------- */
@@ -141,6 +177,11 @@ function pathBasename(root: string): string {
   const trimmed = root.replace(/[\\/]+$/, '')
   const index = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
   return index >= 0 ? trimmed.slice(index + 1) : trimmed
+}
+
+/** 预演地址的路径部分（身份评估的页面上下文比对用；非法地址返回空串）。 */
+function safePathname(url: string): string {
+  try { return new URL(url, 'http://ripple.local/').pathname } catch { return '' }
 }
 
 function formatTime(iso: string): string {
@@ -171,6 +212,19 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let history: HistoryItem[] = []
   let previewSession: PreviewSession | undefined
   let previewFailedReason = ''
+  /** 第二阶段：当前活跃真实候选（POST /candidate 响应投影；服务端为权威）。 */
+  let activeCandidate: { candidateId: string; patchHash?: string } | undefined
+  /** 候选预演会话地址（POST /candidate/preview 响应；iframe 唯一可信来源）。 */
+  let candidatePreviewUrl: string | undefined
+  let candidatePreviewLoading = false
+  /** 第二批：四视口验证运行状态（POST /candidate/verify 在途）。 */
+  let verificationRunning = false
+  /** 第二批：最近一次真实验证运行投影（服务端权威；F 不自行生成）。 */
+  let activeVerification: VerificationView | undefined
+  /** 第三批：当前跟踪候选的服务端工作流投影（生命周期/审批/应用/回滚全部来自真实响应）。 */
+  let activeWorkflow: WorkflowView | undefined
+  /** 第三批：生命周期操作在途（审批/应用/回滚请求进行中；模型携带以禁用按钮防重复提交）。 */
+  let lifecycleBusy: 'approving' | 'applying' | 'rolling-back' | undefined
   /** 本地交互状态（草稿/范围意向只属于体验层，绝不写服务端）。 */
   const ui: {
     selectedElementId?: string
@@ -208,6 +262,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     history = []
     previewSession = undefined
     previewFailedReason = ''
+    activeCandidate = undefined
+    candidatePreviewUrl = undefined
+    candidatePreviewLoading = false
+    verificationRunning = false
+    activeVerification = undefined
+    activeWorkflow = undefined
+    lifecycleBusy = undefined
     ui.selectedElementId = undefined
     ui.draftAfterText = ''
     ui.currentPageRef = ''
@@ -262,6 +323,40 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
     stale(gen)
     history = (historyPayload.history ?? []).filter(item => item.projectId === projectId)
+    // A 语义：重新分析会使该工程的全部活跃候选退役（fail-closed）。刷新后按服务端
+    // 历史逐生命周期 reconcile 本地跟踪——绝不展示"幽灵候选"，也不得让旧候选的
+    // 验证运行挂在新状态上；applied/rolled-back 终态保留跟踪，供终态展示与回滚入口。
+    if (activeCandidate) {
+      const tracked = history.find(item => item.candidateId === activeCandidate!.candidateId)
+      if (!tracked || tracked.lifecycle === 'stale' || tracked.lifecycle === 'discarded') {
+        activeCandidate = undefined
+        activeWorkflow = undefined
+        activeVerification = undefined
+        candidatePreviewUrl = undefined
+        candidatePreviewLoading = false
+      } else {
+        // 历史回读是持久化权威：验证投影随历史刷新（切换候选后旧验证不残留）
+        activeVerification = tracked.verification
+        if (tracked.lifecycle !== 'active') {
+          candidatePreviewUrl = undefined
+          candidatePreviewLoading = false
+        }
+      }
+    }
+    // 无本地跟踪时跟踪历史最新候选（含审批后/应用后的终态），保证刷新/重开页面后
+    // 审批、应用、回滚状态可继续操作；stale/discarded 一律不复活。
+    if (!activeCandidate && history.length > 0) {
+      const latest = history[0]
+      if (latest.lifecycle === 'active' || latest.lifecycle === 'applied' || latest.lifecycle === 'rolled-back') {
+        activeCandidate = { candidateId: latest.candidateId, patchHash: latest.patchHash }
+        activeVerification = latest.verification
+        activeWorkflow = {
+          lifecycle: latest.lifecycle,
+          approval: latest.approval,
+          rollbackAvailable: latest.lifecycle === 'applied' ? undefined : false,
+        }
+      }
+    }
     previewSession = undefined
     previewFailedReason = ''
     try {
@@ -280,20 +375,37 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   }
 
   function elements(): CanvasElementXp[] {
-    return (analysis?.targets ?? []).map(target => ({
-      id: target.id,
-      label: target.label,
-      // 真实模式画布不渲染演示 DOM，demoSelector 仅占位（不会被消费）。
-      demoSelector: `real:${target.id}`,
-      currentText: target.value ?? '',
-      sourceRef: target.id,
-      sourcePath: target.location?.path,
-      certainty: target.impact.certainty,
-      impactPageRefs: target.impact.pageRefs,
-      unresolvedReasons: target.impact.unresolved,
-      // 只有来源完全证明的元素才允许进入本地编辑意向；unknown/partial 只能查看。
-      editable: target.impact.certainty === 'source-proven' && target.impact.unresolved.length === 0,
-    }))
+    return (analysis?.targets ?? []).map(target => {
+      const identity = runtimeIdentities.get(target.id)
+      return {
+        id: target.id,
+        label: target.label,
+        // 真实模式画布不渲染演示 DOM，demoSelector 仅占位（不会被消费）。
+        demoSelector: `real:${target.id}`,
+        currentText: target.value ?? '',
+        sourceRef: target.id,
+        sourcePath: target.location?.path,
+        certainty: target.impact.certainty,
+        impactPageRefs: target.impact.pageRefs,
+        unresolvedReasons: target.impact.unresolved,
+        // 只有来源完全证明的元素才允许进入本地编辑意向；unknown/partial 只能查看。
+        editable: target.impact.certainty === 'source-proven' && target.impact.unresolved.length === 0,
+        runtimeIdentity: identity ? toRuntimeIdentityXp(identity) : undefined,
+      }
+    })
+  }
+
+  /** D 点选观测 → 界面投影（仅显示；稳定实例身份不改变 editable 判定）。 */
+  function toRuntimeIdentityXp(identity: RealRuntimeIdentityObservation): RuntimeIdentityXp {
+    return {
+      certainty: identity.identityCertainty,
+      reasons: identity.reasons,
+      runtimeInstanceId: identity.runtimeInstanceId,
+      sameSourceCount: identity.sameSourceCount,
+      sourceVersion: identity.sourceVersion,
+      tagName: identity.tagName,
+      runtimeText: identity.runtimeText,
+    }
   }
 
   function pages(): PageXp[] {
@@ -326,7 +438,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
    */
   function candidateStatus(): ExperienceViewModel['candidateStatus'] {
     const latest = latestCandidate()
-    if (!latest) return 'none'
+    // 本 session 刚创建、历史尚未回读时，如实反映"已有活跃候选"（服务端已持久化）
+    if (!latest) return activeCandidate ? 'candidate' : 'none'
     switch (latest.lifecycle) {
       case 'applied': return 'applied'
       case 'rolled-back': return 'rolled-back'
@@ -410,11 +523,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         state: selected.editable ? 'pass' : 'unknown',
         sourceKind: 'user-choice',
         summary: selected.editable
-          ? `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」（本地意向，真实候选生成尚未接入）。`
+          ? activeCandidate
+            ? `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」；已生成真实候选 ${activeCandidate.candidateId.slice(0, 18)}…（服务端持久化${activeVerification?.runId ? `，验证${VERIFICATION_STATE_LABEL[activeVerification.state]}` : ''}；审批在后续批次接入）。`
+            : `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」（本地意向，尚未生成真实候选）。`
           : `「${selected.label}」来源未完全证明，只能查看，不能承诺修改范围。`,
         detail: identity
-          ? `运行时身份（D 点选预留）：${identity.identityCertainty} · ${identity.reasons.join('、') || '无降级原因'}。sourceRef 唯一不等于 React 实例唯一。`
-          : '运行时实例身份尚未通过点选采集（D 接口预留，接入前不臆造实例确定性）。',
+          ? `运行时身份（画布点选，D 桥）：${identity.identityCertainty} · ${identity.reasons.join('、') || '无降级原因'}。sourceRef 唯一不等于 React 实例唯一；该身份只用于显示与导航，不构成编辑授权。`
+          : '运行时实例身份尚未通过画布点选采集；编辑资格只由来源证明（source-proven）决定。',
       })
     }
 
@@ -481,6 +596,70 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     }
   }
 
+  /** 第二批：把服务端 VerificationRun 投影转成候选面板可渲染的验证快照（截图地址绝对化）。 */
+  function candidateVerificationView(verification: VerificationView | undefined): import('./view-model').CandidateVerificationXp | undefined {
+    if (!verification) return undefined
+    return {
+      state: verification.state,
+      stateLabel: VERIFICATION_STATE_LABEL[verification.state],
+      reason: verification.reason,
+      runId: verification.runId,
+      patchHash: verification.patchHash,
+      scopeVersion: verification.scopeVersion,
+      startedAt: verification.startedAt,
+      completedAt: verification.completedAt,
+      recordHash: verification.recordHash,
+      assertions: verification.assertions ?? [],
+      shots: (verification.evidence ?? []).map(entry => ({
+        viewportWidth: entry.viewport.width,
+        viewportHeight: entry.viewport.height,
+        result: entry.result,
+        runtimeState: entry.runtimeState,
+        imageUrl: entry.artifactUrl ? `${apiBase}${entry.artifactUrl}` : undefined,
+        reason: entry.reason,
+      })),
+      visualEvidences: (verification.visualEvidences ?? []).map(entry => ({
+        checkId: entry.checkId,
+        route: entry.route,
+        result: entry.result,
+        resultReason: entry.resultReason,
+        // E 的只读 view 投影：仅提取已知可读字段，缺失不臆造；proofLabel 逐字透传
+        view: toVisualEvidenceViewXp(entry.view),
+      })),
+    }
+  }
+
+  /** 从 E 的 view 投影中提取可读字段（结构以 A/E 为准，未知形状安全降级为 undefined）。 */
+  function toVisualEvidenceViewXp(view: unknown): import('./view-model').VisualEvidenceViewXp | undefined {
+    if (!view || typeof view !== 'object') return undefined
+    const raw = view as Record<string, unknown>
+    const cross = raw.crossVersion && typeof raw.crossVersion === 'object'
+      ? raw.crossVersion as Record<string, unknown>
+      : undefined
+    const crossScope = cross?.scope && typeof cross.scope === 'object'
+      ? cross.scope as Record<string, unknown>
+      : undefined
+    const pairs = Array.isArray(cross?.pairs)
+      ? (cross!.pairs as Array<Record<string, unknown>>).map(pair => ({
+          proofLabel: typeof pair.proofLabel === 'string' ? pair.proofLabel : undefined,
+          reasons: Array.isArray(pair.reasons) ? pair.reasons.filter((item): item is string => typeof item === 'string') : undefined,
+        }))
+      : undefined
+    return {
+      schema: typeof raw.schema === 'string' ? raw.schema : undefined,
+      stateLabel: typeof raw.stateLabel === 'string' ? raw.stateLabel : undefined,
+      summary: typeof raw.summary === 'string' ? raw.summary : undefined,
+      comparable: typeof raw.comparable === 'boolean' ? raw.comparable : undefined,
+      changedPixels: typeof raw.changedPixels === 'number' ? raw.changedPixels : null,
+      regionCount: typeof raw.regionCount === 'number' ? raw.regionCount : undefined,
+      identityStatus: typeof raw.identityStatus === 'string' ? raw.identityStatus : undefined,
+      limitations: Array.isArray(raw.limitations)
+        ? raw.limitations.filter((item): item is string => typeof item === 'string')
+        : undefined,
+      crossVersion: cross ? { scope: { strictInstanceProofAvailable: typeof crossScope?.strictInstanceProofAvailable === 'boolean' ? crossScope.strictInstanceProofAvailable : undefined }, pairs } : undefined,
+    }
+  }
+
   function buildModel(projectStatus: ExperienceViewModel['projectStatus'], blockedReasons: string[] = []): ExperienceViewModel {
     const targets = elements()
     const selected = targets.find(item => item.id === ui.selectedElementId)
@@ -497,7 +676,31 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       currentPageRef: ui.currentPageRef || analysis?.routes[0]?.id || '',
       draftAfterText: ui.draftAfterText,
       activeViewportId: ui.activeViewportId,
-      canvasState: previewSession ? 'ready' : 'unavailable',
+      canvasState: candidatePreviewUrl || previewSession ? 'ready' : 'unavailable',
+      pickerAvailable: !!previewSession,
+      activeCandidate: activeCandidate
+        ? {
+            ...activeCandidate,
+            previewUrl: candidatePreviewUrl,
+            previewLoading: candidatePreviewLoading,
+            verificationRunning,
+            verification: candidateVerificationView(activeVerification),
+            // 第三批：生命周期投影全部来自服务端 workflow/历史，绝不本地生成。
+            // A 的 workflow.lifecycle 是候选生命周期（active/applied/rolled-back），
+            // 审批态在 workflow.approval：session 状态 approved 必须映射为界面生命周期 approved
+            lifecycle: activeWorkflow?.applied
+              ? 'applied'
+              : activeWorkflow?.rollback
+                ? 'rolled-back'
+                : activeWorkflow?.approval
+                  ? 'approved'
+                  : activeWorkflow?.lifecycle ?? 'active',
+            approval: activeWorkflow?.approval,
+            appliedAt: activeWorkflow?.applied?.appliedAt,
+            rollbackAvailable: activeWorkflow?.rollbackAvailable,
+            lifecycleBusy,
+          }
+        : undefined,
       pages: pages(),
       elements: targets,
       selectedElementId: selected?.id,
@@ -573,6 +776,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         // 重拉前停止旧预演会话（refresh 会重建 preview 会话）
         const oldSession = previewSession
         previewSession = undefined
+        // 候选预演地址同属本轮预演会话：刷新后不再假定其可用，由用户重新打开（A 会复用在跑会话）
+        candidatePreviewUrl = undefined
         // 先重试历史失败会话，再停止当前会话——本轮刚失败的会话留待下一轮重试
         await retryPendingCleanup()
         if (oldSession) await stopPreview(oldSession)
@@ -589,6 +794,14 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       previewSession = undefined
       if (session) {
         await stopPreview(session)
+      }
+      // 候选预演会话同属预演资源：关闭时一并尽力停止
+      const candidateSession = activeCandidate
+      candidatePreviewUrl = undefined
+      if (candidateSession) {
+        await post('candidate/preview/stop', { candidateId: candidateSession.candidateId }).catch(() => {
+          // 尽力清理：与项目预演同策略，不阻断关闭
+        })
       }
       // 关闭是最后一次清理机会：连同历史失败会话一并按身份重试
       await retryPendingCleanup()
@@ -639,6 +852,312 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       ui.currentPageRef = pageRef
       // 浏览页只影响画布展示，绝不参与页面关系投影
       return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
+    },
+
+    /**
+     * 画布点选落位：信封已由工作台用 A 核心 isCurrentPickerEnvelope 校验；
+     * 这里负责服务端授权路径——POST /project/source-selection，响应绑定当前
+     * 预演会话才采信；显示身份用 assessPickerDisplayIdentity 评估（不构成授权）。
+     */
+    async applyPickedSource(current, picked) {
+      return run(async () => {
+        const gen = generation
+        if (!analysis || !previewSession) throw new Error('画布点选需要先建立项目预演会话')
+        const session = previewSession
+        const response = await post<ProjectSourceSelectionResponse>('project/source-selection', {
+          projectId: session.projectId,
+          previewId: session.previewId,
+          sourceDigest: session.sourceDigest,
+          sourceRef: picked.sourceRef,
+        })
+        if (gen !== generation) throw new StaleResponseError()
+        if (!isBoundProjectSelection(response, {
+          projectId: session.projectId,
+          previewId: session.previewId,
+          sourceDigest: session.sourceDigest,
+          sourceRef: picked.sourceRef,
+        })) {
+          throw new Error('点选响应与当前预演会话不一致，已丢弃（预览可能已被替换）')
+        }
+        const framePathname = safePathname(session.url)
+        const verdict = assessDisplayIdentity(picked.envelope, {
+          sourceRef: response.element.id,
+          sourceVersion: response.sourceVersion ?? picked.envelope.sourceVersion,
+          expectedPathname: framePathname,
+        })
+        // 显示身份登记（按 sourceRef 与可选中目标双键，均只用于显示）
+        const observation: RealRuntimeIdentityObservation = {
+          sourceRef: response.element.id,
+          identityCertainty: verdict.certainty,
+          reasons: verdict.reasons,
+          sourceVersion: typeof picked.envelope.sourceVersion === 'string' ? picked.envelope.sourceVersion : undefined,
+          pageContext: picked.envelope.pageContext,
+          runtimeInstanceId: verdict.runtimeInstanceId,
+          sameSourceCount: Number.isSafeInteger(picked.envelope.sameSourceCount) && Number(picked.envelope.sameSourceCount) > 0 ? Number(picked.envelope.sameSourceCount) : undefined,
+          tagName: picked.envelope.tagName,
+          runtimeText: picked.envelope.text,
+        }
+        runtimeIdentities.set(response.element.id, observation)
+        // 选中点选元素的可编辑文本目标：必须存在于已分析目标中，否则拒绝——
+        // 不因为用户在画布上点到了就臆造一个可编辑目标
+        const editableNode = response.editableText.find(node => (analysis?.targets ?? []).some(target => target.id === node.id))
+        if (!editableNode) {
+          throw new Error('点选元素的文本来源不在已分析目标中，无法作为修改目标（可在源码工作台定位）')
+        }
+        runtimeIdentities.set(editableNode.id, observation)
+        ui.selectedElementId = editableNode.id
+        // 草稿与范围意向都属于目标：点选切换目标即清空
+        ui.draftAfterText = ''
+        ui.scopes = {}
+        return { ...buildModel(current.projectStatus, current.blockedReasons), selectedElementId: editableNode.id }
+      })
+    },
+
+    /**
+     * 创建真实候选：operations 由当前选中目标 + 草稿派生（TEXT 单操作）；
+     * Scope 决策由用户在本轮的页面范围选择显式构建。审批门（approvalGate）
+     * 由调用方（ScopePanel/工作台）先行把关，这里再次校验绝不静默放行。
+     * 服务端持久化成功后回读历史，版本胶片与候选状态以服务端为权威。
+     */
+    async createCandidate(current, input) {
+      return run(async () => {
+        const gen = generation
+        const selected = elements().find(item => item.id === ui.selectedElementId)
+        if (!analysis) throw new Error('尚未分析工程，不能创建候选')
+        if (!selected) throw new Error('尚未选中要修改的真实目标')
+        if (!selected.editable) throw new Error('选中目标来源未完全证明，不能创建真实候选')
+        if (!ui.draftAfterText.trim()) throw new Error('修改内容为空')
+        const pagesNow = pages()
+        const summary = scopeSummary(pagesNow)
+        if (summary.undecided > 0) throw new Error(`还有 ${summary.undecided} 个受影响页面未决定范围`)
+        if (summary.unprovenIncluded > 0) throw new Error('修改范围包含来源未完全证明的页面，不能创建候选')
+        if (summary.included === 0) throw new Error('没有任何页面被包含进修改范围')
+        // A 核心 assertScope 合同（src/core/candidate.ts）：
+        // 1. strategy 'shared' 不得携带 localPageRef（否则"共享来源 Scope 不能携带局部页面引用"）；
+        // 2. includedRefs 必须包含 operation.targetRef（否则"Scope 不允许修改目标"）。
+        // includedRefs = 当前编辑目标 + 用户本轮明确包含的页面引用（去重，绝不自动升级未证明页面）。
+        const scope: ScopeDecision = {
+          id: `scope-${crypto.randomUUID()}`,
+          version: 1,
+          strategy: 'shared',
+          includedRefs: [...new Set([
+            selected.id,
+            ...pagesNow.filter(page => page.scope === 'include').map(page => page.id),
+          ])],
+          excludedRefs: pagesNow.filter(page => page.scope === 'exclude').map(page => page.id),
+          protectedRefs: pagesNow.filter(page => page.scope === 'protect').map(page => page.id),
+          decidedBy: 'local-user',
+          decidedAt: new Date().toISOString(),
+        }
+        const operations: EditOperation[] = [{
+          id: `operation-${crypto.randomUUID()}`,
+          kind: 'TEXT',
+          targetRef: selected.id,
+          before: selected.currentText,
+          after: ui.draftAfterText,
+        }]
+        let response: {
+          sessionId: string
+          candidate: { id: string; patchHash?: string }
+          verification: VerificationView
+          workflow: WorkflowView
+        }
+        try {
+          response = await post('candidate', {
+            projectId: analysis.revision.projectId,
+            rawIntent: input.rawIntent,
+            operations,
+            scope,
+          })
+        } catch (error) {
+          // A 的 POST /candidate 在创建候选【之前】停止项目预演（local-project-api.ts）：
+          // 候选被拒绝时服务端预演也已失效。本地绝不留存看似可用的旧会话状态，
+          // 一律失效化并给出如实原因，由刷新/重新打开工程重建预演。
+          const stoppedSession = previewSession
+          previewSession = undefined
+          if (stoppedSession) cleanupFailures.delete(stoppedSession.previewId)
+          previewFailedReason = previewFailedReason || '候选处理已停止项目预演会话，请刷新工程重新建立预演。'
+          throw error
+        }
+        if (gen !== generation) throw new StaleResponseError()
+        activeCandidate = { candidateId: response.candidate.id, patchHash: response.candidate.patchHash }
+        activeWorkflow = response.workflow
+        // 新候选不得残留上一个候选的验证：验证严格绑定候选身份（candidateId/patchHash）
+        activeVerification = undefined
+        // 服务端在候选创建时停止项目预演会话：本地状态如实跟进，不保留失效会话
+        const stoppedSession = previewSession
+        previewSession = undefined
+        if (stoppedSession) cleanupFailures.delete(stoppedSession.previewId)
+        // 回读历史：版本胶片与候选状态以服务端持久化结果为权威
+        const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+        if (gen === generation) {
+          history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+        }
+        return buildModel(current.projectStatus, [
+          ...current.blockedReasons ?? [],
+          '候选创建后项目预演已由服务端停止；候选预演入口在下方提供。',
+        ])
+      })
+    },
+
+    async openCandidatePreview(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有活跃候选，无法打开候选预演')
+        candidatePreviewLoading = true
+        try {
+          const response = await post<{ candidateId: string; url: string; verification: VerificationView }>('candidate/preview', { candidateId: activeCandidate.candidateId })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('候选预演响应与当前候选不一致，已丢弃')
+          candidatePreviewUrl = response.url
+          // 必须在 buildModel 前复位：finally 晚于模型构建执行，否则发出的模型
+          // 携带过期的 previewLoading=true，预演开关按钮会永久禁用（CI 真实链路抓到）
+          candidatePreviewLoading = false
+          return buildModel(current.projectStatus, current.blockedReasons)
+        } finally {
+          candidatePreviewLoading = false
+        }
+      })
+    },
+
+    async closeCandidatePreview(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate || !candidatePreviewUrl) return current
+        await post('candidate/preview/stop', { candidateId: activeCandidate.candidateId }).catch(() => {
+          // 尽力清理：失败不阻断界面，会话由服务端超时回收
+        })
+        if (gen !== generation) throw new StaleResponseError()
+        candidatePreviewUrl = undefined
+        return buildModel(current.projectStatus, current.blockedReasons)
+      })
+    },
+
+    /**
+     * 第二批：运行真实四视口验证（POST /candidate/verify）。
+     * 只消费服务端 VerificationRun 投影（断言/证据截图/记录哈希/E 视觉证据），
+     * 绝不自行生成 pass；响应候选身份不一致或代际过期一律丢弃；
+     * 完成后回读历史，版本胶片/证据/视口覆盖以服务端持久化结果为权威。
+     */
+    async runVerification(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有活跃候选，无法运行验证')
+        verificationRunning = true
+        try {
+          const response = await post<{ candidateId: string; previewUrl: string; verification: VerificationView; workflow?: WorkflowView }>(
+            'candidate/verify', { candidateId: activeCandidate.candidateId },
+          )
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('验证响应与当前候选不一致，已丢弃')
+          activeVerification = response.verification
+          if (response.workflow) activeWorkflow = response.workflow
+          const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+          if (gen === generation) {
+            history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+          }
+          // 必须在 buildModel 前复位（da94ab7 教训）：finally 晚于模型构建执行
+          verificationRunning = false
+          return buildModel(current.projectStatus, current.blockedReasons)
+        } catch (error) {
+          // 失败也必须如实刷新：服务端可能已把候选退役为 stale（如源码被改动），
+          // 尽力回读历史，让 stale 生命周期在下一次模型重建时如实反映
+          const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+          if (gen === generation) {
+            history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+          }
+          throw error
+        } finally {
+          verificationRunning = false
+        }
+      })
+    },
+
+    /**
+     * 第三批：审批（POST /candidate/approve）。
+     * 审批严格绑定【最新 passed 验证的 runId】——recordHash 是执行记录哈希，不能代替
+     * runId（A 核心以 runId 定位运行并校验可信浏览器执行）。门控：仅当 activeVerification
+     * 为 passed 才发请求；服务端仍是最终权威（非活动候选/验证不 passed/runId 不匹配一律
+     * 拒绝，错误如实透出）。
+     */
+    async approveCandidate(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有候选，无法审批')
+        const latestRun = activeVerification
+        if (!latestRun || latestRun.state !== 'passed' || !latestRun.runId) {
+          throw new Error(`只有最新验证为「通过」的候选可以审批（当前：${latestRun ? VERIFICATION_STATE_LABEL[latestRun.state] : '尚未运行'}）`)
+        }
+        lifecycleBusy = 'approving'
+        try {
+          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/approve', {
+            candidateId: activeCandidate.candidateId,
+            runId: latestRun.runId,
+          })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('审批响应与当前候选不一致，已丢弃')
+          activeWorkflow = response.workflow
+          const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+          if (gen === generation) {
+            history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+          }
+          return buildModel(current.projectStatus, current.blockedReasons)
+        } finally {
+          lifecycleBusy = undefined
+        }
+      })
+    },
+
+    /**
+     * 第三批：应用（POST /candidate/apply）。服务端校验：仅已审批且当前活动候选可应用
+     * （源码变化/候选过期/脏工作树一律拒绝，错误如实透出，绝不本地生成 applied）。
+     * 成功后服务端已把候选源码写入工程并重新分析：全量回读重建目标/页面/历史与预演，
+     * 画布与版本历史必须反映应用后的真实工程。
+     */
+    async applyCandidate(_current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有候选，无法应用')
+        lifecycleBusy = 'applying'
+        try {
+          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/apply', { candidateId: activeCandidate.candidateId })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('应用响应与当前候选不一致，已丢弃')
+          activeWorkflow = response.workflow
+          candidatePreviewUrl = undefined
+          candidatePreviewLoading = false
+          await loadProjectState(gen)
+          stale(gen)
+          return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
+        } finally {
+          lifecycleBusy = undefined
+        }
+      })
+    },
+
+    /**
+     * 第三批：回滚（POST /candidate/rollback）。仅服务端确认仍可回滚的已应用候选可回滚；
+     * 成功后源码恢复，同样全量回读刷新真实工程状态与版本记录。
+     */
+    async rollbackCandidate(_current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有候选，无法回滚')
+        lifecycleBusy = 'rolling-back'
+        try {
+          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/rollback', { candidateId: activeCandidate.candidateId })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('回滚响应与当前候选不一致，已丢弃')
+          activeWorkflow = response.workflow
+          candidatePreviewUrl = undefined
+          candidatePreviewLoading = false
+          await loadProjectState(gen)
+          stale(gen)
+          return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
+        } finally {
+          lifecycleBusy = undefined
+        }
+      })
     },
   } as ExperienceAdapter & {
     attachSourceRelations(relations: RealSourceRelations): void

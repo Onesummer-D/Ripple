@@ -214,6 +214,46 @@
   margin: 14px 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   color: var(--xp-ink-soft);
 }
+
+/* 画布点选（D 桥） */
+.ripple-xp-picker-toggle {
+  border: 1.5px solid var(--xp-line); border-radius: 999px; background: transparent;
+  padding: 8px 18px; font-size: 15px; color: var(--xp-ink-soft);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.ripple-xp-picker-toggle:hover:not(:disabled) { border-color: var(--xp-brand); color: var(--xp-brand); }
+.ripple-xp-picker-toggle.is-active {
+  border-color: var(--xp-brand); color: var(--xp-paper); background: var(--xp-brand); font-weight: 600;
+}
+.ripple-xp-picker-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+.ripple-xp-picker-hint {
+  margin: 10px 0 0; font-size: 14px; color: var(--xp-brand);
+  border-left: 2px solid var(--xp-brand); padding: 2px 0 2px 12px;
+}
+.ripple-xp-picker-error { margin: 8px 0 0; font-size: 14px; color: var(--xp-clay); }
+
+/* 真实候选创建区 */
+.ripple-xp-candidate-box { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--xp-line); display: grid; gap: 10px; }
+.ripple-xp-candidate-id { font-size: 14px; color: var(--xp-ink-soft); }
+.ripple-xp-candidate-id code { border-bottom: none; }
+.ripple-xp-candidate-error { margin: 0; font-size: 14px; color: var(--xp-clay); }
+.ripple-xp-candidate-note { margin: 0; font-size: 14px; color: var(--xp-ink-soft); }
+/* 第二批：四视口验证结果（截图/断言/E 视觉证据均来自服务端 VerificationRun） */
+.ripple-xp-verification { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--xp-line); border-radius: 12px; background: var(--xp-paper); }
+.ripple-xp-verification-head { margin: 0; font-size: 14px; font-weight: 600; }
+.ripple-xp-verification-shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ripple-xp-verification-shots figure { margin: 0; display: grid; gap: 4px; }
+.ripple-xp-verification-shots img { width: 100%; border: 1px solid var(--xp-line); border-radius: 8px; background: #fff; }
+.ripple-xp-verification-shots figcaption { font-size: 12px; color: var(--xp-ink-soft); }
+.ripple-xp-visual-evidences { margin: 0; padding-left: 18px; font-size: 13px; color: var(--xp-ink-soft); display: grid; gap: 6px; }
+.ripple-xp-visual-summary, .ripple-xp-visual-proof { display: block; font-size: 12px; color: var(--xp-ink-soft); }
+.ripple-xp-visual-proof { border-left: 2px solid var(--xp-line); padding-left: 8px; }
+.ripple-xp-assertions { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px; color: var(--xp-ink-soft); }
+.ripple-xp-assertion-mark { font-weight: 600; }
+.ripple-xp-assertion-mark.is-pass { color: var(--xp-brand); }
+.ripple-xp-assertion-mark.is-fail { color: var(--xp-clay); }
+.ripple-xp-lifecycle { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--xp-line); border-radius: 12px; background: var(--xp-paper); }
+.ripple-xp-lifecycle-status { margin: 0; font-size: 13px; color: var(--xp-ink-soft); }
 .ripple-xp-viewport-shell {
   overflow: hidden; border: 1px solid var(--xp-line); border-radius: 16px;
   background: #fff; margin-top: 10px;
