@@ -353,21 +353,14 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     return { pages, interactions: [] }
   }
 
-  /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
-  async function loadProjectState(gen: number): Promise<void> {
-    if (!projectRoot?.trim()) return
-    const analyzed = await post<AnalysisResponse>('analyze', { projectRoot })
-    stale(gen)
-    analysis = analyzed
-    // 刷新（同一工程）保留用户已编辑的合同草案；只有工程切换/首次加载才提出初始建议
-    if (!draftContract) draftContract = proposeContract()
-    const projectId = analyzed.revision.projectId
+  /**
+   * 历史回读 + 候选 reconcile（A 语义：重新分析使活跃候选退役 fail-closed；
+   * applied/rolled-back 终态保留跟踪供终态展示与回滚入口；绝不展示幽灵候选）。
+   */
+  async function refreshHistoryAndReconcile(gen: number, projectId: string): Promise<void> {
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
     stale(gen)
     history = (historyPayload.history ?? []).filter(item => item.projectId === projectId)
-    // A 语义：重新分析会使该工程的全部活跃候选退役（fail-closed）。刷新后按服务端
-    // 历史逐生命周期 reconcile 本地跟踪——绝不展示"幽灵候选"，也不得让旧候选的
-    // 验证运行挂在新状态上；applied/rolled-back 终态保留跟踪，供终态展示与回滚入口。
     if (activeCandidate) {
       const tracked = history.find(item => item.candidateId === activeCandidate!.candidateId)
       if (!tracked || tracked.lifecycle === 'stale' || tracked.lifecycle === 'discarded') {
@@ -399,6 +392,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         }
       }
     }
+  }
+
+  /** 尽力启动项目源码预演：失败如实记录原因（如应用后工作树未提交，A 核心 fail-closed 拒绝）。 */
+  async function startPreviewBestEffort(gen: number, projectId: string): Promise<void> {
     previewSession = undefined
     previewFailedReason = ''
     try {
@@ -415,6 +412,33 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     }
     stale(gen)
   }
+
+  /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
+  async function loadProjectState(gen: number): Promise<void> {
+    if (!projectRoot?.trim()) return
+    const analyzed = await post<AnalysisResponse>('analyze', { projectRoot })
+    stale(gen)
+    analysis = analyzed
+    // 刷新（同一工程）保留用户已编辑的合同草案；只有工程切换/首次加载才提出初始建议
+    if (!draftContract) draftContract = proposeContract()
+    await refreshHistoryAndReconcile(gen, analyzed.revision.projectId)
+    await startPreviewBestEffort(gen, analyzed.revision.projectId)
+  }
+
+  /**
+   * 应用/回滚成功后的状态刷新：直接采用服务端响应内嵌的重新分析结果
+   * （A 在 apply/rollback 成功后已重分析并随响应返回），不再请求 analyze——
+   * 应用后工作树带未提交的应用字节，A 核心的 analyze 以 requireClean 拒绝（fail-closed），
+   * 重复 analyze 会让已成功写盘的应用被误报为失败。历史与预演照常回读。
+   */
+  async function refreshAfterLifecycleWrite(gen: number, nextAnalysis: AnalysisResponse | undefined): Promise<void> {
+    // A 正式合同保证 apply/rollback 响应携带重新分析结果；防御缺省时不替换分析
+    if (nextAnalysis?.revision?.projectId) analysis = nextAnalysis
+    if (!draftContract) draftContract = proposeContract()
+    await refreshHistoryAndReconcile(gen, analysis?.revision.projectId ?? '')
+    await startPreviewBestEffort(gen, analysis?.revision.projectId ?? '')
+  }
+
 
   function elements(): CanvasElementXp[] {
     return (analysis?.targets ?? []).map(target => {
@@ -1184,13 +1208,15 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         if (!activeCandidate) throw new Error('当前没有候选，无法应用')
         lifecycleBusy = 'applying'
         try {
-          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/apply', { candidateId: activeCandidate.candidateId })
+          const response = await post<{ candidateId: string; workflow: WorkflowView; analysis: AnalysisResponse }>('candidate/apply', { candidateId: activeCandidate.candidateId })
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('应用响应与当前候选不一致，已丢弃')
           activeWorkflow = response.workflow
           candidatePreviewUrl = undefined
           candidatePreviewLoading = false
-          await loadProjectState(gen)
+          // 应用后工作树带未提交的应用字节：采用服务端随响应返回的重新分析结果，
+          // 绝不再请求 analyze（A 核心 requireClean 会拒绝，导致已成功写盘被误报失败）。
+          await refreshAfterLifecycleWrite(gen, response.analysis)
           stale(gen)
           return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
         } finally {
@@ -1209,13 +1235,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         if (!activeCandidate) throw new Error('当前没有候选，无法回滚')
         lifecycleBusy = 'rolling-back'
         try {
-          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/rollback', { candidateId: activeCandidate.candidateId })
+          const response = await post<{ candidateId: string; workflow: WorkflowView; analysis: AnalysisResponse }>('candidate/rollback', { candidateId: activeCandidate.candidateId })
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('回滚响应与当前候选不一致，已丢弃')
           activeWorkflow = response.workflow
           candidatePreviewUrl = undefined
           candidatePreviewLoading = false
-          await loadProjectState(gen)
+          await refreshAfterLifecycleWrite(gen, response.analysis)
           stale(gen)
           return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
         } finally {

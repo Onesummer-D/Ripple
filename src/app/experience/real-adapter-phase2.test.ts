@@ -581,6 +581,9 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     body: {
       candidateId: 'candidate-9',
       workflow: { lifecycle: 'applied', applied: { appliedAt: '2026-10-23T12:05:00Z' }, rollbackAvailable: true },
+      // A 正式响应：apply 成功后服务端重新分析并随响应返回（应用后工作树未提交，
+      // F 必须直接采用该结果，绝不再请求 analyze——requireClean 会拒绝脏树）
+      analysis: ANALYSIS.body,
     },
   }
   const rollbackRoute = {
@@ -588,6 +591,7 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     body: {
       candidateId: 'candidate-9',
       workflow: { lifecycle: 'rolled-back', rollback: { rolledBackAt: '2026-10-23T12:10:00Z' }, rollbackAvailable: false },
+      analysis: ANALYSIS.body,
     },
   }
   const historyItem9 = (lifecycle: string, extras: Record<string, unknown> = {}) => ({
@@ -679,8 +683,10 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     expect(applied.activeCandidate?.appliedAt).toBe('2026-10-23T12:05:00Z')
     expect(applied.activeCandidate?.rollbackAvailable).toBe(true)
     expect(applied.candidateStatus).toBe('applied')
-    // 应用后全量回读：重新分析 + 重建项目预演（画布反映应用后的真实工程）
-    expect(calls.filter(item => item.path === 'analyze').length).toBeGreaterThan(before)
+    // 应用后刷新：采用服务端随响应返回的重新分析结果（不重复 analyze——应用后工作树
+    // 带未提交字节，A 核心 requireClean 会拒绝，重复 analyze 会把成功写盘误报为失败），
+    // 并尽力重建项目预演（画布反映应用后的真实工程）
+    expect(calls.filter(item => item.path === 'analyze').length).toBe(before)
     expect(calls.filter(item => item.path === 'project/preview').length).toBeGreaterThanOrEqual(2)
     expect(applied.canvasState).toBe('ready')
   })
@@ -704,7 +710,8 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     expect(rolled.activeCandidate?.lifecycle).toBe('rolled-back')
     expect(rolled.activeCandidate?.rollbackAvailable).toBe(false)
     expect(rolled.candidateStatus).toBe('rolled-back')
-    expect(calls.filter(item => item.path === 'analyze').length).toBeGreaterThan(before)
+    // 回滚后同样采用服务端随响应返回的分析结果，不重复 analyze
+    expect(calls.filter(item => item.path === 'analyze').length).toBe(before)
   })
 
   it('回滚负例：未应用的候选被服务端拒绝', async () => {
