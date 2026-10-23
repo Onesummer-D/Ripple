@@ -43,4 +43,23 @@ export interface ExperienceAdapter {
   openProject?(projectRoot: string): Promise<ExperienceViewModel>
   refresh?(model: ExperienceViewModel): Promise<ExperienceViewModel>
   dispose?(): Promise<void> | void
+  /**
+   * 第二阶段：画布点选结果落位（真实实现提供）。
+   * picked.sourceRef 已经过 D 桥信封校验（调用方负责）；本方法负责：
+   * POST /project/source-selection → 校验响应绑定当前 previewId/projectId/sourceDigest
+   * → 评估显示身份 → 选中对应的真实目标。响应不绑定当前会话时抛错，绝不本地臆造。
+   */
+  applyPickedSource?(model: ExperienceViewModel, picked: {
+    sourceRef: string
+    envelope: import('./real-selection').PickerEnvelope
+  }): Promise<ExperienceViewModel>
+  /**
+   * 第二阶段：创建真实候选（真实实现提供）。
+   * operations 由当前选中目标 + 本地草稿派生，scope 由用户的页面范围决策
+   * 显式构建——服务端是唯一权威，前端不得模拟候选生命周期。
+   */
+  createCandidate?(model: ExperienceViewModel, input: { rawIntent: string }): Promise<ExperienceViewModel>
+  /** 第二阶段：打开/关闭真实候选预演（POST /candidate/preview[/stop]）。 */
+  openCandidatePreview?(model: ExperienceViewModel): Promise<ExperienceViewModel>
+  closeCandidatePreview?(model: ExperienceViewModel): Promise<ExperienceViewModel>
 }

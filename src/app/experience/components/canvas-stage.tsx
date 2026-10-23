@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CanvasElementXp, ExperienceViewModel, RealPreviewXp } from '../view-model'
+import { isCurrentEnvelope, selectionModeMessage, type PickerEnvelope } from '../real-selection'
 import { CertaintyPill } from './status-pill'
 
 const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
@@ -12,7 +13,7 @@ const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
  * sandbox/referrerPolicy 与 A 的工作台预演面板一致；加载状态明确标记，
  * 加载失败不回退任何模拟内容。预览会话的清理由适配器 dispose 负责。
  */
-function RealPreviewFrame({ preview, width, height }: { preview: RealPreviewXp; width: number; height: number }) {
+function RealPreviewFrame({ preview, width, height, frameRef }: { preview: RealPreviewXp; width: number; height: number; frameRef?: React.RefObject<HTMLIFrameElement | null> }) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
   useEffect(() => { setLoaded(false); setFailed(false) }, [preview.url])
@@ -26,6 +27,7 @@ function RealPreviewFrame({ preview, width, height }: { preview: RealPreviewXp; 
       </div>
     )}
     <iframe
+      ref={frameRef}
       data-testid="real-preview-frame"
       title="真实项目预演"
       src={preview.url}
@@ -44,12 +46,22 @@ function RealPreviewFrame({ preview, width, height }: { preview: RealPreviewXp; 
  * 中央画布：真实网页为视觉中心。
  * 演示模式渲染模拟 DOM（data-xp-demo），真实模式由适配器换成项目预演 iframe。
  */
-export function CanvasStage({ model, onSelectElement, onViewportChange }: {
+export function CanvasStage({ model, onSelectElement, onViewportChange, pickerActive, pickerNonce, pickerError, onTogglePicker, onPicked }: {
   model: ExperienceViewModel
   onSelectElement: (elementId: string) => void
   onViewportChange: (viewportId: string) => void
+  /** 画布点选模式（仅真实模式有意义）。 */
+  pickerActive?: boolean
+  /** 当前点选令牌（空串=未激活）。 */
+  pickerNonce?: string
+  /** 点选失败原因（如实显示）。 */
+  pickerError?: string
+  onTogglePicker?: () => void
+  /** 合法信封到达（已通过 D 桥会话校验）。 */
+  onPicked?: (envelope: PickerEnvelope) => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
+  const realFrameRef = useRef<HTMLIFrameElement>(null)
   const [hostWidth, setHostWidth] = useState(0)
   const [hoveredId, setHoveredId] = useState<string>()
   const [demoCanvasState, setDemoCanvasState] = useState<ExperienceViewModel['canvasState']>('ready')
@@ -58,6 +70,31 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
   const canvasState = model.dataProvenance === 'demo' ? demoCanvasState : model.canvasState
   const currentPage = model.pages.find(page => page.id === model.currentPageRef)
   const selected = model.elements.find(item => item.id === model.selectedElementId)
+  const isReal = model.dataProvenance !== 'demo'
+
+  // 点选模式：向预演 iframe 同步开关状态（进入/退出/iframe 重新加载后）
+  useEffect(() => {
+    if (!isReal || !model.preview || !pickerActive) return
+    const frame = realFrameRef.current
+    if (!frame?.contentWindow) return
+    frame.contentWindow.postMessage(selectionModeMessage(pickerNonce ?? '', model.preview.previewId, !!pickerNonce), '*')
+  }, [isReal, model.preview, pickerActive, pickerNonce, canvasState])
+
+  // 点选信封监听：来源窗口 + previewId + token 必须与当前会话一致（A 核心校验），
+  // 过期/跨会话信封一律丢弃
+  useEffect(() => {
+    if (!isReal || !model.preview || !pickerActive || !pickerNonce) return
+    const previewId = model.preview.previewId
+    const token = pickerNonce
+    const onMessage = (event: MessageEvent) => {
+      const frame = realFrameRef.current
+      if (!frame?.contentWindow) return
+      if (!isCurrentEnvelope(event.data, { eventSource: event.source, iframeSource: frame.contentWindow, previewId, token })) return
+      onPicked?.(event.data)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [isReal, model.preview, pickerActive, pickerNonce, onPicked])
 
   useEffect(() => {
     const element = hostRef.current
@@ -167,7 +204,30 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
           </select>
         </label>
       )}
+      {isReal && (
+        // 画布点选（D 桥）：仅在项目预演会话可用时出现；不可用时不隐藏入口而给出准确原因
+        <button
+          type="button"
+          className={`ripple-xp-picker-toggle ${pickerActive ? 'is-active' : ''}`}
+          data-testid="picker-toggle"
+          aria-pressed={!!pickerActive}
+          disabled={!model.pickerAvailable}
+          title={model.pickerAvailable ? '在预演画布中点选要修改的文本' : '项目预演不可用，无法画布点选'}
+          onClick={onTogglePicker}
+        >
+          {pickerActive ? '退出画布点选' : '画布点选'}
+        </button>
+      )}
     </div>
+
+    {isReal && pickerActive && (
+      <p className="ripple-xp-picker-hint" role="note">
+        点选模式：在上方预演画布中点击要修改的文本元素；点击只用于定位，修改授权由来源证明决定。
+      </p>
+    )}
+    {isReal && pickerError && (
+      <p className="ripple-xp-picker-error" role="alert" data-testid="picker-error">{pickerError}</p>
+    )}
 
     {model.dataProvenance !== 'demo' && model.elements.length > 0 && (
       // 真实模式：预演页面在隔离 iframe 中（不可跨文档点选），
@@ -197,6 +257,16 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
         {selected.impactPageRefs.length > 0 && <span> · 影响 {selected.impactPageRefs.length} 个页面</span>}
       </p>
     )}
+    {selected?.runtimeIdentity && (
+      <p className="ripple-xp-selection-summary" data-testid="runtime-identity">
+        实例身份（画布点选）：{selected.runtimeIdentity.certainty === 'stable-keyed-instance' || selected.runtimeIdentity.certainty === 'stable-react-instance'
+          ? '已证实'
+          : '未证实'}
+        {selected.runtimeIdentity.reasons.length > 0 && ` · ${selected.runtimeIdentity.reasons.join('、')}`}
+        {selected.runtimeIdentity.sameSourceCount !== undefined && selected.runtimeIdentity.sameSourceCount > 1
+          && ` · 同源渲染 ${selected.runtimeIdentity.sameSourceCount} 处，改源影响全部`}
+      </p>
+    )}
 
     <div
       className="ripple-xp-viewport-shell"
@@ -211,17 +281,32 @@ export function CanvasStage({ model, onSelectElement, onViewportChange }: {
         style={{ width: viewport.width, height: viewport.height, transform: `scale(${scale})` }}
       >
         {model.dataProvenance !== 'demo' ? (
-          model.preview ? (
+          model.activeCandidate?.previewUrl ? (
+            // 候选预演：地址来自 POST /candidate/preview 的服务端响应（唯一可信来源）
+            <iframe
+              data-testid="candidate-preview-frame"
+              title="真实候选预演"
+              src={model.activeCandidate.previewUrl}
+              width={viewport.width}
+              height={viewport.height}
+              sandbox="allow-scripts"
+              referrerPolicy="no-referrer"
+              style={{ display: 'block', border: 0, background: '#fff' }}
+            />
+          ) : model.preview ? (
             // 真实模式：只加载适配器给出的同源预演地址（服务端身份核验响应），
             // 绝不把任意第三方 URL 当作可信 Ripple 页面；隔离属性与 A 的工作台一致。
             <RealPreviewFrame
               preview={model.preview}
               width={viewport.width}
               height={viewport.height}
+              frameRef={realFrameRef}
             />
           ) : (
             <div className="ripple-xp-canvas-state ripple-xp-canvas-unavailable" role="status" data-testid="real-preview-pending">
-              {model.blockedReasons?.length ? `真实预览不可用：${model.blockedReasons[0]}` : '真实预览尚未接入'}
+              {model.activeCandidate
+                ? '项目预演已在候选创建时停止；候选预演入口在下方提供。'
+                : model.blockedReasons?.length ? `真实预览不可用：${model.blockedReasons[0]}` : '真实预览尚未接入'}
               {model.blockedReasons?.length === 0 && model.projectStatus === 'failed' && <button type="button" className="ripple-xp-quiet" onClick={() => window.location.reload()}>重试</button>}
             </div>
           )

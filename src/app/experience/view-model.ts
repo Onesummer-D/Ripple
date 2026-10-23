@@ -10,6 +10,18 @@ export type DataProvenance = 'demo' | 'simulated' | 'real'
 export type SourceCertainty = 'source-proven' | 'partial' | 'unknown'
 export type PageScopeChoiceXp = 'include' | 'exclude' | 'protect' | 'undecided'
 
+/** D 点选采集到的运行时实例身份（仅显示/导航，不构成编辑授权）。 */
+export interface RuntimeIdentityXp {
+  /** 信封采集确定性；仅 stable-keyed/stable-react 可用于精准实例级操作。 */
+  certainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
+  reasons: string[]
+  runtimeInstanceId?: string
+  sameSourceCount?: number
+  sourceVersion?: string
+  tagName?: string
+  runtimeText?: string
+}
+
 /** 画布元素（可悬停/选中）。location 是演示用摘要，真实实现换成 sourceRef。 */
 export interface CanvasElementXp {
   id: string
@@ -26,6 +38,8 @@ export interface CanvasElementXp {
   unresolvedReasons: string[]
   /** 能否进入编辑（unknown 元素只能查看，不能承诺修改范围）。 */
   editable: boolean
+  /** 真实模式：画布点选采集到的运行时身份（D 桥；缺省表示尚未点选采集）。 */
+  runtimeIdentity?: RuntimeIdentityXp
 }
 
 export interface PageXp {
@@ -132,6 +146,19 @@ export interface ExperienceViewModel {
    * 用于"看到无法操作的按钮及其准确阻断原因"，不得用演示默认值填充。
    */
   blockedReasons?: string[]
+  /**
+   * 真实模式：画布点选能力是否可用（有可信项目预演会话才可用）。
+   * 点选的激活状态是会话级 UI 状态，不放在模型里。
+   */
+  pickerAvailable?: boolean
+  /** 真实模式：当前活跃候选（POST /candidate 的真实响应投影；无活跃候选时缺省）。 */
+  activeCandidate?: {
+    candidateId: string
+    patchHash?: string
+    /** 候选预演地址（POST /candidate/preview 响应；iframe 唯一可信来源）。 */
+    previewUrl?: string
+    previewLoading?: boolean
+  }
 }
 
 /** 把 scope 选择汇总成一句即时摘要（纯函数，可测）。 */
@@ -226,6 +253,11 @@ export function approvalFeedbackStale(previous: ExperienceViewModel, next: Exper
   return previous.selectedElementId !== next.selectedElementId
     || previous.draftAfterText !== next.draftAfterText
     || previous.pages !== next.pages
+}
+
+/** 运行时身份是否达到精准实例级（stable-keyed / stable-react）。 */
+export function isStableRuntimeIdentity(identity: RuntimeIdentityXp | undefined): boolean {
+  return identity?.certainty === 'stable-keyed-instance' || identity?.certainty === 'stable-react-instance'
 }
 
 /** 状态文案（统一术语出口，避免散写）。 */

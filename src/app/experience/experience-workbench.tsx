@@ -4,6 +4,7 @@ import { approvalFeedbackStale } from './view-model'
 import type { ExperienceViewModel, PageScopeChoiceXp } from './view-model'
 import { createDemoAdapter } from './demo-adapter'
 import { StaleResponseError } from './real-adapter'
+import { createSelectionNonce, type PickerEnvelope } from './real-selection'
 import { TopBar } from './components/top-bar'
 import { PageRail } from './components/page-rail'
 import { CanvasStage } from './components/canvas-stage'
@@ -30,6 +31,10 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [reloadToken, setReloadToken] = useState(0)
   const modelRef = useRef<ExperienceViewModel | undefined>(undefined)
   const scopeRef = useRef<HTMLDivElement>(null)
+  /** 画布点选令牌：空串 = 未激活；每次进入轮换一次性 nonce。 */
+  const [pickerNonce, setPickerNonce] = useState('')
+  const [pickerError, setPickerError] = useState('')
+  const [candidateError, setCandidateError] = useState('')
 
   // 点击涟漪：产品名 Ripple 的核心触感。任何点击在落点扩散一枚茶青圆环。
   // 涟漪节点必须挂在 .ripple-xp-scope 作用域内（--xp-brand 只在该作用域定义）；
@@ -124,6 +129,14 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
       .finally(() => { if (openProjectSeq.current === seq) setOpenProjectBusy(false) })
   }
 
+  // 点选会话随预演会话失效（候选创建/工程切换会停止预演）：自动退出，不残留激活态。
+  // 注意：此 hook 必须位于所有提前 return 之前（Rules of Hooks），用 ref 读取当前模型。
+  useEffect(() => {
+    if (!pickerNonce) return
+    const current = modelRef.current
+    if (!current || current.dataProvenance === 'demo' || !current.preview) setPickerNonce('')
+  }, [pickerNonce, model])
+
   if (error) return (
     <div className="ripple-xp-scope ripple-xp-fatal" role="alert" data-testid="load-error">
       <p>{error}</p>
@@ -142,6 +155,59 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const apply = (next: ExperienceViewModel) => {
     if (modelRef.current && approvalFeedbackStale(modelRef.current, next)) setFeedback('')
     setModel(next)
+  }
+
+  const isReal = model.dataProvenance !== 'demo'
+  const pickerActive = isReal && !!pickerNonce && !!model.preview
+
+  const togglePicker = () => {
+    setPickerError('')
+    setPickerNonce(current => (current ? '' : createSelectionNonce()))
+  }
+
+  /** 合法信封到达（D 桥已校验会话）：走 source-selection 服务端授权路径。 */
+  const handlePicked = (envelope: PickerEnvelope) => {
+    if (!activeAdapter.applyPickedSource || !modelRef.current) return
+    const nonce = pickerNonce
+    activeAdapter.applyPickedSource(modelRef.current, { sourceRef: envelope.sourceRef, envelope })
+      .then(next => {
+        if (pickerNonce !== nonce) return
+        setPickerError('')
+        apply(next)
+      })
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        if (pickerNonce === nonce) setPickerError(cause instanceof Error ? cause.message : '点选落位失败')
+      })
+  }
+
+  /** 生成真实候选：审批门未过按钮已禁用，这里再兜底捕获服务端拒绝原因。 */
+  const handleCreateCandidate = () => {
+    if (!activeAdapter.createCandidate || !modelRef.current) return
+    const selected = modelRef.current.elements.find(item => item.id === modelRef.current?.selectedElementId)
+    const draft = modelRef.current.draftAfterText.trim()
+    const rawIntent = selected && draft ? `把「${selected.currentText}」改为「${draft}」` : '真实文本修改'
+    setCandidateError('')
+    activeAdapter.createCandidate(modelRef.current, { rawIntent })
+      .then(next => { apply(next); setPickerNonce('') })
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '创建真实候选失败')
+      })
+  }
+
+  const handleToggleCandidatePreview = () => {
+    if (!modelRef.current) return
+    const opening = !modelRef.current.activeCandidate?.previewUrl
+    const action = opening ? activeAdapter.openCandidatePreview : activeAdapter.closeCandidatePreview
+    if (!action) return
+    setCandidateError('')
+    action.call(activeAdapter, modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '候选预演操作失败')
+      })
   }
 
   return <div ref={scopeRef} className="ripple-xp-scope ripple-xp-workbench">
@@ -181,6 +247,11 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         model={model}
         onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}
         onViewportChange={id => apply(activeAdapter.setViewport(model, id) ?? model)}
+        pickerActive={pickerActive}
+        pickerNonce={pickerNonce}
+        pickerError={pickerError}
+        onTogglePicker={togglePicker}
+        onPicked={handlePicked}
       />
       <ScopePanel
         model={model}
@@ -190,6 +261,9 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
           // 演示审批只产生可见反馈，绝不进入真实 Approval/Apply。
           setFeedback('演示范围决策已确认，未执行真实应用')
         }}
+        onCreateCandidate={activeAdapter.createCandidate ? handleCreateCandidate : undefined}
+        onToggleCandidatePreview={activeAdapter.openCandidatePreview ? handleToggleCandidatePreview : undefined}
+        candidateError={candidateError}
       />
     </div>
     {feedback && (

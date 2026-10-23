@@ -8,11 +8,17 @@ const SCOPE_LABEL: Record<PageXp['scope'], string> = { include: '包含', exclud
  * 右侧：选中元素 + 修改意图 + 来源信息 + 范围决策。
  * unknown/partial 页面可以被查看，但不得被提升为可安全审批的范围（approvalGate 强制）。
  */
-export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
+export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onCreateCandidate, onToggleCandidatePreview, candidateError }: {
   model: ExperienceViewModel
   onDraftText: (text: string) => void
   onPageScope: (pageRef: string, scope: PageXp['scope']) => void
   onDemoApprove: () => void
+  /** 真实模式：创建真实候选（POST /candidate，服务端权威）。 */
+  onCreateCandidate?: () => void
+  /** 真实模式：打开/关闭候选预演。 */
+  onToggleCandidatePreview?: () => void
+  /** 真实模式：候选创建/预演失败原因（如实显示）。 */
+  candidateError?: string
 }) {
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const summary = scopeSummary(model.pages)
@@ -83,8 +89,43 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove }: {
 
     <div className="ripple-xp-approval" data-testid="approval-area">
       {model.dataProvenance !== 'demo' ? (
-        // real 模式未接入正式 Approval：不显示可执行入口，也不回演示确认。
-        <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（集成阶段接入）</p>
+        model.activeCandidate ? (
+          // 候选已创建：提供候选预演（真实地址来自服务端响应）；审批/应用/回滚后续批次接入
+          <div className="ripple-xp-candidate-box" data-testid="candidate-box">
+            <span className="ripple-xp-candidate-id">
+              活跃候选 <code>{model.activeCandidate.candidateId.slice(0, 18)}…</code>
+              {model.activeCandidate.patchHash && ` · 补丁 ${model.activeCandidate.patchHash.slice(0, 12)}…`}
+            </span>
+            <button
+              type="button"
+              className="ripple-xp-primary"
+              data-testid="candidate-preview-toggle"
+              disabled={model.activeCandidate.previewLoading}
+              onClick={onToggleCandidatePreview}
+            >
+              {model.activeCandidate.previewUrl
+                ? '关闭候选预演'
+                : model.activeCandidate.previewLoading ? '候选预演加载中…' : '打开候选预演'}
+            </button>
+            {model.activeCandidate.previewUrl && <p className="ripple-xp-candidate-note">候选预演为真实浏览器会话，隔离属性与项目预演一致。</p>}
+            <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（验证/审批批次接入）</p>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="ripple-xp-primary"
+              data-testid="create-candidate"
+              disabled={!gate.allowed}
+              onClick={onCreateCandidate}
+            >
+              生成真实候选
+            </button>
+            {candidateError && <p className="ripple-xp-candidate-error" role="alert" data-testid="candidate-error">{candidateError}</p>}
+            {!gate.allowed && <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+            <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（验证/审批批次接入）</p>
+          </>
+        )
       ) : gate.allowed ? (
         <button type="button" className="ripple-xp-primary" data-testid="demo-approve" onClick={onDemoApprove}>
           演示审批（不写入真实工程）

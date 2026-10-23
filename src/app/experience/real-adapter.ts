@@ -21,7 +21,13 @@
  * 工程全部数据失效；dispose 停止预演会话并取消在途请求。
  */
 import type { ExperienceAdapter } from './adapter'
-import { projectPageRelations } from './view-model'
+import type { EditOperation, ScopeDecision } from '../../core/model'
+import {
+  assessDisplayIdentity,
+  isBoundProjectSelection,
+  type ProjectSourceSelectionResponse,
+} from './real-selection'
+import { projectPageRelations, scopeSummary } from './view-model'
 import type {
   CanvasElementXp,
   EvidenceItemXp,
@@ -29,6 +35,7 @@ import type {
   ExperienceViewModel,
   PageScopeChoiceXp,
   PageXp,
+  RuntimeIdentityXp,
   VersionItemXp,
   ViewportXp,
 } from './view-model'
@@ -119,6 +126,11 @@ export interface RealRuntimeIdentityObservation {
   reasons: string[]
   sourceVersion?: string
   pageContext?: { pathname: string; search: string; hash: string }
+  /** 评估达 stable-* 时的运行时实例 id（显示用，不构成授权）。 */
+  runtimeInstanceId?: string
+  sameSourceCount?: number
+  tagName?: string
+  runtimeText?: string
 }
 
 /* ---------- 内部工具 ---------- */
@@ -141,6 +153,11 @@ function pathBasename(root: string): string {
   const trimmed = root.replace(/[\\/]+$/, '')
   const index = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
   return index >= 0 ? trimmed.slice(index + 1) : trimmed
+}
+
+/** 预演地址的路径部分（身份评估的页面上下文比对用；非法地址返回空串）。 */
+function safePathname(url: string): string {
+  try { return new URL(url, 'http://ripple.local/').pathname } catch { return '' }
 }
 
 function formatTime(iso: string): string {
@@ -171,6 +188,11 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let history: HistoryItem[] = []
   let previewSession: PreviewSession | undefined
   let previewFailedReason = ''
+  /** 第二阶段：当前活跃真实候选（POST /candidate 响应投影；服务端为权威）。 */
+  let activeCandidate: { candidateId: string; patchHash?: string } | undefined
+  /** 候选预演会话地址（POST /candidate/preview 响应；iframe 唯一可信来源）。 */
+  let candidatePreviewUrl: string | undefined
+  let candidatePreviewLoading = false
   /** 本地交互状态（草稿/范围意向只属于体验层，绝不写服务端）。 */
   const ui: {
     selectedElementId?: string
@@ -208,6 +230,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     history = []
     previewSession = undefined
     previewFailedReason = ''
+    activeCandidate = undefined
+    candidatePreviewUrl = undefined
+    candidatePreviewLoading = false
     ui.selectedElementId = undefined
     ui.draftAfterText = ''
     ui.currentPageRef = ''
@@ -280,20 +305,37 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   }
 
   function elements(): CanvasElementXp[] {
-    return (analysis?.targets ?? []).map(target => ({
-      id: target.id,
-      label: target.label,
-      // 真实模式画布不渲染演示 DOM，demoSelector 仅占位（不会被消费）。
-      demoSelector: `real:${target.id}`,
-      currentText: target.value ?? '',
-      sourceRef: target.id,
-      sourcePath: target.location?.path,
-      certainty: target.impact.certainty,
-      impactPageRefs: target.impact.pageRefs,
-      unresolvedReasons: target.impact.unresolved,
-      // 只有来源完全证明的元素才允许进入本地编辑意向；unknown/partial 只能查看。
-      editable: target.impact.certainty === 'source-proven' && target.impact.unresolved.length === 0,
-    }))
+    return (analysis?.targets ?? []).map(target => {
+      const identity = runtimeIdentities.get(target.id)
+      return {
+        id: target.id,
+        label: target.label,
+        // 真实模式画布不渲染演示 DOM，demoSelector 仅占位（不会被消费）。
+        demoSelector: `real:${target.id}`,
+        currentText: target.value ?? '',
+        sourceRef: target.id,
+        sourcePath: target.location?.path,
+        certainty: target.impact.certainty,
+        impactPageRefs: target.impact.pageRefs,
+        unresolvedReasons: target.impact.unresolved,
+        // 只有来源完全证明的元素才允许进入本地编辑意向；unknown/partial 只能查看。
+        editable: target.impact.certainty === 'source-proven' && target.impact.unresolved.length === 0,
+        runtimeIdentity: identity ? toRuntimeIdentityXp(identity) : undefined,
+      }
+    })
+  }
+
+  /** D 点选观测 → 界面投影（仅显示；稳定实例身份不改变 editable 判定）。 */
+  function toRuntimeIdentityXp(identity: RealRuntimeIdentityObservation): RuntimeIdentityXp {
+    return {
+      certainty: identity.identityCertainty,
+      reasons: identity.reasons,
+      runtimeInstanceId: identity.runtimeInstanceId,
+      sameSourceCount: identity.sameSourceCount,
+      sourceVersion: identity.sourceVersion,
+      tagName: identity.tagName,
+      runtimeText: identity.runtimeText,
+    }
   }
 
   function pages(): PageXp[] {
@@ -326,7 +368,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
    */
   function candidateStatus(): ExperienceViewModel['candidateStatus'] {
     const latest = latestCandidate()
-    if (!latest) return 'none'
+    // 本 session 刚创建、历史尚未回读时，如实反映"已有活跃候选"（服务端已持久化）
+    if (!latest) return activeCandidate ? 'candidate' : 'none'
     switch (latest.lifecycle) {
       case 'applied': return 'applied'
       case 'rolled-back': return 'rolled-back'
@@ -410,11 +453,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         state: selected.editable ? 'pass' : 'unknown',
         sourceKind: 'user-choice',
         summary: selected.editable
-          ? `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」（本地意向，真实候选生成尚未接入）。`
+          ? activeCandidate
+            ? `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」；已生成真实候选 ${activeCandidate.candidateId.slice(0, 18)}…（服务端持久化，验证/审批在后续批次接入）。`
+            : `把「${selected.currentText}」改为「${ui.draftAfterText || '（尚未输入）'}」（本地意向，尚未生成真实候选）。`
           : `「${selected.label}」来源未完全证明，只能查看，不能承诺修改范围。`,
         detail: identity
-          ? `运行时身份（D 点选预留）：${identity.identityCertainty} · ${identity.reasons.join('、') || '无降级原因'}。sourceRef 唯一不等于 React 实例唯一。`
-          : '运行时实例身份尚未通过点选采集（D 接口预留，接入前不臆造实例确定性）。',
+          ? `运行时身份（画布点选，D 桥）：${identity.identityCertainty} · ${identity.reasons.join('、') || '无降级原因'}。sourceRef 唯一不等于 React 实例唯一；该身份只用于显示与导航，不构成编辑授权。`
+          : '运行时实例身份尚未通过画布点选采集；编辑资格只由来源证明（source-proven）决定。',
       })
     }
 
@@ -497,7 +542,11 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       currentPageRef: ui.currentPageRef || analysis?.routes[0]?.id || '',
       draftAfterText: ui.draftAfterText,
       activeViewportId: ui.activeViewportId,
-      canvasState: previewSession ? 'ready' : 'unavailable',
+      canvasState: candidatePreviewUrl || previewSession ? 'ready' : 'unavailable',
+      pickerAvailable: !!previewSession,
+      activeCandidate: activeCandidate
+        ? { ...activeCandidate, previewUrl: candidatePreviewUrl, previewLoading: candidatePreviewLoading }
+        : undefined,
       pages: pages(),
       elements: targets,
       selectedElementId: selected?.id,
@@ -590,6 +639,14 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       if (session) {
         await stopPreview(session)
       }
+      // 候选预演会话同属预演资源：关闭时一并尽力停止
+      const candidateSession = activeCandidate
+      candidatePreviewUrl = undefined
+      if (candidateSession) {
+        await post('candidate/preview/stop', { candidateId: candidateSession.candidateId }).catch(() => {
+          // 尽力清理：与项目预演同策略，不阻断关闭
+        })
+      }
       // 关闭是最后一次清理机会：连同历史失败会话一并按身份重试
       await retryPendingCleanup()
     },
@@ -639,6 +696,161 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       ui.currentPageRef = pageRef
       // 浏览页只影响画布展示，绝不参与页面关系投影
       return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
+    },
+
+    /**
+     * 画布点选落位：信封已由工作台用 A 核心 isCurrentPickerEnvelope 校验；
+     * 这里负责服务端授权路径——POST /project/source-selection，响应绑定当前
+     * 预演会话才采信；显示身份用 assessPickerDisplayIdentity 评估（不构成授权）。
+     */
+    async applyPickedSource(current, picked) {
+      return run(async () => {
+        const gen = generation
+        if (!analysis || !previewSession) throw new Error('画布点选需要先建立项目预演会话')
+        const session = previewSession
+        const response = await post<ProjectSourceSelectionResponse>('project/source-selection', {
+          projectId: session.projectId,
+          previewId: session.previewId,
+          sourceDigest: session.sourceDigest,
+          sourceRef: picked.sourceRef,
+        })
+        if (gen !== generation) throw new StaleResponseError()
+        if (!isBoundProjectSelection(response, {
+          projectId: session.projectId,
+          previewId: session.previewId,
+          sourceDigest: session.sourceDigest,
+          sourceRef: picked.sourceRef,
+        })) {
+          throw new Error('点选响应与当前预演会话不一致，已丢弃（预览可能已被替换）')
+        }
+        const framePathname = safePathname(session.url)
+        const verdict = assessDisplayIdentity(picked.envelope, {
+          sourceRef: response.element.id,
+          sourceVersion: response.sourceVersion ?? picked.envelope.sourceVersion,
+          expectedPathname: framePathname,
+        })
+        // 显示身份登记（按 sourceRef 与可选中目标双键，均只用于显示）
+        const observation: RealRuntimeIdentityObservation = {
+          sourceRef: response.element.id,
+          identityCertainty: verdict.certainty,
+          reasons: verdict.reasons,
+          sourceVersion: typeof picked.envelope.sourceVersion === 'string' ? picked.envelope.sourceVersion : undefined,
+          pageContext: picked.envelope.pageContext,
+          runtimeInstanceId: verdict.runtimeInstanceId,
+          sameSourceCount: Number.isSafeInteger(picked.envelope.sameSourceCount) && Number(picked.envelope.sameSourceCount) > 0 ? Number(picked.envelope.sameSourceCount) : undefined,
+          tagName: picked.envelope.tagName,
+          runtimeText: picked.envelope.text,
+        }
+        runtimeIdentities.set(response.element.id, observation)
+        // 选中点选元素的可编辑文本目标：必须存在于已分析目标中，否则拒绝——
+        // 不因为用户在画布上点到了就臆造一个可编辑目标
+        const editableNode = response.editableText.find(node => (analysis?.targets ?? []).some(target => target.id === node.id))
+        if (!editableNode) {
+          throw new Error('点选元素的文本来源不在已分析目标中，无法作为修改目标（可在源码工作台定位）')
+        }
+        runtimeIdentities.set(editableNode.id, observation)
+        ui.selectedElementId = editableNode.id
+        // 草稿与范围意向都属于目标：点选切换目标即清空
+        ui.draftAfterText = ''
+        ui.scopes = {}
+        return { ...buildModel(current.projectStatus, current.blockedReasons), selectedElementId: editableNode.id }
+      })
+    },
+
+    /**
+     * 创建真实候选：operations 由当前选中目标 + 草稿派生（TEXT 单操作）；
+     * Scope 决策由用户在本轮的页面范围选择显式构建。审批门（approvalGate）
+     * 由调用方（ScopePanel/工作台）先行把关，这里再次校验绝不静默放行。
+     * 服务端持久化成功后回读历史，版本胶片与候选状态以服务端为权威。
+     */
+    async createCandidate(current, input) {
+      return run(async () => {
+        const gen = generation
+        const selected = elements().find(item => item.id === ui.selectedElementId)
+        if (!analysis) throw new Error('尚未分析工程，不能创建候选')
+        if (!selected) throw new Error('尚未选中要修改的真实目标')
+        if (!selected.editable) throw new Error('选中目标来源未完全证明，不能创建真实候选')
+        if (!ui.draftAfterText.trim()) throw new Error('修改内容为空')
+        const pagesNow = pages()
+        const summary = scopeSummary(pagesNow)
+        if (summary.undecided > 0) throw new Error(`还有 ${summary.undecided} 个受影响页面未决定范围`)
+        if (summary.unprovenIncluded > 0) throw new Error('修改范围包含来源未完全证明的页面，不能创建候选')
+        if (summary.included === 0) throw new Error('没有任何页面被包含进修改范围')
+        const scope: ScopeDecision = {
+          id: `scope-${crypto.randomUUID()}`,
+          version: 1,
+          strategy: 'shared',
+          localPageRef: pagesNow.find(page => page.relation === 'editing')?.id,
+          includedRefs: pagesNow.filter(page => page.scope === 'include').map(page => page.id),
+          excludedRefs: pagesNow.filter(page => page.scope === 'exclude').map(page => page.id),
+          protectedRefs: pagesNow.filter(page => page.scope === 'protect').map(page => page.id),
+          decidedBy: 'local-user',
+          decidedAt: new Date().toISOString(),
+        }
+        const operations: EditOperation[] = [{
+          id: `operation-${crypto.randomUUID()}`,
+          kind: 'TEXT',
+          targetRef: selected.id,
+          before: selected.currentText,
+          after: ui.draftAfterText,
+        }]
+        const response = await post<{
+          sessionId: string
+          candidate: { id: string; patchHash?: string }
+          verification: VerificationView
+          workflow: { lifecycle: string }
+        }>('candidate', {
+          projectId: analysis.revision.projectId,
+          rawIntent: input.rawIntent,
+          operations,
+          scope,
+        })
+        if (gen !== generation) throw new StaleResponseError()
+        activeCandidate = { candidateId: response.candidate.id, patchHash: response.candidate.patchHash }
+        // 服务端在候选创建时停止项目预演会话：本地状态如实跟进，不保留失效会话
+        const stoppedSession = previewSession
+        previewSession = undefined
+        if (stoppedSession) cleanupFailures.delete(stoppedSession.previewId)
+        // 回读历史：版本胶片与候选状态以服务端持久化结果为权威
+        const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+        if (gen === generation) {
+          history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+        }
+        return buildModel(current.projectStatus, [
+          ...current.blockedReasons ?? [],
+          '候选创建后项目预演已由服务端停止；候选预演入口在下方提供。',
+        ])
+      })
+    },
+
+    async openCandidatePreview(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate) throw new Error('当前没有活跃候选，无法打开候选预演')
+        candidatePreviewLoading = true
+        try {
+          const response = await post<{ candidateId: string; url: string; verification: VerificationView }>('candidate/preview', { candidateId: activeCandidate.candidateId })
+          if (gen !== generation) throw new StaleResponseError()
+          if (response.candidateId !== activeCandidate.candidateId) throw new Error('候选预演响应与当前候选不一致，已丢弃')
+          candidatePreviewUrl = response.url
+          return buildModel(current.projectStatus, current.blockedReasons)
+        } finally {
+          candidatePreviewLoading = false
+        }
+      })
+    },
+
+    async closeCandidatePreview(current) {
+      return run(async () => {
+        const gen = generation
+        if (!activeCandidate || !candidatePreviewUrl) return current
+        await post('candidate/preview/stop', { candidateId: activeCandidate.candidateId }).catch(() => {
+          // 尽力清理：失败不阻断界面，会话由服务端超时回收
+        })
+        if (gen !== generation) throw new StaleResponseError()
+        candidatePreviewUrl = undefined
+        return buildModel(current.projectStatus, current.blockedReasons)
+      })
     },
   } as ExperienceAdapter & {
     attachSourceRelations(relations: RealSourceRelations): void
