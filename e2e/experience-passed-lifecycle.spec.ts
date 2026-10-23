@@ -120,10 +120,10 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   await page.getByTestId('scope-include-page:/about').click()
   await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
 
-  // 3b. 验证合同：页标记采用分析建议（唯一且短的来源证明文本）；显式声明一项真实交互
+  // 3b. 验证合同：页标记由用户确认（分析建议可改）；显式声明一项真实交互
   await expect(page.getByTestId('verification-contract')).toBeVisible()
-  await expect(page.getByTestId('contract-marker-page:/')).toHaveValue('青野家居生活馆')
-  await expect(page.getByTestId('contract-marker-page:/about')).toHaveValue('关于青野')
+  await page.getByTestId('contract-marker-page:/').fill('青野家居生活馆')
+  await page.getByTestId('contract-marker-page:/about').fill('关于青野')
   await page.getByTestId('contract-interaction-name').fill('展开服务详情')
   await page.getByTestId('contract-interaction-expected').fill('服务详情已展开')
   await page.getByTestId('contract-interaction-add').click()

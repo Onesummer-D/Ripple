@@ -330,6 +330,11 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     if (!analysis || analysis.routes.length === 0) return undefined
     const pages: VerificationContractPageXp[] = []
     for (const route of analysis.routes) {
+      // A 核心 safePath 合同：合同页面路径必须是同源绝对路径（'/' 开头）。
+      // 路由路径不满足时整个合同不提交——运行器要求合同页面与全部路由一致，
+      // 部分页面无法声明路径的项目如实保持无合同（相关断言 unknown，fail-closed）。
+      const path = route.page ?? route.label
+      if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return undefined
       const values = analysis.targets
         .filter(target => target.kind === 'data'
           && typeof target.value === 'string'
@@ -343,7 +348,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         && target.impact.pageRefs.some(ref => ref !== route.id))
       const markerText = [...new Set(values)]
         .sort((a, b) => Number(sharedWithOtherRoutes(a)) - Number(sharedWithOtherRoutes(b)) || a.length - b.length)[0]
-      pages.push({ pageRef: route.id, path: route.page ?? route.label, markerText })
+      pages.push({ pageRef: route.id, path, markerText })
     }
     return { pages, interactions: [] }
   }

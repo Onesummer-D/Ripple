@@ -99,6 +99,33 @@ describe('验证合同：页面标记提案', () => {
     expect(model.verificationContract).toBeUndefined()
   })
 
+  it('路由路径非根绝对路径（SPA 状态切换页）：不提交合同（A 核心 safePath 合同）', async () => {
+    const spaAnalysis = {
+      status: 200,
+      body: {
+        projectRoot: '/work/spa',
+        revision: { projectId: 'proj-spa', sourceDigest: 'digest-1', gitCommit: 'abc', runtimeFingerprint: 'fp-1' },
+        graphId: 'graph-1',
+        unresolved: [],
+        routes: [
+          { id: 'page:home', label: 'home', page: 'home' },
+          { id: 'page:about', label: 'about', page: 'about' },
+        ],
+        targets: [
+          target('data:home-title', '首页', ['page:home']),
+          target('data:about-title', '关于', ['page:about']),
+        ],
+        relationCounts: { reads: 2 },
+      },
+    }
+    const { model } = await loadAdapter({
+      analyze: spaAnalysis,
+      history: HISTORY_EMPTY,
+      'project/preview': PREVIEW_UNAVAILABLE,
+    })
+    expect(model.verificationContract).toBeUndefined()
+  })
+
   it('unknown/partial 目标不参与标记提案', async () => {
     const { model } = await loadAdapter({
       analyze: analysisWith([
