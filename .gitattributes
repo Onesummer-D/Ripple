@@ -1,0 +1,3 @@
+# E visual-evidence fixtures are byte-compared and SHA-256 manifest pinned.
+# Never convert line endings for them (Windows autocrlf must not rewrite JSON).
+test/fixtures/visual-evidence/** -text
