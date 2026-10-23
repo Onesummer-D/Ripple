@@ -868,6 +868,8 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     'src/pages/LazyHidden.tsx': 'function Component(){ return <main><h1>Hidden Title</h1></main> }\nexport const loader = async () => null',
     'src/pages/LazyAliased.tsx': 'function LazyAliased(){ return <main><h1>Aliased Title</h1></main> }\nexport { LazyAliased as Component }',
     'src/pages/LazyReexport.tsx': 'export { Home as Component } from \'./Home\'',
+    'src/pages/LazyTypeOnly.tsx': 'function LazyView(){ return <main><h1>TypeOnly Title</h1></main> }\nexport type { LazyView as Component }',
+    'src/pages/LazyInlineType.tsx': 'function LazyView(){ return <main><h1>InlineType Title</h1></main> }\nexport { type LazyView as Component }',
   }
   it('models a statically provable errorElement as a source-proven page consumer and clears route-coverage', () => {
     const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';
@@ -933,6 +935,24 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
     expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
     expect(impact(graph, 'Home Title').certainty).not.toBe('source-proven')
+  })
+  it('refuses a type-only export (`export type { X as Component }`): no runtime Component property', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyTypeOnly') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'TypeOnly Title').certainty).not.toBe('source-proven')
+  })
+  it('refuses an inline type export (`export { type X as Component }`): no runtime Component property', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyInlineType') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'InlineType Title').certainty).not.toBe('source-proven')
   })
   it('proves an export-aliased Component (export { X as Component }) and gates real Candidates by proven pages', () => {
     const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
