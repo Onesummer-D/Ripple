@@ -25,6 +25,7 @@
 // 用法：node scripts/a-passed-fixture-e2e.mjs [--out <dir>]
 // 需要：Linux + Docker（mcr.microsoft.com/playwright:v1.64.0-noble 已预热）。
 import { execFileSync, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -130,6 +131,9 @@ if (serverUp) {
   }
 
   const footerFile = path.join(projectRoot, 'src', 'components', 'SiteFooter.tsx')
+  const originalBytes = fs.readFileSync(footerFile)
+  const expectedAppliedBytes = Buffer.from(originalBytes.toString('utf8').replace(FOOTER_BEFORE, FOOTER_AFTER), 'utf8')
+  const sha = buffer => createHash('sha256').update(buffer).digest('hex').slice(0, 16)
   const scopeFor = included => ({ id: `scope-passed-fixture-${included.length}`, version: 1, includedRefs: included, excludedRefs: [], protectedRefs: [], decidedBy: 'passed-fixture-agent', decidedAt: new Date().toISOString() })
   const candidateBody = scope => ({
     projectId,
@@ -165,22 +169,27 @@ if (serverUp) {
     cycleInfo.sessionId = sessionId
     cycleInfo.patchHash = created.data.candidate?.patchHash
     console.log(`candidate: ${candidateId}`)
+    const chain = { create: candidateId }
 
     const verified = await post('candidate/verify', { candidateId })
     fs.writeFileSync(path.join(outDir, `cycle-${cycle}-verification.json`), JSON.stringify(verified.data, null, 2))
     const verification = verified.data?.verification ?? {}
     cycleInfo.runId = verification.runId
     cycleInfo.recordHash = verification.recordHash
+    chain.verify = verified.data?.candidateId
     check(`cycle-${cycle} verify 状态 passed`, verification.state === 'passed', `实际 ${verification.state} ${verification.reason ?? ''}`)
+    check(`cycle-${cycle} verify 响应当事人一致`, verified.data?.candidateId === candidateId, `响应 ${verified.data?.candidateId}`)
+    check(`cycle-${cycle} 执行记录 recordUrl 提供`, typeof verification.recordUrl === 'string' && verification.recordUrl.length > 0)
     if (verification.recordUrl) {
       const record = await getJson(verification.recordUrl)
       fs.writeFileSync(path.join(outDir, `cycle-${cycle}-record.json`), JSON.stringify(record.data, null, 2))
-      const assertions = record.data?.assertions ?? []
+      check(`cycle-${cycle} 执行记录 GET 200`, record.status === 200, `实际 ${record.status} ${JSON.stringify(record.data).slice(0, 160)}`)
+      const assertions = record.status === 200 ? (record.data?.assertions ?? []) : []
       for (const id of REQUIRED_ASSERTIONS) {
         const found = assertions.find(item => item.id === id)
         check(`cycle-${cycle} 断言 ${id} pass`, found?.result === 'pass', found ? `${found.result}: ${found.detail}` : '缺失')
       }
-      check(`cycle-${cycle} 断言集合完整`, assertions.length === REQUIRED_ASSERTIONS.length)
+      check(`cycle-${cycle} 断言集合完整（七项无缺失）`, assertions.length === REQUIRED_ASSERTIONS.length, `实际 ${assertions.length} 项`)
       const runArtifactDir = path.join(stateDir, sessionId, 'artifacts', 'verification', candidateId, verification.runId ?? '')
       const copied = path.join(outDir, `cycle-${cycle}-run-artifacts`)
       if (fs.existsSync(runArtifactDir)) fs.cpSync(runArtifactDir, copied, { recursive: true })
@@ -188,27 +197,39 @@ if (serverUp) {
 
     const approved = await post('candidate/approve', { candidateId, runId: verification.runId })
     fs.writeFileSync(path.join(outDir, `cycle-${cycle}-workflow-approved.json`), JSON.stringify(approved.data, null, 2))
+    chain.approve = approved.data?.candidateId
     check(`cycle-${cycle} 审批通过`, approved.status === 200, JSON.stringify(approved.data).slice(0, 200))
 
     const applied = await post('candidate/apply', { candidateId })
     fs.writeFileSync(path.join(outDir, `cycle-${cycle}-workflow-applied.json`), JSON.stringify(applied.data, null, 2))
+    chain.apply = applied.data?.candidateId
     check(`cycle-${cycle} 应用成功`, applied.status === 200, JSON.stringify(applied.data).slice(0, 200))
-    const appliedBytes = fs.readFileSync(footerFile, 'utf8')
-    check(`cycle-${cycle} 应用后磁盘字节为候选文案`, appliedBytes.includes(FOOTER_AFTER) && !appliedBytes.includes(FOOTER_BEFORE))
+    const appliedBytes = fs.readFileSync(footerFile)
+    check(`cycle-${cycle} 应用后整文件逐字节相等`, Buffer.compare(appliedBytes, expectedAppliedBytes) === 0,
+      `实际 sha=${sha(appliedBytes)} 期望 sha=${sha(expectedAppliedBytes)}`)
 
     const rolledBack = await post('candidate/rollback', { candidateId })
     fs.writeFileSync(path.join(outDir, `cycle-${cycle}-workflow-rolled-back.json`), JSON.stringify(rolledBack.data, null, 2))
+    chain.rollback = rolledBack.data?.candidateId
     check(`cycle-${cycle} 回滚成功`, rolledBack.status === 200, JSON.stringify(rolledBack.data).slice(0, 200))
-    const restoredBytes = fs.readFileSync(footerFile, 'utf8')
-    check(`cycle-${cycle} 回滚后磁盘字节还原基线`, restoredBytes.includes(FOOTER_BEFORE) && !restoredBytes.includes(FOOTER_AFTER))
+    const restoredBytes = fs.readFileSync(footerFile)
+    check(`cycle-${cycle} 回滚后整文件逐字节还原`, Buffer.compare(restoredBytes, originalBytes) === 0,
+      `实际 sha=${sha(restoredBytes)} 基线 sha=${sha(originalBytes)}`)
+    const chainOk = Object.values(chain).every(id => id === candidateId)
+    check(`cycle-${cycle} 同一候选连续证据链`, chainOk, JSON.stringify(chain))
     cycleInfo.lifecycle = {
+      chain,
+      chainOk,
       approved: approved.status === 200,
       applied: applied.status === 200,
       rolledBack: rolledBack.status === 200,
-      sameCandidateChain: true,
+      appliedBytesSha256: sha(appliedBytes),
+      restoredBytesSha256: sha(restoredBytes),
     }
     summary.cycles.push(cycleInfo)
   }
+  const patchHashes = summary.cycles.map(item => item.patchHash)
+  check('各轮 patchHash 一致（确定性补丁）', patchHashes.length > 1 && new Set(patchHashes).size === 1, JSON.stringify(patchHashes))
 }
 
 summary.finishedAt = new Date().toISOString()
