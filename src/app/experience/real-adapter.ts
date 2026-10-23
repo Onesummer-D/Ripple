@@ -851,6 +851,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('候选预演响应与当前候选不一致，已丢弃')
           candidatePreviewUrl = response.url
+          // 必须在 buildModel 前复位：finally 晚于模型构建执行，否则发出的模型
+          // 携带过期的 previewLoading=true，预演开关按钮会永久禁用（CI 真实链路抓到）
+          candidatePreviewLoading = false
           return buildModel(current.projectStatus, current.blockedReasons)
         } finally {
           candidatePreviewLoading = false

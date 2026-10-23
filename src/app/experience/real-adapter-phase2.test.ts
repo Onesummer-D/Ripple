@@ -262,6 +262,8 @@ describe('候选预演生命周期', () => {
 
     const opened = await adapter.openCandidatePreview!(created)
     expect(opened.activeCandidate?.previewUrl).toBe('http://127.0.0.1:9999/candidate/candidate-9/')
+    // 打开成功后 loading 必须在同一模型快照内复位，否则预演开关按钮被永久禁用
+    expect(opened.activeCandidate?.previewLoading).toBe(false)
     const closed = await adapter.closeCandidatePreview!(opened)
     expect(closed.activeCandidate?.previewUrl).toBeUndefined()
     expect(calls.some(item => item.path === 'candidate/preview/stop')).toBe(true)
