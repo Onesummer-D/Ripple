@@ -154,28 +154,28 @@ test('桌面与窄窗口布局都可操作', async ({ page }) => {
 test('任务一：切换编辑目标重建页面关系与默认范围（标题→副标题→标题）', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
-  await expect(page.getByTestId('page-item-page:products')).toContainText('同源关联')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('同源页面')
   await page.getByTestId('scope-protect-page:products').click()
   // 切换到副标题：商品专题不再虚假显示同源，旧 Scope 决定不残留
   await page.getByTestId('canvas-el-el:hero-subtitle').click()
-  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
-  await expect(page.getByTestId('page-item-page:products')).not.toContainText('同源关联')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('scope-row-page:products')).not.toContainText('同源')
   await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
   // 返回标题：默认影响关系与 Scope 恢复
   await page.getByTestId('canvas-el-el:hero-title').click()
-  await expect(page.getByTestId('page-item-page:products')).toContainText('同源关联')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('同源页面')
   await expect(page.getByTestId('scope-include-page:products')).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('任务一负例：partial 目标不产生已证明无关页，来源确定性不被提升', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:seasonal-banner').click()
-  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
   await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
-  // 整个页面导航中除当前编辑页外不允许出现"来源已证实"的页面关系
+  // 影响范围中除当前编辑页外不允许出现"来源已证实"的页面关系
   await page.getByTestId('canvas-el-el:promo-card').click()
-  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
-  await expect(page.getByTestId('page-item-page:seasonal')).toContainText('影响未证明')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('scope-row-page:seasonal')).toContainText('影响未证明')
 })
 
 test('任务二：对照区绑定当前目标，无选中/无草稿显示明确状态', async ({ page }) => {

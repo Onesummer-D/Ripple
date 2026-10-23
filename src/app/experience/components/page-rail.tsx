@@ -1,10 +1,5 @@
 import type { PageXp, SourceCertainty } from '../view-model'
 import { CERTAINTY_LABEL } from '../view-model'
-import { CertaintyPill } from './status-pill'
-
-const RELATION_LABEL: Record<PageXp['relation'], string> = {
-  editing: '正在修改', 'same-source': '同源关联', unrelated: '暂无关联', unproven: '影响未证明',
-}
 
 /** 线性「页面」图标：只借参考图的图标+文字形式，不引入图片资源。 */
 function PageIcon() {
@@ -21,9 +16,10 @@ function PageIcon() {
 const CERTAINTY_ORDER: SourceCertainty[] = ['source-proven', 'partial', 'unknown']
 
 /**
- * 左侧：页面导航 + 与当前修改的关系 + 来源概览。
+ * 左侧：页面导航 + 来源概览。
  * 参考视觉：图标菜单式导航——当前项为浅色圆角条 + 左侧墨绿短竖线；
  * 组标题右侧带页面计数；细分隔线后是与全局状态语言一致的概览统计（真实数据）。
+ * 每个页面的关联关系与确定性在右侧「影响范围」逐页呈现，导航项不再堆叠小字。
  * 真实模式第一阶段：iframe 预演尚不支持页面切换，导航明确停用并标注未接入，
  * 绝不只是高亮变化而让用户误以为画布已经切页。
  */
@@ -59,13 +55,7 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
             onClick={() => onSelectPage(page.id)}
           >
             <PageIcon />
-            <span className="ripple-xp-page-main">
-              <span className="ripple-xp-page-label">{page.label}</span>
-              <span className="ripple-xp-page-meta">
-                <span className={`ripple-xp-relation ripple-xp-relation-${page.relation}`}>{RELATION_LABEL[page.relation]}</span>
-                <CertaintyPill certainty={page.relationCertainty} />
-              </span>
-            </span>
+            <span className="ripple-xp-page-label">{page.label}</span>
           </button>
         </li>
       ))}

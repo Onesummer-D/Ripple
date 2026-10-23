@@ -91,15 +91,15 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     // 初次选中活动标题：商品专题存在同源关系
     fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
-    expect(text('page-item-page:products')).toContain('同源关联')
+    expect(text('scope-row-page:products')).toContain('同源页面')
     expect(text('scope-summary')).toContain('包含 2')
     // 修改 Scope：商品专题改为保护（旧决定，稍后不得跨目标残留）
     fireEvent.click(screen.getByTestId('scope-protect-page:products'))
     expect(screen.getByTestId('scope-protect-page:products').getAttribute('aria-pressed')).toBe('true')
     // 切换到副标题：商品专题不再虚假显示同源关联
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-subtitle'))
-    expect(text('page-item-page:products')).toContain('影响未证明')
-    expect(text('page-item-page:products')).not.toContain('同源关联')
+    expect(text('scope-row-page:products')).toContain('影响未证明')
+    expect(text('scope-row-page:products')).not.toContain('同源')
     // 默认 Scope 与当前目标一致：商品专题回到未决定，不继承上一目标的保护/包含
     expect(text('scope-row-page:products')).toContain('未决定')
     // Evidence 随目标切换，不串入旧草稿
@@ -107,7 +107,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('evidence-ev:expect')).toContain('把「以茶会友，以器传心」改为「以器会友，以茶传心」')
     // 返回活动标题：恢复标题对应的默认影响关系与 Scope
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-title'))
-    expect(text('page-item-page:products')).toContain('同源关联')
+    expect(text('scope-row-page:products')).toContain('同源页面')
     expect(text('scope-row-page:products')).toContain('包含')
     expect(text('scope-summary')).toContain('包含 2')
     // 旧草稿不串回标题
@@ -118,12 +118,12 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     // partial 目标：没有页面被自动标为"已证明无影响"
     fireEvent.click(await screen.findByTestId('canvas-el-el:seasonal-banner'))
-    expect(text('page-item-page:products')).toContain('影响未证明')
+    expect(text('scope-row-page:products')).toContain('影响未证明')
     expect(text('scope-row-page:products')).toContain('未决定')
     // unknown 目标同样如此
     fireEvent.click(screen.getByTestId('canvas-el-el:promo-card'))
     for (const id of ['page:products', 'page:seasonal', 'page:contact']) {
-      expect(text(`page-item-${id}`)).toContain('影响未证明')
+      expect(text(`scope-row-${id}`)).toContain('影响未证明')
     }
   })
 
