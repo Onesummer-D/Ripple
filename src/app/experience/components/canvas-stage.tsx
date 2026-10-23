@@ -191,52 +191,56 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
 
   return <section className="ripple-xp-stage reveal" aria-label="网页画布" data-testid="canvas-stage">
     <div className="ripple-xp-stage-toolbar">
-      <div className="ripple-xp-viewport-switch" role="group" aria-label="视口选择">
-        {model.viewports.map(item => (
-          <button
-            key={item.id}
-            type="button"
-            className={item.id === model.activeViewportId ? 'is-active' : ''}
-            aria-pressed={item.id === model.activeViewportId}
-            data-testid={`viewport-${item.id}`}
-            onClick={() => onViewportChange(item.id)}
-          >
-            {item.label}
-            {item.verificationStatus === 'in-verification' && <span className="ripple-xp-verify-badge">验证中</span>}
-            {item.verificationStatus === 'unavailable' && <span className="ripple-xp-verify-badge">不可用</span>}
-          </button>
-        ))}
+      <div className="ripple-xp-stage-toolbar-group">
+        <div className="ripple-xp-viewport-switch" role="group" aria-label="视口选择">
+          {model.viewports.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              className={item.id === model.activeViewportId ? 'is-active' : ''}
+              aria-pressed={item.id === model.activeViewportId}
+              data-testid={`viewport-${item.id}`}
+              onClick={() => onViewportChange(item.id)}
+            >
+              {item.label}
+              {item.verificationStatus === 'in-verification' && <span className="ripple-xp-verify-badge">验证中</span>}
+              {item.verificationStatus === 'unavailable' && <span className="ripple-xp-verify-badge">不可用</span>}
+            </button>
+          ))}
+        </div>
       </div>
-      {model.dataProvenance === 'demo' && (
-        <label className="ripple-xp-demo-state">
-          演示状态
-          <select
-            data-testid="demo-canvas-state"
-            value={demoCanvasState}
-            onChange={event => setDemoCanvasState(event.target.value as ExperienceViewModel['canvasState'])}
+      <div className="ripple-xp-stage-toolbar-group">
+        {model.dataProvenance === 'demo' && (
+          <label className="ripple-xp-demo-state">
+            演示状态
+            <select
+              data-testid="demo-canvas-state"
+              value={demoCanvasState}
+              onChange={event => setDemoCanvasState(event.target.value as ExperienceViewModel['canvasState'])}
+            >
+              <option value="ready">正常</option>
+              <option value="loading">加载中</option>
+              <option value="failed">加载失败</option>
+              <option value="unavailable">不可用</option>
+              <option value="stale-evidence">证据过期</option>
+            </select>
+          </label>
+        )}
+        {isReal && (
+          // 画布点选（D 桥）：仅在项目预演会话可用时出现；不可用时不隐藏入口而给出准确原因
+          <button
+            type="button"
+            className={`ripple-xp-picker-toggle ${pickerActive ? 'is-active' : ''}`}
+            data-testid="picker-toggle"
+            aria-pressed={!!pickerActive}
+            disabled={!model.pickerAvailable}
+            title={model.pickerAvailable ? '在预演画布中点选要修改的文本' : '项目预演不可用，无法画布点选'}
+            onClick={onTogglePicker}
           >
-            <option value="ready">正常</option>
-            <option value="loading">加载中</option>
-            <option value="failed">加载失败</option>
-            <option value="unavailable">不可用</option>
-            <option value="stale-evidence">证据过期</option>
-          </select>
-        </label>
-      )}
-      {isReal && (
-        // 画布点选（D 桥）：仅在项目预演会话可用时出现；不可用时不隐藏入口而给出准确原因
-        <button
-          type="button"
-          className={`ripple-xp-picker-toggle ${pickerActive ? 'is-active' : ''}`}
-          data-testid="picker-toggle"
-          aria-pressed={!!pickerActive}
-          disabled={!model.pickerAvailable}
-          title={model.pickerAvailable ? '在预演画布中点选要修改的文本' : '项目预演不可用，无法画布点选'}
-          onClick={onTogglePicker}
-        >
-          {pickerActive ? '退出画布点选' : '画布点选'}
-        </button>
-      )}
+            {pickerActive ? '退出画布点选' : '画布点选'}
+          </button>
+        )}
+      </div>
     </div>
 
     {isReal && pickerActive && (

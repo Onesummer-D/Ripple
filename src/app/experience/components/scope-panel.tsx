@@ -56,7 +56,11 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
     </li>
   )
 
-  return <aside className="ripple-xp-scope reveal" data-testid="scope-panel">
+  // 注意：根类名是 ripple-xp-scope-panel，不是 ripple-xp-scope——后者是整页
+  // 工作台根容器的作用域类（携带 min-height:100vh / 整页 flex），右侧面板
+  // 误用会继承整页高度，造成大面积空白与布局错乱。
+  return <aside className="ripple-xp-scope-panel reveal" data-testid="scope-panel">
+    {/* 决策面板按操作顺序组织：选中元素 → 修改内容 → 影响范围 → 阻断原因 → 候选操作 → 验证摘要 */}
     <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>选中位置</SectionTitle>
     {selected ? (
       <div className="ripple-xp-selection-block">
@@ -64,21 +68,28 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
         <p>来源：{selected.sourcePath ? <code>{selected.sourcePath}</code> : '运行时内容，静态来源未定位'}</p>
         {selected.unresolvedReasons.map(reason => <p key={reason} className="ripple-xp-warn">· {reason}</p>)}
         {selected.impactPageRefs.length > 0 && <p>源码证明会影响：{selected.impactPageRefs.map(ref => model.pages.find(page => page.id === ref)?.label ?? ref).join('、')}</p>}
-        {selected.editable ? (
-          <label className="ripple-xp-intent">
-            改成
-            <input
-              data-testid="draft-text-input"
-              value={model.draftAfterText}
-              placeholder="输入修改后的文字"
-              onChange={event => onDraftText(event.target.value)}
-            />
-          </label>
-        ) : <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
+        {!selected.editable && <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
       </div>
-    ) : <p>在左侧画布中悬停并点击想修改的位置。</p>}
+    ) : <p className="ripple-xp-panel-hint">在中间画布点选想要修改的位置。</p>}
 
-    <SectionTitle>范围决策</SectionTitle>
+    <SectionTitle>修改内容</SectionTitle>
+    {selected?.editable ? (
+      <label className="ripple-xp-intent">
+        改成
+        <input
+          data-testid="draft-text-input"
+          value={model.draftAfterText}
+          placeholder="输入修改后的文字"
+          onChange={event => onDraftText(event.target.value)}
+        />
+      </label>
+    ) : (
+      <p className="ripple-xp-panel-hint">
+        {selected ? '来源未知的元素不能承诺修改，只能查看。' : '选中可修改的元素后，在这里输入修改后的文字。'}
+      </p>
+    )}
+
+    <SectionTitle>影响范围</SectionTitle>
     <ul className="ripple-xp-scope-list">
       {editingPage && scopeRow(editingPage, '本次修改的位置', true)}
       {sameSourcePages.map(page => scopeRow(page, '同源页面：修改会一并生效', false))}
@@ -89,6 +100,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       包含 {summary.included} · 保护 {summary.protected} · 排除 {summary.excluded} · 未决定 {summary.undecided}
     </p>
 
+    <SectionTitle>候选操作</SectionTitle>
     <div className="ripple-xp-approval" data-testid="approval-area">
       {model.dataProvenance !== 'demo' ? (
         model.activeCandidate ? (
@@ -170,6 +182,8 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
           </div>
         ) : (
           <>
+            {/* 风险与阻断原因先于候选操作展示：先说明为什么还不能生成，再给操作入口 */}
+            {!gate.allowed && <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
             <button
               type="button"
               className="ripple-xp-primary"
@@ -180,7 +194,6 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
               生成真实候选
             </button>
             {candidateError && <p className="ripple-xp-candidate-error" role="alert" data-testid="candidate-error">{candidateError}</p>}
-            {!gate.allowed && <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
             <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（验证/审批批次接入）</p>
           </>
         )
