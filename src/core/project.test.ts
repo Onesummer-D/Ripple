@@ -155,6 +155,40 @@ function mediaSwapFixture(graph: ReturnType<typeof analyzeProject>) {
   return { target, bytes, assetHash, assetRef, operation, scope, executor, executors: [executor], readStagedAsset }
 }
 
+function swapFixtureFor(target: { id: string; value?: string }) {
+  const bytes = Buffer.from([9, 8, 7, 6, 5])
+  const assetHash = createHash('sha256').update(bytes).digest('hex')
+  const assetRef = 'public/media/narrow-safety.webp'
+  const operation = {
+    id: `media-swap-${target.id}`, kind: 'MEDIA', action: 'asset-swap', targetRef: target.id,
+    before: target.value!, after: '/media/narrow-safety.webp',
+    payload: { assetRef, assetHash },
+  } as unknown as EditOperation
+  const scope: ScopeDecision = {
+    id: `media-scope-${target.id}`, version: 1, includedRefs: [target.id, 'page:home'], excludedRefs: [], protectedRefs: [],
+    decidedBy: 'test-user', decidedAt: new Date().toISOString(),
+  }
+  const executor: CandidateOperationExecutor<MediaSwapOperation> = {
+    kind: 'MEDIA', action: 'asset-swap',
+    validate(value): value is MediaSwapOperation {
+      if (!value || typeof value !== 'object') return false
+      const candidate = value as Record<string, unknown>
+      const payload = candidate.payload as Record<string, unknown> | undefined
+      return candidate.kind === 'MEDIA' && candidate.action === 'asset-swap' &&
+        typeof candidate.before === 'string' && typeof candidate.after === 'string' &&
+        !!payload && payload.assetRef === assetRef && payload.assetHash === assetHash
+    },
+    plan({ operation: current, target: sourceTarget, readStagedAsset }) {
+      return {
+        sourceEdits: [{ path: sourceTarget.location!.path, start: sourceTarget.location!.start!, end: sourceTarget.location!.end!, before: current.before, after: current.after }],
+        fileWrites: [{ path: current.payload.assetRef, bytes: readStagedAsset(current.payload.assetHash) }],
+      }
+    },
+  }
+  const readStagedAsset = (expectedHash: string) => expectedHash === assetHash ? bytes : new Uint8Array()
+  return { bytes, assetRef, operation, scope, executors: [executor], readStagedAsset }
+}
+
 afterEach(() => {
   for (const root of temporaryRoots.splice(0)) removeTree(root)
 })
@@ -276,6 +310,296 @@ describe('real project graph and candidate executor', () => {
       pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
     })
   })
+
+  it('narrows member-access media candidates by the receiver declared type and keeps the name-level fallback for untyped receivers', () => {
+    const { root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'catalog.ts'), `export interface Product { image: string }
+export const products: Product[] = [
+  { image: '/images/p1.webp' },
+  { image: '/images/p2.webp' },
+]
+export const categories = [
+  { image: '/images/cat.webp' },
+]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/catalog'
+export function ProductCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'LooseCard.tsx'), `export function LooseCard({ item }: { item: never }) {
+  return <img src={(item as { image: string }).image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { products, categories } from '../data/catalog'
+import { ProductCard } from '../components/ProductCard'
+import { LooseCard } from '../components/LooseCard'
+export function HomePage() {
+  return (
+    <main>
+      <h1 className="text-ink-900">Home title</h1>
+      {products.map((product) => <ProductCard key={product.image} product={product} />)}
+      {categories.map((cat) => <img key={cat.image} src={cat.image} />)}
+      <LooseCard item={undefined as never} />
+    </main>
+  )
+}`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add typed and untyped media member consumers')
+
+    const graph = analyzeProject(root)
+    const mediaByValue = new Map(graph.nodes.filter(node => node.kind === 'media' && node.location?.path === 'src/data/catalog.ts').map(node => [node.value, node.id]))
+    const productOne = mediaByValue.get('/images/p1.webp')!
+    const productTwo = mediaByValue.get('/images/p2.webp')!
+    const categoryImage = mediaByValue.get('/images/cat.webp')!
+
+    const card = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!
+    const cardCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === card.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    // 接收方声明为 Product：候选只保留 Product[] 绑定内的媒体，categories 图片不再被误挂
+    expect(cardCandidateTargets.sort()).toEqual([productOne, productTwo].sort())
+    expect(cardCandidateTargets).not.toContain(categoryImage)
+
+    // 未标注/无法解析接收方类型的回退路径保持原名级候选（fail-closed 不降级）
+    const loose = graph.nodes.find(node => node.kind === 'component' && node.label === 'LooseCard')!
+    const looseCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === loose.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    expect(looseCandidateTargets.length).toBeGreaterThanOrEqual(3)
+
+    // 分类图经 categories.map 直接消费可证明到首页；
+    // 唯一未解析关系来自 LooseCard 回退候选（fail-closed 如实保留，不误升级）
+    const categoryImpact = sourceProvenPageImpact(graph, categoryImage)
+    expect(categoryImpact.pageRefs).toEqual(['page:home'])
+    expect(categoryImpact.certainty).toBe('partial')
+    expect(categoryImpact.unresolved).toHaveLength(1)
+    expect(categoryImpact.unresolved[0]).toContain('LooseCard')
+    // 商品图因共享组件/页面级 map 保持 candidate/unknown（页面归属不被误提升）
+    expect(sourceProvenPageImpact(graph, productOne).certainty).toBe('unknown')
+  })
+
+  it('keeps uncertain evidence when narrowed media candidates reach the receiver through alias or spread flows (N8/N10)', () => {
+    const { container, root } = sampleProject()
+    fs.writeFileSync(path.join(root, 'src', 'shared.ts'), `export const hero = { image: '/images/shared.webp' }
+export const base = { image: '/images/spread.webp' }
+`)
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'catalog.ts'), `import { hero, base } from '../shared'
+export interface Product { image: string }
+export const products: Product[] = [{ image: hero.image }, { ...base }]
+export const categories = [{ image: '/images/cat.webp' }]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/catalog'
+export function ProductCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { hero, base } from '../shared'
+export function HomePage() {
+  return <main><h1 className="text-ink-900">Home title</h1><img src={hero.image} /><img src={base.image} /></main>
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), `import { products } from '../data/catalog'
+import { ProductCard } from '../components/ProductCard'
+export function AutumnPage() {
+  return <main><h1>Autumn title</h1>{products.map((p) => <ProductCard key={p.image} product={p} />)}</main>
+}
+`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'media flows through alias and spread into typed products')
+
+    const graph = analyzeProject(root)
+    const sharedNode = (value: string) => graph.nodes.find(node => node.kind === 'media' && node.location?.path === 'src/shared.ts' && node.value === value)!
+    const shared = sharedNode('/images/shared.webp')
+    const spread = sharedNode('/images/spread.webp')
+    const catImage = graph.nodes.find(node => node.kind === 'media' && node.value === '/images/cat.webp')!
+    const card = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!
+    const cardCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === card.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    // N8/N10：别名（hero.image）与展开（...base）流入的媒体是真实消费，必须保留不确定候选证据，不得静默删除
+    expect(cardCandidateTargets).toContain(shared.id)
+    expect(cardCandidateTargets).toContain(spread.id)
+    // 无类型流关系的同名媒体仍可被证明排除
+    expect(cardCandidateTargets).not.toContain(catImage.id)
+
+    // 页面级 source-proven 直连边不受影响
+    const sharedImpact = sourceProvenPageImpact(graph, shared.id)
+    expect(sharedImpact.pageRefs).toContain('page:home')
+    // 修复前此处错误：滤空后边消失，unresolved 为空，PageImpact 误成 source-proven 且漏掉 AutumnPage 真实消费者
+    expect(sharedImpact.unresolved.length).toBeGreaterThan(0)
+    expect(sharedImpact.certainty).not.toBe('source-proven')
+    const spreadImpact = sourceProvenPageImpact(graph, spread.id)
+    expect(spreadImpact.unresolved.length).toBeGreaterThan(0)
+
+    // N8 候选链路：修复前 createCandidate 误放行（Scope 漏 AutumnPage 真实消费者），修复后必须拒绝
+    const fixture = swapFixtureFor(shared)
+    const rejectedScope: ScopeDecision = { ...fixture.scope, includedRefs: [shared.id, 'page:home'] }
+    expect(() => createCandidate({
+      projectRoot: root, candidateRoot: path.join(container, 'narrow-rejected'), artifactRoot: path.join(container, 'narrow-artifacts'),
+      graph, scope: rejectedScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
+    })).toThrow(CandidateError)
+  })
+
+  it('matches receiver types by symbol identity so same-named interfaces in other modules do not leak ranges (N9)', () => {
+    const { root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'catalog.ts'), `export interface Product { image: string }
+export const products: Product[] = [{ image: '/images/p1.webp' }]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'data', 'legacy.ts'), `export interface Product { label: string; image: string }
+export const legacyProducts: Product[] = [{ image: '/images/legacy.webp' }]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/catalog'
+export function ProductCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'LegacyCard.tsx'), `import type { Product } from '../data/legacy'
+export function LegacyCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'same-named interfaces in separate data modules')
+
+    const graph = analyzeProject(root)
+    const p1 = graph.nodes.find(node => node.kind === 'media' && node.value === '/images/p1.webp')!
+    const legacy = graph.nodes.find(node => node.kind === 'media' && node.value === '/images/legacy.webp')!
+    const candidateTargetsOf = (label: string) => {
+      const component = graph.nodes.find(node => node.kind === 'component' && node.label === label)!
+      return graph.edges
+        .filter(edge => edge.kind === 'asset-consumer' && edge.from === component.id && edge.certainty === 'semantic-candidate')
+        .map(edge => edge.to)
+    }
+    // 文本名匹配（修复前）会让两个接收方都看到两张图；符号身份匹配后各自只保留本模块类型声明的媒体
+    expect(candidateTargetsOf('ProductCard')).toEqual([p1.id])
+    expect(candidateTargetsOf('LegacyCard')).toEqual([legacy.id])
+  })
+
+  it('fails closed across unresolved imports, dynamic media, and scopes missing proven pages (N4/N5/N6/N7)', () => {
+    const { container, root } = sampleProject()
+    fs.writeFileSync(path.join(root, 'src', 'shared.ts'), `export const hero = { image: '/images/hero.webp' }
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { hero } from '../shared'
+export function HomePage() { return <main><h1 className="text-ink-900">Home title</h1><img src={hero.image} /></main> }
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), `import { hero } from '../shared'
+export function AutumnPage() { return <main><h1>Autumn title</h1><img src={hero.image} /></main> }
+`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'shared hero consumed by two pages')
+
+    const graph = analyzeProject(root)
+    const hero = graph.nodes.find(node => node.kind === 'media' && node.value === '/images/hero.webp')!
+    const impact = sourceProvenPageImpact(graph, hero.id)
+    expect(impact.pageRefs).toEqual(['page:autumn', 'page:home'])
+    expect(impact.certainty).toBe('source-proven')
+    expect(impact.unresolved).toEqual([])
+
+    // N6：Scope 缺少可证明页面 → 拒绝；明确排除受保护页面 → 拒绝；补全后允许
+    const fixture = swapFixtureFor(hero)
+    const partialScope: ScopeDecision = { ...fixture.scope, includedRefs: [hero.id, 'page:home'] }
+    expect(() => createCandidate({
+      projectRoot: root, candidateRoot: path.join(container, 'scope-partial'), artifactRoot: path.join(container, 'scope-partial-artifacts'),
+      graph, scope: partialScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
+    })).toThrow(/尚未明确包含/)
+    const excludedScope: ScopeDecision = { ...partialScope, id: 'media-scope-excluded', excludedRefs: ['page:autumn'] }
+    expect(() => createCandidate({
+      projectRoot: root, candidateRoot: path.join(container, 'scope-excluded'), artifactRoot: path.join(container, 'scope-excluded-artifacts'),
+      graph, scope: excludedScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
+    })).toThrow(/排除或保护/)
+    const fullScope: ScopeDecision = { ...partialScope, id: 'media-scope-full', includedRefs: [hero.id, 'page:home', 'page:autumn'] }
+    const candidate = createCandidate({
+      projectRoot: root, candidateRoot: path.join(container, 'scope-full'), artifactRoot: path.join(container, 'scope-full-artifacts'),
+      graph, scope: fullScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
+    })
+    removeCandidate(candidate)
+
+    // N4：受影响子图内出现未解析导入 → 页面影响不再可证明，候选被拒
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { hero } from '../shared'
+import { ghost } from './missing-file'
+export function HomePage() { return <main><h1 className="text-ink-900">Home title</h1><img src={hero.image} />{ghost}</main> }
+`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'unresolved import inside proven consumer subgraph')
+    const graph2 = analyzeProject(root)
+    const hero2 = graph2.nodes.find(node => node.kind === 'media' && node.value === '/images/hero.webp')!
+    const impact2 = sourceProvenPageImpact(graph2, hero2.id)
+    expect(impact2.unresolved.some(item => item.includes('未解析依赖'))).toBe(true)
+    expect(() => createCandidate({
+      projectRoot: root, candidateRoot: path.join(container, 'n4-candidate'), artifactRoot: path.join(container, 'n4-artifacts'),
+      graph: graph2, scope: fullScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
+    })).toThrow(CandidateError)
+
+    // N5：动态媒体（运行时求值 src）不产生可证明媒体节点，MEDIA 候选无可定位目标
+    fs.writeFileSync(path.join(root, 'src', 'pick.ts'), `export function pick(): string { return Math.random() > 0.5 ? '/images/dyn-a.webp' : '/images/dyn-b.webp' }
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { pick } from '../pick'
+export function HomePage() { return <main><h1 className="text-ink-900">Home title</h1><img src={pick()} /></main> }
+`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'dynamic media source')
+    const graph3 = analyzeProject(root)
+    expect(graph3.nodes.some(node => node.kind === 'media' && node.value?.startsWith('/images/dyn-'))).toBe(false)
+  }, 60_000)
+
+  it('keeps uncertain evidence when a factory without an explicit return type feeds typed receivers (N11)', () => {
+    const { container, root } = sampleProject()
+    fs.mkdirSync(path.join(root, 'src', 'data'), { recursive: true })
+    fs.writeFileSync(path.join(root, 'src', 'data', 'factory.ts'), `export interface Product { image: string }
+export const hero = { image: '/images/shared.webp' }
+export function makeProducts() {
+  return [{ image: hero.image }]
+}
+export const products: Product[] = makeProducts()
+export const categories = [{ image: '/images/cat.webp' }]
+`)
+    fs.writeFileSync(path.join(root, 'src', 'components', 'ProductCard.tsx'), `import type { Product } from '../data/factory'
+export function ProductCard({ product }: { product: Product }) {
+  return <img src={product.image} />
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'HomePage.tsx'), `import { hero } from '../data/factory'
+export function HomePage() {
+  return <main><h1 className="text-ink-900">Home title</h1><img src={hero.image} /></main>
+}
+`)
+    fs.writeFileSync(path.join(root, 'src', 'pages', 'AutumnPage.tsx'), `import { products } from '../data/factory'
+import { ProductCard } from '../components/ProductCard'
+export function AutumnPage() {
+  return <main><h1>Autumn title</h1>{products.map((p) => <ProductCard key={p.image} product={p} />)}</main>
+}
+`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'factory without explicit return type feeds typed products')
+
+    const graph = analyzeProject(root)
+    const shared = graph.nodes.find(node => node.kind === 'media' && node.location?.path === 'src/data/factory.ts' && node.value === '/images/shared.webp')!
+    const catImage = graph.nodes.find(node => node.kind === 'media' && node.value === '/images/cat.webp')!
+    const card = graph.nodes.find(node => node.kind === 'component' && node.label === 'ProductCard')!
+    const cardCandidateTargets = graph.edges
+      .filter(edge => edge.kind === 'asset-consumer' && edge.from === card.id && edge.certainty === 'semantic-candidate')
+      .map(edge => edge.to)
+    // N11：工厂返回值未显式标注时，返回体内的媒体仍是真实消费，必须保留不确定候选证据
+    expect(cardCandidateTargets).toContain(shared.id)
+    expect(cardCandidateTargets).not.toContain(catImage.id)
+
+    const impact = sourceProvenPageImpact(graph, shared.id)
+    expect(impact.pageRefs).toContain('page:home')
+    // 修复前此处错误：工厂返回体未被覆盖，边被静默删除后 PageImpact 漏 AutumnPage 且误成 source-proven
+    expect(impact.unresolved.length).toBeGreaterThan(0)
+    expect(impact.certainty).not.toBe('source-proven')
+
+    const fixture = swapFixtureFor(shared)
+    const rejectedScope: ScopeDecision = { ...fixture.scope, includedRefs: [shared.id, 'page:home'] }
+    expect(() => createCandidate({
+      projectRoot: root, candidateRoot: path.join(container, 'n11-rejected'), artifactRoot: path.join(container, 'n11-artifacts'),
+      graph, scope: rejectedScope, operations: [fixture.operation], executors: fixture.executors, readStagedAsset: fixture.readStagedAsset,
+    })).toThrow(/无法证明目标的完整页面影响/)
+  }, 60_000)
 
   it('does not execute a structured action through the literal candidate replacement path', () => {
     const { container, root } = sampleProject()

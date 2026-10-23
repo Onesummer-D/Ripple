@@ -16,6 +16,7 @@ import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { createBrowserErrorAccumulator } from './browser-error-accumulator.mjs'
+import { captureVisualSide, missingVisualCapture, planVisualCaptures, VISUAL_CAPTURE_MIN_BUDGET_MS, VISUAL_CAPTURE_STATE, visualViewportDir, writeVisualSideArtifacts } from './visual-capture-executor.mjs'
 // @ts-expect-error Plain ESM without a TS build target.
 import { VERIFICATION_FONT_HEADER } from './preview-csp.mjs'
 import { createViewportScope, readCgroupUsage } from './verification-lifecycle.mjs'
@@ -30,6 +31,10 @@ export const PROBE_DEADLINE_MS = 45_000
 // whole deadline.
 export const ACTION_TIMEOUT_MS = 10_000
 export const PAGE_OPEN_TIMEOUT_MS = 15_000
+// One visual capture (open pair, navigate, two screenshots + geometry per side)
+// gets at most this long; the phase is skipped entirely when the runner budget
+// cannot cover VISUAL_CAPTURE_MIN_BUDGET_MS.
+const CAPTURE_PHASE_DEADLINE_MS = 30_000
 // Time kept back from the host's kill time to close pages (<=5 s), drain
 // cancelled work (<=5 s), write the diagnostic and close the browser (<=3 s).
 export const BUDGET_RESERVE_MS = 20_000
@@ -870,6 +875,68 @@ export async function executeVerification({
     })
   }
 
+  // Visual-evidence capture (supplementary only). Fresh pair per planned check,
+  // capture-only: analysis runs on the host after attestation. Never fails the
+  // run — a capture that could not be made is recorded missing and surfaces
+  // downstream as a not-run visual evidence, never as PASS-by-absence.
+  const visualCaptures = []
+  {
+    const visualPlan = planVisualCaptures(input)
+    for (const item of visualPlan) {
+      if (!(deadlineAt - now() > VISUAL_CAPTURE_MIN_BUDGET_MS)) {
+        visualCaptures.push(missingVisualCapture(item, 'runner budget exhausted before visual capture'))
+        continue
+      }
+      const viewportErrors = createBrowserErrorAccumulator({ sampleLimit: 5, messageLimit: 300 })
+      const record = recorderFor(viewportErrors)
+      // Scope checkId is namespaced ('-visual') so capture progress/lifecycle
+      // events are never mistaken for the verified viewport's own late events;
+      // the manifest entry keeps the real checkId for F-side pairing.
+      const scope = createViewportScope({ checkId: `${item.checkId}-visual`, viewport: { name: item.viewport.name, width: item.viewport.width, height: item.viewport.height }, progress, recordError: record, openTimeoutMs, now })
+      const dir = visualViewportDir(item.viewport.name)
+      const captureOne = async () => {
+        const sides = await openPair(scope, record)
+        try {
+          const browserInfo = { name: 'chromium', version: typeof browser.version === 'function' ? browser.version() : null }
+          await bothSides(
+            async () => { await sides.find(side => side.name === 'candidate').page.goto(`http://${input.previewHost}:5173${item.route}`, { timeout: openTimeoutMs }); await waitForRoot(sides.find(side => side.name === 'candidate').page) },
+            async () => { await sides.find(side => side.name === 'baseline').page.goto(`http://${input.baselineHost}:5173${item.route}`, { timeout: openTimeoutMs }); await waitForRoot(sides.find(side => side.name === 'baseline').page) },
+          )
+          const [candidate, baseline] = await bothSides(
+            () => captureVisualSide(sides.find(side => side.name === 'candidate').page, {
+              side: 'candidate', route: item.route, interactionState: VISUAL_CAPTURE_STATE,
+              sourceDigest: input.candidateTreeDigest, runtimeFingerprint: input.runtimeFingerprint, browser: browserInfo,
+              collectorSource: input.visualSamplerIdentity?.collectorSource,
+            }),
+            () => captureVisualSide(sides.find(side => side.name === 'baseline').page, {
+              side: 'baseline', route: item.route, interactionState: VISUAL_CAPTURE_STATE,
+              sourceDigest: input.baseSourceDigest, runtimeFingerprint: input.runtimeFingerprint, browser: browserInfo,
+              collectorSource: input.visualSamplerIdentity?.collectorSource,
+            }),
+          )
+          return {
+            checkId: item.checkId, route: item.route,
+            viewport: { width: item.viewport.width, height: item.viewport.height }, state: VISUAL_CAPTURE_STATE,
+            baseline: writeVisualSideArtifacts(evidenceRoot, dir, 'baseline', baseline),
+            candidate: writeVisualSideArtifacts(evidenceRoot, dir, 'candidate', candidate),
+          }
+        } finally {
+          await Promise.all(sides.map(side => scope.release(side.page).catch(() => undefined)))
+        }
+      }
+      const captureStarted = now()
+      const outcome = await scope.task('visual-capture', captureOne, { deadlineMs: Math.min(deadlineAt - now(), CAPTURE_PHASE_DEADLINE_MS), category: 'visual-capture-failed', phase: 'visual-capture' })
+      const lifecycle = await scope.close({})
+      const captured = outcome.status === 'completed' ? outcome.value : undefined
+      if (!captured || lifecycle.pagesLeaked > 0 || lifecycle.closeFailures > 0 || lifecycle.unsettled > 0) {
+        visualCaptures.push(missingVisualCapture(item, captured ? 'visual capture cleanup did not provably finish' : (outcome.error?.message ?? 'visual capture failed')))
+      } else {
+        visualCaptures.push(captured)
+      }
+      progress({ event: 'visual-capture', checkId: `${item.checkId}-visual`, result: captured ? 'captured' : 'missing', durationMs: now() - captureStarted })
+    }
+  }
+
   const all = (values, predicate) => values.length > 0 && values.every(predicate)
   const any = (values, predicate) => values.some(predicate)
   const pageRefs = contractPages.map(page => page.pageRef).sort()
@@ -958,6 +1025,7 @@ export async function executeVerification({
       assertions,
       evidence,
       artifacts,
+      visualCaptures,
       resourceSnapshots,
       unavailableResources: input.unavailableResources ?? [],
       loadedExternalResourceUrls: [...loadedExternalResourceUrls].sort(),

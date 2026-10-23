@@ -130,6 +130,18 @@ function verificationView(run: VerificationRun | undefined, candidateId: string,
     recordUrl: run.execution ? `/__ripple/api/candidate/${encodeURIComponent(candidateId)}/runs/${encodeURIComponent(run.id)}` : undefined,
     recordHash: run.execution?.recordHash,
     ...(run.browserErrorDetails ? { browserErrorDetails: run.browserErrorDetails } : {}),
+    // Supplementary visual-difference evidence: expose only the read-only
+    // ripple-visual-evidence-view/v1 projection plus basic index fields.
+    // Host-side artifact paths and raw analysis payloads never leave the host.
+    ...(run.visualEvidences?.length ? {
+      visualEvidences: run.visualEvidences.map(entry => ({
+        checkId: entry.checkId,
+        route: entry.route,
+        result: entry.result,
+        resultReason: entry.resultReason,
+        view: entry.view,
+      })),
+    } : {}),
   }
 }
 
