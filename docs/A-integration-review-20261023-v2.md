@@ -938,3 +938,17 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 | F | 第二批 P0 修复中（协调人直派） |
 | B | 工具 P0 修复后再恢复 codescandy 验收 |
 | D / E / C+D | 按 19:38 协调人安排推进 |
+
+---
+
+## v29（2026-10-23 21:0x）｜passed fixture 证据加固后重跑通过，移交 F
+
+- 分支 `feat/a-passed-fixture-20261023` @ `7a3ec43`，独立保持，待集成审查后再定合并。
+- 加固内容（仅测试证据层，核心合同零改动）：
+  1. verify 必须提供 recordUrl，执行记录 GET 必须 200，七断言任一缺失即失败。
+  2. Apply/Rollback 改为 SiteFooter.tsx 整文件逐字节校验（Buffer.compare + sha256）。
+  3. sameCandidateChain 按各步实际响应 candidateId 计算；显式断言两轮 patchHash 一致。
+- 重跑 CI [#39955423994 SUCCESS](https://github.comOnesummer-D/Ripple/actions/runs/39955423994)：47 项检查全过；两轮 7/7 pass；chainOk=true（create/verify/approve/apply/rollback 同一 candidateId）；patchHash 两轮一致 `f38c99e9c596c3ff…`；回滚后文件 sha256=`84c008f89fc10e5d`，与 git 基线 blob sha 完全一致（独立核验）；应用后 sha=`235ff991b984e906`。
+- fixture SHA 不变：`ffa54331dd5437b5497f3a46e6d1b6fc66042fa2`。
+- 证据工件 `passed-fixture-evidence-39955423994`（30 天保留），本地副本 `_scratch/fixture-evidence3/`。
+- 已具备移交 F 条件：测试工程 + 驱动脚本 + 固定输入契约 + 全套连续证据。
