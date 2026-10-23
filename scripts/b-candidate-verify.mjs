@@ -76,7 +76,7 @@ const state = {
 }
 
 const classify = () => {
-  if (state.failure && state.failure.kind === 'environment') return 'environment-blocked'
+  if (state.failure && (state.failure.kind === 'environment' || state.failure.category === 'core-capability' || state.failure.category === 'engineering-env')) return 'environment-blocked'
   if (!state.verification?.run) return 'incomplete'
   const assertions = state.verification.run.assertions ?? []
   if (!assertions.length) return 'incomplete'
@@ -84,6 +84,15 @@ const classify = () => {
   if (assertions.every(a => a.result === 'pass')) return 'passed'
   if (assertions.some(a => a.result === 'failed-to-run')) return 'failed'
   return 'incomplete' // risk / unknown / not-run / stale — never promoted to passed
+}
+
+// Blocker taxonomy required by the acceptance brief: distinguish third-party
+// engineering environment, B script defects, and A core capability boundaries.
+const categorize = (error) => {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/alias|别名|ambiguous/i.test(message)) return 'core-capability' // A's deliberate fail-closed adapters
+  if (error?.name === 'CandidatePreviewError' || error?.name === 'VerificationRunnerError') return 'engineering-env' // project runtime conditions / container budget
+  return 'script'
 }
 
 let exitCode = 0
@@ -105,7 +114,7 @@ const envBlock = (where, message) => {
 // --- Pinned-source and executing-core verification (same discipline as the gate) ---
 const codescandyHead = gitRead(repo, ['rev-parse', 'HEAD'])
 if (codescandyHead !== EXPECTED_CODESCANDY) {
-  state.failure = { kind: 'tool', where: 'pin', message: `Refusing unpinned checkout: ${codescandyHead}` }
+  state.failure = { kind: 'tool', category: 'script', where: 'pin', message: `Refusing unpinned checkout: ${codescandyHead}` }
   writeReport()
   throw new Error(state.failure.message)
 }
@@ -118,9 +127,9 @@ state.coreVerification = {
   headMatchesDeclared: !!coreSha && coreHead === coreSha,
   acp2Ancestor: ACP2_LINEAGE, acp2LineagePresent: lineagePresent,
 }
-if (!coreSha) { state.failure = { kind: 'tool', where: 'core-verification', message: '--core-sha <full A-integration SHA> is required' }; writeReport(); throw new Error(state.failure.message) }
+if (!coreSha) { state.failure = { kind: 'tool', category: 'script', where: 'core-verification', message: '--core-sha <full A-integration SHA> is required' }; writeReport(); throw new Error(state.failure.message) }
 if (!state.coreVerification.headMatchesDeclared || !lineagePresent) {
-  state.failure = { kind: 'tool', where: 'core-verification', message: `executing core ${coreHead} is not the declared A integration (${coreSha}) with AC-P2a/b lineage` }
+  state.failure = { kind: 'tool', category: 'script', where: 'core-verification', message: `executing core ${coreHead} is not the declared A integration (${coreSha}) with AC-P2a/b lineage` }
   writeReport()
   throw new Error(state.failure.message)
 }
@@ -260,13 +269,15 @@ try {
     evidenceArtifacts: artifactList,
   }
 } catch (error) {
+  const category = categorize(error)
   state.failure = {
-    kind: error?.kind === 'environment' ? 'environment' : (error?.name === 'CandidatePreviewError' || error?.name === 'VerificationRunnerError' ? 'runtime' : 'tool'),
+    kind: error?.kind === 'environment' ? 'environment' : 'runtime',
+    category,
     where: error?.where ?? 'execution',
     name: error?.name ?? typeof error,
     message: error instanceof Error ? error.message : String(error),
   }
-  exitCode = state.failure.kind === 'environment' ? 2 : 1
+  exitCode = category === 'script' ? 1 : 2
 } finally {
   // --- Cleanup + invariance (failure paths included) ---
   if (record) {
