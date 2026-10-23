@@ -8,7 +8,7 @@ const CANDIDATE_STATUS_LABEL: Record<ExperienceViewModel['candidateStatus'], str
   applied: '已应用', 'rolled-back': '已回滚', stale: '候选已失效',
 }
 
-export function TopBar({ model, onOpenHistory }: { model: ExperienceViewModel; onOpenHistory: () => void }) {
+export function TopBar({ model, onOpenHistory, onRefresh }: { model: ExperienceViewModel; onOpenHistory: () => void; onRefresh?: () => void }) {
   return <header className="ripple-xp-topbar" data-testid="xp-topbar">
     <div className="ripple-xp-brand">
       <span className="ripple-xp-logo" aria-hidden>≈</span>
@@ -30,6 +30,12 @@ export function TopBar({ model, onOpenHistory }: { model: ExperienceViewModel; o
         <span className="ripple-xp-chip ripple-xp-chip-real" data-testid="real-badge">
           真实工程{model.projectIdentity ? ` · ${model.projectIdentity.projectId.slice(0, 8)}` : ''}
         </span>
+      )}
+      {model.dataProvenance === 'real' && onRefresh && (
+        // 真实模式：候选创建会由服务端停止项目预演，刷新重建预演会话并回读服务端状态
+        <button type="button" className="ripple-xp-quiet" onClick={onRefresh} data-testid="refresh-project">
+          刷新工程状态
+        </button>
       )}
       <button type="button" className="ripple-xp-quiet" onClick={onOpenHistory} data-testid="open-history">
         版本历史

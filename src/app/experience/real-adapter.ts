@@ -575,7 +575,40 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         route: entry.route,
         result: entry.result,
         resultReason: entry.resultReason,
+        // E 的只读 view 投影：仅提取已知可读字段，缺失不臆造；proofLabel 逐字透传
+        view: toVisualEvidenceViewXp(entry.view),
       })),
+    }
+  }
+
+  /** 从 E 的 view 投影中提取可读字段（结构以 A/E 为准，未知形状安全降级为 undefined）。 */
+  function toVisualEvidenceViewXp(view: unknown): import('./view-model').VisualEvidenceViewXp | undefined {
+    if (!view || typeof view !== 'object') return undefined
+    const raw = view as Record<string, unknown>
+    const cross = raw.crossVersion && typeof raw.crossVersion === 'object'
+      ? raw.crossVersion as Record<string, unknown>
+      : undefined
+    const crossScope = cross?.scope && typeof cross.scope === 'object'
+      ? cross.scope as Record<string, unknown>
+      : undefined
+    const pairs = Array.isArray(cross?.pairs)
+      ? (cross!.pairs as Array<Record<string, unknown>>).map(pair => ({
+          proofLabel: typeof pair.proofLabel === 'string' ? pair.proofLabel : undefined,
+          reasons: Array.isArray(pair.reasons) ? pair.reasons.filter((item): item is string => typeof item === 'string') : undefined,
+        }))
+      : undefined
+    return {
+      schema: typeof raw.schema === 'string' ? raw.schema : undefined,
+      stateLabel: typeof raw.stateLabel === 'string' ? raw.stateLabel : undefined,
+      summary: typeof raw.summary === 'string' ? raw.summary : undefined,
+      comparable: typeof raw.comparable === 'boolean' ? raw.comparable : undefined,
+      changedPixels: typeof raw.changedPixels === 'number' ? raw.changedPixels : null,
+      regionCount: typeof raw.regionCount === 'number' ? raw.regionCount : undefined,
+      identityStatus: typeof raw.identityStatus === 'string' ? raw.identityStatus : undefined,
+      limitations: Array.isArray(raw.limitations)
+        ? raw.limitations.filter((item): item is string => typeof item === 'string')
+        : undefined,
+      crossVersion: cross ? { scope: { strictInstanceProofAvailable: typeof crossScope?.strictInstanceProofAvailable === 'boolean' ? crossScope.strictInstanceProofAvailable : undefined }, pairs } : undefined,
     }
   }
 
@@ -681,6 +714,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         // 重拉前停止旧预演会话（refresh 会重建 preview 会话）
         const oldSession = previewSession
         previewSession = undefined
+        // 候选预演地址同属本轮预演会话：刷新后不再假定其可用，由用户重新打开（A 会复用在跑会话）
+        candidatePreviewUrl = undefined
         // 先重试历史失败会话，再停止当前会话——本轮刚失败的会话留待下一轮重试
         await retryPendingCleanup()
         if (oldSession) await stopPreview(oldSession)
@@ -884,6 +919,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         }
         if (gen !== generation) throw new StaleResponseError()
         activeCandidate = { candidateId: response.candidate.id, patchHash: response.candidate.patchHash }
+        // 新候选不得残留上一个候选的验证：验证严格绑定候选身份（candidateId/patchHash）
+        activeVerification = undefined
         // 服务端在候选创建时停止项目预演会话：本地状态如实跟进，不保留失效会话
         const stoppedSession = previewSession
         previewSession = undefined
@@ -958,6 +995,14 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           // 必须在 buildModel 前复位（da94ab7 教训）：finally 晚于模型构建执行
           verificationRunning = false
           return buildModel(current.projectStatus, current.blockedReasons)
+        } catch (error) {
+          // 失败也必须如实刷新：服务端可能已把候选退役为 stale（如源码被改动），
+          // 尽力回读历史，让 stale 生命周期在下一次模型重建时如实反映
+          const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+          if (gen === generation) {
+            history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
+          }
+          throw error
         } finally {
           verificationRunning = false
         }

@@ -178,22 +178,56 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   expect(shotCount, '四视口验证应产出真实截图').toBeGreaterThanOrEqual(1)
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-verified-1440.png'), fullPage: true })
 
-  // 7a. 候选 ID 与补丁以服务端历史为权威
+  // 6c. 异步切换路径（Docker E2E 覆盖要求）：刷新重建预演 → 点选第二个目标 → 新候选不得残留旧验证
+  await page.getByTestId('refresh-project').click()
+  await expect(page.getByTestId('real-preview-frame')).toBeVisible({ timeout: 150_000 })
+  // 刷新如实关闭候选预演入口状态（旧候选预演地址不再假定可用）
+  await expect(page.getByTestId('candidate-preview-toggle')).toContainText('打开候选预演')
+  // 点选第二目标（正文段落）
+  await page.getByTestId('picker-toggle').click()
+  await expect(page.getByTestId('picker-hint')).toBeVisible()
+  await projectFrame.getByText('真实首页文案内容。').click()
+  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  await page.getByTestId('picker-toggle').click() // 退出点选模式
+  await page.getByTestId('draft-text-input').fill('Acme 旗舰店文案。')
+  const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
+  for (let index = 0; index < await excludeButtons2.count(); index += 1) await excludeButtons2.nth(index).click()
+  await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
+  const candidate2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
+  await page.getByTestId('create-candidate').click()
+  const candidate2Payload = await (await candidate2Response).json() as { candidate: { id: string } }
+  expect(candidate2Payload.candidate.id).not.toBe(candidatePayload.candidate.id)
+  // 复核点 1（真实浏览器）：新候选不得展示上一个候选的验证运行
+  await expect(page.getByTestId('verification-status')).toHaveCount(0)
+  // 新候选再次运行验证：真实 VerificationRun
+  const verify2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/verify') && response.status() === 200, { timeout: 180_000 })
+  await page.getByTestId('run-verification').click()
+  const verify2Payload = await (await verify2Response).json() as { verification: { state: string; runId?: string } }
+  expect(verify2Payload.verification.runId, '第二个候选的验证运行记录必须存在').toBeTruthy()
+  expect(['passed', 'risks', 'incomplete', 'stale']).toContain(verify2Payload.verification.state)
+  await expect(page.getByTestId('verification-status')).toContainText(verify2Payload.verification.runId!.slice(0, 12))
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-switched-1440.png'), fullPage: true })
+
+  // 7a. 候选 ID 与补丁以服务端历史为权威（候选-1 已被候选-2 取代退役）
   const history = await (await fetch(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
     history: Array<{ candidateId: string; lifecycle: string; patchHash?: string; baseSourceDigest: string }>
   }
   const stored = history.history.find(item => item.candidateId === candidatePayload.candidate.id)
   expect(stored, '候选必须已持久化到服务端历史').toBeTruthy()
-  expect(stored!.lifecycle).toBe('active')
+  expect(stored!.lifecycle).toBe('discarded')
   expect(stored!.patchHash).toBe(candidatePayload.candidate.patchHash)
   expect(stored!.baseSourceDigest).toBe(analysis.revision.sourceDigest)
+  const stored2 = history.history.find(item => item.candidateId === candidate2Payload.candidate.id)
+  expect(stored2?.lifecycle).toBe('active')
 
   // 7b. 源文件未被改动：候选是隔离 worktree 上的补丁，原工程保持干净
   const sourceOnDisk = fs.readFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), 'utf8')
   expect(sourceOnDisk).toContain('Acme 真实首页标题')
   expect(execFileSync('git', ['-C', projectRoot, 'status', '--porcelain'], { encoding: 'utf8' })).toBe('')
 
-  // 7c. 会话清理：关闭候选预演（服务端真实停止）
+  // 7c. 会话清理：打开候选-2 预演后关闭（服务端真实停止）
+  await page.getByTestId('candidate-preview-toggle').click()
+  await expect(page.frameLocator('[data-testid="candidate-preview-frame"]').getByText('Acme 旗舰店文案。')).toBeVisible({ timeout: 120_000 })
   const stopResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/preview/stop') && response.status() === 200)
   await page.getByTestId('candidate-preview-toggle').click()
   await stopResponse
@@ -279,5 +313,38 @@ test.describe('A 核心合同负例（真实后端，无 Docker 依赖）', () =
     expect(missingTarget.status()).toBeGreaterThanOrEqual(400)
     // 真实 A 核心在 stageOperations 阶段即以 invariant 拒绝（未被 Scope 授权的目标）
     expect(await missingTarget.text()).toContain('unscoped target')
+  })
+
+  test('验证失败路径：工作树被改动后 verify 如实拒绝，候选退役为 stale（真实后端）', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const titleTarget = analysis.targets.find(item => item.label.includes('Acme 真实首页标题'))!
+    const pageRef = titleTarget.impact.pageRefs[0]
+    const created = await request.post(`${API}/candidate`, { data: {
+      projectId: analysis.revision.projectId,
+      rawIntent: '验证失败路径负例',
+      operations: [{ id: 'op-fail-1', kind: 'TEXT', targetRef: titleTarget.id, before: 'Acme 真实首页标题', after: 'Acme 失败路径标题' }],
+      scope: {
+        id: 'scope-fail-1', version: 1, strategy: 'shared',
+        includedRefs: [titleTarget.id, pageRef], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(created.status(), await created.text()).toBe(200)
+    const { candidate } = await created.json() as { candidate: { id: string } }
+    // 候选创建后改动工作树：候选基线过期（assertCurrentOrRetire 在启动验证【之前】拦截）
+    fs.appendFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), '\n// dirty-tree: verify failure path\n')
+    try {
+      const verify = await request.post(`${API}/candidate/verify`, { data: { candidateId: candidate.id } })
+      expect(verify.status(), await verify.text()).toBeGreaterThanOrEqual(400)
+      // 服务端把候选退役为 stale：历史如实反映（F 失败路径回读历史后如实展示）
+      const history = await (await request.get(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
+        history: Array<{ candidateId: string; lifecycle: string }>
+      }
+      const stored = history.history.find(item => item.candidateId === candidate.id)
+      expect(stored?.lifecycle).toBe('stale')
+    } finally {
+      // 还原工作树：后续测试与 afterAll 清理依赖干净基线
+      execFileSync('git', ['-C', projectRoot, 'checkout', '--', 'src/pages/HomePage.jsx'])
+    }
   })
 })

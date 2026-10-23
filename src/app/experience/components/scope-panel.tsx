@@ -152,7 +152,13 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                   <ul className="ripple-xp-visual-evidences" data-testid="visual-evidences">
                     {model.activeCandidate.verification.visualEvidences.map(entry => (
                       <li key={entry.checkId}>
-                        视觉证据 {entry.route} · {entry.result}{entry.resultReason ? ` · ${entry.resultReason}` : ''}
+                        视觉证据 {entry.route} · {entry.view?.stateLabel ?? entry.result}
+                        {entry.resultReason ? ` · ${entry.resultReason}` : ''}
+                        {entry.view?.summary && <span className="ripple-xp-visual-summary">{entry.view.summary}</span>}
+                        {(entry.view?.crossVersion?.pairs ?? []).map((pair, index) => (
+                          // A/E 合同：proofLabel 必须逐字渲染，不得以任何形式升级为"实例级已证明"
+                          <span key={index} className="ripple-xp-visual-proof">{pair.proofLabel ?? '未证实配对（需人工复核）'}</span>
+                        ))}
                       </li>
                     ))}
                   </ul>

@@ -240,8 +240,20 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
       })
   }
 
+  // 真实模式刷新：重建预演会话（候选创建后服务端会停止项目预演）并回读服务端状态
+  const handleRefresh = () => {
+    if (!modelRef.current || !activeAdapter.refresh) return
+    setCandidateError('')
+    activeAdapter.refresh(modelRef.current)
+      .then(next => apply(next))
+      .catch(cause => {
+        if (cause instanceof StaleResponseError) return
+        setCandidateError(cause instanceof Error ? cause.message : '刷新工程状态失败')
+      })
+  }
+
   return <div ref={scopeRef} className="ripple-xp-scope ripple-xp-workbench">
-    <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} />
+    <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} onRefresh={activeAdapter.refresh ? handleRefresh : undefined} />
     {model.dataProvenance === 'real' && model.projectStatus === 'unavailable' && activeAdapter.openProject && (
       // 真实模式：尚未打开工程时提供"打开工程"入口；失败原因如实显示
       <form

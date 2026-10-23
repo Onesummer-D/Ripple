@@ -12,16 +12,21 @@ interface MockResponse { status: number; body: unknown }
 
 function mockFetch(routes: Record<string, MockResponse>) {
   const calls: Array<{ path: string; body?: unknown }> = []
+  const callCounts = new Map<string, number>()
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     const path = url.replace(/^.*?\/__ripple\/api\//, '')
     calls.push({ path, body: init?.body ? JSON.parse(String(init.body)) : undefined })
     const route = routes[path]
     if (!route) return { ok: false, status: 404, json: async () => ({ error: `未注册的路由：${path}` }) } as unknown as Response
+    const index = callCounts.get(path) ?? 0
+    callCounts.set(path, index + 1)
+    // body 可以是按调用序的函数（同一 URL 多次调用返回不同状态，如历史回读）
+    const body = typeof route.body === 'function' ? (route.body as (callIndex: number) => unknown)(index) : route.body
     return {
       ok: route.status >= 200 && route.status < 300,
       status: route.status,
-      json: async () => route.body,
+      json: async () => body,
     } as unknown as Response
   }) as typeof fetch
   return { fetchImpl, calls }
@@ -310,7 +315,23 @@ describe('四视口验证（第二批：POST /candidate/verify）', () => {
           { id: 'ev-4', checkId: 'c:shot', result: 'pass', viewport: { width: 390, height: 844 }, runtimeState: 'settled', artifactUrl: '/__ripple/api/candidate/candidate-9/evidence/ev-4' },
         ],
         visualEvidences: [
-          { checkId: 'v:home', route: '/', result: 'unchanged', resultReason: '无视觉差异', view: { kind: 'ripple-visual-evidence-view/v1' } },
+          {
+            checkId: 'v:home', route: '/', result: 'unchanged', resultReason: '无视觉差异',
+            view: {
+              schema: 'ripple-visual-evidence-view/v1',
+              stateLabel: '视觉未知',
+              summary: '未检测到视觉变化。视觉证据仅为补充观察，不构成通过判定。',
+              comparable: true,
+              changedPixels: 0,
+              regionCount: 0,
+              identityStatus: 'page-context-proven',
+              limitations: [],
+              crossVersion: {
+                scope: { strictInstanceProofAvailable: false },
+                pairs: [{ proofLabel: '实例候选配对（运行时标注支持，未经身份核验）', reasons: ['source-version-unavailable'] }],
+              },
+            },
+          },
         ],
       },
       workflow: { lifecycle: 'active' },
@@ -354,10 +375,25 @@ describe('四视口验证（第二批：POST /candidate/verify）', () => {
     expect(verification?.shots).toHaveLength(4)
     expect(verification?.shots.map(shot => shot.viewportWidth)).toEqual([1440, 768, 375, 390])
     expect(verification?.shots.every(shot => shot.imageUrl?.startsWith('/__ripple/api/candidate/candidate-9/evidence/'))).toBe(true)
-    // E 只读视觉证据：仅映射公开字段，不携带原始 view 载荷
-    expect(verification?.visualEvidences).toEqual([
-      { checkId: 'v:home', route: '/', result: 'unchanged', resultReason: '无视觉差异' },
-    ])
+    // E 只读视觉证据：索引字段 + 可读 view 投影（proofLabel 逐字透传，不得改写升级）
+    expect(verification?.visualEvidences).toHaveLength(1)
+    expect(verification?.visualEvidences[0]).toMatchObject({
+      checkId: 'v:home', route: '/', result: 'unchanged', resultReason: '无视觉差异',
+    })
+    expect(verification?.visualEvidences[0]?.view).toEqual({
+      schema: 'ripple-visual-evidence-view/v1',
+      stateLabel: '视觉未知',
+      summary: '未检测到视觉变化。视觉证据仅为补充观察，不构成通过判定。',
+      comparable: true,
+      changedPixels: 0,
+      regionCount: 0,
+      identityStatus: 'page-context-proven',
+      limitations: [],
+      crossVersion: {
+        scope: { strictInstanceProofAvailable: false },
+        pairs: [{ proofLabel: '实例候选配对（运行时标注支持，未经身份核验）', reasons: ['source-version-unavailable'] }],
+      },
+    })
     // loading 在同一模型快照内复位（da94ab7 教训），按钮不得永久禁用
     expect(verified.activeCandidate?.verificationRunning).toBe(false)
     // 历史回读：证据面板与版本胶片以服务端持久化结果为权威
@@ -380,5 +416,108 @@ describe('四视口验证（第二批：POST /candidate/verify）', () => {
   it('没有活跃候选时运行验证：如实拒绝', async () => {
     const { adapter, model } = await loadAdapter({ analyze: ANALYSIS, history: HISTORY_EMPTY, 'project/preview': PREVIEW })
     await expect(adapter.runVerification!(model)).rejects.toThrow('当前没有活跃候选')
+  })
+})
+
+
+describe('第二批复核：候选切换 / 状态如实 / 失败刷新', () => {
+  const candidate9Route = {
+    status: 200,
+    body: {
+      sessionId: 'session-9',
+      candidate: { id: 'candidate-9', patchHash: 'hash-9999abcdef0000' },
+      verification: { state: 'not-run', reason: '浏览器验证尚未运行。' },
+      workflow: { lifecycle: 'active' },
+    },
+  }
+  const candidate10Route = {
+    status: 200,
+    body: {
+      sessionId: 'session-10',
+      candidate: { id: 'candidate-10', patchHash: 'hash-1010abcdef0000' },
+      verification: { state: 'not-run', reason: '浏览器验证尚未运行。' },
+      workflow: { lifecycle: 'active' },
+    },
+  }
+  const historyItem9 = (lifecycle: string, verification: unknown) => ({
+    candidateId: 'candidate-9', projectId: 'proj-acme', lifecycle,
+    patchHash: 'hash-9999abcdef0000', updatedAt: '2026-10-23T10:00:31Z', verification,
+  })
+  const VERIFY_PASSED_RUN = {
+    state: 'passed', runId: 'run-42', patchHash: 'hash-9999abcdef0000', scopeVersion: 3,
+    recordHash: 'record-hash-abcdef', assertions: [{ id: 'a:1', result: 'pass', detail: '补丁文字出现' }],
+    evidence: [
+      { id: 'ev-1', result: 'pass', viewport: { width: 1440, height: 900 }, runtimeState: 'settled', artifactUrl: '/__ripple/api/candidate/candidate-9/evidence/ev-1' },
+      { id: 'ev-4', result: 'pass', viewport: { width: 390, height: 844 }, runtimeState: 'settled', artifactUrl: '/__ripple/api/candidate/candidate-9/evidence/ev-4' },
+    ],
+  }
+  const verifyResponse = (verification: unknown) => ({
+    status: 200,
+    body: { candidateId: 'candidate-9', previewUrl: 'http://127.0.0.1:9999/candidate/candidate-9/', verification, workflow: { lifecycle: 'active' } },
+  })
+
+  async function adapterWithVerifiedCandidate(routes: Record<string, MockResponse>) {
+    const loaded = await loadAdapter({ analyze: ANALYSIS, history: HISTORY_EMPTY, 'project/preview': PREVIEW, candidate: candidate9Route, ...routes })
+    const selected = loaded.adapter.selectElement(loaded.model, 'data:hero-title')
+    const drafted = loaded.adapter.setDraftText(selected, 'Acme 旗舰店')
+    const decided = loaded.adapter.setPageScope(drafted, 'page:about', 'exclude')
+    const created = await loaded.adapter.createCandidate!(decided, { rawIntent: '改标题' })
+    return { ...loaded, created }
+  }
+
+  it('复核点 1：创建新候选后不得残留上一个候选的验证', async () => {
+    // 第二次 POST /candidate 返回 candidate-10；历史回读第 4 次起以 candidate-10 为权威
+    const { adapter, created, calls } = await adapterWithVerifiedCandidate({
+      'candidate/verify': { status: 200, body: () => verifyResponse(VERIFY_PASSED_RUN).body },
+      candidate: { status: 200, body: (index: number) => (index === 0 ? candidate9Route.body : candidate10Route.body) },
+      history: { status: 200, body: (index: number) => ({
+        history: index >= 3
+          ? [{ candidateId: 'candidate-10', projectId: 'proj-acme', lifecycle: 'active', patchHash: 'hash-1010abcdef0000', updatedAt: '2026-10-23T10:05:00Z', verification: { state: 'not-run' } }, historyItem9('active', { state: 'not-run' })]
+          : [historyItem9('active', { state: 'not-run' })],
+      }) },
+    })
+    const verified = await adapter.runVerification!(created)
+    expect(verified.activeCandidate?.verification?.runId).toBe('run-42')
+    // 创建第二个候选（同一目标再次提交即可，合同细节不是本用例重点）
+    const second = await adapter.createCandidate!(verified, { rawIntent: '再改一次' })
+    // 候选身份已切换：旧候选的验证运行（run-42）绝不得展示在新候选上
+    expect(second.activeCandidate?.candidateId).toBe('candidate-10')
+    expect(second.activeCandidate?.verification).toBeUndefined()
+    // 证据面板回到"尚未运行"，版本胶片含两个候选
+    expect(second.evidence.find(item => item.id === 'ev:verification')?.state).toBe('not-run')
+    expect(second.versions.map(item => item.id).sort()).toEqual(['candidate-10', 'candidate-9'])
+    expect(calls.filter(item => item.path === 'candidate')).toHaveLength(2)
+  })
+
+  it('复核点 2：stale 与 failed-to-run 状态如实投影，不粉饰', async () => {
+    const { adapter, created } = await adapterWithVerifiedCandidate({
+      'candidate/verify': { status: 200, body: (index: number) => verifyResponse(index === 0
+        ? { state: 'stale', reason: '证据对应的候选或源码已过期。', runId: 'run-stale' }
+        : { state: 'failed-to-run', reason: '浏览器验证未能启动。' }).body },
+    })
+    const stale = await adapter.runVerification!(created)
+    expect(stale.activeCandidate?.verification?.state).toBe('stale')
+    expect(stale.activeCandidate?.verification?.stateLabel).toBe('已过期')
+    expect(stale.activeCandidate?.verification?.reason).toContain('过期')
+    const failed = await adapter.runVerification!(stale)
+    expect(failed.activeCandidate?.verification?.state).toBe('failed-to-run')
+    expect(failed.activeCandidate?.verification?.stateLabel).toBe('运行失败')
+    expect(failed.activeCandidate?.verification?.shots).toHaveLength(0)
+  })
+
+  it('复核点 2/6：验证失败（服务端拒绝）时回读历史，stale 退役在下一次重建如实反映', async () => {
+    const { adapter, created } = await adapterWithVerifiedCandidate({
+      'candidate/verify': { status: 409, body: { error: '源码已过期，候选已退役' } },
+      // 失败路径会回读历史：第 3 次起服务端已把 candidate-9 退役为 stale
+      history: { status: 200, body: (index: number) => ({ history: [historyItem9(index >= 2 ? 'stale' : 'active', { state: 'not-run' })] }) },
+    })
+    await expect(adapter.runVerification!(created)).rejects.toThrow('候选已退役')
+    // 同步派生保留传入模型的 candidateStatus（设计使然）；异步动作重建时才重算——
+    // 用户下一次刷新/异步操作即见 stale 生命周期如实呈现
+    const observed = adapter.setDraftText(created, 'Acme 旗舰店二号')
+    expect(observed.activeCandidate?.verificationRunning).toBeFalsy()
+    expect(observed.activeCandidate?.verification).toBeUndefined()
+    const refreshed = await adapter.refresh!(observed)
+    expect(refreshed.candidateStatus).toBe('stale')
   })
 })

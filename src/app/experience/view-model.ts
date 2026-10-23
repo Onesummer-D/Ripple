@@ -193,7 +193,28 @@ export interface CandidateVerificationXp {
     route: string
     result: string
     resultReason?: string
+    /** 原始可读 view 投影（schema/stateLabel/summary/配对证明标签逐字渲染，不得改写升级）。 */
+    view?: VisualEvidenceViewXp
   }>
+}
+
+/**
+ * E 的 ripple-visual-evidence-view/v1 可读字段（F 只读消费；结构以 A/E 为准，
+ * 缺失字段一律可选——不得臆造）。视觉证据仅为补充观察，永远不能是 pass。
+ */
+export interface VisualEvidenceViewXp {
+  schema?: string
+  stateLabel?: string
+  summary?: string
+  comparable?: boolean
+  changedPixels?: number | null
+  regionCount?: number
+  identityStatus?: string
+  limitations?: string[]
+  crossVersion?: {
+    scope?: { strictInstanceProofAvailable?: boolean }
+    pairs?: Array<{ proofLabel?: string; reasons?: string[] }>
+  }
 }
 
 /** 把 scope 选择汇总成一句即时摘要（纯函数，可测）。 */
