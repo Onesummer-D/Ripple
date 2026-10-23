@@ -1,0 +1,394 @@
+{
+  "schema": "ripple-visual-difference/v1",
+  "id": "visual-ec4f6edebe708b23c6d4368fcb7291b9",
+  "checkId": "fixture-antialias-noise",
+  "analyzedAt": "2026-10-21T00:00:00.000Z",
+  "result": "unknown",
+  "resultReason": "Compared: unchanged. Visual difference alone neither proves nor disproves the requested change; intent, Scope and non-target preservation are decided by the browser assertions.",
+  "subject": {
+    "candidateId": "candidate-fixture-1",
+    "projectId": "project-fixture-1",
+    "patchHash": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+    "baseSourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+    "candidateTreeDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+    "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+    "scopeDecisionId": "scope-fixture-1",
+    "scopeVersion": 1,
+    "runId": "run-fixture-antialias-noise"
+  },
+  "identity": {
+    "status": "consistent",
+    "expectedProvided": true,
+    "checks": [
+      {
+        "field": "subject.candidateId",
+        "observed": "candidate-fixture-1",
+        "expected": "candidate-fixture-1",
+        "status": "match"
+      },
+      {
+        "field": "subject.projectId",
+        "observed": "project-fixture-1",
+        "expected": "project-fixture-1",
+        "status": "match"
+      },
+      {
+        "field": "subject.patchHash",
+        "observed": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+        "expected": "10bc4b085222d90ac1c1169021345939edfb63f4e55c02037f27b8eaea1c3c57",
+        "status": "match"
+      },
+      {
+        "field": "subject.baseSourceDigest",
+        "observed": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "expected": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "status": "match"
+      },
+      {
+        "field": "subject.candidateTreeDigest",
+        "observed": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "expected": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "status": "match"
+      },
+      {
+        "field": "subject.runtimeFingerprint",
+        "observed": "fixture-runtime:synthetic-scene-renderer/1",
+        "expected": "fixture-runtime:synthetic-scene-renderer/1",
+        "status": "match"
+      },
+      {
+        "field": "subject.scopeDecisionId",
+        "observed": "scope-fixture-1",
+        "expected": "scope-fixture-1",
+        "status": "match"
+      },
+      {
+        "field": "subject.scopeVersion",
+        "observed": 1,
+        "expected": 1,
+        "status": "match"
+      },
+      {
+        "field": "baseline.sourceDigest",
+        "observed": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "expected": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "status": "match"
+      },
+      {
+        "field": "candidate.sourceDigest",
+        "observed": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "expected": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "status": "match"
+      },
+      {
+        "field": "baseline.runtimeFingerprint",
+        "observed": "fixture-runtime:synthetic-scene-renderer/1",
+        "expected": "fixture-runtime:synthetic-scene-renderer/1",
+        "status": "match"
+      },
+      {
+        "field": "candidate.runtimeFingerprint",
+        "observed": "fixture-runtime:synthetic-scene-renderer/1",
+        "expected": "fixture-runtime:synthetic-scene-renderer/1",
+        "status": "match"
+      }
+    ]
+  },
+  "inputs": {
+    "baseline": {
+      "descriptor": {
+        "side": "baseline",
+        "route": "/",
+        "pageUrl": "http://fixture.invalid/",
+        "locationRedacted": false,
+        "routeSuffixSha256": "498d26f2807d146886f648329078a14f422972205d63eb39d06db6e5fd37a38a",
+        "pageUrlLocationSha256": "ecd21a0c6cdba6f1ebeaad45146f48966b92b4e2a84548fc34cebed0e89953e9",
+        "viewport": {
+          "width": 320,
+          "height": 240
+        },
+        "devicePixelRatio": 1,
+        "browser": {
+          "name": "synthetic-scene-renderer",
+          "version": "1"
+        },
+        "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+        "interactionState": "rendered",
+        "sourceDigest": "1265eeb0dd85a7f7692e4779b417273190289f0dc6b4635dda36c45a53e074c8",
+        "capture": {
+          "completed": true,
+          "stable": true,
+          "fullPage": true,
+          "animationsDisabled": true,
+          "fontsReady": true,
+          "capturedAt": "2026-10-21T00:00:00.000Z",
+          "scroll": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "screenshot": {
+          "declaredSha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+          "artifactPath": "baseline.png"
+        }
+      },
+      "descriptorIssues": [],
+      "screenshot": {
+        "status": "present",
+        "sha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "declaredSha256": "98d71d9ca916534d53a9613f80bd20daf001b522cc8c6017f1d32655bd734043",
+        "hashMatchesDeclared": true,
+        "pixelSha256": "648cb61f2234c69841fd8367c566188e237f47447ba8bdbd228fa03c2e4480bc",
+        "sizeBytes": 3563,
+        "width": 320,
+        "height": 240,
+        "bitDepth": 8,
+        "colorType": 6,
+        "opaque": true,
+        "failure": null
+      }
+    },
+    "candidate": {
+      "descriptor": {
+        "side": "candidate",
+        "route": "/",
+        "pageUrl": "http://fixture.invalid/",
+        "locationRedacted": false,
+        "routeSuffixSha256": "498d26f2807d146886f648329078a14f422972205d63eb39d06db6e5fd37a38a",
+        "pageUrlLocationSha256": "ecd21a0c6cdba6f1ebeaad45146f48966b92b4e2a84548fc34cebed0e89953e9",
+        "viewport": {
+          "width": 320,
+          "height": 240
+        },
+        "devicePixelRatio": 1,
+        "browser": {
+          "name": "synthetic-scene-renderer",
+          "version": "1"
+        },
+        "runtimeFingerprint": "fixture-runtime:synthetic-scene-renderer/1",
+        "interactionState": "rendered",
+        "sourceDigest": "c27ebedeaca0b1bd0d37104360f58f454ea5748b48bfec7a005339d601a63f8f",
+        "capture": {
+          "completed": true,
+          "stable": true,
+          "fullPage": true,
+          "animationsDisabled": true,
+          "fontsReady": true,
+          "capturedAt": "2026-10-21T00:00:00.000Z",
+          "scroll": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        "screenshot": {
+          "declaredSha256": "66a86ab020408438865776fec4c265b7eaf7dc82515731afc6e267d715ecb193",
+          "artifactPath": "candidate.png"
+        }
+      },
+      "descriptorIssues": [],
+      "screenshot": {
+        "status": "present",
+        "sha256": "66a86ab020408438865776fec4c265b7eaf7dc82515731afc6e267d715ecb193",
+        "declaredSha256": "66a86ab020408438865776fec4c265b7eaf7dc82515731afc6e267d715ecb193",
+        "hashMatchesDeclared": true,
+        "pixelSha256": "79a20c96243d7ab746258df2a8f859cc0eb7b47f7073ba3833ecb746530996ef",
+        "sizeBytes": 3573,
+        "width": 320,
+        "height": 240,
+        "bitDepth": 8,
+        "colorType": 6,
+        "opaque": true,
+        "failure": null
+      }
+    }
+  },
+  "comparability": {
+    "comparable": true,
+    "reasons": [],
+    "limitations": []
+  },
+  "observation": {
+    "outcome": "unchanged",
+    "image": {
+      "width": 320,
+      "height": 240
+    },
+    "totalPixels": 76800,
+    "changedPixels": 0,
+    "changedRatio": 0,
+    "antialiasedPixels": 36,
+    "changedBounds": null,
+    "regionCount": 0,
+    "regionsTruncated": false,
+    "regions": [],
+    "diffImage": {
+      "artifactPath": "diff.png",
+      "sha256": "99276d3f08ae6443936081e623230d6bc9587fdfa7a8b48472266389d6c91ec4",
+      "pixelSha256": "cd9e63785cf4b66413c455396f85d7958631c97774e27002dbcf3596a4c00ff2",
+      "sizeBytes": 3123,
+      "width": 320,
+      "height": 240,
+      "legend": {
+        "background": "candidate screenshot as faded greyscale",
+        "changed": [
+          220,
+          38,
+          38
+        ],
+        "antialiased": [
+          234,
+          179,
+          8
+        ],
+        "outlines": {
+          "target": [
+            37,
+            99,
+            235
+          ],
+          "non-target": [
+            234,
+            88,
+            12
+          ],
+          "mixed": [
+            147,
+            51,
+            234
+          ],
+          "unattributed": [
+            17,
+            24,
+            39
+          ]
+        }
+      }
+    }
+  },
+  "geometry": {
+    "status": "mapped",
+    "baseline": {
+      "status": "accepted",
+      "detail": null,
+      "elementCount": 6,
+      "screenshotBound": true
+    },
+    "candidate": {
+      "status": "accepted",
+      "detail": null,
+      "elementCount": 6,
+      "screenshotBound": true
+    },
+    "target": {
+      "status": "mapped",
+      "declaredRefs": [
+        "src/components/Hero.tsx#h1"
+      ],
+      "mappedRefs": {
+        "baseline": [
+          "src/components/Hero.tsx#h1"
+        ],
+        "candidate": [
+          "src/components/Hero.tsx#h1"
+        ]
+      },
+      "missingRefs": []
+    },
+    "changedPixelsInsideTarget": 0,
+    "changedPixelsOutsideTarget": 0,
+    "matching": {
+      "matched": 6,
+      "stableMatched": 6,
+      "baselineOnly": [],
+      "candidateOnly": [],
+      "ambiguous": [],
+      "unidentified": {
+        "baseline": 0,
+        "candidate": 0
+      },
+      "truncated": false
+    },
+    "documentSize": {
+      "baseline": {
+        "width": 320,
+        "height": 240
+      },
+      "candidate": {
+        "width": 320,
+        "height": 240
+      }
+    },
+    "displacements": [],
+    "displacementsTruncated": false,
+    "risks": [],
+    "risksTruncated": false
+  },
+  "findings": [
+    {
+      "code": "no-visual-change",
+      "severity": "info",
+      "detail": "No pixel differs beyond the threshold (36 anti-aliasing pixel(s) excluded)."
+    },
+    {
+      "code": "target-visually-unchanged",
+      "severity": "review",
+      "detail": "The declared target area rendered identically in baseline and candidate."
+    }
+  ],
+  "coverage": {
+    "route": "/",
+    "viewport": {
+      "width": 320,
+      "height": 240
+    },
+    "devicePixelRatio": 1,
+    "interactionState": "rendered",
+    "captureExtent": "full-page",
+    "compared": true,
+    "notChecked": []
+  },
+  "parameters": {
+    "algorithm": {
+      "name": "pixelmatch",
+      "version": "8.0.0",
+      "colorMetric": "OKLab HyAB"
+    },
+    "decoder": {
+      "name": "pngjs",
+      "version": "7.0.0"
+    },
+    "threshold": 0.03,
+    "includeAA": false,
+    "mergeDistanceCssPx": 8,
+    "mergeDistancePx": 8,
+    "targetMarginCssPx": 2,
+    "targetMarginPx": 2,
+    "geometryToleranceCssPx": 1,
+    "maxRegions": 100,
+    "maxElementsPerRegion": 5,
+    "maxListedItems": 100,
+    "png": {
+      "maxFileBytes": 67108864,
+      "maxWidth": 8192,
+      "maxHeight": 32768,
+      "maxPixels": 33554432,
+      "maxChunks": 4096
+    },
+    "geometry": {
+      "maxElements": 2000
+    },
+    "geometryRules": {
+      "new-overlap": "Two stably identified, visible, non-nested elements whose visible (unclipped) boxes did not overlap in the baseline overlap by more than the tolerance in both axes in the candidate (possible occlusion).",
+      "new-viewport-overflow": "A stably identified, visible element whose clipped box stayed within the viewport width in the baseline extends beyond it by more than the tolerance in the candidate.",
+      "new-clip-overflow": "A stably identified, visible element that fit inside its overflow:hidden/clip ancestors in the baseline exceeds them by more than the tolerance in the candidate (content is cut off; scroll containers are excluded).",
+      "new-document-horizontal-overflow": "The document scroll width stayed within the viewport width in the baseline and exceeds it by more than the tolerance in the candidate."
+    }
+  },
+  "environment": {
+    "runtime": "node",
+    "nodeVersion": "v22.22.0",
+    "platform": "linux",
+    "arch": "x64",
+    "zlib": "1.3.1-470d3a2"
+  }
+}

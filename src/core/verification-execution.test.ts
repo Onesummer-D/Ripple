@@ -34,9 +34,13 @@ const PAGES = [
   { pageRef: 'page:story', path: '/', markerText: 'Story page', navigateBy: { role: 'button', name: 'Story' } },
 ]
 const HOME_INTERACTION = { pageRef: 'page:home', role: 'button', name: 'Browse items', expectedText: 'Catalog opened' }
-// Document loads per viewport on each side: the main page (which also hosts
-// the read-only root probe), three navigated scope pages and the interaction.
+// Document loads per viewport on each side at check-complete time: the main
+// page (which also hosts the read-only root probe), three navigated scope
+// pages and the interaction. The supplementary visual-evidence capture runs
+// after all viewport checks and adds one more pair per viewport to the run
+// totals (newPageCalls, global browser errors, blocked requests).
 const LOADS_PER_VIEWPORT = 5
+const VISUAL_LOADS_PER_VIEWPORT = 1
 
 const servers: http.Server[] = []
 const documentRequests: Array<{ host: string; verificationFonts?: string }> = []
@@ -317,8 +321,8 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
     expect(manifest.interactionObservations).toHaveLength(VIEWPORTS.length)
     expect(manifest.scopeObservations.every((item: Record<string, unknown>) => item.baselineRouteIdentity === 'verified' && item.candidateRouteIdentity === 'verified')).toBe(true)
     // One fresh pair each for the main checks (plus the read-only root probe),
-    // the three navigated scope pages and the interaction.
-    expect(outcome.newPageCalls()).toBe(VIEWPORTS.length * LOADS_PER_VIEWPORT * 2)
+    // the three navigated scope pages, the interaction and the visual capture.
+    expect(outcome.newPageCalls()).toBe(VIEWPORTS.length * (LOADS_PER_VIEWPORT + VISUAL_LOADS_PER_VIEWPORT) * 2)
     const interactionTasks = outcome.events.filter(event => event.event === 'task' && String(event.task).startsWith('interaction:0:') && event.state === 'completed')
     expect(interactionTasks).toHaveLength(VIEWPORTS.length * 2)
     expectBoundedAndCleanPages(outcome)
@@ -994,8 +998,10 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
     try {
       const outcome = await run('run-storm')
       const { manifest } = outcome.result!
-      // Two sides, four loads each, four viewports.
-      const expected = 150 * 2 * LOADS_PER_VIEWPORT * VIEWPORTS.length
+      // Two sides, (loads + the visual capture pair) each, four viewports; the
+      // per-viewport check-complete snapshot predates the visual phase and
+      // keeps the load-only count.
+      const expected = 150 * 2 * (LOADS_PER_VIEWPORT + VISUAL_LOADS_PER_VIEWPORT) * VIEWPORTS.length
       expect(manifest.browserErrorDetails.total).toBe(expected)
       expect(manifest.browserErrorDetails.byCategory).toEqual({ 'console-error': expected })
       expect(manifest.browserErrorDetails.samples.length).toBeLessThanOrEqual(25)
@@ -1028,8 +1034,9 @@ describe.skipIf(process.platform === 'darwin')('isolated verification runner lif
       const { manifest } = outcome.result!
       expect(manifest.loadedExternalResourceUrls).toEqual(['https://images.example.test/ok.png'])
       expect(manifest.blockedExternalResourceUrls).toEqual(['https://images.example.test/bad.png'])
-      // Blocked on every load of both sides, never served.
-      expect(manifest.browserErrorDetails.byCategory['blocked-integrity']).toBe(2 * LOADS_PER_VIEWPORT * VIEWPORTS.length)
+      // Blocked on every load of both sides (including the visual capture
+      // pair), never served.
+      expect(manifest.browserErrorDetails.byCategory['blocked-integrity']).toBe(2 * (LOADS_PER_VIEWPORT + VISUAL_LOADS_PER_VIEWPORT) * VIEWPORTS.length)
       expect(assertion(manifest, 'browser-errors')).toBe('risk')
       expectBoundedAndCleanPages(outcome)
     } finally {

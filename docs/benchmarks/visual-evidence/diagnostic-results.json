@@ -1,0 +1,104 @@
+{
+  "environment": "Node 22.16.0, TypeScript stripping, test-only pixelmatch/pngjs substitutes (NOT official CI)",
+  "total": 24,
+  "passed": 24,
+  "failed": [],
+  "cases": [
+    {
+      "name": "complete producer and DOM hash binding yields risk",
+      "status": "passed"
+    },
+    {
+      "name": "baseline producer SHA missing",
+      "status": "passed"
+    },
+    {
+      "name": "candidate producer SHA missing",
+      "status": "passed"
+    },
+    {
+      "name": "baseline DOM SHA missing",
+      "status": "passed"
+    },
+    {
+      "name": "candidate DOM SHA missing",
+      "status": "passed"
+    },
+    {
+      "name": "capture stable unknown",
+      "status": "passed"
+    },
+    {
+      "name": "animationsDisabled missing",
+      "status": "passed"
+    },
+    {
+      "name": "fontsReady missing",
+      "status": "passed"
+    },
+    {
+      "name": "incorrect producer hash -> failed-to-run",
+      "status": "passed"
+    },
+    {
+      "name": "incorrect DOM sample hash -> rejected geometry, unknown result",
+      "status": "passed"
+    },
+    {
+      "name": "checkId rejects null",
+      "status": "passed"
+    },
+    {
+      "name": "checkId rejects ",
+      "status": "passed"
+    },
+    {
+      "name": "checkId rejects other",
+      "status": "passed"
+    },
+    {
+      "name": "matching checkId projects",
+      "status": "passed"
+    },
+    {
+      "name": "bad artifact path \"/a\"",
+      "status": "passed"
+    },
+    {
+      "name": "bad artifact path \"../diff.png\"",
+      "status": "passed"
+    },
+    {
+      "name": "bad artifact path \"a/../diff.png\"",
+      "status": "passed"
+    },
+    {
+      "name": "bad artifact path \"C:/file.png\"",
+      "status": "passed"
+    },
+    {
+      "name": "bad artifact path \"bad\\rname.png\"",
+      "status": "passed"
+    },
+    {
+      "name": "bad artifact path \"a\\\\diff.png\"",
+      "status": "passed"
+    },
+    {
+      "name": "bad artifact path \"a//diff.png\"",
+      "status": "passed"
+    },
+    {
+      "name": "safe artifact path valid",
+      "status": "passed"
+    },
+    {
+      "name": "fixture PNG file SHA matches original",
+      "status": "passed"
+    },
+    {
+      "name": "unchanged with geometry risk absent still cannot PASS",
+      "status": "passed"
+    }
+  ]
+}

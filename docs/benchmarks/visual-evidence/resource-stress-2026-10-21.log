@@ -1,0 +1,149 @@
+Ripple Agent E | Node 22.16.0 Linux x64 | 2026-10-21
+SYNTHETIC DIAGNOSTIC, not browser Evidence and not official pixelmatch/pngjs.
+Temporary test-only stand-ins for pixelmatch and PNG encoding: dependencies unavailable from npm.
+Each scenario was run as a separate process under /usr/bin/time -v.
+
+========================= component-limit =========================
+PROCESS JSON
+{"scenario":"component-limit","source":"synthetic resource benchmark, NOT browser evidence","node":"v22.16.0","platform":"linux","result":"visual-analysis-resource-limit / connected components","elapsedMs":41.73,"rssAtEndMiB":108.07,"maxSampledRssMiB":100.91}
+
+GNU time raw stderr
+	Command being timed: "node --no-warnings --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/benchmark-visual-evidence.mjs component-limit"
+	User time (seconds): 0.66
+	System time (seconds): 0.14
+	Percent of CPU this job got: 171%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.46
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 122620
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 38907
+	Voluntary context switches: 215
+	Involuntary context switches: 23
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+========================= grid-limit =========================
+PROCESS JSON
+{"scenario":"grid-limit","source":"synthetic resource benchmark, NOT browser evidence","node":"v22.16.0","platform":"linux","result":"failed-to-run","failure":"visual-analysis-resource-limit","changedPixels":null,"regionCount":null,"diffPngBytes":null,"elapsedMs":910.76,"rssAtEndMiB":181.25,"maxSampledRssMiB":221.67}
+
+GNU time raw stderr
+	Command being timed: "node --no-warnings --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/benchmark-visual-evidence.mjs grid-limit"
+	User time (seconds): 1.04
+	System time (seconds): 0.66
+	Percent of CPU this job got: 125%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.37
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 239792
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 80246
+	Voluntary context switches: 295
+	Involuntary context switches: 50
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+========================= header-limit =========================
+PROCESS JSON
+{"scenario":"header-limit","source":"synthetic resource benchmark, NOT browser evidence","node":"v22.16.0","platform":"linux","result":"failed-to-run","failure":"visual-analysis-resource-limit","changedPixels":null,"regionCount":null,"diffPngBytes":null,"elapsedMs":5.71,"rssAtEndMiB":103.43,"maxSampledRssMiB":103.43}
+
+GNU time raw stderr
+	Command being timed: "node --no-warnings --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/benchmark-visual-evidence.mjs header-limit"
+	User time (seconds): 0.56
+	System time (seconds): 0.06
+	Percent of CPU this job got: 178%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.35
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 124636
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 37357
+	Voluntary context switches: 187
+	Involuntary context switches: 28
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+========================= large-many-regions =========================
+PROCESS JSON
+{"scenario":"large-many-regions","source":"synthetic resource benchmark, NOT browser evidence","node":"v22.16.0","platform":"linux","result":"unknown","failure":null,"changedPixels":9700,"regionCount":9700,"diffPngBytes":52039,"elapsedMs":2157.84,"rssAtEndMiB":343.88,"maxSampledRssMiB":343.88}
+
+GNU time raw stderr
+	Command being timed: "node --no-warnings --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/benchmark-visual-evidence.mjs large-many-regions"
+	User time (seconds): 2.21
+	System time (seconds): 0.70
+	Percent of CPU this job got: 116%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:02.50
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 352588
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 139762
+	Voluntary context switches: 592
+	Involuntary context switches: 70
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+
+========================= dense-near-cap =========================
+PROCESS JSON
+{"scenario":"dense-near-cap","source":"synthetic resource benchmark, NOT browser evidence","node":"v22.16.0","platform":"linux","result":"unknown","failure":null,"changedPixels":10800000,"regionCount":1,"diffPngBytes":49495,"elapsedMs":2074.17,"rssAtEndMiB":347.54,"maxSampledRssMiB":347.54}
+
+GNU time raw stderr
+	Command being timed: "node --no-warnings --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/benchmark-visual-evidence.mjs dense-near-cap"
+	User time (seconds): 2.43
+	System time (seconds): 0.36
+	Percent of CPU this job got: 116%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:02.40
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 356008
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 164468
+	Voluntary context switches: 600
+	Involuntary context switches: 86
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
