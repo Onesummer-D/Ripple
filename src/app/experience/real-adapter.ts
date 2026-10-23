@@ -753,11 +753,12 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             verification: candidateVerificationView(activeVerification),
             // 第三批：生命周期投影全部来自服务端 workflow/历史，绝不本地生成。
             // A 的 workflow.lifecycle 是候选生命周期（active/applied/rolled-back），
-            // 审批态在 workflow.approval：session 状态 approved 必须映射为界面生命周期 approved
-            lifecycle: activeWorkflow?.applied
-              ? 'applied'
-              : activeWorkflow?.rollback
-                ? 'rolled-back'
+            // 审批态在 workflow.approval。注意 session 在回滚后仍保留 applied 记录
+            // （applied/rollback 都是历史痕迹），当前终态必须先看 rollback 再看 applied。
+            lifecycle: activeWorkflow?.rollback
+              ? 'rolled-back'
+              : activeWorkflow?.applied
+                ? 'applied'
                 : activeWorkflow?.approval
                   ? 'approved'
                   : activeWorkflow?.lifecycle ?? 'active',
@@ -1189,6 +1190,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           if (gen === generation) {
             history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
           }
+          // 返回模型前清除在途标记：否则 UI 永久卡在"审批提交中"（busy 仅用于在途禁用）
+          lifecycleBusy = undefined
           return buildModel(current.projectStatus, current.blockedReasons)
         } finally {
           lifecycleBusy = undefined
@@ -1218,6 +1221,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           // 绝不再请求 analyze（A 核心 requireClean 会拒绝，导致已成功写盘被误报失败）。
           await refreshAfterLifecycleWrite(gen, response.analysis)
           stale(gen)
+          lifecycleBusy = undefined
           return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
         } finally {
           lifecycleBusy = undefined
@@ -1243,6 +1247,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           candidatePreviewLoading = false
           await refreshAfterLifecycleWrite(gen, response.analysis)
           stale(gen)
+          lifecycleBusy = undefined
           return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
         } finally {
           lifecycleBusy = undefined
