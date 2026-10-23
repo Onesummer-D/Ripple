@@ -601,3 +601,37 @@ F 第二阶段真实 UI 与浏览器验收、E 接线进度（CI + 第一道验�
 - **E**：E Agent 已接收视觉证据真实挂载 + C+D 身份版本接线任务；起点 = 现有 `2acf7ea` 协调成果 + 最新 A HEAD `dc8269f`；不重复开发已有视觉挂载器。A 负责接口协调、审查、联合回归与正式合并。
 - **C+D**：C+D Agent 已接收 AC-P2a（composite JSX 子代消费证明）与 AC-P2b（data-router 条件消费者修复）；从最新 A HEAD `dc8269f` 建独立分支。A 负责审查与合并。
 - 其他线不变：F 修复真实候选 Scope 合同（P0）并推进 TEXT UI；D 准备青野 `f7e4998a` 正式 MEDIA 全链验收；B 冻结待命（等 AC-P2a/b 后 codescandy 复验）。
+
+
+---
+
+# v18 MEDIA 合并任务关闭 + 并行职责划分（2026-10-23）
+
+## 0. 正式基线
+
+- **A 正式 HEAD：`dc8269f871c543ff30c200641a9e253cd68b53f2`**（MEDIA 安全补丁已入主线，CI #39882489628 SUCCESS，586/586 Vitest、61 Playwright 过 1 跳、typecheck/build 通过、N11 在正式 CI 执行通过）。
+- 本轮 MEDIA 合并任务关闭；PR #26 保持 Draft；未合并 main、未触发 Bolt。
+
+## 1. 并行职责划分（避免双 Agent 重复开发）
+
+| Agent | 职责 |
+|---|---|
+| E | 视觉证据真实接线（VerificationRunner 已有 `attachVisualEvidenceSafely` 挂载调用，A **不重复实现**）、双侧 sourceFileVersions / RuntimePageContext / identityReasons / expectedSourceVersions 证据绑定、联合测试 |
+| C+D | AC-P2a / AC-P2b 第三方 SourceGraph 修复 |
+| F | 第一批 Scope 合同 P0 修复 + 真实浏览器端到端成功候选 |
+| D | 基于 dc8269f 准备青野（f7e4998a）MEDIA 正式全链验收 |
+| A（本线） | 维护公共核心与接口合同、审查各 Agent 提交、集成回归、正式合并；**不重复建设视觉挂载器、不改写 E 接线文件、不扩展 N 系列算法** |
+| B | 冻结待命（等 AC-P2a/b 后 codescandy 复验） |
+
+## 2. A 侧 E 协调安排
+
+- E 实现分支 = `feat/e-visual-verification-integration-20261023`（0dd2e91 冻结候选）；A 协调分支 `feat/a-e-visual-wiring-20261023`（2acf7ea）保留为预演基线。
+- **A 不新建第二条 E 开发分支**；等 E 提交真实接线代码后，A 在 `dc8269f` 上重新做合并预演与联合回归。
+- 已开发独立分支同步基线一律用 merge（禁用强制覆盖）。
+
+## 3. 当前优先级
+
+1. F 真实 TEXT 候选成功验收；
+2. E 视觉证据接线；
+3. C+D AC-P2a/b 并行；
+4. D 青野 MEDIA 全链准备同步进行。
