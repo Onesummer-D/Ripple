@@ -345,6 +345,8 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         onApproveCandidate={activeAdapter.approveCandidate ? handleApproveCandidate : undefined}
         onApplyCandidate={activeAdapter.applyCandidate ? handleApplyCandidate : undefined}
         onRollbackCandidate={activeAdapter.rollbackCandidate ? handleRollbackCandidate : undefined}
+        onContractMarker={(pageRef, markerText) => apply(activeAdapter.setContractMarker?.(model, pageRef, markerText) ?? model)}
+        onContractInteractions={interactions => apply(activeAdapter.setContractInteractions?.(model, interactions) ?? model)}
         candidateError={candidateError}
       />
     </div>

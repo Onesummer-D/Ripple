@@ -120,9 +120,25 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   await page.getByTestId('scope-include-page:/about').click()
   await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
 
-  // 4. POST /candidate：真实 CandidateRecord
+  // 3b. 验证合同：页标记采用分析建议（唯一且短的来源证明文本）；显式声明一项真实交互
+  await expect(page.getByTestId('verification-contract')).toBeVisible()
+  await expect(page.getByTestId('contract-marker-page:/')).toHaveValue('青野家居生活馆')
+  await expect(page.getByTestId('contract-marker-page:/about')).toHaveValue('关于青野')
+  await page.getByTestId('contract-interaction-name').fill('展开服务详情')
+  await page.getByTestId('contract-interaction-expected').fill('服务详情已展开')
+  await page.getByTestId('contract-interaction-add').click()
+  await expect(page.getByTestId('contract-interaction-0')).toContainText('展开服务详情')
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-passed-contract-1440.png'), fullPage: true })
+
+  // 4. POST /candidate：真实 CandidateRecord（请求体携带验证合同）
+  const candidateRequest = page.waitForRequest(request => request.url().includes('/__ripple/api/candidate') && request.method() === 'POST')
   const candidateResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
   await page.getByTestId('create-candidate').click()
+  const candidateBody = JSON.parse((await candidateRequest).postData() ?? '{}') as {
+    verificationContract?: { pages: Array<{ pageRef: string; path: string; markerText: string }>; interactions: Array<{ pageRef: string; role: string; name: string; expectedText: string }> }
+  }
+  expect(candidateBody.verificationContract?.pages.map(page => page.markerText).sort()).toEqual(['关于青野', '青野家居生活馆'])
+  expect(candidateBody.verificationContract?.interactions).toEqual([{ pageRef: 'page:/', role: 'button', name: '展开服务详情', expectedText: '服务详情已展开' }])
   const candidatePayload = await (await candidateResponse).json() as {
     sessionId: string
     candidate: { id: string; patchHash?: string }

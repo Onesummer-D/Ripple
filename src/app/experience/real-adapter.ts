@@ -36,6 +36,8 @@ import type {
   PageScopeChoiceXp,
   PageXp,
   RuntimeIdentityXp,
+  VerificationContractPageXp,
+  VerificationContractXp,
   VersionItemXp,
   ViewportXp,
 } from './view-model'
@@ -225,6 +227,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let activeWorkflow: WorkflowView | undefined
   /** 第三批：生命周期操作在途（审批/应用/回滚请求进行中；模型携带以禁用按钮防重复提交）。 */
   let lifecycleBusy: 'approving' | 'applying' | 'rolling-back' | undefined
+  /** 联合验收批次：验证合同草案（页面标记初始建议来自分析；交互只能用户显式声明）。 */
+  let draftContract: VerificationContractXp | undefined
   /** 本地交互状态（草稿/范围意向只属于体验层，绝不写服务端）。 */
   const ui: {
     selectedElementId?: string
@@ -269,6 +273,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     activeVerification = undefined
     activeWorkflow = undefined
     lifecycleBusy = undefined
+    draftContract = undefined
     ui.selectedElementId = undefined
     ui.draftAfterText = ''
     ui.currentPageRef = ''
@@ -313,12 +318,44 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     for (const session of [...pendingCleanup]) await stopPreview(session)
   }
 
+  /**
+   * 从分析结果提出验证合同初始建议：
+   * - 页面 = 工程全部路由（A 运行器要求合同页面与路由集合一致才能 PASS）；
+   * - 每页标记 = 该页 source-proven 文本目标：优先选不被其他路由共享的值，其次较短者
+   *  （运行时在页面内唯一命中的概率最高）；任一页面提不出可信标记则不提交合同
+   *  （scope-propagation / interaction 断言如实保持 unknown，fail-closed）；
+   * - 交互绝不自动臆造，只能由用户在界面显式声明。
+   */
+  function proposeContract(): VerificationContractXp | undefined {
+    if (!analysis || analysis.routes.length === 0) return undefined
+    const pages: VerificationContractPageXp[] = []
+    for (const route of analysis.routes) {
+      const values = analysis.targets
+        .filter(target => target.kind === 'data'
+          && typeof target.value === 'string'
+          && target.value.trim().length > 0 && target.value.trim().length <= 300
+          && target.impact.certainty === 'source-proven'
+          && target.impact.pageRefs.includes(route.id))
+        .map(target => target.value!.trim())
+      if (values.length === 0) return undefined
+      const sharedWithOtherRoutes = (value: string) => analysis!.targets.some(target =>
+        typeof target.value === 'string' && target.value.trim() === value
+        && target.impact.pageRefs.some(ref => ref !== route.id))
+      const markerText = [...new Set(values)]
+        .sort((a, b) => Number(sharedWithOtherRoutes(a)) - Number(sharedWithOtherRoutes(b)) || a.length - b.length)[0]
+      pages.push({ pageRef: route.id, path: route.page ?? route.label, markerText })
+    }
+    return { pages, interactions: [] }
+  }
+
   /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
   async function loadProjectState(gen: number): Promise<void> {
     if (!projectRoot?.trim()) return
     const analyzed = await post<AnalysisResponse>('analyze', { projectRoot })
     stale(gen)
     analysis = analyzed
+    // 刷新（同一工程）保留用户已编辑的合同草案；只有工程切换/首次加载才提出初始建议
+    if (!draftContract) draftContract = proposeContract()
     const projectId = analyzed.revision.projectId
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
     stale(gen)
@@ -721,6 +758,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         graphId: analysis.graphId,
       } : undefined,
       blockedReasons,
+      verificationContract: draftContract,
     }
   }
 
@@ -838,6 +876,21 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
 
     setPageScope(current, pageRef, scope) {
       ui.scopes[pageRef] = scope
+      return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
+    },
+
+    setContractMarker(current, pageRef, markerText) {
+      if (!draftContract) return current
+      draftContract = {
+        ...draftContract,
+        pages: draftContract.pages.map(page => page.pageRef === pageRef ? { ...page, markerText } : page),
+      }
+      return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
+    },
+
+    setContractInteractions(current, interactions) {
+      if (!draftContract) return current
+      draftContract = { ...draftContract, interactions }
       return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
     },
 
@@ -968,6 +1021,12 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             rawIntent: input.rawIntent,
             operations,
             scope,
+            // 验证合同：创建候选时绑定（服务端按合同哈希校验执行记录）。
+            // 页面标记来自分析建议（用户可改）；交互为用户显式声明。无合同不发送——
+            // 服务端对缺页/缺交互如实给出 unknown 断言（fail-closed）。
+            ...(draftContract && draftContract.pages.length > 0
+              ? { verificationContract: { pages: draftContract.pages, interactions: draftContract.interactions } }
+              : {}),
           })
         } catch (error) {
           // A 的 POST /candidate 在创建候选【之前】停止项目预演（local-project-api.ts）：

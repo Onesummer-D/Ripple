@@ -478,3 +478,14 @@
   .ripple-xp-film-item { min-width: 240px; max-width: 240px; }
   .ripple-xp-compare-title { font-size: 22px; }
 }
+
+/* 验证合同（联合验收批次）：页面标记 + 交互声明 */
+.ripple-xp-contract { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 14px; padding: 14px 16px; border: 1px solid var(--xp-line, #d8d2c4); border-radius: 12px; background: color-mix(in srgb, var(--xp-paper, #fff) 72%, transparent); }
+.ripple-xp-contract-pages { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ripple-xp-contract-pages label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--xp-ink-soft); }
+.ripple-xp-contract-pages input { padding: 7px 10px; border: 1px solid var(--xp-line, #d8d2c4); border-radius: 8px; font: inherit; color: var(--xp-ink); background: var(--xp-paper, #fff); }
+.ripple-xp-contract-interactions { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--xp-ink); }
+.ripple-xp-contract-interactions li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ripple-xp-contract-form { display: grid; grid-template-columns: auto auto 1fr 1fr auto; gap: 8px; align-items: center; }
+.ripple-xp-contract-form select, .ripple-xp-contract-form input { padding: 7px 10px; border: 1px solid var(--xp-line, #d8d2c4); border-radius: 8px; font: inherit; color: var(--xp-ink); background: var(--xp-paper, #fff); min-width: 0; }
+@media (max-width: 720px) { .ripple-xp-contract-form { grid-template-columns: 1fr 1fr; } }
