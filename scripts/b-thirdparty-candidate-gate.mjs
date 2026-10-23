@@ -16,13 +16,19 @@
  *  --expect rejected (default): the TEXT candidate must be rejected with the
  *    CURRENT expected provenance reasons (composite-jsx-child + data-router
  *    coverage), as a CandidateError, leaving no patch/worktree/mutation.
- *  --expect accepted: for after AC-P2a/AC-P2b — must produce a real
- *    CandidateRecord; verifies patch bytes vs record.patchHash, marker
- *    consistency, and that the candidate worktree bytes equal the exact
- *    source edit (original[0:start] + after + original[end:]) before cleanup.
+ *    The default request intentionally keeps the INCOMPLETE scope
+ *    (includedRefs: [target.id]) — this frozen negative proves the gate.
+ *  --expect accepted: run only on A's PUBLICLY INTEGRATED core — requires
+ *    --core-sha <SHA> (or B_GATE_CORE_SHA) naming that core. Builds the FULL
+ *    scope from the actual PageImpact (target + every impacted page included,
+ *    all other routes explicitly excluded), passes it to createCandidate,
+ *    verifies the Scope the core actually received, then checks the real
+ *    CandidateRecord: patch bytes vs record.patchHash, marker consistency, and
+ *    that the candidate worktree bytes equal the exact source edit
+ *    (original[0:start] + after + original[end:]) before cleanup.
  *  --selftest: negative injections, sentinel byte-invariance, crash path,
- *    double cleanup. For a positive end-to-end see
- *    scripts/b-candidate-accepted-fixture.mjs.
+ *    double cleanup (rejected-mode contract; unchanged). For a positive
+ *    end-to-end see scripts/b-candidate-accepted-fixture.mjs.
  */
 import fs from 'node:fs'
 import os from 'node:os'
@@ -105,6 +111,26 @@ const target = findOverviewTarget(graph)
 if (!target) throw new Error('Overview TEXT target not found')
 const impact = sourceProvenPageImpact(graph, target.id)
 
+/** Full legitimate Scope for the accepted path — derived from the ACTUAL
+ *  PageImpact: the operation target plus every impacted page is INCLUDED;
+ *  every other route is explicitly EXCLUDED (a real decision, not an omission).
+ *  This is the wiring the analysis report promised: the accepted run must
+ *  never reuse the incomplete default scope below (the frozen negative).
+ *  Formal execution requires A's publicly integrated core, recorded via
+ *  --core-sha (or B_GATE_CORE_SHA) so the evidence names the core it ran on. */
+const coreSha = flagValue('--core-sha') ?? process.env.B_GATE_CORE_SHA ?? ''
+const buildFullScope = () => {
+  const impacted = new Set(impact.pageRefs)
+  return {
+    id: 'scope-reprobe-full-1', version: 1, decidedBy: 'b-reprobe', decidedAt: new Date().toISOString(),
+    strategy: 'shared',
+    includedRefs: [target.id, ...impact.pageRefs],
+    excludedRefs: graph.nodes.filter(n => n.kind === 'route').map(n => n.id).filter(id => !impacted.has(id)),
+    protectedRefs: [],
+  }
+}
+const fullScope = buildFullScope()
+
 const buildRequest = (candidateRoot, artifactRoot, overrides = {}) => ({
   projectRoot: project,
   candidateRoot,
@@ -155,8 +181,10 @@ const attempt = ({ slot = 'main', proposal = {}, blockArtifactDir = false, prese
     }
   } else {
     try {
-      const record = createCandidate(buildRequest(proposedCandidateRoot, proposedArtifactRoot, proposal))
-      outcome = { outcome: 'created', record, slotRoot, localCandidateRoot, localArtifactRoot, elapsedMs: Date.now() - t0 }
+      const request = buildRequest(proposedCandidateRoot, proposedArtifactRoot, proposal)
+      const record = createCandidate(request)
+      // Evidence: the exact Scope object the core received (not what we meant to send).
+      outcome = { outcome: 'created', record, actualScope: request.scope, slotRoot, localCandidateRoot, localArtifactRoot, elapsedMs: Date.now() - t0 }
     } catch (error) {
       outcome = {
         outcome: 'threw',
@@ -278,8 +306,24 @@ const main = () => {
   }
 
   // ---- expect accepted: real success contract, evidence before cleanup ----
-  const gateResult = attempt({ slot: 'main-accepted', preserveOnCreate: true })
+  // Formal-execution guard: the run MUST name the A core SHA it executes on —
+  // a rehearsal/pre-integration SHA must never produce an ACCEPTED verdict.
+  if (!coreSha) throw new Error('--expect accepted requires --core-sha <A-integrated-SHA> (or B_GATE_CORE_SHA) so the evidence names the core it ran on')
+  const gateResult = attempt({ slot: 'main-accepted', proposal: { scope: fullScope }, preserveOnCreate: true })
   const acceptance = { created: gateResult.outcome === 'created' }
+  // Scope wiring check: the Scope the core actually received must be the full
+  // PageImpact-derived scope (target + every impacted page included), never
+  // the incomplete default. Reference identity proves no middleware swapped it.
+  const requiredIncluded = [target.id, ...impact.pageRefs]
+  acceptance.scopeVerification = {
+    coreSha,
+    actualScopePresent: !!gateResult.actualScope,
+    actualScopeIsFullScope: gateResult.actualScope === fullScope,
+    targetIncluded: !!gateResult.actualScope && gateResult.actualScope.includedRefs.includes(target.id),
+    allImpactedPagesIncluded: !!gateResult.actualScope && requiredIncluded.every(ref => gateResult.actualScope.includedRefs.includes(ref)),
+    unimpactedRoutesExplicitlyExcluded: !!gateResult.actualScope && fullScope.excludedRefs.every(ref => gateResult.actualScope.excludedRefs.includes(ref)),
+    noProtectedRefs: !!gateResult.actualScope && gateResult.actualScope.protectedRefs.length === 0,
+  }
   try {
     if (acceptance.created) {
       const record = gateResult.record
@@ -320,8 +364,17 @@ const main = () => {
   }
   const pass = acceptance.created
     && Object.values(acceptance.verification ?? {}).every(v => v === true)
+    && Object.values(acceptance.scopeVerification).every(v => v === true)
     && Object.values(postChecks).every(v => v === true)
-  return { schemaVersion: 4, mode: 'expect-accepted', codescandySha: actual, projectClone: 'script-owned', target: { id: target.id, path: target.location.path }, impact, gate: { outcome: gateResult.outcome }, acceptance, postChecks, pass, note: '候选创建成功仅证明门控放行；preview/approval/apply/rollback 仍为独立 NOT RUN 项。' }
+  return {
+    schemaVersion: 5, mode: 'expect-accepted', codescandySha: actual, coreSha, projectClone: 'script-owned',
+    target: { id: target.id, path: target.location.path },
+    impact,
+    scope: { proposed: fullScope, actual: gateResult.actualScope },
+    gate: { outcome: gateResult.outcome },
+    acceptance, postChecks, pass,
+    note: '候选创建成功仅证明门控放行；preview/approval/apply/rollback 仍为独立 NOT RUN 项。正式 ACCEPTED 只能在 A 公共集成 SHA（coreSha）上宣告。',
+  }
 }
 
 let result
