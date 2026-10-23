@@ -195,7 +195,8 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   await page.getByTestId('apply-candidate').click()
   const applyPayload = await (await applyResponse).json() as { candidateId: string }
   expect(applyPayload.candidateId).toBe(candidateId)
-  await expect(page.getByTestId('lifecycle-status')).toContainText('已应用')
+  // 应用成功后适配器全量回读（含重建项目预演），界面状态在此后刷新：放宽等待
+  await expect(page.getByTestId('lifecycle-status')).toContainText('已应用', { timeout: 90_000 })
   const appliedBytes = fs.readFileSync(path.join(projectRoot, 'src', 'components', 'SiteFooter.tsx'))
   expect(Buffer.compare(appliedBytes, expectedAppliedBytes), `应用后整文件逐字节不相等：实际 sha=${sha(appliedBytes)} 期望 sha=${sha(expectedAppliedBytes)}`).toBe(0)
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-passed-applied-1440.png'), fullPage: true })
@@ -207,7 +208,7 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   await page.getByTestId('rollback-candidate').click()
   const rollbackPayload = await (await rollbackResponse).json() as { candidateId: string }
   expect(rollbackPayload.candidateId).toBe(candidateId)
-  await expect(page.getByTestId('lifecycle-status')).toContainText('已回滚')
+  await expect(page.getByTestId('lifecycle-status')).toContainText('已回滚', { timeout: 90_000 })
   const restoredBytes = fs.readFileSync(path.join(projectRoot, 'src', 'components', 'SiteFooter.tsx'))
   expect(Buffer.compare(restoredBytes, baselineBytes), `回滚后整文件逐字节未还原：实际 sha=${sha(restoredBytes)} 基线 sha=${sha(baselineBytes)}`).toBe(0)
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-passed-rolled-back-1440.png'), fullPage: true })
