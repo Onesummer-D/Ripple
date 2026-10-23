@@ -63,6 +63,87 @@ export function digestTrackedTree(root: string, files = trackedFiles(gitRoot(roo
   return hash.digest('hex')
 }
 
+// AC-P2a audited host-propagation allowlist. Only react-router v6/v7 `Link` and
+// `NavLink` are listed: in both majors the component renders exactly one <a>
+// host element and forwards its JSX children unmodified (semantics verified
+// against the published v6/v7 distributions). Any other major version, a
+// missing/unreadable package.json, or an unresolvable install is NOT on the
+// allowlist and keeps the conservative semantic-candidate edge. The allowlist
+// never matches by component name alone: the local binding must be the same
+// import symbol, which excludes shadowed locals and re-exports from other files.
+const auditedRouterHostMajor = (version: string): boolean => {
+  // Only a complete, stable SemVer release of an audited major qualifies.
+  // Prereleases (6.0.0-beta.0), partial versions (6.4), tagged values (v6.4.1)
+  // or ranges never prove a runtime version; parseInt on the first dotted
+  // segment would wrongly admit several of those.
+  const match = /^(\d+)\.\d+\.\d+$/.exec(version.trim())
+  return match !== null && (match[1] === '6' || match[1] === '7')
+}
+
+const routerHostBasis = (root: string, containingFile: string, specifier: string): string | undefined => {
+  const resolved = ts.resolveModuleName(specifier, containingFile, { moduleResolution: ts.ModuleResolutionKind.Bundler }, ts.sys)
+    .resolvedModule?.resolvedFileName
+  // The allowlist must reflect the ANALYZED PROJECT's own installation,
+  // never a router reached by walking past the project root (for example the
+  // analyzer's own devDependencies).
+  const projectRoot = path.resolve(root)
+  if (resolved) {
+    const resolvedPath = path.resolve(resolved)
+    if (resolvedPath === projectRoot || resolvedPath.startsWith(projectRoot + path.sep)) {
+      // Walk up from the resolved module to the owning package directory so a
+      // nested path (dist/index.d.ts, cjs/react-router-dom.js, …) still lands on
+      // the same package.json the analyzed project actually links. When an
+      // installation exists its verdict is definitive: an unaudited installed
+      // major must NOT be laundered through a friendly declared range.
+      let dir = path.dirname(resolved)
+      const rootDir = path.parse(dir).root
+      while (dir !== rootDir) {
+        const manifest = path.join(dir, 'package.json')
+        if (fs.existsSync(manifest)) {
+          try {
+            const parsed = JSON.parse(fs.readFileSync(manifest, 'utf8')) as { name?: string; version?: string }
+            if (parsed.name === specifier && parsed.version && auditedRouterHostMajor(parsed.version)) {
+              return `${parsed.name}@${parsed.version}(installed)`
+            }
+            return undefined
+          } catch { return undefined }
+        }
+        dir = path.dirname(dir)
+      }
+      return undefined
+    }
+    // A resolution that walked past the project root (for example into the
+    // analyzer's own devDependencies) is not the project's installation.
+    // Fail closed: the declared-dependency fallback below may only stand in
+    // for a package that is NOT INSTALLED AT ALL (clean-clone analyses), never
+    // launder a declared value past an installation the project would not use.
+    return undefined
+  }
+  // Clean-clone analyses (for example B's pinned candidate gate) have no
+  // node_modules. Fall back to the version the project DECLARES for the
+  // package, and only accept ranges whose every possible version is an
+  // audited major: an exact x.y.z, or a caret/tilde range on major 6/7.
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>; devDependencies?: Record<string, string>; peerDependencies?: Record<string, string>
+    }
+    const declared = manifest.dependencies?.[specifier] ?? manifest.devDependencies?.[specifier] ?? manifest.peerDependencies?.[specifier]
+    if (!declared) return undefined
+    // Only a complete, vetted SemVer form may be promoted: an exact x.y.z, or
+    // a caret/tilde range pinned to audited major 6/7 (by construction such a
+    // range cannot cross into an unaudited major). The anchored shape rejects
+    // prereleases (^6.4.1-beta.0), partial versions (6.27), .x ranges,
+    // comparators and hyphen/|| ranges (6.0.0 - 8.0.0) outright; the previous
+    // prefix match admitted several of those.
+    const match = /^(\^|~)?(\d+)\.\d+\.\d+$/.exec(declared.trim())
+    if (!match) return undefined
+    if (match[2] === '6' || match[2] === '7') {
+      return `${specifier}@${declared.trim()}(declared)`
+    }
+    return undefined
+  } catch { return undefined }
+}
+
 function runtimeFingerprint(root: string): string {
   const parts = [`node=${process.version}`, `typescript=${ts.version}`]
   for (const name of ['package.json', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb', 'bun.lock']) {
@@ -454,6 +535,24 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     const relative = relativeTo(snapshot.root, absolute)
     const imports = new Map<string, ImportTarget>()
     const importedModules = new Map<string, string>()
+    // AC-P2a: named Link/NavLink imports from react-router(-dom). These are
+    // external packages (not tracked project files), so the project-import
+    // pass below intentionally skips them; the host-propagation allowlist
+    // needs their local binding symbols to reject shadowed lookalikes.
+    const routerHostBindings = new Map<string, { specifier: string; exportName: string; symbol: ts.Symbol }>()
+    for (const statement of source.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+      const specifier = statement.moduleSpecifier.text
+      if (specifier !== 'react-router' && specifier !== 'react-router-dom') continue
+      const names = statement.importClause?.namedBindings
+      if (!names || !ts.isNamedImports(names)) continue
+      for (const item of names.elements) {
+        const exportName = item.propertyName?.text ?? item.name.text
+        if (exportName !== 'Link' && exportName !== 'NavLink') continue
+        const bound = checker.getSymbolAtLocation(item.name)
+        if (bound) routerHostBindings.set(item.name.text, { specifier, exportName, symbol: bound })
+      }
+    }
     for (const statement of source.statements) {
       if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
       const specifier = statement.moduleSpecifier.text
@@ -553,8 +652,27 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
             // visible, but whether it forwards children into the DOM is not.
             // Keep the owner's lexical read, with independent uncertain DOM
             // consumption evidence so downstream Scope remains fail-closed.
+            // AC-P2a: the audited host-propagation allowlist upgrades the edge
+            // only for a same-symbol react-router v6/v7 Link/NavLink binding
+            // with a verifiable audited installation; everything else — unknown
+            // composites, shadowed lookalikes, unaudited majors — stays
+            // semantic-candidate. The edge id carries the whitelist basis so the
+            // proof remains auditable after the fact.
+            let certainty: 'source-proven' | 'semantic-candidate' = 'semantic-candidate'
+            let basis = ''
+            if (tag) {
+              const binding = routerHostBindings.get(tag)
+              const used = binding && checker.getSymbolAtLocation(parentElement.openingElement.tagName)
+              if (binding && used === binding.symbol) {
+                const versioned = routerHostBasis(snapshot.root, absolute, binding.specifier)
+                if (versioned) {
+                  certainty = 'source-proven'
+                  basis = `:host-proven:${binding.exportName}:${versioned}`
+                }
+              }
+            }
             addEdge(ownerComponent.id, sourceNode.id, 'reads',
-              `composite-jsx-child:${ownerComponent.id}:${sourceNode.id}`, 'semantic-candidate')
+              `composite-jsx-child:${ownerComponent.id}:${sourceNode.id}${basis}`, certainty)
           }
         }
         if (ts.isJsxElement(parentElement)) {

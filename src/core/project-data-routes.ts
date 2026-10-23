@@ -122,6 +122,69 @@ export function inspectDataRouter(
       return actual.some(d => d === local.node) &&
         components.filter(c => c.file === file && c.name === id.text).length === 1 ? local : undefined
     }
+    // AC-P2b (+P0 rework): prove `lazy: () => import('./Page')` per the actual
+    // react-router 6/7 route.lazy contract. The lazy function imports a ROUTE
+    // OBJECT whose properties are merged into the route, so the page component
+    // is the target module's named `Component` export (ErrorBoundary works the
+    // same way). A module `default` export is NOT a valid lazy route property
+    // and must not become a source-proven page consumer — this deliberately
+    // differs from React.lazy(), whose contract is the default export and
+    // which is never proven here. Only a single arrow (or single-return
+    // function) whose body is one dynamic import with a string literal
+    // specifier resolving into the project, whose target module statically
+    // provides exactly one component named `Component`, is proven. Anything
+    // more dynamic (chained .then, computed specifiers, multiple returns),
+    // default-only targets, or ambiguous Component exports stays fail-closed.
+    const resolveLazyComponent = (expr: ts.Expression): string | undefined => {
+      const fn = unwrap(expr)
+      let body: ts.ConciseBody | undefined
+      if (ts.isArrowFunction(fn)) body = fn.body
+      else if (ts.isFunctionExpression(fn)) body = fn.body
+      if (!body) return undefined
+      let call: ts.Expression | undefined
+      if (ts.isBlock(body)) {
+        const returns = body.statements.filter(ts.isReturnStatement)
+        if (returns.length !== 1 || !returns[0].expression) return undefined
+        call = returns[0].expression
+      } else call = body
+      call = unwrap(call)
+      if (!ts.isCallExpression(call) || call.expression.kind !== ts.SyntaxKind.ImportKeyword ||
+          call.arguments.length !== 1 || !ts.isStringLiteral(call.arguments[0])) return undefined
+      const resolved = ts.resolveModuleName(call.arguments[0].text, path.join(root, file), { moduleResolution: ts.ModuleResolutionKind.Bundler }, ts.sys)
+        .resolvedModule?.resolvedFileName
+      if (!resolved) return undefined
+      const targetFile = path.relative(root, resolved).replaceAll('\\', '/')
+      if (targetFile.startsWith('..')) return undefined
+      // route.lazy provides ROUTE OBJECT properties: only a module export
+      // literally named `Component` can supply the page component, and it must
+      // bind to exactly one statically known JSX component declaration IN THIS
+      // MODULE. An internal (unexported) component declaration, a re-export
+      // whose declaration lives in another file, or an unresolvable alias all
+      // stay fail-closed.
+      const targetSource = sources.get(toSourceKey(resolved))
+      const moduleSymbol = targetSource ? checker.getSymbolAtLocation(targetSource) : undefined
+      if (!moduleSymbol) return undefined
+      const exported = checker.getExportsOfModule(moduleSymbol).filter(item => item.name === 'Component')
+      if (exported.length !== 1) return undefined
+      // A type-only export (`export type { X as Component }`, or the inline
+      // `export { type X as Component }`) creates NO runtime module property,
+      // so route.lazy would find no Component at runtime. Require at least one
+      // value export declaration; otherwise this proof stays fail-closed even
+      // if the alias resolves to a component declaration in this file.
+      const exportDeclarations = exported[0].declarations ?? []
+      const isTypeOnlySpecifier = (declaration: ts.Declaration): boolean => {
+        if (!ts.isExportSpecifier(declaration)) return false
+        if (declaration.isTypeOnly) return true
+        const named = declaration.parent
+        return ts.isNamedExports(named) && ts.isExportDeclaration(named.parent) && named.parent.isTypeOnly
+      }
+      const hasValueExport = exportDeclarations.some(declaration => !isTypeOnlySpecifier(declaration))
+      if (!hasValueExport) return undefined
+      const bound = exported[0].flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported[0]) : exported[0]
+      const boundDeclarations = bound.declarations ?? []
+      const matches = components.filter(c => c.file === targetFile && boundDeclarations.some(declaration => declaration === c.node))
+      return matches.length === 1 ? matches[0].id : undefined
+    }
     const appCandidates = components.filter(c => c.file === file && c.name === 'App')
     if (appCandidates.length > 1) {
       fail(file, source, 'multiple App component declarations prevent unique entry ownership')
@@ -306,11 +369,6 @@ export function inspectDataRouter(
           fail(file, value, 'overlapping or dynamic route object properties')
         }
         const componentValue = prop(value, 'Component') ?? prop(value, 'element')
-        // The error boundary is a conditional alternate consumer. Until its
-        // runtime mounting state is proven, a complete page impact is unsafe.
-        if (prop(value, 'errorElement') || prop(value, 'ErrorBoundary') || prop(value, 'hydrateFallbackElement')) {
-          fail(file, value, 'conditional route fallback consumer is not modeled')
-        }
         if (prop(value, 'Component') && prop(value, 'element')) fail(file, value, 'conflicting Component and element')
         const index = prop(value, 'index')
         const isIndex = index?.kind === ts.SyntaxKind.TrueKeyword
@@ -327,9 +385,36 @@ export function inspectDataRouter(
         const component = componentValue ? resolveComponent(componentValue) : undefined
         if (componentValue && !component) fail(file, value, 'route component import binding not proven')
         const children = prop(value, 'children')
-        if (prop(value, 'lazy') || prop(value, 'loader') && !componentValue && !children) fail(file, value, 'runtime-dependent route consumer')
+        // AC-P2b: model statically provable data-router fallback/conditional
+        // consumers instead of blanket fail-closing every fallback key.
+        // JSX-valued keys (errorElement, hydrateFallbackElement) and
+        // component-reference keys (ErrorBoundary, HydrateFallback) join the
+        // route consumption graph only when they resolve through the same
+        // binding provenance as element/Component; anything else keeps a
+        // locatable fail-closed unresolved entry. A provable fallback is a
+        // real consumer of the same page (it renders in that route's error
+        // state), so it is pushed with the same page/certainty discipline.
+        for (const key of ['errorElement', 'hydrateFallbackElement', 'ErrorBoundary', 'HydrateFallback'] as const) {
+          const rawFallback = prop(value, key)
+          if (!rawFallback) continue
+          const fallback = resolveComponent(rawFallback)
+          if (!fallback) { fail(file, value, `${key} fallback consumer is not statically provable`); continue }
+          if (rawPath || isIndex || !children) {
+            routes.push({ page: full, componentId: fallback.id, sourceFile: file, offset: value.getStart(source), certain: !unknownInstance })
+          }
+        }
+        const lazyValue = prop(value, 'lazy')
+        let lazyComponent: string | undefined
+        if (lazyValue && !componentValue) {
+          lazyComponent = resolveLazyComponent(lazyValue)
+          if (!lazyComponent) fail(file, value, 'runtime-dependent route consumer')
+        }
+        if (prop(value, 'loader') && !componentValue && !children) fail(file, value, 'runtime-dependent route consumer')
         if (component && (rawPath || isIndex || !children)) {
           for (const c of [...layouts, component]) routes.push({ page: full, componentId: c.id, sourceFile: file, offset: value.getStart(source), certain: !unknownInstance })
+        }
+        if (lazyComponent && (rawPath || isIndex || !children)) {
+          routes.push({ page: full, componentId: lazyComponent, sourceFile: file, offset: value.getStart(source), certain: !unknownInstance })
         }
         if (children) {
           const nested = resolve(children)
