@@ -240,7 +240,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
     </div>
 
     {isReal && pickerActive && (
-      <p className="ripple-xp-picker-hint" role="note">
+      <p className="ripple-xp-picker-hint" role="note" data-testid="picker-hint">
         点选模式：在上方预演画布中点击要修改的文本元素；点击只用于定位，修改授权由来源证明决定。
       </p>
     )}
