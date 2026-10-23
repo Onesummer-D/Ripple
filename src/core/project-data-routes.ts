@@ -122,6 +122,32 @@ export function inspectDataRouter(
       return actual.some(d => d === local.node) &&
         components.filter(c => c.file === file && c.name === id.text).length === 1 ? local : undefined
     }
+    // AC-P2b: prove `lazy: () => import('./Page')` when it is a single arrow (or
+    // single-return function) whose body is one dynamic import with a string
+    // literal specifier resolving into the project, and the target module has
+    // a unique default-export component. Anything more dynamic (chained .then,
+    // computed specifiers, multiple returns) stays fail-closed.
+    const resolveLazyComponent = (expr: ts.Expression): string | undefined => {
+      const fn = unwrap(expr)
+      let body: ts.ConciseBody | undefined
+      if (ts.isArrowFunction(fn)) body = fn.body
+      else if (ts.isFunctionExpression(fn)) body = fn.body
+      if (!body) return undefined
+      let call: ts.Expression | undefined
+      if (ts.isBlock(body)) {
+        const returns = body.statements.filter(ts.isReturnStatement)
+        if (returns.length !== 1 || !returns[0].expression) return undefined
+        call = returns[0].expression
+      } else call = body
+      call = unwrap(call)
+      if (!ts.isCallExpression(call) || call.expression.kind !== ts.SyntaxKind.ImportKeyword ||
+          call.arguments.length !== 1 || !ts.isStringLiteral(call.arguments[0])) return undefined
+      const resolved = ts.resolveModuleName(call.arguments[0].text, path.join(root, file), { moduleResolution: ts.ModuleResolutionKind.Bundler }, ts.sys)
+        .resolvedModule?.resolvedFileName
+      if (!resolved) return undefined
+      const targetFile = path.relative(root, resolved).replaceAll('\\', '/')
+      return byName.get(`${targetFile}#default`)?.id
+    }
     const appCandidates = components.filter(c => c.file === file && c.name === 'App')
     if (appCandidates.length > 1) {
       fail(file, source, 'multiple App component declarations prevent unique entry ownership')
@@ -306,11 +332,6 @@ export function inspectDataRouter(
           fail(file, value, 'overlapping or dynamic route object properties')
         }
         const componentValue = prop(value, 'Component') ?? prop(value, 'element')
-        // The error boundary is a conditional alternate consumer. Until its
-        // runtime mounting state is proven, a complete page impact is unsafe.
-        if (prop(value, 'errorElement') || prop(value, 'ErrorBoundary') || prop(value, 'hydrateFallbackElement')) {
-          fail(file, value, 'conditional route fallback consumer is not modeled')
-        }
         if (prop(value, 'Component') && prop(value, 'element')) fail(file, value, 'conflicting Component and element')
         const index = prop(value, 'index')
         const isIndex = index?.kind === ts.SyntaxKind.TrueKeyword
@@ -327,9 +348,36 @@ export function inspectDataRouter(
         const component = componentValue ? resolveComponent(componentValue) : undefined
         if (componentValue && !component) fail(file, value, 'route component import binding not proven')
         const children = prop(value, 'children')
-        if (prop(value, 'lazy') || prop(value, 'loader') && !componentValue && !children) fail(file, value, 'runtime-dependent route consumer')
+        // AC-P2b: model statically provable data-router fallback/conditional
+        // consumers instead of blanket fail-closing every fallback key.
+        // JSX-valued keys (errorElement, hydrateFallbackElement) and
+        // component-reference keys (ErrorBoundary, HydrateFallback) join the
+        // route consumption graph only when they resolve through the same
+        // binding provenance as element/Component; anything else keeps a
+        // locatable fail-closed unresolved entry. A provable fallback is a
+        // real consumer of the same page (it renders in that route's error
+        // state), so it is pushed with the same page/certainty discipline.
+        for (const key of ['errorElement', 'hydrateFallbackElement', 'ErrorBoundary', 'HydrateFallback'] as const) {
+          const rawFallback = prop(value, key)
+          if (!rawFallback) continue
+          const fallback = resolveComponent(rawFallback)
+          if (!fallback) { fail(file, value, `${key} fallback consumer is not statically provable`); continue }
+          if (rawPath || isIndex || !children) {
+            routes.push({ page: full, componentId: fallback.id, sourceFile: file, offset: value.getStart(source), certain: !unknownInstance })
+          }
+        }
+        const lazyValue = prop(value, 'lazy')
+        let lazyComponent: string | undefined
+        if (lazyValue && !componentValue) {
+          lazyComponent = resolveLazyComponent(lazyValue)
+          if (!lazyComponent) fail(file, value, 'runtime-dependent route consumer')
+        }
+        if (prop(value, 'loader') && !componentValue && !children) fail(file, value, 'runtime-dependent route consumer')
         if (component && (rawPath || isIndex || !children)) {
           for (const c of [...layouts, component]) routes.push({ page: full, componentId: c.id, sourceFile: file, offset: value.getStart(source), certain: !unknownInstance })
+        }
+        if (lazyComponent && (rawPath || isIndex || !children)) {
+          routes.push({ page: full, componentId: lazyComponent, sourceFile: file, offset: value.getStart(source), certain: !unknownInstance })
         }
         if (children) {
           const nested = resolve(children)

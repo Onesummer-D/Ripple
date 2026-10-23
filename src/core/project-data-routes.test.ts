@@ -121,7 +121,7 @@ describe('agent C: conservative data-router page provenance', () => {
 
 
 describe('agent C P1: app ownership, lexical binding and mutable route safety', () => {
-  it('never turns a route errorElement into an unconditional global page consumer', () => {
+  it('models a provable route errorElement as a page-scoped consumer without an App-level render edge', () => {
     const root = project({
       ...pages,
       'src/pages/NotFound.tsx': 'export function NotFound(){return <p>Error Screen</p>}',
@@ -131,10 +131,15 @@ describe('agent C P1: app ownership, lexical binding and mutable route safety', 
     })
     const graph = analyzeProject(root)
     const errorImpact = impact(graph,'Error Screen')
-    expect(errorImpact.certainty).not.toBe('source-proven')
-    expect(errorImpact.pageRefs).not.toContain('page:/profile')
-    expect(graph.unresolved.join('\n')).toContain('conditional route fallback')
-    expect(impact(graph,'Profile Title').certainty).toBe('partial')
+    // AC-P2b: a statically provable errorElement joins the route consumption
+    // graph for its own page. It still must not become an unconditional
+    // App-level render (route-config JSX is not App's rendered output).
+    expect(errorImpact.certainty).toBe('source-proven')
+    expect(errorImpact.pageRefs).toEqual(['page:/profile'])
+    const notFound = graph.nodes.find(node => node.kind === 'component' && node.label === 'NotFound')!
+    const app = graph.nodes.find(node => node.kind === 'component' && node.label === 'App')!
+    expect(graph.edges.some(edge => edge.from === app.id && edge.to === notFound.id)).toBe(false)
+    expect(impact(graph,'Profile Title').certainty).toBe('source-proven')
   })
 
   it('proves a default-imported route component used by an App-local data router', () => {
@@ -785,5 +790,62 @@ describe('agent C AC-P2a: audited router host propagation (react-router Link/Nav
     const { result, edge } = overviewImpactOf(graph)
     expect(edge.certainty).toBe('semantic-candidate')
     expect(result.certainty).toBe('partial')
+  })
+})
+
+describe('agent C AC-P2b: data-router fallback and conditional consumers', () => {
+  const fallbackPages = {
+    ...pages,
+    'src/pages/NotFound.tsx': 'export function NotFound(){ return <main><h1>Missing</h1></main> }',
+    'src/pages/Splash.tsx': 'export function Splash(){ return <main><h1>Loading</h1></main> }',
+    'src/pages/Crash.tsx': 'export function Crash(){ return <main><h1>Broken</h1></main> }',
+    'src/pages/LazyHome.tsx': 'export default function LazyHome(){ return <main><h1>Lazy Title</h1></main> }',
+  }
+  it('models a statically provable errorElement as a source-proven page consumer and clears route-coverage', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';
+      const router = createBrowserRouter([{ path: '/', Component: Home, errorElement: <NotFound/> }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('fallback consumer'))).toEqual([])
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(false)
+    const notFound = graph.nodes.find(node => node.kind === 'component' && node.label === 'NotFound')!
+    expect(graph.edges).toContainEqual(expect.objectContaining({ from: 'page:/', to: notFound.id, kind: 'renders', certainty: 'source-proven' }))
+    expect(impact(graph, 'Missing')).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+    expect(impact(graph, 'Home Title')).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+  })
+  it('models component-valued HydrateFallback and ErrorBoundary references', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {Splash} from './pages/Splash'; import {Crash} from './pages/Crash';
+      const router = createBrowserRouter([{ path: '/', Component: Home, HydrateFallback: Splash, ErrorBoundary: Crash }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('fallback consumer'))).toEqual([])
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(false)
+    expect(impact(graph, 'Loading').certainty).toBe('source-proven')
+    expect(impact(graph, 'Broken').certainty).toBe('source-proven')
+  })
+  it('proves a single-import lazy route consumer through the default export', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyHome') }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(entry => entry.includes('runtime-dependent'))).toEqual([])
+    expect(impact(graph, 'Lazy Title')).toMatchObject({ pageRefs: ['page:/'], certainty: 'source-proven' })
+  })
+  it('keeps a conditional errorElement fail-closed with a locatable reason and route-coverage', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports}; import {NotFound} from './pages/NotFound';
+      const router = createBrowserRouter([{ path: '/', Component: Home, errorElement: Math.random() > 0.5 ? <NotFound/> : <div/> }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('errorElement fallback consumer is not statically provable')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
+    expect(impact(graph, 'Home Title').certainty).not.toBe('source-proven')
+  })
+  it('keeps a chained lazy import fail-closed', () => {
+    const root = project({ ...fallbackPages, 'src/App.tsx': `${routerImports};
+      const router = createBrowserRouter([{ path: '/', lazy: () => import('./pages/LazyHome').then(m => ({ default: m.default })) }]);
+      export const App = () => <RouterProvider router={router}/>;` })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.join('\n')).toContain('runtime-dependent route consumer')
+    expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
   })
 })
