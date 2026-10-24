@@ -1,0 +1,63 @@
+name: D MEDIA AssetImportRecord
+
+on:
+  push:
+    branches:
+      - codex/d-media-20261025
+      - feat/d-media-**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  asset-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/fixtures/react-vite-tailwind/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install the pinned React/Vite/Tailwind preview fixture
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix test/fixtures/react-vite-tailwind
+      - name: Install Chromium for browser-backed Vitest cases
+        run: npx playwright install --with-deps chromium
+      - name: TypeScript boundary
+        shell: bash
+        run: set -o pipefail; mkdir -p test-results-d-media; npm run typecheck 2>&1 | tee test-results-d-media/typecheck.log
+      - name: Production build
+        shell: bash
+        run: set -o pipefail; npm run build 2>&1 | tee test-results-d-media/build.log
+      - name: AssetImportRecord positive and negative matrix
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results-d-media
+          npx vitest run src/core/media-asset-import.test.ts src/core/media-asset-swap.test.ts \
+            src/core/media-viewport-evidence.test.ts \
+            --no-file-parallelism --reporter=default --reporter=json \
+            --outputFile=test-results-d-media/media-targeted.json 2>&1 | tee test-results-d-media/media-targeted.log
+      - name: Full Vitest suite
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- --run --no-file-parallelism --reporter=default --reporter=json \
+            --outputFile=test-results-d-media/full-vitest.json 2>&1 | tee test-results-d-media/full-vitest.log
+        env:
+          RIPPLE_LIVE_RESOURCE_TEST: '1'
+      - name: Preserve D MEDIA assertions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: d-media-asset-import-${{ github.run_id }}
+          path: |
+            test-results-d-media/
+          if-no-files-found: warn
+          retention-days: 30
