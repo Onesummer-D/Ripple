@@ -880,11 +880,23 @@ export async function executeVerification({
   // run — a capture that could not be made is recorded missing and surfaces
   // downstream as a not-run visual evidence, never as PASS-by-absence.
   const visualCaptures = []
+  const runtimeIdentityCaptures = []
+  const runtimeIdentityCaptureEntry = capture => ({
+    schema: 'ripple-runtime-identity-capture/v1',
+    checkId: capture.checkId,
+    route: capture.route,
+    viewport: capture.viewport,
+    state: capture.state,
+    baseline: capture.baseline.runtimeIdentity,
+    candidate: capture.candidate.runtimeIdentity,
+  })
   {
     const visualPlan = planVisualCaptures(input)
     for (const item of visualPlan) {
       if (!(deadlineAt - now() > VISUAL_CAPTURE_MIN_BUDGET_MS)) {
-        visualCaptures.push(missingVisualCapture(item, 'runner budget exhausted before visual capture'))
+        const missing = missingVisualCapture(item, 'runner budget exhausted before visual capture')
+        visualCaptures.push(missing)
+        runtimeIdentityCaptures.push(runtimeIdentityCaptureEntry(missing))
         continue
       }
       const viewportErrors = createBrowserErrorAccumulator({ sampleLimit: 5, messageLimit: 300 })
@@ -914,11 +926,13 @@ export async function executeVerification({
               collectorSource: input.visualSamplerIdentity?.collectorSource,
             }),
           )
+          const baselineEntry = writeVisualSideArtifacts(evidenceRoot, dir, 'baseline', baseline)
+          const candidateEntry = writeVisualSideArtifacts(evidenceRoot, dir, 'candidate', candidate)
           return {
             checkId: item.checkId, route: item.route,
             viewport: { width: item.viewport.width, height: item.viewport.height }, state: VISUAL_CAPTURE_STATE,
-            baseline: writeVisualSideArtifacts(evidenceRoot, dir, 'baseline', baseline),
-            candidate: writeVisualSideArtifacts(evidenceRoot, dir, 'candidate', candidate),
+            baseline: baselineEntry,
+            candidate: candidateEntry,
           }
         } finally {
           await Promise.all(sides.map(side => scope.release(side.page).catch(() => undefined)))
@@ -929,9 +943,12 @@ export async function executeVerification({
       const lifecycle = await scope.close({})
       const captured = outcome.status === 'completed' ? outcome.value : undefined
       if (!captured || lifecycle.pagesLeaked > 0 || lifecycle.closeFailures > 0 || lifecycle.unsettled > 0) {
-        visualCaptures.push(missingVisualCapture(item, captured ? 'visual capture cleanup did not provably finish' : (outcome.error?.message ?? 'visual capture failed')))
+        const missing = missingVisualCapture(item, captured ? 'visual capture cleanup did not provably finish' : (outcome.error?.message ?? 'visual capture failed'))
+        visualCaptures.push(missing)
+        runtimeIdentityCaptures.push(runtimeIdentityCaptureEntry(missing))
       } else {
         visualCaptures.push(captured)
+        runtimeIdentityCaptures.push(runtimeIdentityCaptureEntry(captured))
       }
       progress({ event: 'visual-capture', checkId: `${item.checkId}-visual`, result: captured ? 'captured' : 'missing', durationMs: now() - captureStarted })
     }
@@ -1026,6 +1043,7 @@ export async function executeVerification({
       evidence,
       artifacts,
       visualCaptures,
+      runtimeIdentityCaptures,
       resourceSnapshots,
       unavailableResources: input.unavailableResources ?? [],
       loadedExternalResourceUrls: [...loadedExternalResourceUrls].sort(),
