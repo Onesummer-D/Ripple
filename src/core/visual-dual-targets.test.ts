@@ -438,3 +438,145 @@ describe('P2 wiring: per-side expected version verification (C+D sourceFileDiges
     expect(pairing.scope.missingEvidence).not.toContain('source-version')
   })
 })
+
+// Strict-proof verdict boundary (A frozen contract v1.1 §4): the removed
+// `identityAssessment != null` check is replaced by per-element, per-side
+// host verdicts. These negatives pin every downgrade; the full positive path
+// is accepted only with real host output after A ①② lands — never with
+// hand-built "success" data.
+describe('strict proof verdict boundary (A v1.1 §4)', () => {
+  const H1 = 'a'.repeat(64)
+  const H2 = 'b'.repeat(64)
+  const withFileVersions = (side: 'baseline' | 'candidate', elements: Element[], versions: Record<string, string>): DomGeometrySample => {
+    const parsed = parseDomGeometrySample(rawSample(side, elements, { sourceFileVersions: versions }), side)
+    if (!parsed.ok) throw new Error(parsed.detail)
+    return parsed.sample
+  }
+
+  // Two paired stable elements (same instance ids across sides), version
+  // evidence complete per side, so the ONLY thing that can lift strict proof
+  // is the verdict layer itself.
+  const paired = () => {
+    const baseline = withFileVersions('baseline', [el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10])], { 'src/App.tsx': H1 })
+    const candidate = withFileVersions('candidate', [el('h', 'jsx:src/App.tsx#156', [0, 0, 20, 10])], { 'src/App.tsx': H2 })
+    return { baseline, candidate }
+  }
+  const verdict = (side: 'baseline' | 'candidate', sourceRef: string, runtimeInstanceId: string | null, overrides: Record<string, unknown> = {}) => ({
+    side, sourceRef, runtimeInstanceId, recordKey: `${sourceRef}#${runtimeInstanceId ?? '@0'}`,
+    instanceIdentityProven: true, reasons: [] as string[], ...overrides,
+  })
+  // Every negative pins strict === false; the conservative pairing ladder
+  // itself must not change.
+  const expectNotStrict = (pairing: ReturnType<typeof pairCrossVersionElements>) => {
+    expect(pairing.scope.level).toBe('annotation-pairing')
+    expect(pairing.scope.strictInstanceProofAvailable).toBe(false)
+  }
+
+  it('负例: 不传任何宿主回执时 strict 保持 false（既有保守语义）', () => {
+    const { baseline, candidate } = paired()
+    expectNotStrict(pairCrossVersionElements(baseline, candidate))
+  })
+
+  it('负例: 旧式 identityAssessment 字段不再被识别，伪造全局 {instanceIdentityProven:true} 不得升级', () => {
+    const { baseline, candidate } = paired()
+    // @ts-expect-error 旧接口已移除；运行时传 garbage 验证 fail-closed
+    const pairing = pairCrossVersionElements(baseline, candidate, { identityAssessment: { instanceIdentityProven: true } })
+    expectNotStrict(pairing)
+    expect(pairing.instanceCandidate).toHaveLength(1) // 配对阶梯不受影响
+  })
+
+  it('负例: 空对象回执不构成证明', () => {
+    const { baseline, candidate } = paired()
+    const pairing = pairCrossVersionElements(baseline, candidate, { hostIdentityVerdicts: [{} as never] })
+    expectNotStrict(pairing)
+  })
+
+  it('负例: 双侧各自缺一侧回执（只有 baseline proven）必须降级', () => {
+    const { baseline, candidate } = paired()
+    const pairing = pairCrossVersionElements(baseline, candidate, {
+      hostIdentityVerdicts: [verdict('baseline', 'jsx:src/App.tsx#100', '/:h')],
+    })
+    expectNotStrict(pairing)
+  })
+
+  it('负例: recordKey 与元素坐标不匹配的回执不被采用', () => {
+    const { baseline, candidate } = paired()
+    const wrongKey = { ...verdict('baseline', 'jsx:src/App.tsx#100', '/:h'), recordKey: 'jsx:src/Other.tsx#1#/:x' }
+    const pairing = pairCrossVersionElements(baseline, candidate, {
+      hostIdentityVerdicts: [
+        wrongKey,
+        verdict('candidate', 'jsx:src/App.tsx#156', '/:h'),
+      ],
+    })
+    // recordKey 是溯源字段，E 按 (side, sourceRef, runtimeInstanceId) 匹配；
+    // 坐标不匹配即视为该元素无回执 → strict false。
+    expectNotStrict(pairing)
+  })
+
+  it('负例: 回执带版本或页面降级原因（reasons 非空）不得升级', () => {
+    const { baseline, candidate } = paired()
+    const pairing = pairCrossVersionElements(baseline, candidate, {
+      hostIdentityVerdicts: [
+        verdict('baseline', 'jsx:src/App.tsx#100', '/:h', { reasons: ['source-version-mismatch'] }),
+        verdict('candidate', 'jsx:src/App.tsx#156', '/:h'),
+      ],
+    })
+    expectNotStrict(pairing)
+    const pairing2 = pairCrossVersionElements(baseline, candidate, {
+      hostIdentityVerdicts: [
+        verdict('baseline', 'jsx:src/App.tsx#100', '/:h', { reasons: ['page-context-mismatch'] }),
+        verdict('candidate', 'jsx:src/App.tsx#156', '/:h'),
+      ],
+    })
+    expectNotStrict(pairing2)
+  })
+
+  it('负例: 同源多实例只有一项 proven，全局 true 不得覆盖其余实例', () => {
+    const baseline = withFileVersions('baseline', [
+      el('a', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+      el('b', 'jsx:src/List.tsx#20', [0, 10, 20, 10], { runtimeInstanceId: '/:b' }),
+    ], { 'src/List.tsx': H1 })
+    const candidate = withFileVersions('candidate', [
+      el('a', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+      el('b', 'jsx:src/List.tsx#20', [0, 10, 20, 10], { runtimeInstanceId: '/:b' }),
+    ], { 'src/List.tsx': H2 })
+    const pairing = pairCrossVersionElements(baseline, candidate, {
+      hostIdentityVerdicts: [
+        verdict('baseline', 'jsx:src/List.tsx#10', '/:a'),
+        verdict('candidate', 'jsx:src/List.tsx#10', '/:a'),
+        // 第二对实例完全没有回执
+      ],
+    })
+    expectNotStrict(pairing)
+  })
+
+  it('负例: missingEvidence 为空数组但无可信宿主回执，不得升级', () => {
+    // 手工构造 missingEvidence 为空的情形不可达（收集证据恒缺三项），
+    // 此例用运行时断言钉住"空数组 + 无回执 = false"的联合条件：
+    // 即使未来宿主清除 missingEvidence，没有逐实例 proven 回执也不会升级。
+    const { baseline, candidate } = paired()
+    const pairing = pairCrossVersionElements(baseline, candidate, { hostIdentityVerdicts: [] })
+    expectNotStrict(pairing)
+    expect(pairing.scope.missingEvidence).not.toEqual([])
+  })
+
+  it('负例: 单侧 recordKey 无法对应（多实例共享 sourceRef）时按坐标匹配也不得串扰', () => {
+    const baseline = withFileVersions('baseline', [
+      el('a', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+      el('b', 'jsx:src/List.tsx#10', [0, 10, 20, 10], { runtimeInstanceId: '/:b' }),
+    ], { 'src/List.tsx': H1 })
+    const candidate = withFileVersions('candidate', [
+      el('a', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+      el('b', 'jsx:src/List.tsx#10', [0, 10, 20, 10], { runtimeInstanceId: '/:b' }),
+    ], { 'src/List.tsx': H2 })
+    const pairing = pairCrossVersionElements(baseline, candidate, {
+      hostIdentityVerdicts: [
+        verdict('baseline', 'jsx:src/List.tsx#10', '/:a'),
+        verdict('candidate', 'jsx:src/List.tsx#10', '/:a'),
+        verdict('baseline', 'jsx:src/List.tsx#10', '/:b'),
+        verdict('candidate', 'jsx:src/List.tsx#10', '/:b', { instanceIdentityProven: false, reasons: ['identity-not-stable'] }),
+      ],
+    })
+    expectNotStrict(pairing)
+  })
+})
