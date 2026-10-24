@@ -241,6 +241,20 @@ jobs:
       - name: "CSS token source probe (--assert: current boundary as regression baseline)"
         run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --assert --json test-results/css-token-probe.json
         working-directory: a-core
+      - name: "AC-P6 capability acceptance (expected: exit 1 pending A implementation)"
+        # Strict acceptance checklist for the CSS executor contract (AC-P6).
+        # While A has not implemented it this exits 1 = EXPECTED pending state.
+        # Exit 0 means the capability landed — flip this step to required and
+        # update --assert expectations; any other code is a hard failure.
+        run: |
+          set +e
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --acceptance
+          code=$?
+          echo "acceptance exit=$code"
+          if [ "$code" -eq 1 ]; then echo "expected pending state confirmed (AC-P6 items not yet satisfied)"; exit 0; fi
+          if [ "$code" -eq 0 ]; then echo "AC-P6 capability landed — flip this job to required"; exit 1; fi
+          exit "$code"
+        working-directory: a-core
       - name: Retain CSS token probe evidence
         if: always()
         uses: actions/upload-artifact@v4

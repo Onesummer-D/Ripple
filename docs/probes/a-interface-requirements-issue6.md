@@ -1,7 +1,11 @@
-# 给 A / C+D 的 Issue #6 公共接口需求 v2（可复制评论文本）
+# 给 A / C+D 的 Issue #6 公共接口需求 v3（可复制评论文本）
 
-> 2026-10-23，B 侧复验更新。v1 见 `feat/thirdparty-dash-ui-20261019` 同名文件。
-> v1 的 A-P1a 已由 PR #28 基本交付（见下"已交付"），本版聚焦两个新公共问题。
+> 2026-10-24，B 侧更新（v3）：新增 **AC-P6**（CSS Custom Properties 来源证据与
+> 执行器最小合同，基于真实 React/Vite 工程实测），已正式递交 A/C+D 评审
+> （Issue #6 评论，2026-10-24）。AC-P4/AC-P5 维持待 A 处理；复验清单见
+> `docs/probes/b-codescandy-reverification-checklist-20261024.md`，最小品牌色
+> 验收案例见 `docs/probes/b-css-token-acceptance-case-20261024.md`。
+> 2026-10-23 v2 原文保留；v1 见 `feat/thirdparty-dash-ui-20261019` 同名文件。
 > 以下需求均附实测证据与最小复现，不阻塞 A 当前合并预演，可登记排期。
 
 ---
