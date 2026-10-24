@@ -33,11 +33,28 @@ export function createStagedAssetStore(root: string): StagedAssetStore {
   const resolved = path.resolve(root)
   fs.mkdirSync(resolved, { recursive: true })
   const resolvedRoot = fs.realpathSync(resolved)
+  const assertSafeHashPath = (target: string): void => {
+    let existing = target
+    while (!fs.existsSync(existing)) existing = path.dirname(existing)
+    const physical = fs.realpathSync(existing)
+    const relative = path.relative(resolvedRoot, physical)
+    if (relative.startsWith('..') || path.isAbsolute(relative)) throw new MediaAssetStagingError('暂存资产物理路径越界')
+    const prefix = path.dirname(target)
+    if (fs.existsSync(prefix)) {
+      const prefixStat = fs.lstatSync(prefix)
+      if (prefixStat.isSymbolicLink() || !prefixStat.isDirectory()) throw new MediaAssetStagingError('暂存资产前缀目录不是安全普通目录')
+    }
+    if (fs.existsSync(target)) {
+      const targetStat = fs.lstatSync(target)
+      if (targetStat.isSymbolicLink() || !targetStat.isFile()) throw new MediaAssetStagingError('暂存资产目标不是安全普通文件')
+    }
+  }
   const resolveHashPath = (sha256: string): string => {
     if (!/^[0-9a-f]{64}$/.test(sha256)) throw new MediaAssetStagingError(`暂存资产身份必须是小写 SHA-256：${sha256}`)
     const target = path.join(resolvedRoot, sha256.slice(0, 2), sha256)
     const relative = path.relative(resolvedRoot, target)
     if (relative.startsWith('..') || path.isAbsolute(relative)) throw new MediaAssetStagingError('暂存资产路径越界')
+    assertSafeHashPath(target)
     return target
   }
   return {
@@ -53,6 +70,7 @@ export function createStagedAssetStore(root: string): StagedAssetStore {
         return sha256
       }
       fs.mkdirSync(path.dirname(target), { recursive: true })
+      assertSafeHashPath(target)
       const temporary = path.join(path.dirname(target), `.${sha256}.${process.pid}.tmp`)
       fs.writeFileSync(temporary, bytes, { flag: 'wx' })
       try {
@@ -67,9 +85,11 @@ export function createStagedAssetStore(root: string): StagedAssetStore {
     },
     readStagedAsset(sha256) {
       const target = resolveHashPath(sha256)
-      if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
+      if (!fs.existsSync(target)) {
         throw new MediaAssetStagingError(`暂存资产不存在：${sha256}`)
       }
+      const targetStat = fs.lstatSync(target)
+      if (targetStat.isSymbolicLink() || !targetStat.isFile()) throw new MediaAssetStagingError(`暂存资产不是普通文件：${sha256}`)
       const bytes = fs.readFileSync(target)
       if (sha256Bytes(bytes) !== sha256) throw new MediaAssetStagingError(`暂存资产字节与身份不匹配：${sha256}`)
       return Uint8Array.from(bytes)

@@ -1,0 +1,16 @@
+Ripple MEDIA 青野导入评估（2026-10-25 接管快照）
+
+固定工程：ripple-qingye-bolt，源码快照 f7e4998a（以交接报告为准，远端刷新受 DNS 限制时不得把它当作新核验）。
+
+B1：BLOCKED / 未进入当前公共基线
+- export const heroImage 经 import 与 JSX src={heroImage} 的传播尚未在公共基线形成 source-proven MEDIA PageImpact。
+
+B2：BLOCKED / fail-closed
+- 数据层媒体数组经 ProductCard 的动态数据流仍 unresolved。
+- Scope 全选不能替代 SourceGraph 证明，不能绕过 candidate 门控。
+
+B3：BLOCKED / 仅有设计边界
+- 外链素材没有合法本地暂存对象和产品化导入记录时，不得进入真实 MEDIA candidate。
+- 本轮 D P0-1 提供 AssetImportRecord + 内容寻址暂存追溯层；它不宣称 B1/B2 已修复，也不执行远程抓取。
+
+下一步依赖：C+D 提供 B1 的 source-proven export/import/JSX consumer/PageImpact SHA；随后 D 才能按四视口合同复验本地导入 → Candidate → Verification。B2 未证明前保持 BLOCKED。

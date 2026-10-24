@@ -1,0 +1,42 @@
+name: D MEDIA AssetImportRecord
+
+on:
+  push:
+    branches:
+      - codex/d-media-20261025
+      - feat/d-media-**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  asset-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: TypeScript boundary
+        run: npm run typecheck 2>&1 | tee test-results-d-media-typecheck.log
+      - name: AssetImportRecord positive and negative matrix
+        run: |
+          mkdir -p test-results-d-media
+          npx vitest run src/core/media-asset-import.test.ts src/core/media-asset-swap.test.ts \
+            --no-file-parallelism --reporter=default --reporter=json \
+            --outputFile=test-results-d-media/asset-import-vitest.json 2>&1 | tee test-results-d-media/asset-import-vitest.log
+      - name: Preserve D MEDIA assertions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: d-media-asset-import-${{ github.run_id }}
+          path: |
+            test-results-d-media/
+            test-results-d-media-typecheck.log
+          if-no-files-found: warn
+          retention-days: 30
