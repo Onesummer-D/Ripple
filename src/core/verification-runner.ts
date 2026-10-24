@@ -135,6 +135,8 @@ interface ExecutionManifest {
   artifacts: Array<{ checkId: string; path: string; sha256: string }>
   /** Supplementary visual captures (capture-only; analysed by the host, advisory only). */
   visualCaptures?: unknown[]
+  /** Raw per-side Runtime Identity archives; host assessment is a later stage. */
+  runtimeIdentityCaptures?: unknown[]
   resourceSnapshots: PreviewResourceSnapshot[]
   unavailableResources: Array<{ url: string; reason: string }>
   loadedExternalResourceUrls: string[]
