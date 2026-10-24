@@ -51,19 +51,19 @@ jobs:
       - name: Positive full-chain rehearsal
         run: |
           node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
-            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab/test/qiguang-lab" \
+            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
             --out test-results/d3-rehearsal
 
       - name: Negative 1 — real wrong-link click must block approval
         run: |
           node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
-            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab/test/qiguang-lab" \
+            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
             --out test-results/d3-negative-interaction --negative wrong-interaction
 
       - name: Negative 2 — tampered comparison artifact must fail attestation
         run: |
           node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
-            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab/test/qiguang-lab" \
+            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
             --out test-results/d3-negative-tamper --negative tamper-evidence
 
       - name: Summarize verdicts
