@@ -85,12 +85,13 @@ describe('A① runtime identity archive contract', () => {
 
   it('stores snapshots at or below the 16MB limit and refuses oversized snapshots without truncating', () => {
     const root = tempRoot()
-    const under = snapshot([{ value: 'x'.repeat(LIMIT - 10_000) }])
-    const stored = writeRuntimeIdentityArtifact(root, 'under-limit', 'baseline', captured(under))
+    const emptyValueBytes = Buffer.byteLength('{"page":{"hash":"","pathname":"/","search":""},"protocol":"ripple-runtime-identity/v1","records":[{"value":""}]}\n', 'utf8')
+    const exact = snapshot([{ value: 'x'.repeat(LIMIT - emptyValueBytes) }])
+    const stored = writeRuntimeIdentityArtifact(root, 'under-limit', 'baseline', captured(exact))
     expect(stored.archive).toBe('stored')
-    expect(fs.statSync(path.join(root, 'identity', 'under-limit', 'baseline-identity.json')).size).toBeLessThanOrEqual(LIMIT)
+    expect(fs.statSync(path.join(root, 'identity', 'under-limit', 'baseline-identity.json')).size).toBe(LIMIT)
 
-    const over = snapshot([{ value: 'x'.repeat(LIMIT) }])
+    const over = snapshot([{ value: 'x'.repeat(LIMIT - emptyValueBytes + 1) }])
     const refused = writeRuntimeIdentityArtifact(root, 'over-limit', 'baseline', captured(over))
     expect(refused).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
     expect(refused.detail).toContain('exceeds 16777216 bytes')
