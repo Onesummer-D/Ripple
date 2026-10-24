@@ -671,7 +671,8 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
       // 历史回读：审批后带 approval；应用触发的回读（第 5 次起）以 applied 终态为权威
       history: { status: 200, body: (index: number) => ({
         history: index >= 4
-          ? [historyItem9('applied', { approval: { verificationRunId: 'run-42' } })]
+          // A 历史合同：applied 终态的 history 携带 applied 痕迹（session 记录保留）
+          ? [historyItem9('applied', { approval: { verificationRunId: 'run-42' }, applied: { appliedAt: '2026-10-23T12:05:00Z' } })]
           : index >= 2 ? [historyItem9('active', { approval: { verificationRunId: 'run-42' } })] : [],
       }) },
     })
@@ -698,8 +699,13 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
       'candidate/apply': applyRoute,
       'candidate/rollback': rollbackRoute,
       history: { status: 200, body: (index: number) => ({
+        // A 历史合同：回滚后 session 仍保留 applied 记录——applied 与 rollback 并存
         history: index >= 2
-          ? [historyItem9(index >= 4 ? 'rolled-back' : 'active', { approval: { verificationRunId: 'run-42' } })]
+          ? [historyItem9(index >= 4 ? 'rolled-back' : 'active', {
+              approval: { verificationRunId: 'run-42' },
+              applied: index >= 3 ? { appliedAt: '2026-10-23T12:05:00Z' } : undefined,
+              rollback: index >= 4 ? { rolledBackAt: '2026-10-23T12:10:00Z' } : undefined,
+            })]
           : [],
       }) },
     })
@@ -757,7 +763,10 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
       'candidate/apply': applyRoute,
       // 审批后历史回读带 approval；应用后历史保持 applied 终态
       history: { status: 200, body: (index: number) => ({
-        history: index >= 2 ? [historyItem9(index >= 3 ? 'applied' : 'active', { approval: { verificationRunId: 'run-42' } })] : [],
+        history: index >= 2 ? [historyItem9(index >= 3 ? 'applied' : 'active', {
+          approval: { verificationRunId: 'run-42' },
+          applied: index >= 3 ? { appliedAt: '2026-10-23T12:05:00Z' } : undefined,
+        })] : [],
       }) },
     })
     const approved = await adapter.approveCandidate!(verified)

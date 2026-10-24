@@ -390,6 +390,24 @@ describe('Real Adapter · 审查返工（终态优先 / Scope 隔离）', () => 
     expect(f.model.candidateStatus).toBe('none')
   })
 
+  it('刷新/重开后 workflow 投影由历史痕迹整体重建：applied/rollback 并存时终态不误显为已审批', async () => {
+    // A 语义：session 回滚后仍保留 applied 记录——历史里 applied 与 rollback 并存。
+    // workflow 投影必须携带全部痕迹，否则终态推导退化为 approval 优先，
+    // 刷新后会把"已回滚"误显示为"已审批"
+    const { model } = await loadWithHistory(historyWith({
+      candidateId: 'c-7', lifecycle: 'rolled-back', verification: { state: 'passed' },
+      ...approval,
+      applied: { appliedAt: '2026-10-22T11:05:00Z' },
+      rollback: { rolledBackAt: '2026-10-22T11:10:00Z' },
+    }))
+    expect(model.activeCandidate?.lifecycle).toBe('rolled-back')
+    expect(model.candidateStatus).toBe('rolled-back')
+    // 回滚后绝不可再回滚
+    expect(model.activeCandidate?.rollbackAvailable).toBe(false)
+    // 审批记录仍如实保留（展示用，不回写终态）
+    expect(model.activeCandidate?.approval?.verificationRunId).toBe('run-9')
+  })
+
   it('切换目标清除旧 Scope 意向：新目标默认 Scope 完全由其来源证明生成', async () => {
     const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_NOT_RUN, 'project/preview': PREVIEW })
     const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })

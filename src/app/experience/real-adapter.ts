@@ -113,6 +113,8 @@ interface HistoryItem {
   patchHash: string
   updatedAt: string
   approval?: { verificationRunId: string; at: string }
+  applied?: { appliedAt?: string }
+  rollback?: { rolledBackAt?: string }
   verification: VerificationView
 }
 interface PreviewSession { projectId: string; previewId: string; sourceDigest: string; url: string }
@@ -378,8 +380,27 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   }
 
   /**
+   * 从历史记录重建 workflow 投影。A 的 history 携带 approval/applied/rollback
+   * 全部痕迹（回滚后 applied 记录仍保留），终态推导必须三者齐备；
+   * rollbackAvailable 仅服务端实时 workflow 响应给出——applied 终态保留
+   * 上一次已知的服务端结论，其余生命周期一律视为不可回滚。
+   */
+  function workflowFromHistory(item: HistoryItem, previous: WorkflowView | undefined): WorkflowView {
+    return {
+      lifecycle: item.lifecycle,
+      approval: item.approval,
+      applied: item.applied,
+      rollback: item.rollback,
+      rollbackAvailable: item.lifecycle === 'applied' ? previous?.rollbackAvailable : false,
+    }
+  }
+
+  /**
    * 历史回读 + 候选 reconcile（A 语义：重新分析使活跃候选退役 fail-closed；
    * applied/rolled-back 终态保留跟踪供终态展示与回滚入口；绝不展示幽灵候选）。
+   * 历史记录是持久化权威且携带 approval/applied/rollback 全部痕迹——
+   * workflow 投影必须由历史整体重建，漏掉 applied/rollback 会让终态推导
+   * 退化为 approval 优先（回滚后误显示"已审批"）。
    */
   async function refreshHistoryAndReconcile(gen: number, projectId: string): Promise<void> {
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
@@ -394,8 +415,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         candidatePreviewUrl = undefined
         candidatePreviewLoading = false
       } else {
-        // 历史回读是持久化权威：验证投影随历史刷新（切换候选后旧验证不残留）
+        // 历史回读是持久化权威：验证投影随历史刷新（切换候选后旧验证不残留）；
+        // workflow 投影同样以历史为准重建（含 applied/rollback 痕迹）
         activeVerification = tracked.verification
+        activeWorkflow = workflowFromHistory(tracked, activeWorkflow)
         if (tracked.lifecycle !== 'active') {
           candidatePreviewUrl = undefined
           candidatePreviewLoading = false
@@ -409,11 +432,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       if (latest.lifecycle === 'active' || latest.lifecycle === 'applied' || latest.lifecycle === 'rolled-back') {
         activeCandidate = { candidateId: latest.candidateId, patchHash: latest.patchHash }
         activeVerification = latest.verification
-        activeWorkflow = {
-          lifecycle: latest.lifecycle,
-          approval: latest.approval,
-          rollbackAvailable: latest.lifecycle === 'applied' ? undefined : false,
-        }
+        activeWorkflow = workflowFromHistory(latest, undefined)
       }
     }
   }
