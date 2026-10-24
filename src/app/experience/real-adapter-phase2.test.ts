@@ -135,6 +135,36 @@ describe('画布点选 → source-selection 身份校验', () => {
       .rejects.toThrow('点选响应与当前预演会话不一致')
   })
 
+  it('点选会话已退出时，在途授权响应不得改写 adapter 私有草稿与 Scope', async () => {
+    let releaseSelection!: () => void
+    const selectionResponse = new Promise<void>(resolve => { releaseSelection = resolve })
+    const { adapter, model } = await loadAdapter({
+      analyze: ANALYSIS, history: HISTORY_EMPTY, 'project/preview': PREVIEW,
+      'project/source-selection': {
+        status: 200,
+        body: async () => {
+          await selectionResponse
+          return sourceSelectionResponse().body
+        },
+      } as MockResponse,
+    })
+    const selected = adapter.selectElement(model, 'data:dynamic-banner')!
+    const withDraft = adapter.setDraftText(selected, '保留的草稿')!
+    const scoped = adapter.setPageScope(withDraft, 'page:about', 'exclude')!
+    const request = adapter.applyPickedSource!(
+      scoped,
+      { sourceRef: 'jsx:src/App.tsx#42', envelope: pickedEnvelope() },
+      () => false,
+    )
+    releaseSelection()
+    await expect(request).rejects.toBeInstanceOf(StaleResponseError)
+
+    const afterLateResponse = adapter.setPageScope(scoped, 'page:home', 'include')!
+    expect(afterLateResponse.selectedElementId).toBe('data:dynamic-banner')
+    expect(afterLateResponse.draftAfterText).toBe('保留的草稿')
+    expect(afterLateResponse.pages.find(page => page.id === 'page:about')?.scope).toBe('exclude')
+  })
+
   it('点选元素的文本来源不在已分析目标中：拒绝落位，不臆造可编辑目标', async () => {
     const { adapter, model } = await loadAdapter({
       analyze: ANALYSIS, history: HISTORY_EMPTY, 'project/preview': PREVIEW,

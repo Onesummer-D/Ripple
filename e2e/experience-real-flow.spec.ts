@@ -198,7 +198,7 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await page.getByTestId('picker-toggle').click()
   await expect(page.getByTestId('picker-hint')).toBeVisible()
   await projectFrame.getByText('真实首页文案内容。').click()
-  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  await expect(page.getByTestId('selection-summary')).toContainText('真实首页文案内容。')
   await page.getByTestId('picker-toggle').click() // 退出点选模式
   await page.getByTestId('draft-text-input').fill('Acme 旗舰店文案。')
   const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
