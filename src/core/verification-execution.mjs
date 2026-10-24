@@ -881,22 +881,22 @@ export async function executeVerification({
   // downstream as a not-run visual evidence, never as PASS-by-absence.
   const visualCaptures = []
   const runtimeIdentityCaptures = []
-  const runtimeIdentityCaptureEntry = capture => ({
+  const runtimeIdentityCaptureEntries = capture => ['baseline', 'candidate'].map(side => ({
     schema: 'ripple-runtime-identity-capture/v1',
     checkId: capture.checkId,
     route: capture.route,
     viewport: capture.viewport,
     state: capture.state,
-    baseline: capture.baseline.runtimeIdentity,
-    candidate: capture.candidate.runtimeIdentity,
-  })
+    side,
+    ...capture[side].runtimeIdentity,
+  }))
   {
     const visualPlan = planVisualCaptures(input)
     for (const item of visualPlan) {
       if (!(deadlineAt - now() > VISUAL_CAPTURE_MIN_BUDGET_MS)) {
         const missing = missingVisualCapture(item, 'runner budget exhausted before visual capture')
         visualCaptures.push(missing)
-        runtimeIdentityCaptures.push(runtimeIdentityCaptureEntry(missing))
+        runtimeIdentityCaptures.push(...runtimeIdentityCaptureEntries(missing))
         continue
       }
       const viewportErrors = createBrowserErrorAccumulator({ sampleLimit: 5, messageLimit: 300 })
@@ -945,10 +945,10 @@ export async function executeVerification({
       if (!captured || lifecycle.pagesLeaked > 0 || lifecycle.closeFailures > 0 || lifecycle.unsettled > 0) {
         const missing = missingVisualCapture(item, captured ? 'visual capture cleanup did not provably finish' : (outcome.error?.message ?? 'visual capture failed'))
         visualCaptures.push(missing)
-        runtimeIdentityCaptures.push(runtimeIdentityCaptureEntry(missing))
+        runtimeIdentityCaptures.push(...runtimeIdentityCaptureEntries(missing))
       } else {
         visualCaptures.push(captured)
-        runtimeIdentityCaptures.push(runtimeIdentityCaptureEntry(captured))
+        runtimeIdentityCaptures.push(...runtimeIdentityCaptureEntries(captured))
       }
       progress({ event: 'visual-capture', checkId: `${item.checkId}-visual`, result: captured ? 'captured' : 'missing', durationMs: now() - captureStarted })
     }

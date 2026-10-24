@@ -32,7 +32,20 @@
  * runSampler's source so the function stays self-contained under
  * page.evaluate serialization (no module-scope reference survives).
  */
-export const sampleDomGeometryInPage = new Function('options', `return (${runSampler.toString()})(options, null);`)
+function markSamplerCollectorStatus(sampler, status) {
+  try {
+    Object.defineProperty(sampler, '__rippleCollectorStatus', { value: status, configurable: false, enumerable: false })
+  } catch {
+    // The marker is host-only metadata. A page-evaluate failure still degrades
+    // to the sampler's normal unavailable identity result.
+  }
+  return sampler
+}
+
+export const sampleDomGeometryInPage = markSamplerCollectorStatus(
+  new Function('options', `return (${runSampler.toString()})(options, null);`),
+  'missing',
+)
 
 /**
  * Builds a self-contained page function with C+D's
@@ -46,9 +59,15 @@ export function buildDomGeometrySampler(collectorSource) {
     // Sanity: the source must parse as a function expression.
     new Function(`return (${collectorSource});`)
   } catch {
-    return sampleDomGeometryInPage
+    return markSamplerCollectorStatus(
+      new Function('options', `return (${runSampler.toString()})(options, null);`),
+      'serialization-error',
+    )
   }
-  return new Function('options', `return (${runSampler.toString()})(options, (${collectorSource}));`)
+  return markSamplerCollectorStatus(
+    new Function('options', `return (${runSampler.toString()})(options, (${collectorSource}));`),
+    'ready',
+  )
 }
 
 // Self-contained by contract: serialized whole by buildDomGeometrySampler and
