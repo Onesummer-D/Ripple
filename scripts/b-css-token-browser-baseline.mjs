@@ -522,7 +522,10 @@ function compareRuns(baseline, candidate) {
         if (!originalFound && !candidateFound) {
           status = 'unknown'
           reason = 'stylesheet selector has no host element in the rendered Home route; route census checks all seven real HashRouter routes'
-          expected = { original: expectedOriginalAccent, manualCandidate: expectedCandidateAccent }
+          expected = {
+            original: target.property === 'backgroundImage' ? `gradient contains ${hexToRgb(expectedOriginalAccent)}` : hexToRgb(expectedOriginalAccent),
+            manualCandidate: target.property === 'backgroundImage' ? `gradient contains ${hexToRgb(expectedCandidateAccent)}` : hexToRgb(expectedCandidateAccent),
+          }
         } else if (originalFound !== candidateFound) {
           status = 'fail'
           reason = 'manual candidate changed whether the target host renders'
