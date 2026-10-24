@@ -372,11 +372,13 @@ export type CrossVersionMissingEvidence = 'source-version' | 'page-context' | 'c
 export interface CrossVersionPairingScope {
   /**
    * What this pairing IS: candidate pairing supported by the runtime
-   * annotation only. It is explicitly NOT the C+D full identity assessment
-   * (sourceVersion / pageContext / collection reasons / graph membership).
+   * annotation only. It is explicitly NOT the A host's full identity
+   * assessment (sourceVersion / pageContext / collection reasons / graph
+   * membership). Strict proof remains unavailable until A's frozen runtime
+   * records and E's run-bound consumer are integrated.
    */
   level: 'annotation-pairing'
-  /** True only when missingEvidence is empty AND a C+D-grade assessment ran. */
+  /** True only when formal host proof covers every usable record from both samples; never means one pair passed. */
   strictInstanceProofAvailable: boolean
   missingEvidence: CrossVersionMissingEvidence[]
 }
@@ -442,14 +444,6 @@ const UNSTABLE_REASON: Record<IdentityCertainty, string | null> = {
  */
 export interface CrossVersionPairingOptions {
   expectedSourceVersions?: { baseline?: Record<string, string>; candidate?: Record<string, string> } | null
-  /**
-   * C+D-grade FULL identity assessment result — only A/C+D may supply it; E
-   * never constructs or infers one. Strict instance proof requires BOTH an
-   * empty missingEvidence list AND this assessment: an empty array alone must
-   * never upgrade the pairing, and a missing assessment keeps the
-   * annotation-pairing level no matter how complete the collected evidence is.
-   */
-  identityAssessment?: unknown
 }
 
 /**
@@ -634,10 +628,18 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   }
 
   const rest = (sample: DomGeometrySample, consumed: Set<string>) => sample.elements.filter(element => usable(element) && !consumed.has(element.id))
-  // Strict instance proof needs BOTH complete evidence AND an explicit C+D-
-  // grade assessment supplied by A/C+D. An empty missingEvidence array alone
-  // must never upgrade the pairing (E never constructs an assessment).
-  const strictInstanceProofAvailable = missingEvidence.length === 0 && options?.identityAssessment !== undefined && options.identityAssessment !== null
+  // Strict proof is deliberately disabled at this boundary. A v1.1
+  // `RuntimeRunIdentity` is bound to checkId × route × viewport × state × side,
+  // a run revision, snapshot/page/version evidence and one assessment per
+  // recordKey. This function currently receives only geometry; accepting a
+  // boolean or a locally assembled verdict here would lose those bindings.
+  // Keep each annotation pair at `instance-candidate`/observation level until
+  // E③ consumes A's actual host records. That later consumer must assess pairs
+  // independently, allow an A/C+D versioned sourceRef mapping when present,
+  // and set the scope flag only when the complete collected record set is
+  // covered. DOM order, element IDs, `identityCertainty` and ID equality alone
+  // are never sufficient.
+  const strictInstanceProofAvailable = false
   return {
     scope: { level: 'annotation-pairing', strictInstanceProofAvailable, missingEvidence },
     instanceCandidate, sameSourceRefObserved, unproven,

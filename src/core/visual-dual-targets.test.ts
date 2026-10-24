@@ -438,3 +438,189 @@ describe('P2 wiring: per-side expected version verification (C+D sourceFileDiges
     expect(pairing.scope.missingEvidence).not.toContain('source-version')
   })
 })
+
+// A v1.1 run-bound host record is not wired into this geometry-only stage.
+// Every injected assessment below is intentionally untrusted and ignored.
+describe('A v1.1 strict proof gate (host integration pending)', () => {
+  const H1 = 'a'.repeat(64)
+  const H2 = 'b'.repeat(64)
+  const withVersions = (side: 'baseline' | 'candidate', elements: Element[], versions: Record<string, string>): DomGeometrySample => {
+    const parsed = parseDomGeometrySample(rawSample(side, elements, { sourceFileVersions: versions }), side)
+    if (!parsed.ok) throw new Error(parsed.detail)
+    return parsed.sample
+  }
+  const paired = () => ({
+    baseline: sample('baseline', [el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10])]),
+    candidate: sample('candidate', [el('h', 'jsx:src/App.tsx#156', [0, 0, 20, 10])]),
+  })
+  const injected = (untrusted: unknown) => untrusted as never
+  const expectNotStrict = (pairing: ReturnType<typeof pairCrossVersionElements>) => {
+    expect(pairing.scope.level).toBe('annotation-pairing')
+    expect(pairing.scope.strictInstanceProofAvailable).toBe(false)
+  }
+
+  it('没有正式 Assessment 时保持 false，四类宿主证据缺项可见', () => {
+    const { baseline, candidate } = paired()
+    const pairing = pairCrossVersionElements(baseline, candidate)
+    expectNotStrict(pairing)
+    expect(pairing.scope.missingEvidence).toEqual(['source-version', 'page-context', 'collection-reasons', 'graph-membership'])
+  })
+
+  it('空对象、单个对象、数组非空及伪造 true 都不能代替逐 record 正式 Assessment', () => {
+    const { baseline, candidate } = paired()
+    for (const untrusted of [
+      { hostIdentityVerdicts: [{}] },
+      { identityAssessment: {} },
+      { identityAssessment: { instanceIdentityProven: true, reasons: [] } },
+      { runtimeIdentities: [{ assessments: [{ assessment: { instanceIdentityProven: true, reasons: [] } }] }] },
+      { hostIdentityVerdicts: [{ instanceIdentityProven: true, reasons: [] }] },
+    ]) {
+      expectNotStrict(pairCrossVersionElements(baseline, candidate, injected(untrusted)))
+    }
+  })
+
+  it('单侧 true、另一侧 false 或双侧 reason 非空都不升级', () => {
+    const { baseline, candidate } = paired()
+    for (const untrusted of [
+      { assessments: [{ side: 'baseline', instanceIdentityProven: true, reasons: [] }, { side: 'candidate', instanceIdentityProven: false, reasons: [] }] },
+      { assessments: [{ side: 'baseline', instanceIdentityProven: true, reasons: ['source-version-mismatch'] }, { side: 'candidate', instanceIdentityProven: true, reasons: [] }] },
+      { assessments: [{ side: 'baseline', instanceIdentityProven: true, reasons: [] }, { side: 'candidate', instanceIdentityProven: true, reasons: ['page-context-unverified'] }] },
+    ]) expectNotStrict(pairCrossVersionElements(baseline, candidate, injected(untrusted)))
+  })
+
+  it('伪造 recordKey、错误运行点/侧别与页面三元组不能代替 record 绑定', () => {
+    const baseline = parseDomGeometrySample(rawSample('baseline', [el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10])], {
+      pageContext: { pathname: '/home', search: '', hash: '' },
+    }), 'baseline')
+    const candidate = parseDomGeometrySample(rawSample('candidate', [el('h', 'jsx:src/App.tsx#156', [0, 0, 20, 10])], {
+      pageContext: { pathname: '/other', search: '?q=1', hash: '#part' },
+    }), 'candidate')
+    if (!baseline.ok || !candidate.ok) throw new Error('Expected valid geometry samples')
+    const untrusted = {
+      runtimeIdentities: [
+        { checkId: 'wrong-check', route: 'page:/elsewhere', viewport: { width: 1, height: 1 }, state: 'other', side: 'candidate',
+          snapshot: { page: { pathname: '/', search: '', hash: '' } },
+          assessments: [{ recordKey: 'jsx:src/Other.tsx#1#/:x', assessment: { instanceIdentityProven: true, reasons: [] } }] },
+      ],
+    }
+    const pairing = pairCrossVersionElements(baseline.sample, candidate.sample, injected(untrusted))
+    expectNotStrict(pairing)
+    expect(pairing.scope.missingEvidence).toContain('page-context')
+  })
+
+  it('recordKey 不匹配以及 ID 为空/等于 sourceRef 时不能升级', () => {
+    const baseline = sample('baseline', [el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10], { runtimeInstanceId: null })])
+    const candidate = sample('candidate', [el('h', 'jsx:src/App.tsx#100', [0, 0, 20, 10], { runtimeInstanceId: 'jsx:src/App.tsx#100' })])
+    const pairing = pairCrossVersionElements(baseline, candidate, injected({ assessments: [
+      { recordKey: 'wrong#key', instanceIdentityProven: true, reasons: [] },
+      { recordKey: 'jsx:src/App.tsx#100#jsx:src/App.tsx#100', instanceIdentityProven: true, reasons: [] },
+    ] }))
+    expectNotStrict(pairing)
+  })
+
+  it('同 ID 不同 sourceRef（含 offset drift）没有正式映射时只能是候选', () => {
+    const { baseline, candidate } = paired()
+    const pairing = pairCrossVersionElements(baseline, candidate, injected({
+      assessments: [{ instanceIdentityProven: true, reasons: [] }, { instanceIdentityProven: true, reasons: [] }],
+    }))
+    expect(pairing.instanceCandidate).toHaveLength(1)
+    expect(pairing.instanceCandidate[0].runtimeInstanceId).toBe('/:h')
+    expectNotStrict(pairing)
+  })
+
+  it('重复 runtimeInstanceId 逐项降级，不因伪造 true 变成严格证明', () => {
+    const baseline = sample('baseline', [
+      el('a', 'jsx:src/Footer.tsx#8', [0, 0, 20, 10], { runtimeInstanceId: '/:footer' }),
+      el('b', 'jsx:src/Footer.tsx#8', [0, 10, 20, 10], { runtimeInstanceId: '/:footer' }),
+    ])
+    const candidate = sample('candidate', [el('c', 'jsx:src/Footer.tsx#8', [0, 0, 20, 10], { runtimeInstanceId: '/:footer' })])
+    const pairing = pairCrossVersionElements(baseline, candidate, injected({ assessments: [{ instanceIdentityProven: true, reasons: [] }] }))
+    expect(pairing.unproven).toHaveLength(2)
+    expect(pairing.unproven.every(pair => pair.reasons.includes('duplicate-runtime-instance'))).toBe(true)
+    expectNotStrict(pairing)
+  })
+
+  it('单侧元素缺失保留为 side-only，整个采集集合仍未证明', () => {
+    const baseline = sample('baseline', [el('a', 'jsx:src/App.tsx#10', [0, 0, 20, 10])])
+    const candidate = sample('candidate', [])
+    const pairing = pairCrossVersionElements(baseline, candidate, injected({ assessments: [{ instanceIdentityProven: true, reasons: [] }] }))
+    expect(pairing.baselineOnly).toHaveLength(1)
+    expect(pairing.candidateOnly).toHaveLength(0)
+    expectNotStrict(pairing)
+  })
+
+  it('两侧数组顺序互换仍按唯一 runtimeInstanceId 配对，不使用 DOM 次序或 e0/e1', () => {
+    const baseline = sample('baseline', [
+      el('e0', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+      el('e1', 'jsx:src/List.tsx#20', [0, 10, 20, 10], { runtimeInstanceId: '/:b' }),
+    ])
+    const candidate = sample('candidate', [
+      el('e1', 'jsx:src/List.tsx#20', [0, 10, 20, 10], { runtimeInstanceId: '/:b' }),
+      el('e0', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+    ])
+    const pairing = pairCrossVersionElements(baseline, candidate)
+    expect(pairing.instanceCandidate.map(pair => [pair.baseline.runtimeInstanceId, pair.candidate.runtimeInstanceId])).toEqual([
+      ['/:a', '/:a'], ['/:b', '/:b'],
+    ])
+    expectNotStrict(pairing)
+  })
+
+  it('完整页面三元组不一致时 page-context 仍缺失且禁止整页严格证明', () => {
+    const baselineRaw = rawSample('baseline', [el('a', 'jsx:src/App.tsx#10', [0, 0, 20, 10])], {
+      pageContext: { pathname: '/home', search: '', hash: '' },
+    })
+    const candidateRaw = rawSample('candidate', [el('a', 'jsx:src/App.tsx#10', [0, 0, 20, 10])], {
+      pageContext: { pathname: '/home', search: '?q=1', hash: '#section' },
+    })
+    const baseline = parseDomGeometrySample(baselineRaw, 'baseline')
+    const candidate = parseDomGeometrySample(candidateRaw, 'candidate')
+    if (!baseline.ok || !candidate.ok) throw new Error('Expected valid geometry samples')
+    const pairing = pairCrossVersionElements(baseline.sample, candidate.sample)
+    expect(pairing.scope.missingEvidence).toContain('page-context')
+    expectNotStrict(pairing)
+  })
+
+  it('任一侧 sourceVersion 与该侧期望版本不一致时具体降级', () => {
+    const baseline = withVersions('baseline', [el('a', 'jsx:src/App.tsx#10', [0, 0, 20, 10])], { 'src/App.tsx': H1 })
+    const candidate = withVersions('candidate', [el('a', 'jsx:src/App.tsx#20', [0, 0, 20, 10])], { 'src/App.tsx': H2 })
+    const pairing = pairCrossVersionElements(baseline, candidate, {
+      expectedSourceVersions: { baseline: { 'src/App.tsx': H2 }, candidate: { 'src/App.tsx': H2 } },
+    })
+    expect(pairing.unproven[0].reasons).toContain('source-version-mismatch')
+    expect(pairing.scope.missingEvidence).toContain('source-version')
+    expectNotStrict(pairing)
+  })
+
+  it('同源多实例一项降级不污染另一项候选，但本阶段没有 per-pair proven 标签', () => {
+    const baseline = sample('baseline', [
+      el('a', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+      el('b', 'jsx:src/List.tsx#20', [0, 10, 20, 10], { runtimeInstanceId: '/:b' }),
+    ])
+    const candidate = sample('candidate', [
+      el('a', 'jsx:src/List.tsx#10', [0, 0, 20, 10], { runtimeInstanceId: '/:a' }),
+      el('b', 'jsx:src/List.tsx#20', [0, 10, 20, 10], { runtimeInstanceId: '/:b', identityCertainty: 'unknown' }),
+    ])
+    const pairing = pairCrossVersionElements(baseline, candidate, injected({ assessments: [
+      { side: 'baseline', recordKey: 'jsx:src/List.tsx#10#/:a', assessment: { instanceIdentityProven: true, reasons: [] } },
+      { side: 'candidate', recordKey: 'jsx:src/List.tsx#10#/:a', assessment: { instanceIdentityProven: true, reasons: [] } },
+      { side: 'baseline', recordKey: 'jsx:src/List.tsx#20#/:b', assessment: { instanceIdentityProven: true, reasons: [] } },
+      { side: 'candidate', recordKey: 'jsx:src/List.tsx#20#/:b', assessment: { instanceIdentityProven: false, reasons: ['identity-not-stable'] } },
+    ] }))
+    expect(pairing.instanceCandidate.map(pair => pair.runtimeInstanceId)).toEqual(['/:a'])
+    expect(pairing.instanceCandidate[0].proof).toBe('instance-candidate')
+    expect(pairing.sameSourceRefObserved.map(pair => pair.runtimeInstanceId)).toEqual(['/:b'])
+    expect(pairing.sameSourceRefObserved[0].reasons).toContain('identity-not-stable')
+    expectNotStrict(pairing)
+  })
+
+  it('超出配对目标的未配对采集元素保留为 side-only，且不能被排除出整页门控', () => {
+    const baseline = sample('baseline', [el('a', 'jsx:src/App.tsx#10', [0, 0, 20, 10])])
+    const candidate = sample('candidate', [
+      el('a', 'jsx:src/App.tsx#10', [0, 0, 20, 10]),
+      el('extra', 'jsx:src/Extra.tsx#30', [0, 20, 20, 10]),
+    ])
+    const pairing = pairCrossVersionElements(baseline, candidate, injected({ assessments: [{ instanceIdentityProven: true, reasons: [] }] }))
+    expect(pairing.candidateOnly.map(element => element.id)).toEqual(['extra'])
+    expectNotStrict(pairing)
+  })
+})
