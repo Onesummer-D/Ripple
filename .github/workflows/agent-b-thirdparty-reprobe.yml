@@ -222,16 +222,17 @@ jobs:
       - name: Install A core dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: a-core
-      - name: Fetch pinned CSS custom-properties project
+      - name: Fetch pinned CSS custom-properties project and install deps
         # allanhue/webportflio @ b244f85 — MIT License file in repo.
+        # Dependencies are installed but never executed (analysis only
+        # resolves imports).
         run: |
           git clone --quiet https://github.com/allanhue/webportflio.git "$RUNNER_TEMP/css-proj"
           git -C "$RUNNER_TEMP/css-proj" checkout --detach "$CSS_PROJECT_SHA"
           test "$(git -C "$RUNNER_TEMP/css-proj" rev-parse HEAD)" = "$CSS_PROJECT_SHA"
           git -C "$RUNNER_TEMP/css-proj" log -1 --format='%s'
-      - name: Install project dependencies (analysis only resolves imports; deps never executed)
-        run: npm ci --ignore-scripts --no-audit --no-fund
-        working-directory: ${{ env.RUNNER_TEMP }}/css-proj
+          cd "$RUNNER_TEMP/css-proj"
+          npm ci --ignore-scripts --no-audit --no-fund
       - name: Transplant B CSS token probe onto A core byte-for-byte
         run: |
           cp scripts/b-css-token-probe.mjs a-core/scripts/b-css-token-probe.mjs
