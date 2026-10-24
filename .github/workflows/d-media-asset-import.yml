@@ -13,7 +13,7 @@ permissions:
 jobs:
   asset-import:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,13 +23,26 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: TypeScript boundary
-        run: npm run typecheck 2>&1 | tee test-results-d-media-typecheck.log
+        shell: bash
+        run: set -o pipefail; mkdir -p test-results-d-media; npm run typecheck 2>&1 | tee test-results-d-media/typecheck.log
+      - name: Production build
+        shell: bash
+        run: set -o pipefail; npm run build 2>&1 | tee test-results-d-media/build.log
       - name: AssetImportRecord positive and negative matrix
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p test-results-d-media
           npx vitest run src/core/media-asset-import.test.ts src/core/media-asset-swap.test.ts \
+            src/core/media-viewport-evidence.test.ts \
             --no-file-parallelism --reporter=default --reporter=json \
-            --outputFile=test-results-d-media/asset-import-vitest.json 2>&1 | tee test-results-d-media/asset-import-vitest.log
+            --outputFile=test-results-d-media/media-targeted.json 2>&1 | tee test-results-d-media/media-targeted.log
+      - name: Full Vitest suite
+        shell: bash
+        run: |
+          set -o pipefail
+          npx vitest run --reporter=default --reporter=json \
+            --outputFile=test-results-d-media/full-vitest.json 2>&1 | tee test-results-d-media/full-vitest.log
       - name: Preserve D MEDIA assertions
         if: always()
         uses: actions/upload-artifact@v4
@@ -37,6 +50,5 @@ jobs:
           name: d-media-asset-import-${{ github.run_id }}
           path: |
             test-results-d-media/
-            test-results-d-media-typecheck.log
           if-no-files-found: warn
           retention-days: 30

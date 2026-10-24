@@ -9,8 +9,9 @@ B2：BLOCKED / fail-closed
 - 数据层媒体数组经 ProductCard 的动态数据流仍 unresolved。
 - Scope 全选不能替代 SourceGraph 证明，不能绕过 candidate 门控。
 
-B3：BLOCKED / 仅有设计边界
-- 外链素材没有合法本地暂存对象和产品化导入记录时，不得进入真实 MEDIA candidate。
-- 本轮 D P0-1 提供 AssetImportRecord + 内容寻址暂存追溯层；它不宣称 B1/B2 已修复，也不执行远程抓取。
+B3：BLOCKED / 本地导入与远程 URL 只读追溯已实现，尚未接入 Candidate 生命周期
+- 本地导入只对可信授权回执、普通文件和当前独立 staging 生效；格式头识别不等于完整图片解码，Verification 必须另行证明 media-loaded。
+- 外部 URL 只登记脱敏 provenance，不抓取、不产生本地暂存对象，不能进入真实 MEDIA candidate。
+- AssetImportRecord 不创建 Candidate、不配置 Scope、不执行 Verification/Approval/Apply。
 
-下一步依赖：C+D 提供 B1 的 source-proven export/import/JSX consumer/PageImpact SHA；随后 D 才能按四视口合同复验本地导入 → Candidate → Verification。B2 未证明前保持 BLOCKED。
+下一步依赖：A 会签可信授权器接入、正式 Candidate 生命周期的最小接线、引用保留策略与四视口 Verification 合同；同时 C+D 提供 B1 的 source-proven export/import/JSX consumer/PageImpact SHA。上述证据齐备后才可启动 B1 全链复验。B2 未证明前保持 BLOCKED。
