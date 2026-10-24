@@ -346,14 +346,25 @@ async function capture(page, viewport, theme, method, screenshotPath, browserErr
 
 async function visitRoute(page, baseUrl, route) {
   const expectedHash = `#${route}`
-  await page.goto(`${baseUrl}/${expectedHash}`, { waitUntil: 'commit', timeout: 15_000 })
+  const baseOrigin = new URL(baseUrl).origin
+  const currentOrigin = page.url() === 'about:blank' ? null : new URL(page.url()).origin
+  if (currentOrigin !== baseOrigin) {
+    await page.goto(`${baseUrl}/${expectedHash}`, { waitUntil: 'commit', timeout: 15_000 })
+  } else {
+    // Keep the browser in the same app document. HashRouter observes the real
+    // location.hash change and renders the requested route without reloading
+    // Vite for every census row.
+    await page.evaluate(hash => {
+      if (location.hash !== hash) location.hash = hash
+    }, expectedHash)
+  }
   const sentinel = ROUTE_SENTINELS[route]
   await page.locator('main').locator(sentinel).first().waitFor({ state: 'attached', timeout: 20_000 })
   const observed = await page.evaluate(() => ({ hash: location.hash, mainTextLength: document.querySelector('main')?.innerText.trim().length ?? 0 }))
   if (observed.hash !== expectedHash || observed.mainTextLength === 0) {
     throw new Error(`HashRouter route verification failed for ${route}: ${JSON.stringify(observed)}`)
   }
-  return { route, hash: observed.hash, sentinel, mainTextLength: observed.mainTextLength, verified: true }
+  return { route, hash: observed.hash, sentinel, mainTextLength: observed.mainTextLength, navigation: currentOrigin === baseOrigin ? 'hashrouter-location-hash' : 'initial-vite-document-load', verified: true }
 }
 
 function expectedThemeAccent(theme, revision) {
