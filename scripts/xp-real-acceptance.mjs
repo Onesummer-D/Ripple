@@ -62,7 +62,6 @@ try {
   }
 
   await assert('真实工程标记', page.getByTestId('real-badge'), '真实工程')
-  await assert('工程状态', page.getByTestId('project-status'), '工程就绪')
   if (await page.getByTestId('demo-badge').count()) throw new Error('验收失败：真实模式出现演示标记')
   await assert('真实页面', page.getByTestId('page-item-page:home'), 'home')
   await assert('验证未运行如实呈现', page.getByTestId('evidence-ev:verification'), '尚未运行')
@@ -78,10 +77,10 @@ try {
 
   // 选中真实目标 + 本地草稿
   await page.getByTestId('target-strip').getByRole('button', { name: /Acme 真实首页标题/ }).click()
-  await assert('选中摘要（真实源码路径）', page.getByTestId('selection-summary'), 'src/pages/HomePage.jsx')
+  await assert('源码定位（真实源码路径，折叠在选择元素内）', page.getByTestId('selection-source'), 'src/pages/HomePage.jsx')
   await page.getByTestId('draft-text-input').fill('Acme 新首页标题')
   await assert('本地草稿意向', page.getByTestId('evidence-ev:intent'), 'Acme 新首页标题')
-  await assert('候选生命周期不被本地动作改写', page.getByTestId('candidate-status'), '尚无候选')
+  await assert('候选生命周期不被本地动作改写（仍为可生成态）', page.getByTestId('create-candidate'), '生成')
   await page.screenshot({ path: `${outDir}/xp-real-2-target-drafted.png`, fullPage: true })
 
   // 范围决策 + 版本历史（真实历史为空，如实展示）

@@ -75,11 +75,19 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   const [demoContentHeight, setDemoContentHeight] = useState(0)
   const [hoveredId, setHoveredId] = useState<string>()
   const [demoCanvasState, setDemoCanvasState] = useState<ExperienceViewModel['canvasState']>('ready')
+  // 选中 toast：跟随选中元素出现，2.6s 后自动消失；切换目标重新弹出
+  const [toastId, setToastId] = useState<string>()
+  const selected = model.elements.find(item => item.id === model.selectedElementId)
+  useEffect(() => {
+    if (!selected) { setToastId(undefined); return }
+    setToastId(selected.id)
+    const timer = setTimeout(() => setToastId(undefined), 2600)
+    return () => clearTimeout(timer)
+  }, [selected?.id])
   const viewport = model.viewports.find(item => item.id === model.activeViewportId) ?? model.viewports[0]
   const scale = hostWidth ? Math.min(1, hostWidth / viewport.width) : 1
   const canvasState = model.dataProvenance === 'demo' ? demoCanvasState : model.canvasState
   const currentPage = model.pages.find(page => page.id === model.currentPageRef)
-  const selected = model.elements.find(item => item.id === model.selectedElementId)
   const isReal = model.dataProvenance !== 'demo'
   // 演示模式：外壳高度跟随网页实际内容（上限为当前模拟视口高度）；
   // 真实模式：iframe 是真实浏览器视口，始终按声明视口高度渲染。
@@ -310,12 +318,6 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
       </div>
     )}
 
-    {selected && (
-      <p className="ripple-xp-selection-summary" data-testid="selection-summary">
-        已选中：{selected.label} · 源码 <code>{selected.sourcePath ?? '（未定位）'}</code>
-        <CertaintyPill certainty={selected.certainty} />
-      </p>
-    )}
     {selected?.runtimeIdentity && (
       <p className="ripple-xp-selection-summary" data-testid="runtime-identity">
         实例身份（画布点选）：{selected.runtimeIdentity.certainty === 'stable-keyed-instance' || selected.runtimeIdentity.certainty === 'stable-react-instance'
@@ -325,6 +327,11 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
         {selected.runtimeIdentity.sameSourceCount !== undefined && selected.runtimeIdentity.sameSourceCount > 1
           && ` · 同源渲染 ${selected.runtimeIdentity.sameSourceCount} 处，改源影响全部`}
       </p>
+    )}
+
+    {/* 选中反馈用瞬时 toast：点击元素时弹出、自动消失，不在画布上方常驻小字 */}
+    {toastId && selected && (
+      <div className="ripple-xp-selection-toast" role="status" data-testid="selection-toast">已选中：{selected.label}</div>
     )}
 
     <div

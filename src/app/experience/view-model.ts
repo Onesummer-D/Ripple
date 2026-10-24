@@ -32,6 +32,8 @@ export interface CanvasElementXp {
   /** 该元素在源码中的可编辑文本来源。 */
   sourceRef?: string
   sourcePath?: string
+  /** 源码摘录（可选）：行数组 + 高亮行下标（圈选文字所在行）。演示模式为演示摘录，真实模式由适配器提供。 */
+  sourceExcerpt?: { lines: string[]; highlightLine: number }
   certainty: SourceCertainty
   /** 已知消费此来源的页面。 */
   impactPageRefs: string[]

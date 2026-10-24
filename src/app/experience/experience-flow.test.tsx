@@ -50,8 +50,12 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('选中活动标题并输入新标题：候选状态推进、选中摘要与前后对照更新', async () => {
     render(<ExperienceWorkbench />)
     await selectAndType()
-    expect(text('selection-summary')).toContain('活动标题')
-    expect(text('selection-summary')).toContain('src/data/campaign.ts')
+    expect(text('selection-toast')).toContain('已选中')
+    expect(text('selection-toast')).toContain('活动标题')
+    expect(text('selection-source')).toContain('src/data/campaign.ts')
+    // 源码视图默认折叠，点击展开后圈选文字所在行高亮呈现
+    fireEvent.click(screen.getByTestId('source-toggle'))
+    expect(text('source-excerpt')).toContain("heroTitle: '秋日茶器市集'")
     expect(text('compare-candidate')).toContain('冬日茶器市集')
     expect(text('compare-baseline')).toContain('秋日茶器市集')
     expect(screen.getByTestId('scope-include-page:home').getAttribute('aria-pressed')).toBe('true')
@@ -194,7 +198,8 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(await screen.findByTestId('canvas-el-el:promo-card'))
     expect(screen.queryByTestId('draft-text-input')).toBeNull()
     expect(screen.getByText(/来源未知：可以先查看，但不能承诺修改范围/)).not.toBeNull()
-    expect(screen.getAllByTestId('certainty-unknown').length).toBeGreaterThan(0)
+    // 来源未知的元素没有源码定位：不渲染源码视图（不臆造文件位置）
+    expect(screen.queryByTestId('selection-source')).toBeNull()
   })
 
   it('partial 来源的元素即使可编辑，排除未知页面后也不给安全审批', async () => {
@@ -483,8 +488,8 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     expect(text('real-approval-pending')).toContain('真实审批尚未接入')
     fireEvent.click(screen.getByTestId('close-filmstrip'))
     fireEvent.click(screen.getByTestId('canvas-el-data:hero-title'))
-    expect(text('selection-summary')).toContain('src/data/site.ts')
-    expect(text('selection-summary')).toContain('来源已证实')
+    expect(text('selection-source')).toContain('src/data/site.ts')
+    expect(screen.getAllByTestId('certainty-source-proven').length).toBeGreaterThan(0)
   })
 
   it('打开工程失败：服务端错误如实显示，可修正后重试', async () => {

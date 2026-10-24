@@ -129,7 +129,7 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   expect(selectionHttp.ok(), `source-selection 未成功：${await selectionHttp.text()}`).toBe(true)
   const selection = await selectionHttp.json() as { element: { id: string } }
   expect(selection.element.id).toBe(sourceRef)
-  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  await expect(page.getByTestId('draft-text-input')).toBeVisible()
   await expect(page.getByTestId('runtime-identity')).toBeVisible()
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-picked-1440.png'), fullPage: true })
 
@@ -137,7 +137,8 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await page.getByTestId('draft-text-input').fill('Acme 旗舰店标题')
   const excludeButtons = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
   for (let index = 0; index < await excludeButtons.count(); index += 1) await excludeButtons.nth(index).click()
-  await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
+  // 全部页面显式决策后门控解除：生成候选按钮可用
+  await expect(page.getByTestId('create-candidate')).toBeEnabled()
 
   // 5. POST /candidate：真实生成 CandidateRecord（响应即服务端持久化结果）
   const candidateResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
@@ -182,20 +183,20 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   // A 语义：重新分析使活跃候选退役（fail-closed）——F 必须清掉本地候选与旧验证，绝不展示幽灵候选。
   await page.getByTestId('refresh-project').click()
   await expect(page.getByTestId('real-preview-frame')).toBeVisible({ timeout: 150_000 })
-  // 刷新完成后：候选盒与验证状态一并消失（服务端已退役候选-1），状态芯片如实显示
+  // 刷新完成后：候选盒与验证状态一并消失（服务端已退役候选-1），回到可重新生成候选的状态
   await expect(page.getByTestId('candidate-box')).toHaveCount(0)
   await expect(page.getByTestId('verification-status')).toHaveCount(0)
-  await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
+  await expect(page.getByTestId('create-candidate')).toBeVisible()
   // 点选第二目标（正文段落）
   await page.getByTestId('picker-toggle').click()
   await expect(page.getByTestId('picker-hint')).toBeVisible()
   await projectFrame.getByText('真实首页文案内容。').click()
-  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  await expect(page.getByTestId('draft-text-input')).toBeVisible()
   await page.getByTestId('picker-toggle').click() // 退出点选模式
   await page.getByTestId('draft-text-input').fill('Acme 旗舰店文案。')
   const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
   for (let index = 0; index < await excludeButtons2.count(); index += 1) await excludeButtons2.nth(index).click()
-  await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
+  await expect(page.getByTestId('create-candidate')).toBeEnabled()
   const candidate2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
   await page.getByTestId('create-candidate').click()
   const candidate2Payload = await (await candidate2Response).json() as { candidate: { id: string } }

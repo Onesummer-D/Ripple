@@ -31,7 +31,7 @@ test('初始页面：页面导航、画布与 DEMO 标记', async ({ page }) => 
 test('选中与编辑：标题更新、候选状态推进、前后对照同步', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
-  await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+  await expect(page.getByTestId('selection-toast')).toContainText('活动标题')
   await page.getByTestId('draft-text-input').fill('冬日茶器市集')
   await page.getByTestId('tab-compare').click()
   await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
@@ -149,7 +149,7 @@ test('桌面与窄窗口布局都可操作', async ({ page }) => {
   await expect(page.getByTestId('scope-panel')).toBeVisible()
   await expect(page.getByTestId('canvas-el-el:hero-title')).toBeVisible()
   await page.getByTestId('canvas-el-el:hero-title').click()
-  await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+  await expect(page.getByTestId('selection-toast')).toContainText('活动标题')
 })
 
 test('任务一：切换编辑目标重建页面关系与默认范围（标题→副标题→标题）', async ({ page }) => {
@@ -286,7 +286,7 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await expect(page.getByText('尚无真实截图').first()).toBeVisible()
   // 选中真实目标：摘要显示真实源码路径；本地草稿不推进真实候选生命周期
   await page.getByTestId('target-strip').getByRole('button', { name: /Acme 真实首页标题/ }).click()
-  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  await expect(page.getByTestId('selection-source')).toBeVisible()
   await page.getByTestId('draft-text-input').fill('Acme 新首页标题')
   await expect(page.getByTestId('evidence-ev:intent')).toContainText('Acme 新首页标题')
 })

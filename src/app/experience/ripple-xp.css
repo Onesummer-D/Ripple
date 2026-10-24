@@ -352,6 +352,41 @@
   color: var(--xp-ink-soft);
 }
 
+/* 选中反馈 toast：点击元素时弹出，自动消失；不在画布上方常驻 */
+.ripple-xp-selection-toast {
+  position: fixed; top: 76px; left: 50%; transform: translateX(-50%); z-index: 60;
+  background: var(--xp-brand); color: #fff; padding: 8px 20px; border-radius: 999px;
+  font-size: 14px; font-weight: 500; letter-spacing: 0.01em;
+  box-shadow: 0 8px 24px rgba(40, 45, 41, 0.22);
+  animation: ripple-xp-toast-in 0.25s ease both;
+  max-width: min(90vw, 520px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@keyframes ripple-xp-toast-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* 源码视图：默认折叠在「选择元素」内；展开后圈选文字所在行高亮 */
+.ripple-xp-source { margin-top: 10px; }
+.ripple-xp-source-toggle {
+  width: 100%; text-align: left; background: none; border: 1px solid var(--xp-line);
+  border-radius: var(--xp-radius); padding: 6px 10px; font-size: 12.5px;
+  color: var(--xp-ink-soft); font-family: var(--xp-mono);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.ripple-xp-source-toggle:hover { border-color: var(--xp-brand); color: var(--xp-brand); }
+.ripple-xp-source-toggle[aria-expanded="true"] { border-color: var(--xp-brand); color: var(--xp-brand); }
+.ripple-xp-source-code {
+  margin: 8px 0 0; padding: 10px 6px; background: #282d29; color: #d9d7cf;
+  border-radius: var(--xp-radius); font-family: var(--xp-mono); font-size: 12.5px; line-height: 1.7;
+  overflow-x: auto;
+}
+.ripple-xp-source-code span { display: block; white-space: pre; padding: 0 8px; border-left: 2px solid transparent; }
+.ripple-xp-source-code span.is-hit {
+  background: rgba(215, 229, 216, 0.14); border-left-color: #8fbc9a; color: #ffffff;
+}
+
 /* 画布点选（D 桥）：描边按钮，激活时实心墨绿 */
 .ripple-xp-picker-toggle {
   border: 1px solid var(--xp-line); border-radius: var(--xp-radius); background: var(--xp-surface);

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { ExperienceViewModel, PageXp } from '../view-model'
 import { approvalGate, scopeSummary } from '../view-model'
 import { SectionTitle } from './status-pill'
@@ -23,6 +24,9 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   candidateError?: string
 }) {
   const selected = model.elements.find(item => item.id === model.selectedElementId)
+  // 源码视图默认折叠：用户主动点击才展开；切换目标时收回
+  const [sourceOpen, setSourceOpen] = useState(false)
+  useEffect(() => setSourceOpen(false), [selected?.id])
   const summary = scopeSummary(model.pages)
   const gate = approvalGate({ pages: model.pages, selectedElement: selected, draftAfterText: model.draftAfterText })
   const editingPage = model.pages.find(page => page.relation === 'editing')
@@ -97,6 +101,27 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
         <strong>{selected.label}</strong>
         {selected.unresolvedReasons.map(reason => <p key={reason} className="ripple-xp-warn">· {reason}</p>)}
         {!selected.editable && <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
+        {selected.sourcePath && (
+          // 源码位置不抢占首屏：折叠在「选择元素」内，点击展开后圈选文字所在行高亮
+          <div className="ripple-xp-source" data-testid="selection-source">
+            <button
+              type="button"
+              className="ripple-xp-source-toggle"
+              data-testid="source-toggle"
+              aria-expanded={sourceOpen}
+              onClick={() => setSourceOpen(!sourceOpen)}
+            >
+              {sourceOpen ? '收起源码' : '查看源码'} · {selected.sourcePath}
+            </button>
+            {sourceOpen && (selected.sourceExcerpt ? (
+              <pre className="ripple-xp-source-code" data-testid="source-excerpt">{selected.sourceExcerpt.lines.map((line, index) => (
+                <span key={index} className={index === selected.sourceExcerpt!.highlightLine ? 'is-hit' : ''}>{line}{'\n'}</span>
+              ))}</pre>
+            ) : (
+              <p className="ripple-xp-panel-hint">已定位到文件；代码摘录视图将在真实工程中接入。</p>
+            ))}
+          </div>
+        )}
       </div>
     ) : <p className="ripple-xp-panel-hint">在中间画布点选想要修改的位置。</p>}
 

@@ -36,17 +36,44 @@ function initialModel(): ExperienceViewModel {
       {
         id: 'el:hero-title', label: '活动标题「秋日茶器市集」', demoSelector: '[data-xp-demo="hero-title"]',
         currentText: '秋日茶器市集', sourceRef: 'data:hero-title', sourcePath: 'src/data/campaign.ts',
+        // 演示摘录：演示数据的一部分（DEMO 徽章覆盖），高亮行 = 圈选文字所在行
+        sourceExcerpt: {
+          lines: [
+            'export const campaign = {',
+            "  heroTitle: '秋日茶器市集',",
+            "  heroSubtitle: '以茶会友，以器传心',",
+            '}',
+          ],
+          highlightLine: 1,
+        },
         certainty: 'source-proven', impactPageRefs: [HOME, 'page:products'],
         unresolvedReasons: [], editable: true,
       },
       {
         id: 'el:hero-subtitle', label: '副标题「以茶会友，以器传心」', demoSelector: '[data-xp-demo="hero-subtitle"]',
         currentText: '以茶会友，以器传心', sourceRef: 'data:hero-subtitle', sourcePath: 'src/data/campaign.ts',
+        sourceExcerpt: {
+          lines: [
+            'export const campaign = {',
+            "  heroTitle: '秋日茶器市集',",
+            "  heroSubtitle: '以茶会友，以器传心',",
+            '}',
+          ],
+          highlightLine: 2,
+        },
         certainty: 'source-proven', impactPageRefs: [HOME], unresolvedReasons: [], editable: true,
       },
       {
         id: 'el:seasonal-banner', label: '当季横幅', demoSelector: '[data-xp-demo="seasonal-banner"]',
         currentText: '冬雪限定 · 陆续上架', sourceRef: 'data:seasonal-banner', sourcePath: 'src/data/seasonal.ts',
+        sourceExcerpt: {
+          lines: [
+            'export const seasonal = {',
+            "  banner: showWinter ? '冬雪限定 · 陆续上架' : defaultBanner,",
+            '}',
+          ],
+          highlightLine: 1,
+        },
         certainty: 'partial', impactPageRefs: ['page:seasonal'], unresolvedReasons: ['条件渲染分支只有一臂可以解析'], editable: true,
       },
       {
