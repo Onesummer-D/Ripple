@@ -22,7 +22,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   const [activeAdapter] = useState<ExperienceAdapter>(() => adapter ?? createDemoAdapter())
   const [model, setModel] = useState<ExperienceViewModel>()
   const [error, setError] = useState('')
-  const [panel, setPanel] = useState<'evidence' | 'history' | null>('evidence')
+  const [panel, setPanel] = useState<'evidence' | 'compare' | 'history' | null>('evidence')
   const [activeVersionId, setActiveVersionId] = useState<string>()
   const [feedback, setFeedback] = useState('')
   const [openProjectPath, setOpenProjectPath] = useState('')
@@ -289,7 +289,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
   }
 
   return <div ref={scopeRef} className="ripple-xp-scope ripple-xp-workbench">
-    <TopBar model={model} onOpenHistory={() => setPanel(panel === 'history' ? null : 'history')} onRefresh={activeAdapter.refresh ? handleRefresh : undefined} />
+    <TopBar model={model} onOpenHistory={() => setPanel(current => current === 'history' ? null : 'history')} onRefresh={activeAdapter.refresh ? handleRefresh : undefined} />
     {model.dataProvenance === 'real' && model.projectStatus === 'unavailable' && activeAdapter.openProject && (
       // 真实模式：尚未打开工程时提供"打开工程"入口；失败原因如实显示
       <form
@@ -321,16 +321,55 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         // 真实模式第一阶段：预演 iframe 不支持页面切换，导航停用并明确标注（不误导用户）
         navigationDisabled={model.dataProvenance === 'real'}
       />
-      <CanvasStage
-        model={model}
-        onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}
-        onViewportChange={id => apply(activeAdapter.setViewport(model, id) ?? model)}
-        pickerActive={pickerActive}
-        pickerNonce={pickerNonce}
-        pickerError={pickerError}
-        onTogglePicker={togglePicker}
-        onPicked={handlePicked}
-      />
+      <div className="ripple-xp-center">
+        <CanvasStage
+          model={model}
+          onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}
+          onViewportChange={viewportId => apply(activeAdapter.setViewport(model, viewportId) ?? model)}
+          pickerActive={pickerActive}
+          pickerNonce={pickerNonce}
+          pickerError={pickerError}
+          onTogglePicker={togglePicker}
+          onPicked={handlePicked}
+        />
+        <div className="ripple-xp-deck" data-testid="work-deck">
+          <div className="ripple-xp-deck-tabs" role="tablist" aria-label="工作区面板">
+            {([['evidence', '证据与解释'], ['compare', '前后对照'], ['history', '历史记录']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                id={`tab-${id}`}
+                type="button"
+                role="tab"
+                aria-selected={panel === id}
+                aria-controls={`deck-panel-${id}`}
+                className={`ripple-xp-deck-tab ${panel === id ? 'is-active' : ''}`}
+                data-testid={`tab-${id}`}
+                onClick={() => setPanel(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div id="deck-panel-evidence" role="tabpanel" aria-labelledby="tab-evidence" className={panel === 'evidence' ? '' : 'ripple-xp-deck-hidden'}>
+            <EvidenceDrawer items={model.evidence} onClose={() => setPanel(null)} />
+          </div>
+          <div id="deck-panel-compare" role="tabpanel" aria-labelledby="tab-compare" className={panel === 'compare' ? '' : 'ripple-xp-deck-hidden'}>
+            <CompareStrip model={model} />
+          </div>
+          <div id="deck-panel-history" role="tabpanel" aria-labelledby="tab-history" className={panel === 'history' ? '' : 'ripple-xp-deck-hidden'}>
+            <VersionFilmstrip
+              model={model}
+              activeVersionId={activeVersionId}
+              onSelect={version => {
+                setActiveVersionId(version.id)
+                // 真实历史不提供页面归属（pageRef 为空）时不切换页面，不臆造定位
+                if (version.pageRef) apply(activeAdapter.setPage(model, version.pageRef) ?? model)
+              }}
+              onClose={() => setPanel(null)}
+            />
+          </div>
+        </div>
+      </div>
       <ScopePanel
         model={model}
         onDraftText={text => apply(activeAdapter.setDraftText(model, text) ?? model)}
@@ -356,19 +395,5 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         <button type="button" className="ripple-xp-quiet" data-testid="dismiss-feedback" onClick={() => setFeedback('')}>知道了</button>
       </div>
     )}
-    {panel === 'evidence' && <EvidenceDrawer items={model.evidence} onClose={() => setPanel(null)} />}
-    {panel === 'history' && (
-      <VersionFilmstrip
-        model={model}
-        activeVersionId={activeVersionId}
-        onSelect={version => {
-          setActiveVersionId(version.id)
-          // 真实历史不提供页面归属（pageRef 为空）时不切换页面，不臆造定位
-          if (version.pageRef) apply(activeAdapter.setPage(model, version.pageRef) ?? model)
-        }}
-        onClose={() => setPanel(null)}
-      />
-    )}
-    <CompareStrip model={model} />
   </div>
 }
