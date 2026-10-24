@@ -48,7 +48,8 @@ jobs:
         run: docker pull node:22-bookworm-slim
       - name: Prepare and smoke-test the isolated browser runtime
         run: bash scripts/prepare-browser-verification.sh
-      - run: npm run test:browser
+      - name: Focused Candidate timeout diagnostic (Linux / Docker / Chromium)
+        run: npm run test:browser -- e2e/experience-real-flow.spec.ts
       - name: Preserve browser screenshots, traces and run record
         if: always()
         uses: actions/upload-artifact@v4
