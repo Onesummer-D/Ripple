@@ -1,7 +1,10 @@
-# Runtime Identity 阶段二合同（A 冻结版 v1）
+# Runtime Identity 阶段二合同（A 冻结版 v1.1）
 
 > A 出具，2026-10-24。输入：C+D 提案 `runtime-identity-phase2-contract.md` @ `2ad8528`、
 > E 准备报告 `e-identity-phase2-prep-20261024.md`（PR #34 @ `0c38123`）。
+> v1.1 修订（联合 C+D 裁决 offset drift 与失败归档类型，回应负责人审查）：
+> §3 条件 4 的跨版本同源判定改为「字符串相等 **或** 正式跨版本节点映射」，
+> 新增 §1.1 失败归档正式类型；其余 v1 内容不变。
 > 基线：`feat/project-first-core-20261018 @ 652b42c`。
 > 本文件冻结后即为唯一权威口径；与两输入文档冲突处以本文件为准。
 > 不修改既有 Verification/Approval 安全门控；严格证明接线完成前
@@ -39,13 +42,44 @@ export interface RuntimeRunIdentity {
   boundDigest: string                                // 本侧修订摘要（baseline=baseSourceDigest / candidate=candidateTreeDigest）
   artifacts: { snapshot: { path: string; sha256: string } }
 }
-// VerificationRun 增量：runtimeIdentities?: RuntimeRunIdentity[]
+// VerificationRun 增量（v1.1 联合类型）：
+//   runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityArchiveFailure>
 ```
+
+### 1.1 失败归档类型（v1.1 冻结）
+
+快照缺失/采集失败/侧别缺失/版本不可核对的运行点**不得静默省略**，以正式失败条目留存：
+
+```ts
+export type RuntimeIdentityArchiveFailureReason =
+  | 'collector-error'            // 容器内 collector 抛错
+  | 'snapshot-unavailable'       // 运行点未产出 snapshot（records 缺项等）
+  | 'side-missing'               // 条目缺 side 或侧别工件缺失
+  | 'version-unverifiable'       // boundDigest 与按侧实际摘要不符
+  | 'artifact-hash-mismatch'     // 内联 snapshotSha256 与工件实际哈希不符
+
+export interface RuntimeRunIdentityArchiveFailure {
+  checkId: Id
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  side: 'baseline' | 'candidate'
+  archive: 'failed'
+  reason: RuntimeIdentityArchiveFailureReason
+  /** 工件已落盘但核验失败时记录声明哈希；未落盘则为 undefined（不得伪造）。 */
+  declaredSnapshotSha256?: string
+  detail?: string               // 原始错误信息，原样保留
+}
+```
+
+哈希语义（冻结）：成功条目 = 内联 `snapshotSha256` 与工件哈希**双核验一致**才算归档成功；
+失败条目中 `declaredSnapshotSha256` 仅是"声称值"（artifact-hash-mismatch 时即冲突证据），
+**其存在不构成任何证明**；消费方（E/F）不得把失败条目计入严格证明的输入。
 
 - digest 口径冻结为公共纯函数 `servedSourceDigest(root, file) = sha256(fs.readFileSync(file, 'utf8'))`
   （与插件注册 `sourceVersion` 同 recipe；A 实现于 core，容器/宿主禁止各自实现，C+D D2 采纳）。
-- 归档失败/侧别缺失/版本不可核对的运行点**不得静默省略**：以 `assessments=[]` + 原样 snapshot +
-  原因条目保留（E §1.3 第 3 点采纳）。
+- 归档失败/侧别缺失/版本不可核对的运行点**不得静默省略**：以 §1.1 正式失败条目留存
+  （成功条目亦可在 assessments 层逐 record 失败，两层不冲突；E §1.3 第 3 点采纳）。
 - 快照与 assessment 双哈希（内联 + 工件），工件目录与保留期同视觉证据（C+D D4 采纳）。
 
 ## 2. 生产与消费分工（冻结）
@@ -60,12 +94,16 @@ export interface RuntimeRunIdentity {
 
 ## 3. 跨版本实例对应：严格配对条件（冻结）
 
-同一运行点键下，一对 (baseline record, candidate record) 满足**全部**六项才可宣布跨版本严格实例证明：
+`archive: 'failed'` 条目不参与配对（v1.1）。同一运行点键下，
+一对 (baseline record, candidate record) 满足**全部**六项才可宣布跨版本严格实例证明：
 
 1. `baseline.assessment.instanceIdentityProven === true`；
 2. `candidate.assessment.instanceIdentityProven === true`；
 3. 双侧 `runtimeInstanceId` 相等且非空、不等于 sourceRef；
-4. 双侧 `sourceRef` 相等（同源，版本各自核验通过）；
+4. **双侧同源（v1.1 修订）**：`sourceRef` 字符串相等（含偏移一致），**或**
+   存在 A/C+D 正式**跨版本节点映射**（候选创建时建立的 sourceRef 对齐表，随候选
+   生命周期版本化，宿主归档时按侧摘要核验映射本身有效）将两侧 sourceRef 关联。
+   无映射且字符串不等 → **保持未证明**（fail-closed）；禁止按文件+类型相似度放行；
 5. 双侧 snapshot.page 三元组一致，且等于该运行点 expectedPage；
 6. 双侧 `recordKey` 的 identity 匹配来自 id 相等，**不得**按数组顺序配对（同源多实例须 id 逐对唯一匹配；配不出唯一对 → 全部降级）。
 
@@ -75,7 +113,7 @@ export interface RuntimeRunIdentity {
 |---|---|
 | 相同 runtimeInstanceId 但组件重新挂载 | 允许成立：key 保持则视为同一实例（C+D 实测 #4，lifecycle removed→remounted 同 id 不同 DOM 节点） |
 | React key 或命名空间变化 | id 不等 → 第 3 条不满足 → 不成立，降级 + `identity-not-stable` |
-| 源码偏移变化 | 不影响：实例身份绑定 id 而非偏移 |
+| 源码偏移变化（offset drift，v1.1） | 实例身份本身绑定 id 而非偏移，第 3 条不受影响；但第 4 条同源判定因 sourceRef 含偏移而字符串不等 → **必须**有正式跨版本节点映射才成立；映射缺失 → 该对保持未证明，reason 沿用版本/映射词表（`source-version-mismatch` 或映射失效的具体词），不得自行放宽 |
 | 同源多实例 | 第 6 条唯一配对；`sameSourceCount>1` 成立时 UI 必须并列警示「改源影响全部同源实例」 |
 | 两侧 Assessment 不一致 | 该对降级 unproven，reason 新增 **`cross-side-assessment-mismatch`**（词表 13→14 项，C+D 维护） |
 
