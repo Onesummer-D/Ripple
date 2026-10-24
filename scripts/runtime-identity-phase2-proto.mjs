@@ -3,12 +3,18 @@
  *
  * 链路：真实 React 页面（Vite dev + sourceAnnotationPlugin）→ 浏览器内
  * collectRuntimeIdentitySnapshot → 宿主 assessRuntimeIdentity（fileDigest =
- * 标注后 served code 的 sha256，与插件注册值同口径）→ 证据归档（sha256）。
+ * 原始文件内容（transform 输入，utf8）的 sha256，与插件注册值同口径，
+ * 见下方「宿主侧」注释）→ 证据归档（sha256）。
  *
  * 不人工固定成功字段；instanceIdentityProven 只来自 assessRuntimeIdentity。
  * 用法：node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
  *        scripts/runtime-identity-phase2-proto.mjs [output.json]
  * 退出码：0 = 全部场景断言通过；2 = 有场景未达预期（证据已归档）。
+ *
+ * 场景 ↔ check() 对应（8 场景 9 组断言；S6 与 S3 共用同一组 position-dependent 断言）：
+ *   single-static=S1，multi-keyed=S2，positional-list=S3/S6，remount=S4，cross-page=S5，
+ *   page-context-triple=S6b（search/hash 三元组负例），version-mismatch=S7，
+ *   unstable-identity=S8，cross-version-pairing=S9（跨版本双侧独立评估与配对降级）。
  */
 import path from 'node:path'
 import fs from 'node:fs'
@@ -204,6 +210,79 @@ try {
     .map(r => assessRuntimeIdentity(graph, unstable, r, { fileDigest, expectedPage: { pathname: '/unstable' } }))
   check('unstable-identity', unstableAssess.length === 2 && unstableAssess.every(a => a.certainty === 'unknown' && a.instanceIdentityProven === false && a.reasons.includes('identity-not-stable')), unstableAssess)
   evidence.scenarios['/unstable'].assessments = unstableAssess
+
+  // S6b search/hash 完整三元组负例：expectedPage 给出 search/hash 而实际页不符 →
+  // page-context-mismatch（samePage 为逐字段可选语义：给出即强制全等比较）
+  const s6bSearch = assess('/solo', 'solo', { expectedPage: { pathname: '/solo', search: '?mode=edit' } })
+  const s6bHash = assess('/solo', 'solo', { expectedPage: { pathname: '/solo', hash: '#frag' } })
+  const s6bFull = assess('/solo', 'solo', { expectedPage: { pathname: '/solo', search: '', hash: '' } })
+  check('page-context-triple',
+    s6bSearch?.instanceIdentityProven === false && s6bSearch?.reasons.includes('page-context-mismatch') &&
+    s6bHash?.instanceIdentityProven === false && s6bHash?.reasons.includes('page-context-mismatch') &&
+    s6bFull?.instanceIdentityProven === true,
+    { s6bSearch, s6bHash, s6bFull })
+  evidence.scenarios['/solo'].tripleAssessments = { searchMismatch: s6bSearch, hashMismatch: s6bHash, fullTriple: s6bFull }
+
+  // S9 跨版本双侧独立评估与配对降级：
+  // candidate 侧 = 修改 src/kit.jsx 后重新建图 + 重新采集（Vite dev 即时生效），
+  // 两侧各自按自己侧别的 fileDigest/graph 评估。baseline 侧 digest 必须先冻结
+  // （正式合同中由候选工作树与基线 projectRoot 物理分离保证；原型共用同一目录，
+  // 故在修改前把基线 digest 记忆化），否则活读磁盘会拿到 candidate 内容，
+  // 版本不一致负例无从触发。
+  const baselineDigests = new Map()
+  const fileDigestBaseline = (file) => {
+    if (!baselineDigests.has(file)) baselineDigests.set(file, fileDigest(file))
+    return baselineDigests.get(file)
+  }
+  const kitFile = path.join(root, 'src', 'kit.jsx')
+  fileDigestBaseline('src/kit.jsx') // 修改前冻结 baseline digest（预热记忆缓存）
+  fs.writeFileSync(kitFile, fs.readFileSync(kitFile, 'utf8').replace('Shared Text', 'Shared Text Candidate'))
+  execFileSync('git', ['add', '.'], { cwd: root })
+  execFileSync('git', ['-c', 'user.name=Proto', '-c', 'user.email=proto@example.invalid', 'commit', '-qm', 'candidate revision'], { cwd: root })
+  const graphCandidate = analyzeProject(root)
+  const fileDigestCandidate = (file) => {
+    try { return createHash('sha256').update(fs.readFileSync(path.join(root, file), 'utf8'), 'utf8').digest('hex') } catch { return undefined }
+  }
+  const candidateContext = await browser.newContext()
+  const cpage = await candidateContext.newPage()
+  try {
+    await cpage.goto(`${base}/alpha?side=candidate`, { waitUntil: 'networkidle' })
+    await cpage.waitForSelector('[data-ripple-source]', { timeout: 15000 })
+    const candidateSnapshot = await cpage.evaluate(() => window.__rippleCollect({ label: 'data-proto' }))
+    evidence.scenarios['/alpha-candidate'] = { snapshotSha256: sha(candidateSnapshot), snapshot: candidateSnapshot }
+    const candidateRecord = recordOf(candidateSnapshot, 'shared')
+    // 正例：candidate 侧按自己的版本评估 → 严格证明成立
+    const candidateAssess = assessRuntimeIdentity(graphCandidate, candidateSnapshot, candidateRecord,
+      { fileDigest: fileDigestCandidate, expectedPage: { pathname: '/alpha', search: '?side=candidate' } })
+    // 负例：candidate 快照误按 baseline 版本核验 → 版本不一致，不可证明
+    const staleAssess = assessRuntimeIdentity(graph, candidateSnapshot, candidateRecord,
+      { fileDigest: fileDigestBaseline, expectedPage: { pathname: '/alpha', search: '?side=candidate' } })
+    // 跨版本对应证明原型判定（合同「四支柱」的最小实现）：
+    //  1) 两侧各自 instanceIdentityProven === true（独立按侧评估）
+    //  2) sourceRef 在两侧图上对应同一 JSX 来源（图侧节点对应承担偏移变化）
+    //  3) 生命周期连续（compareRuntimeSnapshots 无 removed/added 断裂；key 变化=不连续）
+    //  4) 两侧 reasons 均为空
+    // 任一支柱不成立 → 该对整体降级，全有理由；不得仅凭 runtimeInstanceId 字符串相等升级。
+    const proveCrossVersionPair = (baselineAssessment, candidateAssessment) => {
+      const reasons = []
+      if (!baselineAssessment?.instanceIdentityProven) reasons.push('baseline-unproven')
+      if (!candidateAssessment?.instanceIdentityProven) reasons.push('candidate-unproven')
+      if (baselineAssessment && candidateAssessment && baselineAssessment.sourceRef !== candidateAssessment.sourceRef) reasons.push('source-ref-not-corresponding')
+      if ((baselineAssessment?.reasons.length ?? 1) !== 0) reasons.push('baseline-reasons-nonempty')
+      if ((candidateAssessment?.reasons.length ?? 1) !== 0) reasons.push('candidate-reasons-nonempty')
+      return { proven: reasons.length === 0, reasons }
+    }
+    const pairGood = proveCrossVersionPair(s5a, candidateAssess)
+    const pairBad = proveCrossVersionPair(s5a, staleAssess)
+    check('cross-version-pairing',
+      candidateAssess?.instanceIdentityProven === true &&
+      staleAssess?.instanceIdentityProven === false && staleAssess?.locatable === false && staleAssess?.reasons.includes('source-version-mismatch') &&
+      pairGood.proven === true && pairBad.proven === false && pairBad.reasons.includes('candidate-unproven'),
+      { candidateAssess, staleAssess, pairGood, pairBad })
+    evidence.scenarios['/alpha-candidate'].assessments = { candidateAssess, staleAssess, pairGood, pairBad }
+  } finally {
+    await candidateContext.close()
+  }
 } finally {
   await browser.close()
   await server.close()

@@ -1,6 +1,6 @@
 {
   "protocol": "ripple-runtime-identity/v1",
-  "fixture": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\.ripple-fixtures\\ripple-identity-phase2-zWLnzw",
+  "fixture": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\.ripple-fixtures\\ripple-identity-phase2-UR1GoG",
   "base": "http://localhost:5173",
   "scenarios": {
     "/solo": {
@@ -53,6 +53,54 @@
         "reasons": [
           "source-version-mismatch"
         ]
+      },
+      "tripleAssessments": {
+        "searchMismatch": {
+          "sourceRef": "jsx:src/kit.jsx#32",
+          "runtimeInstanceId": "/solo:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#324/jsx:src/App.jsx#324:jsx:src/kit.jsx#32",
+          "certainty": "stable-react-instance",
+          "page": {
+            "pathname": "/solo",
+            "search": "",
+            "hash": ""
+          },
+          "locatable": true,
+          "instanceIdentityProven": false,
+          "sameSourceCount": 1,
+          "reasons": [
+            "page-context-mismatch"
+          ]
+        },
+        "hashMismatch": {
+          "sourceRef": "jsx:src/kit.jsx#32",
+          "runtimeInstanceId": "/solo:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#324/jsx:src/App.jsx#324:jsx:src/kit.jsx#32",
+          "certainty": "stable-react-instance",
+          "page": {
+            "pathname": "/solo",
+            "search": "",
+            "hash": ""
+          },
+          "locatable": true,
+          "instanceIdentityProven": false,
+          "sameSourceCount": 1,
+          "reasons": [
+            "page-context-mismatch"
+          ]
+        },
+        "fullTriple": {
+          "sourceRef": "jsx:src/kit.jsx#32",
+          "runtimeInstanceId": "/solo:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#324/jsx:src/App.jsx#324:jsx:src/kit.jsx#32",
+          "certainty": "stable-react-instance",
+          "page": {
+            "pathname": "/solo",
+            "search": "",
+            "hash": ""
+          },
+          "locatable": true,
+          "instanceIdentityProven": true,
+          "sameSourceCount": 1,
+          "reasons": []
+        }
       }
     },
     "/keyed": {
@@ -425,7 +473,7 @@
       }
     },
     "/unstable": {
-      "snapshotSha256": "ee8c02150f7abff40a2e150ecc952ede79d2cf30a8ca7ffa62278cff0489f4f9",
+      "snapshotSha256": "73d9a843d4c17c1b4af09559f4f4e38a9dcf70a40915a63536362a35dc7ce284",
       "snapshot": {
         "protocol": "ripple-runtime-identity/v1",
         "page": {
@@ -448,7 +496,7 @@
           {
             "sourceRef": "jsx:src/kit.jsx#111",
             "sourceFile": "src/kit.jsx",
-            "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.1748242213957839/0:_r_1_:jsx:src/kit.jsx#111",
+            "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.6537519377621722/0:_r_1_:jsx:src/kit.jsx#111",
             "declaredCertainty": "unknown",
             "certainty": "unknown",
             "sourceVersion": "d1448b0aa9f36839736199953def6a9dac8f55ca75d364853ac34d0c0e51165f",
@@ -459,7 +507,7 @@
           {
             "sourceRef": "jsx:src/kit.jsx#111",
             "sourceFile": "src/kit.jsx",
-            "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.6130954936742885/1:_r_2_:jsx:src/kit.jsx#111",
+            "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.36144363210320807/1:_r_2_:jsx:src/kit.jsx#111",
             "declaredCertainty": "unknown",
             "certainty": "unknown",
             "sourceVersion": "d1448b0aa9f36839736199953def6a9dac8f55ca75d364853ac34d0c0e51165f",
@@ -472,7 +520,7 @@
       "assessments": [
         {
           "sourceRef": "jsx:src/kit.jsx#111",
-          "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.1748242213957839/0:_r_1_:jsx:src/kit.jsx#111",
+          "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.6537519377621722/0:_r_1_:jsx:src/kit.jsx#111",
           "certainty": "unknown",
           "page": {
             "pathname": "/unstable",
@@ -488,7 +536,7 @@
         },
         {
           "sourceRef": "jsx:src/kit.jsx#111",
-          "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.6130954936742885/1:_r_2_:jsx:src/kit.jsx#111",
+          "runtimeInstanceId": "/unstable:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#638/0.36144363210320807/1:_r_2_:jsx:src/kit.jsx#111",
           "certainty": "unknown",
           "page": {
             "pathname": "/unstable",
@@ -503,6 +551,85 @@
           ]
         }
       ]
+    },
+    "/alpha-candidate": {
+      "snapshotSha256": "c7e29007db69cfa03c1b58f8b752bfb99132f58c6cc876389e8beee919107d1e",
+      "snapshot": {
+        "protocol": "ripple-runtime-identity/v1",
+        "page": {
+          "pathname": "/alpha",
+          "search": "?side=candidate",
+          "hash": ""
+        },
+        "records": [
+          {
+            "sourceRef": "jsx:src/App.jsx#929",
+            "sourceFile": "src/App.jsx",
+            "runtimeInstanceId": "/alpha:jsx:src/main.jsx#131/jsx:src/main.jsx#131:jsx:src/App.jsx#929",
+            "declaredCertainty": "stable-react-instance",
+            "certainty": "stable-react-instance",
+            "sourceVersion": "125f6f41e3056b0832ccff352cc9b6032794a175e3be958bf55e26210c34ffc9",
+            "domNode": 1,
+            "sameSourceCount": 1,
+            "reasons": []
+          },
+          {
+            "sourceRef": "jsx:src/kit.jsx#250",
+            "sourceFile": "src/kit.jsx",
+            "runtimeInstanceId": "/alpha:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#935/jsx:src/App.jsx#935:jsx:src/kit.jsx#250",
+            "declaredCertainty": "stable-react-instance",
+            "certainty": "stable-react-instance",
+            "sourceVersion": "9770100224dbe62e8f15146bf9f48e7d199745246cb864c6034d4250647d7be6",
+            "domNode": 2,
+            "sameSourceCount": 1,
+            "reasons": [],
+            "label": "shared"
+          }
+        ]
+      },
+      "assessments": {
+        "candidateAssess": {
+          "sourceRef": "jsx:src/kit.jsx#250",
+          "runtimeInstanceId": "/alpha:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#935/jsx:src/App.jsx#935:jsx:src/kit.jsx#250",
+          "certainty": "stable-react-instance",
+          "page": {
+            "pathname": "/alpha",
+            "search": "?side=candidate",
+            "hash": ""
+          },
+          "locatable": true,
+          "instanceIdentityProven": true,
+          "sameSourceCount": 1,
+          "reasons": []
+        },
+        "staleAssess": {
+          "sourceRef": "jsx:src/kit.jsx#250",
+          "runtimeInstanceId": "/alpha:jsx:src/main.jsx#131/jsx:src/main.jsx#131/jsx:src/App.jsx#935/jsx:src/App.jsx#935:jsx:src/kit.jsx#250",
+          "certainty": "stable-react-instance",
+          "page": {
+            "pathname": "/alpha",
+            "search": "?side=candidate",
+            "hash": ""
+          },
+          "locatable": false,
+          "instanceIdentityProven": false,
+          "sameSourceCount": 1,
+          "reasons": [
+            "source-version-mismatch"
+          ]
+        },
+        "pairGood": {
+          "proven": true,
+          "reasons": []
+        },
+        "pairBad": {
+          "proven": false,
+          "reasons": [
+            "candidate-unproven",
+            "candidate-reasons-nonempty"
+          ]
+        }
+      }
     }
   },
   "failures": [],
