@@ -1006,3 +1006,19 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 - 门控核查：Scope 缺页 409 负例、Candidate 字节一致性、Verification 七断言、Approval passed 前置、Runtime Identity fail-closed 全部未放宽；无任何伪造成功状态。
 - DEMO 站点（81.70.40.146:8082）交互缺口已登记为 F 的交付项：最终部署应以本集成分支构建的真实工作台替换 DEMO 占位页，或 F 补全 DEMO 点击链路，二选一后复验。
 - 待负责人决策：dc32c5f 可否作为最终作品构建基线并冻结；通过后按流程并入 `feat/project-first-core-20261018`（不合并 main）。
+
+## v32（2026-10-24 21:2x）｜最终集成收尾：D3 修复纳入、正式并入 A 基线 652b42c、UI 分支审查
+
+- **D3 修复纳入**：`e49232f` 相对 `c5df07f` 仅 `.github/workflows/d3-rehearsal.yml` 3 行（`--lab` 不再重复拼接 `test/qiguang-lab`）。以 merge 方式纳入集成分支（`2f2e5a7`），无重复引入。
+- **D3 专项复验**（工作流 dispatch 于集成分支，[#40095637605 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40095637605)）：正例 verdict=PASS；负例 1（错误链接点击）NEGATIVE-PASS（`Only a verified candidate can be approved`）；负例 2（篡改对照工件）NEGATIVE-PASS（`Baseline comparison artifact hash mismatch`）。MEDIA staging/swap/viewport evidence 与 Approval/Apply/Rollback 门控全部未回退。
+- **正式并入 A**：远端 HEAD 确认 `45a2d7c` 未变后，以 `--no-ff` merge 集成分支（`dc32c5f→2f2e5a7`）入 `feat/project-first-core-20261018`，新基线 **`652b42ccc448aecb1e81e58d7d05894d896e575f`**。652b42c 树与 2f2e5a7 完全一致（A 为其祖先）。
+- **基线复验**：Ripple CI [#40096835401 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40096835401)（652b42c：typecheck/build/866 Vitest/69 Playwright/Docker 视觉 ✓）；fixture 全链路 [#40096835416 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40096835416)（652b42c 上两轮 7/7 + 连续生命周期复验通过）。A 分支自身 push 事件运行（40096805210）被并发组取消，已 rerun 补正记录。
+- **PR 状态勘误**（GitHub API 核实）：PR #30 closed+merged；PR #29 closed 未合并（#30 取代）；**PR #26 open+draft 未合并**（旧 MEDIA 入口，代码已以 D 媒体最小集成线进入 A，留待 D 关闭）。
+- **UI 分支审查**（`feat/ui-workbench-visual-20261023` @ `dc59be3`，已推送，自身 CI [#40096814844 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40096814844)）：
+  - 范围：8 次提交，仅 `src/app/experience` 组件/CSS + 2 个测试文件（`experience.spec.ts`、`experience-flow.test.tsx`），**未触碰 view-model/real-adapter/核心 API**，服务端数据合同无变更。
+  - 基点：merge-base 为 F 线 `d4eba03`（含 F 至第二批中段），**缺 F 最新 `ee90bfe`、`3f65cb1`**。
+  - 预演冲突：与 A(652b42c) 在 6 处冲突（`e2e/experience.spec.ts`、`canvas-stage.tsx`、`scope-panel.tsx`、`experience-flow.test.tsx` 等），均为 F 后段修复与 UI 重写交叉。
+  - **兼容性缺口**：UI 重写删除了 `data-testid="approve-blocked-reason"`（A 侧 4 个使用方：F 真实链路 e2e、flow 单测、evidence-drawer、scope-panel）；`close-evidence` 亦被移除（仅组件自用，低危）。
+  - 处置（待 UI Agent 完成视觉验收后执行）：UI 同步 A 652b42c → 恢复 `approve-blocked-reason` testid → A 建立集成预演；以真实生命周期合同为功能权威，保留视觉改版。
+- **F UI 全链验收缺口**：`e2e/experience-real-flow.spec.ts` 测试 14（真实 UI 链路至候选预演 + verify 状态透传 + 负例门控）已在集成 CI 实跑通过；但 **UI 点击驱动的 7/7 passed → Approval → Apply → Rollback 成功路径尚无等效测试**（fixture 驱动走 API）。已登记为 F 交付项，建议使用 passed-fixture 工程扩展 UI e2e。
+- 部署边界：公网 8082 保留静态 DEMO 不动；正式工作台须本地 Project API，不静态部署、不公网暴露文件修改 API。
