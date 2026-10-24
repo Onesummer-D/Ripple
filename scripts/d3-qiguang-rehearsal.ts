@@ -14,13 +14,15 @@
  *   - 交互证据为真实点击合同声明的链接（getByRole link 节目），不使用 goto 代替。
  *   - scopeObservations 逐页×逐视口分别从基线/候选浏览器采集真实 marker 计数与
  *     真实 img src，不复制观测、不预设计数。
- *   - 负例模式（--negative wrong-interaction / tamper-evidence）：故意破坏一项浏览器
- *     观测，验证 Approval 不会发生；此时 verdict=NEGATIVE-PASS 并以 0 退出。
+ *   - 遮蔽仅覆盖本次操作的目标媒体；其余图片保持真实 src 参与双端比较。
+ *   - 负例模式（--negative wrong-interaction / tamper-evidence / non-target-image）：
+ *     故意破坏一项浏览器观测，验证对应门控按预期拒绝；NEGATIVE-PASS 要求拒绝原因
+ *     精确匹配（错误模式 + 对应断言非 pass），不得凭任意异常通过。
  *
  * 用法（cwd = Ripple-d3 集成工作树）：
  *   node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
  *     scripts/d3-qiguang-rehearsal.ts --lab <栖光 Lab 检出根> [--out <输出目录>] \
- *     [--negative wrong-interaction|tamper-evidence]
+ *     [--negative wrong-interaction|tamper-evidence|non-target-image]
  *
  * 退出码：0 全链通过（或负例按预期被拒）；非零任一阶段失败。
  */
@@ -56,8 +58,15 @@ const argv = process.argv.slice(2)
 const labArg = argv[argv.indexOf('--lab') + 1]
 const outArgIndex = argv.indexOf('--out')
 const negativeArg = argv.indexOf('--negative')
-const negative = negativeArg >= 0 ? argv[negativeArg + 1] as 'wrong-interaction' | 'tamper-evidence' : undefined
-if (negativeArg >= 0 && negative !== 'wrong-interaction' && negative !== 'tamper-evidence') throw new Error(`未知负例模式：${negative}`)
+type NegativeMode = 'wrong-interaction' | 'tamper-evidence' | 'non-target-image'
+const negative = negativeArg >= 0 ? argv[negativeArg + 1] as NegativeMode : undefined
+/** 负例判定：拒绝必须命中精确错误模式，且对应断言确实非 pass（不得凭任意异常通过）。 */
+const NEGATIVE_PATTERNS: Record<NegativeMode, RegExp> = {
+  'wrong-interaction': /Only a verified candidate can be approved/,
+  'tamper-evidence': /hash mismatch/i,
+  'non-target-image': /Only a verified candidate can be approved/,
+}
+if (negativeArg >= 0 && !['wrong-interaction', 'tamper-evidence', 'non-target-image'].includes(negative)) throw new Error(`未知负例模式：${negative}`)
 const outDir = path.resolve(outArgIndex >= 0 ? argv[outArgIndex + 1] : 'test-results/d3-rehearsal')
 const labRoot = path.resolve(labArg, 'test/qiguang-lab')
 const variantRoot = path.join(labRoot, 'router-variant')
@@ -76,9 +85,18 @@ let comparisonArtifacts: Array<{ name: string; artifactPath: string; artifactHas
 let scopeProbes: Array<{
   pageRef: string
   viewport: { name: string; width: number; height: number }
-  baseline: { markerCount: number; heroSrc: string }
-  candidate: { markerCount: number; heroSrc: string }
+  baseline: { markerCount: number; heroSrc: string; layout: LayoutProbe }
+  candidate: { markerCount: number; heroSrc: string; layout: LayoutProbe }
 }> = []
+
+interface LayoutProbe {
+  scrollWidth: number
+  clientWidth: number
+  horizontalOverflow: boolean
+  heroVisible: boolean
+  heroInViewport: boolean
+  containerInViewport: boolean
+}
 let tallDims: { width: number; height: number } | undefined
 let dualSha = ''
 let evidenceReportSha = ''
@@ -252,6 +270,25 @@ async function main(): Promise<void> {
     build(baselineSrc, distBaseline)
     // candidateRoot 无 public 之外的差异；构建其自身源码（引用已指向替换资产）
     build(previewRoot, distCandidate)
+    // 负例 non-target-image：真实修改候选产物中一个非目标图片的引用，
+    // 验证「仅遮蔽目标媒体」的双端对照能发现非目标变更并拒绝审批
+    if (negative === 'non-target-image') {
+      let patched = 0
+      const walkDist = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name)
+          if (entry.isDirectory()) { walkDist(full); continue }
+          if (!/\.(html|js|css)$/.test(entry.name)) continue
+          const content = fs.readFileSync(full, 'utf8')
+          if (content.includes('/media/qiguang-home-local.jpg')) {
+            fs.writeFileSync(full, content.replaceAll('/media/qiguang-home-local.jpg', '/media/qiguang-archive.jpg'))
+            patched += 1
+          }
+        }
+      }
+      walkDist(distCandidate)
+      stage(`负例 non-target-image：候选 dist 非目标图片引用已改（${patched} 个文件，home-local→archive）`)
+    }
     const baselineServer = await serveStatic(distBaseline, 0)
     const candidateServer = await serveStatic(distCandidate, 0)
     servers.push(baselineServer, candidateServer)
@@ -312,14 +349,19 @@ async function main(): Promise<void> {
         await baselineImg.screenshot({ path: baselinePng })
         const baselineMatchCount = await page.locator(`img[src="${SHARED_VALUE}"]`).count()
         // 双端遮蔽 DOM 快照（mask 掉 img src 后整树 innerHTML 的 sha256）
+        // 仅遮蔽本次操作涉及的目标媒体；其余图片保持真实 src 参与双端比较，
+        // 使非目标图片的真实变更必然导致快照摘要不一致
         const maskSnapshot = async (url: string): Promise<string> => {
           await page.goto(url, { waitUntil: 'networkidle' })
-          return page.evaluate(mask => {
+          return page.evaluate(([mask, targetPaths]) => {
             const root = document.getElementById('root')
             const clone = root?.cloneNode(true) as HTMLElement | null
-            clone?.querySelectorAll('img').forEach(image => image.setAttribute('src', mask))
+            clone?.querySelectorAll('img').forEach(image => {
+              const src = image.getAttribute('src') ?? ''
+              if (targetPaths.some(target => src.includes(target))) image.setAttribute('src', mask)
+            })
             return clone?.innerHTML ?? ''
-          }, '<masked>')
+          }, ['<masked>', [SHARED_VALUE, ASSET_REF]] as const)
         }
         const snapshotSha = (snapshot: string): string => createHash('sha256').update(snapshot).digest('hex')
         const baselineSnapshot = await maskSnapshot(baselineUrl)
@@ -345,25 +387,46 @@ async function main(): Promise<void> {
         }
         const baselineInteraction = await clickAndCheck(baselineUrl)
         const candidateInteraction = await clickAndCheck(candidateUrl)
-        const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
-        // Scope 观测：逐页从基线/候选浏览器分别采集真实 marker 计数与真实 img src
+        // Scope 观测：逐页从基线/候选浏览器分别采集真实 marker 计数、真实 img src
+        // 与真实布局状态（横向溢出 / 目标图片可见性 / 容器边界）
+        let homeBaselineProbe: { markerCount: number; heroSrc: string } | undefined
+        let homeCandidateProbe: { markerCount: number; heroSrc: string } | undefined
         for (const contractPage of contract.pages) {
           const probe = async (port: number) => {
             await page.goto(`http://127.0.0.1:${port}${contractPage.path === '/' ? '/' : contractPage.path}`, { waitUntil: 'networkidle' })
             const markerCount = await page.locator('h1', { hasText: contractPage.markerText }).count()
             const heroSrc = await page.locator('img[data-consumer="shared-hero"]').first().getAttribute('src').catch(() => null) ?? ''
-            return { markerCount, heroSrc }
+            const layout = await page.evaluate(() => {
+              const doc = document.documentElement
+              const hero = document.querySelector('img[data-consumer="shared-hero"]')
+              const rect = hero?.getBoundingClientRect()
+              const container = (hero?.closest('[data-container]') ?? hero?.parentElement)?.getBoundingClientRect() ?? null
+              return {
+                scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth,
+                horizontalOverflow: doc.scrollWidth > doc.clientWidth,
+                heroVisible: !!rect && rect.width > 0 && rect.height > 0,
+                heroInViewport: !!rect && rect.left >= 0 && rect.right <= doc.clientWidth,
+                containerInViewport: !!container && container.left >= 0 && container.right <= doc.clientWidth,
+              }
+            })
+            return { markerCount, heroSrc, layout }
           }
           const baseline = await probe(baselinePort)
           const candidate = await probe(candidatePort)
+          if (contractPage.pageRef === contract.pages[0].pageRef) { homeBaselineProbe = baseline; homeCandidateProbe = candidate }
           scopeProbes.push({ pageRef: contractPage.pageRef, viewport: { name, width: viewport.width, height: viewport.height }, baseline, candidate })
         }
         dualViewports.push({
           viewport: { name, width: viewport.width, height: viewport.height },
-          candidate: { worksPageReached: true, markerVisible: candidateMarkerVisible, markerMatchCount: candidateMarkerVisible ? 1 : 0 },
+          candidate: {
+            // 全部来自本视口真实观测：首页 marker 计数 + hero 已加载可见
+            worksPageReached: obs.loaded && candidateMarkerVisible, markerVisible: candidateMarkerVisible,
+            markerMatchCount: homeCandidateProbe?.markerCount ?? 0,
+          },
           baseline: {
-            pageUrl: baselineUrl, worksPageReached: true,
-            markerVisible: candidateMarkerVisible, markerMatchCount: candidateMarkerVisible ? 1 : 0,
+            // 全部来自基线浏览器真实观测（不复用候选值）
+            pageUrl: baselineUrl, worksPageReached: baselineObs.loaded && (homeBaselineProbe?.markerCount ?? 0) >= 1,
+            markerVisible: (homeBaselineProbe?.markerCount ?? 0) >= 1, markerMatchCount: homeBaselineProbe?.markerCount ?? 0,
             imageFound: baselineObs.loaded, imageMatchCount: baselineMatchCount,
             currentSrc: baselineObs.currentSrc, screenshotSha256: sha256(fs.readFileSync(baselinePng)),
             errors: baselineErrors,
@@ -376,9 +439,11 @@ async function main(): Promise<void> {
           },
           interaction: {
             baselinePassed: baselineInteraction.passed, candidatePassed: candidateInteraction.passed,
-            baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const,
+            // 路由身份只由该侧真实落点观测支撑：到达期望 marker → verified，否则 wrong-route
+            baselineRouteIdentity: (baselineInteraction.passed ? 'verified' : 'wrong-route') as 'verified' | 'wrong-route',
+            candidateRouteIdentity: (candidateInteraction.passed ? 'verified' : 'wrong-route') as 'verified' | 'wrong-route',
           },
-          layout: { horizontalOverflow },
+          layout: { horizontalOverflow: homeCandidateProbe?.layout.horizontalOverflow ?? false },
           runtimeState: 'home-ready', errors: [], warnings: [],
         })
       }
@@ -430,6 +495,16 @@ async function main(): Promise<void> {
       if (!probe.candidate.heroSrc.includes(ASSET_REF)) failures.push(`${probe.pageRef}@${probe.viewport.name} 候选 hero 未指向替换媒体（实际 ${probe.candidate.heroSrc}）`)
       return failures
     })
+    // responsive-layout：3 页 × 4 视口候选端真实布局，逐条保留具体失败位置
+    const layoutFailures: string[] = []
+    for (const probe of scopeProbes) {
+      const layout = probe.candidate.layout
+      const at = `${probe.pageRef}@${probe.viewport.name}`
+      if (layout.horizontalOverflow) layoutFailures.push(`${at} 横向溢出（scrollWidth=${layout.scrollWidth} > clientWidth=${layout.clientWidth}）`)
+      if (!layout.heroVisible) layoutFailures.push(`${at} 目标图片不可见（渲染盒为空）`)
+      if (!layout.heroInViewport) layoutFailures.push(`${at} 目标图片越出视口横向边界`)
+      if (!layout.containerInViewport) layoutFailures.push(`${at} 图片容器越出视口横向边界`)
+    }
     const assert = (id: string, ok: boolean | undefined, detail: string): { id: string; result: EvidenceResult; detail: string } => ({
       id, result: ok === undefined ? 'not-run' : ok ? 'pass' : 'risk', detail,
     })
@@ -440,7 +515,7 @@ async function main(): Promise<void> {
         `4/4 视口候选 img 已加载且唯一命中 ${ASSET_REF}，基端仍命中原媒体；负例观测数=${observations.filter(o => !(o.loaded && o.matchCount === 1)).length}`),
       assert('non-target-preserved',
         dualViewports.length === projectPreviewViewports.length && dualViewports.every(v => v.maskedComparison.matched),
-        `双端遮蔽 DOM 快照 4/4 视口 sha256 一致（mask img src 后非目标 DOM 完全保留）；不一致视口=${dualViewports.filter(v => !v.maskedComparison.matched).map(v => v.viewport.name).join(',') || '无'}`),
+        `双端 DOM 快照 4/4 视口 sha256 一致（仅遮蔽目标媒体 ${SHARED_VALUE}/${ASSET_REF}，其余图片真实 src 参与比较）；不一致视口=${dualViewports.filter(v => !v.maskedComparison.matched).map(v => v.viewport.name).join(',') || '无'}`),
       assert('scope-propagation',
         scopeProbes.length === contract.pages.length * projectPreviewViewports.length && probeFailures.length === 0,
         `逐页×逐视口双端真实采集 ${scopeProbes.length} 条（3 页×4 视口），基线=原媒体/候选=替换媒体/marker≥1；违规=${probeFailures.length} 条${probeFailures.length ? '：' + probeFailures.join('；') : ''}`),
@@ -448,9 +523,8 @@ async function main(): Promise<void> {
         dualViewports.length === projectPreviewViewports.length && dualViewports.every(v => v.interaction.baselinePassed && v.interaction.candidatePassed),
         `真实点击「${contract.interactions[0].name}」链接 4/4 视口双端到达「${contract.interactions[0].expectedText}」；失败视口=${dualViewports.filter(v => !v.interaction.baselinePassed || !v.interaction.candidatePassed).map(v => v.viewport.name).join(',') || '无'}`),
       assert('responsive-layout',
-        observations.length === projectPreviewViewports.length && observations.every(o => !dualViewports.find(v => v.viewport.name === o.viewport.name)?.layout.horizontalOverflow
-          && o.renderedBox.x >= 0 && o.renderedBox.x + o.renderedBox.width <= o.viewport.width),
-        `4/4 视口候选端无横向溢出且 hero 渲染盒位于视口内；溢出视口=${dualViewports.filter(v => v.layout.horizontalOverflow).map(v => v.viewport.name).join(',') || '无'}`),
+        scopeProbes.length === contract.pages.length * projectPreviewViewports.length && layoutFailures.length === 0,
+        `3 页×4 视口候选端真实布局采集 ${scopeProbes.length} 条（横向溢出/目标图可见性/图片与容器边界）；失败 ${layoutFailures.length} 处${layoutFailures.length ? '：' + layoutFailures.join('；') : ''}`),
       assert('source-mapping',
         observations.length === projectPreviewViewports.length && tallDims !== undefined
           && observations.every(o => new URL(o.currentSrc).pathname === ASSET_REF && o.naturalWidth === tallDims!.width && o.naturalHeight === tallDims!.height),
@@ -476,21 +550,25 @@ async function main(): Promise<void> {
     let applySession = recordSourceGraph(openSession('d3-apply', applyGraph.revision, 'Replace shared hero with portrait rehearsal asset', [], contract), applyGraph.id, applyGraph.revision.sourceDigest)
     applySession = stageCandidate(stageOperations(chooseScope(applySession, scope), [operation], [mediaAssetSwapExecutor]), candidate)
     // 用真实四视口结果登记正式 VerificationRun（attested，双端 sha 可追溯）
+    // completedAt 与全部证据 capturedAt 使用同一时间戳：registerVerification 要求
+    // capturedAt <= completedAt，逐条 new Date() 存在毫秒级竞态（pre-existing flake）
+    const completedAt = new Date().toISOString()
+    const evidence = observations.map((observation, index) => ({
+      id: `evidence-${observation.viewport.name}`, checkId: `check-${index}`, result: 'pass' as const,
+      capturedAt: completedAt, pageUrl: observation.pageUrl,
+      viewport: { width: observation.viewport.width, height: observation.viewport.height },
+      runtimeState: 'home-ready', elementRefs: [target.id],
+      artifactPath: path.join(outDir, `${observation.viewport.name}.png`), artifactHash: observation.screenshotSha256!,
+    }))
     const run: VerificationRun = {
       id: 'd3-media-run', candidateId: candidate.id, baseSourceDigest: candidate.baseSourceDigest, patchHash: candidate.patchHash,
       scopeDecisionId: candidate.scopeDecisionId, scopeVersion: candidate.scopeVersion,
       candidateTreeDigest: candidate.candidateTreeDigest, runtimeFingerprint: applySession.projectRevision.runtimeFingerprint,
-      startedAt: record.startedAt as string, completedAt: new Date().toISOString(),
+      startedAt: record.startedAt as string, completedAt,
       checks: projectPreviewViewports.map((viewport, index) => ({ id: `check-${index}`, route: '/', viewport: { width: viewport.width, height: viewport.height }, state: 'home-ready', description: 'Shared hero visible and swapped', mandatory: true })),
       assertions,
       verificationContractHash: verificationContractHash(contract),
-      evidence: observations.map((observation, index) => ({
-        id: `evidence-${observation.viewport.name}`, checkId: `check-${index}`, result: 'pass' as const,
-        capturedAt: new Date().toISOString(), pageUrl: observation.pageUrl,
-        viewport: { width: observation.viewport.width, height: observation.viewport.height },
-        runtimeState: 'home-ready', elementRefs: [target.id],
-        artifactPath: path.join(outDir, `${observation.viewport.name}.png`), artifactHash: observation.screenshotSha256!,
-      })),
+      evidence,
       baselineComparisons: dualViewports.map((v, index) => ({
         route: '/', viewport: { width: v.viewport.width, height: v.viewport.height },
         baselineDigest: v.maskedComparison.baselineDigest, candidateDigest: v.maskedComparison.candidateDigest,
@@ -504,7 +582,9 @@ async function main(): Promise<void> {
             pageRef: page.pageRef, route: page.path, viewport: { width: viewport.width, height: viewport.height },
             markerText: page.markerText, baselineMarkerVisible: probe.baseline.markerCount >= 1, candidateMarkerVisible: probe.candidate.markerCount >= 1,
             baselineMarkerMatchCount: probe.baseline.markerCount, candidateMarkerMatchCount: probe.candidate.markerCount,
-            baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const,
+            // 路由身份只由该侧真实 marker 观测支撑
+            baselineRouteIdentity: (probe.baseline.markerCount >= 1 ? 'verified' : 'missing') as 'verified' | 'missing',
+            candidateRouteIdentity: (probe.candidate.markerCount >= 1 ? 'verified' : 'missing') as 'verified' | 'missing',
             operations: candidate.operations.map(op => {
               const expectation = expectedTextForScope(scope, page.pageRef, op.before, op.after)
               return {
@@ -518,7 +598,8 @@ async function main(): Promise<void> {
         interactionIndex: 0, pageRef: contract.pages[0].pageRef, route: '/',
         viewport: { width: v.viewport.width, height: v.viewport.height },
         role: 'link' as const, name: contract.interactions[0].name, expectedText: contract.interactions[0].expectedText,
-        baselineRouteIdentity: 'verified' as const, candidateRouteIdentity: 'verified' as const,
+        baselineRouteIdentity: (v.interaction.baselinePassed ? 'verified' : 'wrong-route') as 'verified' | 'wrong-route',
+        candidateRouteIdentity: (v.interaction.candidatePassed ? 'verified' : 'wrong-route') as 'verified' | 'wrong-route',
         baselinePassed: v.interaction.baselinePassed, candidatePassed: v.interaction.candidatePassed,
       })),
       status: 'incomplete',
@@ -546,11 +627,13 @@ async function main(): Promise<void> {
       attested = attestBrowserExecution(run, recordPath)
     } catch (attestError) {
       if (negative === 'tamper-evidence') {
-        record.negativeResult = { mode: negative, expectedRejection: 'attestBrowserExecution 拒绝被篡改的对照工件', observedError: String(attestError instanceof Error ? attestError.message : attestError) }
+        const observedError = String(attestError instanceof Error ? attestError.message : attestError)
+        if (!NEGATIVE_PATTERNS['tamper-evidence'].test(observedError)) throw new Error(`负例拒绝原因不符合预期：${observedError}`)
+        record.negativeResult = { mode: negative, expectedRejection: 'attestBrowserExecution 拒绝被篡改的对照工件（hash mismatch）', observedError }
         record.verdict = 'NEGATIVE-PASS'
         record.completedAt = new Date().toISOString()
         fs.writeFileSync(path.join(outDir, 'd3-rehearsal-record.json'), JSON.stringify(record, null, 2))
-        stage(`NEGATIVE-PASS：篡改后 attest 被拒（${record.negativeResult.observedError}）`)
+        stage(`NEGATIVE-PASS：篡改后 attest 被拒（${observedError}）`)
         return
       }
       throw attestError
@@ -561,17 +644,22 @@ async function main(): Promise<void> {
     try {
       applySession = approve(registerVerification(applySession, attested), { candidateId: candidate.id, verificationRunId: attested.id, by: 'd-agent-rehearsal', at: new Date().toISOString() })
     } catch (approvalError) {
-      if (negative === 'wrong-interaction') {
-        record.negativeResult = { mode: negative, expectedRejection: 'interaction 断言非 pass → 审批拒绝', observedError: String(approvalError instanceof Error ? approvalError.message : approvalError) }
+      if (negative === 'wrong-interaction' || negative === 'non-target-image') {
+        const observedError = String(approvalError instanceof Error ? approvalError.message : approvalError)
+        const assertionId = negative === 'wrong-interaction' ? 'interaction' : 'non-target-preserved'
+        const assertionResult = (record.assertions as Array<{ id: string, result: string }>).find(a => a.id === assertionId)?.result
+        if (assertionResult === 'pass') throw new Error(`负例断言校验失败：${assertionId} 仍为 pass，拒绝原因不成立（${observedError}）`)
+        if (!NEGATIVE_PATTERNS[negative].test(observedError)) throw new Error(`负例拒绝原因不符合预期：${observedError}`)
+        record.negativeResult = { mode: negative, expectedRejection: `${assertionId} 断言非 pass（实际 ${assertionResult}）→ 审批拒绝`, observedError }
         record.verdict = 'NEGATIVE-PASS'
         record.completedAt = new Date().toISOString()
         fs.writeFileSync(path.join(outDir, 'd3-rehearsal-record.json'), JSON.stringify(record, null, 2))
-        stage(`NEGATIVE-PASS：交互失败后审批被拒（${record.negativeResult.observedError}）`)
+        stage(`NEGATIVE-PASS：${assertionId}=${assertionResult} 导致审批被拒（${observedError}）`)
         return
       }
       throw approvalError
     }
-    if (negative === 'wrong-interaction') throw new Error('负例未生效：交互观测被破坏后审批竟通过')
+    if (negative === 'wrong-interaction' || negative === 'non-target-image') throw new Error('负例未生效：浏览器观测被破坏后审批竟通过')
     stage(`Approval：run=${attested.id} 状态=${applySession.status}`)
 
     // applyApprovedCandidateWithRecovery 返回 ApplyRecoveryOutcome { session }，applied 已记录其中

@@ -2,8 +2,8 @@
 #   - A 公共核心基线：45a2d7c（分支祖先断言）
 #   - D 集成代码：本分支（含 scripts/d3-qiguang-rehearsal.ts 与本 workflow）
 #   - 栖光 Lab：77f9ae1（data-router 变体 + 真实「节目」导航链接）
-# 正例全链 + 两项故意破坏浏览器观测的负例（交互失败 / 证据篡改），
-# 负例必须被审批拒绝才算通过；全部证据工件上传。
+# 正例全链 + 三项故意破坏浏览器观测的负例（交互失败 / 证据篡改 / 非目标图片被改），
+# 负例必须按精确拒绝原因被门控拦截才算通过；全部证据工件上传。
 name: D3 Media Rehearsal
 
 on:
@@ -66,9 +66,15 @@ jobs:
             scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
             --out test-results/d3-negative-tamper --negative tamper-evidence
 
+      - name: Negative 3 — modified non-target image must block approval
+        run: |
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
+            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
+            --out test-results/d3-negative-nontarget --negative non-target-image
+
       - name: Summarize verdicts
         run: |
-          for dir in d3-rehearsal d3-negative-interaction d3-negative-tamper; do
+          for dir in d3-rehearsal d3-negative-interaction d3-negative-tamper d3-negative-nontarget; do
             node -e "const r=require('./test-results/$dir/d3-rehearsal-record.json'); console.log('$dir: verdict='+r.verdict, r.negativeResult ? JSON.stringify(r.negativeResult) : '')"
           done
 
@@ -81,4 +87,5 @@ jobs:
             test-results/d3-rehearsal/**
             test-results/d3-negative-interaction/**
             test-results/d3-negative-tamper/**
+            test-results/d3-negative-nontarget/**
           if-no-files-found: error
