@@ -282,10 +282,12 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-candidate2-before.png'), fullPage: true })
   let candidate2Payload: { candidate: { id: string } }
   try {
-    const candidate2Response = await page.waitForResponse(
+    const candidate2ResponsePromise = page.waitForResponse(
       response => new URL(response.url()).pathname === '/__ripple/api/candidate',
       { timeout: 60_000 },
     )
+    await page.getByTestId('create-candidate').click()
+    const candidate2Response = await candidate2ResponsePromise
     const candidate2Text = await candidate2Response.text()
     console.log(`[f-candidate-diagnostic] candidate2-response ${JSON.stringify({ status: candidate2Response.status(), body: candidate2Response.status() >= 400 ? redact(candidate2Text) : '<success body omitted>' })}`)
     expect(candidate2Response.status(), `second candidate HTTP response: ${redact(candidate2Text)}`).toBe(200)
