@@ -1039,3 +1039,16 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
 - **Runtime Identity 阶段二合同冻结**：`feat/a-identity-phase2-freeze-20261024` @ `docs/architecture/runtime-identity-phase2-frozen.md`（A 裁决 v1），PR #34 已留评。要点：`runtimeIdentities[]` 键控含侧别；逐 record assessments；完整三元组 page 比对；跨版本严格配对六项条件（新增 reason `cross-side-assessment-mismatch`）；`identityAssessment!=null` 口径废弃逐对核验；missingEvidence 宿主代核。**授权 E 启动阶段二编码**（A ①② 先行）。
 - 青野 MEDIA 问题归属（P1）：B1（export const Hero 媒体常量无 SourceGraph 节点）→ C+D（媒体常量节点建模）；B2（数据层媒体字面量 PageImpact unknown）→ C+D（数据层字面量消费证明链）；B3（外链媒体缺合法本地资产对象）→ D（asset-swap 合法资产登记合同）。统一回归要求：青野固定 SHA `f7e4998a`，各问题建正反例，禁止只修 B1 即宣布全链验收。
 - 待负责人授权：bb24508 以 merge 方式并入 `feat/project-first-core-20261018`（不合并 main）。
+
+## v34（2026-10-24 23:4x）｜F 移交增量纳入，新公共基线 1373ca2，合同 v1.1
+
+- F 最新 `7373ed1` 审查：`real-adapter.ts` 仅终态兜底两处（workflowFromHistory 痕迹缺失时以 lifecycle 终态兜底、rollback 痕迹优先于 lifecycle=applied 的 fail-safe）+ 4 组负例 + 3 份移交文档。体验层 110/110 本地绿，纳入集成候选 `980c35f`，候选 CI [#40106246809 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40106246809)。
+- **正式并入 A**：`652b42c` 核实未变后 merge `980c35f` → 新公共基线 **`1373ca2e20c56f59cf633a005100c2aa1d2a1bc0`**。
+- 新基线复验：A 分支 CI [#40107381479 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40107381479)（**877/877 Vitest、70/70 Playwright**，typecheck/build/Docker ✓）；fixture 全链路于 1373ca2 复验 [#40107401481 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40107401481)。
+- **合同 v1.1**（`feat/a-identity-phase2-freeze-20261024` @ `7b24e72`，PR #34 已留评）：
+  1. offset drift：跨版本同源须字符串相等或正式跨版本节点映射（版本化+按侧核验），无映射保持未证明，禁止相似度放行；
+  2. 失败归档正式类型 `RuntimeRunIdentityArchiveFailure`（五词表 reason + declaredSnapshotSha256 声称值语义），`runtimeIdentities` 改联合类型，失败条目不参与配对。
+- **A ①② 实施分支**：`feat/a-identity-host-impl-20261024`（自 1373ca2 建立，负责人 A）：双侧 snapshot 归档、servedSourceDigest、逐 record 评估、三元组 expectedPage、runtimeIdentities 写入与失败降级。E 的 View ③ 须基于该分支有效接线代码。
+- **P1 排期登记**：AC-P4（基线 DOM 比对页面选择/空期望误报）与 AC-P5（重复 reads 边去重）→ C+D 队列（第三方工程证据质量）；AC-P6（CSS Token 作用域来源+执行器合同）→ 新设 CSS 工作线（B/C+D 联合，最小合同先行）；HashRouter/页面来源识别 → C+D。注意：codescandy 仍有 browser-errors=risk（外部字体 CSP）与 interaction=unknown，AC-P4/P5 完成后**不承诺 7/7 PASS**。
+- **Issue #35 青野**：B1→C+D 静态提取覆盖；B2 维持 fail-closed（增强证明须真实依据）；B3→D 默认本地资产，远程导入须安全设计+授权。
+- **UI PR #32**：禁止按旧 base 覆盖 F 新生命周期组件；待 UI Agent 以 1373ca2 重做兼容适配（恢复 `approve-blocked-reason` testid 等），F 复验后走集成预演。
