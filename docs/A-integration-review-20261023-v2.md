@@ -1022,3 +1022,20 @@ typecheck ✓ / build ✓ / 定向 Vitest 39/39 ✓；正式 CI（39895283491，
   - 处置（待 UI Agent 完成视觉验收后执行）：UI 同步 A 652b42c → 恢复 `approve-blocked-reason` testid → A 建立集成预演；以真实生命周期合同为功能权威，保留视觉改版。
 - **F UI 全链验收缺口**：`e2e/experience-real-flow.spec.ts` 测试 14（真实 UI 链路至候选预演 + verify 状态透传 + 负例门控）已在集成 CI 实跑通过；但 **UI 点击驱动的 7/7 passed → Approval → Apply → Rollback 成功路径尚无等效测试**（fixture 驱动走 API）。已登记为 F 交付项，建议使用 passed-fixture 工程扩展 UI e2e。
 - 部署边界：公网 8082 保留静态 DEMO 不动；正式工作台须本地 Project API，不静态部署、不公网暴露文件修改 API。
+
+## v33（2026-10-24 22:4x）｜F 联合验收 + D3 加固集成 bb24508；Runtime Identity 阶段二合同冻结
+
+- 集成分支 `feat/a-f34-integration-20261024` @ `bb24508`（基线 A `652b42c`）：
+  1. `ad280b5` ← F 联合验收 `0cf15b5`（merge 零冲突；F 线基于 `7a3ec43`，与 A 的 F phase2/3 增量三方合并干净，净差异 +951/−36，19 文件）
+  2. `bb24508` ← D 两文件加固 `6fa0109`（仅 `scripts/d3-qiguang-rehearsal.ts` + 工作流，无重复引入）
+- F 五项专项复核（源码级）：
+  1. `workflowFromHistory()` 由历史整体重建（applied/rollback 痕迹齐备），rollbackAvailable 仅 applied 生命周期由实时响应给出；
+  2. 终态推导顺序修正为 rollback 优先于 applied（回滚后不再误显「已审批」）；
+  3. apply/rollback 后消费服务端随响应的分析结果，不再重复 analyze（避免 requireClean 误杀成功写盘）；
+  4. 预览锁冲突 `postWithBusyRetry`：5 次 × 700ms 有限退避，遵守 generation 过期语义，持续失败如实抛出（fail-closed）；
+  5. UI testid 全保留（picker-hint/toggle、approve-candidate、verification-status、approve-blocked-reason、target-strip 各 1）。
+- 集成 CI [#40102037075 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40102037075)：typecheck/build ✓、**876/876 Vitest**、**70/70 Playwright**。其中 `experience-passed-lifecycle.spec.ts` 联合验收 UI 成功路径（点选共享页脚→完整 Scope→7/7 passed→审批→应用逐字节→回滚逐字节→刷新核对，31.7s 真实浏览器）在集成 SHA 上实跑通过。
+- D3 专项（dispatch [#40103522342 SUCCESS](https://github.com/Onesummer-D/Ripple/actions/runs/40103522342)）：正例 PASS + 三项负例 NEGATIVE-PASS（wrong-interaction / tamper-evidence / non-target-image，后者为 6fa0109 新增）。MEDIA staging/swap/viewport evidence 与生命周期门控零回退。
+- **Runtime Identity 阶段二合同冻结**：`feat/a-identity-phase2-freeze-20261024` @ `docs/architecture/runtime-identity-phase2-frozen.md`（A 裁决 v1），PR #34 已留评。要点：`runtimeIdentities[]` 键控含侧别；逐 record assessments；完整三元组 page 比对；跨版本严格配对六项条件（新增 reason `cross-side-assessment-mismatch`）；`identityAssessment!=null` 口径废弃逐对核验；missingEvidence 宿主代核。**授权 E 启动阶段二编码**（A ①② 先行）。
+- 青野 MEDIA 问题归属（P1）：B1（export const Hero 媒体常量无 SourceGraph 节点）→ C+D（媒体常量节点建模）；B2（数据层媒体字面量 PageImpact unknown）→ C+D（数据层字面量消费证明链）；B3（外链媒体缺合法本地资产对象）→ D（asset-swap 合法资产登记合同）。统一回归要求：青野固定 SHA `f7e4998a`，各问题建正反例，禁止只修 B1 即宣布全链验收。
+- 待负责人授权：bb24508 以 merge 方式并入 `feat/project-first-core-20261018`（不合并 main）。
