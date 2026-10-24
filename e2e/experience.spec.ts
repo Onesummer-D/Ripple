@@ -20,6 +20,18 @@ async function openExperience(page: Page, url = '/experience.html') {
 
 test.beforeEach(() => { consoleErrors.length = 0 })
 
+/** 影响范围逐页翻：先回到第一页，再逐页向后翻到目标页。 */
+async function scopeGoto(page: Page, pageId: string) {
+  await page.getByTestId('step-tab-3').click()
+  const prev = page.getByTestId('scope-pager-prev')
+  for (let i = 0; i < 5; i += 1) { if (await prev.isEnabled()) await prev.click() }
+  for (let i = 0; i < 5; i += 1) {
+    if (await page.getByTestId(`scope-row-${pageId}`).count() > 0) return
+    const next = page.getByTestId('scope-pager-next')
+    if (await next.isEnabled()) await next.click()
+  }
+}
+
 test('初始页面：页面导航、画布与 DEMO 标记', async ({ page }) => {
   await openExperience(page)
   await expect(page.getByTestId('demo-badge')).toContainText('演示数据')
@@ -60,25 +72,33 @@ test('来源未知元素只能查看：无输入框、无编辑授权', async ({
   await openExperience(page)
   await page.getByTestId('canvas-el-el:promo-card').click()
   await expect(page.getByTestId('draft-text-input')).toHaveCount(0)
+  await page.getByTestId('step-tab-1').click()
   await expect(page.getByText('来源未知：可以先查看，但不能承诺修改范围')).toBeVisible()
 })
 
-test('Scope 阻断：未证明页面包含/未决定时不得审批，排除后演示审批并给出可见反馈', async ({ page }) => {
+test('Scope 阻断：未证明页面一起改/未决定时不得审批，排除后演示审批并给出可见反馈', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
   await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('demo-approve')).toBeDisabled()
+  await scopeGoto(page, 'page:contact')
   await page.getByTestId('scope-include-page:contact').click()
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('approval-area')).toContainText('风险检查')
   await expect(page.getByTestId('demo-approve')).toBeDisabled()
+  await scopeGoto(page, 'page:contact')
   await page.getByTestId('scope-exclude-page:contact').click()
+  await scopeGoto(page, 'page:seasonal')
   await page.getByTestId('scope-exclude-page:seasonal').click()
+  await page.getByTestId('step-tab-4').click()
   await page.getByTestId('demo-approve').click()
   await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认，未执行真实应用')
 })
 
 test('无选中/无修改不得审批', async ({ page }) => {
   await openExperience(page)
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('approval-area')).toContainText('修改前检查')
   await expect(page.getByTestId('demo-approve')).toBeDisabled()
 })
@@ -129,7 +149,8 @@ test('模拟内容不得进入 real 模式：real 桩下无演示 DOM，显示�
   await expect(page.getByText('尚无真实截图')).toHaveCount(2)
   await expect(page.getByTestId('demo-badge')).toHaveCount(0)
   await expect(page.getByTestId('demo-approve')).toHaveCount(0)
-  // real 模式没有可执行审批入口，明确提示未接入（不会点击后回演示确认）
+  // real 模式没有可执行审批入口，明确提示未接入（第 4 步；不会点击后回演示确认）
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
 })
 
@@ -155,33 +176,38 @@ test('桌面与窄窗口布局都可操作', async ({ page }) => {
 test('任务一：切换编辑目标重建页面关系与默认范围（标题→副标题→标题）', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
-  await expect(page.getByTestId('scope-row-page:products')).toContainText('同源页面')
+  await scopeGoto(page, 'page:products')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('这页和当前页使用同一段文字')
   await page.getByTestId('scope-protect-page:products').click()
   // 切换到副标题：商品专题不再虚假显示同源，旧 Scope 决定不残留
   await page.getByTestId('canvas-el-el:hero-subtitle').click()
-  await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
-  await expect(page.getByTestId('scope-row-page:products')).not.toContainText('同源')
-  // 未决定：三个范围按钮均未按下
+  await scopeGoto(page, 'page:products')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('还没法确定这页会不会被影响')
+  // 未决定：三个范围选项均未选中
   for (const choice of ['include', 'protect', 'exclude']) {
     await expect(page.getByTestId(`scope-${choice}-page:products`)).toHaveAttribute('aria-pressed', 'false')
   }
   // 返回标题：默认影响关系与 Scope 恢复
   await page.getByTestId('canvas-el-el:hero-title').click()
-  await expect(page.getByTestId('scope-row-page:products')).toContainText('同源页面')
+  await scopeGoto(page, 'page:products')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('这页和当前页使用同一段文字')
   await expect(page.getByTestId('scope-include-page:products')).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('任务一负例：partial 目标不产生已证明无关页，来源确定性不被提升', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:seasonal-banner').click()
-  await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
+  await scopeGoto(page, 'page:products')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('还没法确定这页会不会被影响')
   for (const choice of ['include', 'protect', 'exclude']) {
     await expect(page.getByTestId(`scope-${choice}-page:products`)).toHaveAttribute('aria-pressed', 'false')
   }
   // 影响范围中除当前编辑页外不允许出现"来源已证实"的页面关系
   await page.getByTestId('canvas-el-el:promo-card').click()
-  await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
-  await expect(page.getByTestId('scope-row-page:seasonal')).toContainText('影响未证明')
+  await scopeGoto(page, 'page:products')
+  await expect(page.getByTestId('scope-row-page:products')).toContainText('还没法确定这页会不会被影响')
+  await scopeGoto(page, 'page:seasonal')
+  await expect(page.getByTestId('scope-row-page:seasonal')).toContainText('还没法确定这页会不会被影响')
 })
 
 test('任务二：对照区绑定当前目标，无选中/无草稿显示明确状态', async ({ page }) => {
@@ -204,22 +230,31 @@ test('任务三：演示审批反馈随范围/草稿/目标修订失效', async 
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
   await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await scopeGoto(page, 'page:contact')
   await page.getByTestId('scope-exclude-page:contact').click()
+  await scopeGoto(page, 'page:seasonal')
   await page.getByTestId('scope-exclude-page:seasonal').click()
+  await page.getByTestId('step-tab-4').click()
   await page.getByTestId('demo-approve').click()
   await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认')
   // 修改范围决策 → 旧反馈消失，门控重新阻断且审批按钮不可用
+  await scopeGoto(page, 'page:contact')
   await page.getByTestId('scope-include-page:contact').click()
   await expect(page.getByTestId('approve-feedback')).toHaveCount(0)
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('approval-area')).toContainText('风险检查')
   await expect(page.getByTestId('demo-approve')).toBeDisabled()
   // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
+  await scopeGoto(page, 'page:contact')
   await page.getByTestId('scope-exclude-page:contact').click()
+  await page.getByTestId('step-tab-4').click()
   await page.getByTestId('demo-approve').click()
   await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认')
+  await page.getByTestId('step-tab-2').click()
   await page.getByTestId('draft-text-input').fill('初冬茶器市集')
   await expect(page.getByTestId('approve-feedback')).toHaveCount(0)
   // 重新审批 → 切换目标 → 旧确认不得跨目标复用
+  await page.getByTestId('step-tab-4').click()
   await page.getByTestId('demo-approve').click()
   await expect(page.getByTestId('approve-feedback')).toContainText('演示范围决策已确认')
   await page.getByTestId('canvas-el-el:hero-subtitle').click()
@@ -280,13 +315,16 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
   // 无真实候选：验证证据如实"尚未运行"
   await expect(page.getByTestId('evidence-ev:verification')).toContainText('尚未运行')
-  // 真实审批未接入；对照区无真实截图时明确提示
+  // 真实审批未接入（第 4 步）；对照区无真实截图时明确提示
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
   await page.getByTestId('tab-compare').click()
   await expect(page.getByText('尚无真实截图').first()).toBeVisible()
-  // 选中真实目标：摘要显示真实源码路径；本地草稿不推进真实候选生命周期
+  // 选中真实目标：源码定位折叠在第 1 步；本地草稿不推进真实候选生命周期
   await page.getByTestId('target-strip').getByRole('button', { name: /Acme 真实首页标题/ }).click()
+  await page.getByTestId('step-tab-1').click()
   await expect(page.getByTestId('selection-source')).toBeVisible()
+  await page.getByTestId('step-tab-2').click()
   await page.getByTestId('draft-text-input').fill('Acme 新首页标题')
   await expect(page.getByTestId('evidence-ev:intent')).toContainText('Acme 新首页标题')
 })

@@ -133,11 +133,18 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await expect(page.getByTestId('runtime-identity')).toBeVisible()
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-picked-1440.png'), fullPage: true })
 
-  // 4. 修改文字 + 显式 Scope 决策：非锁定页面全部显式排除（不臆造包含）
+  // 4. 修改文字 + 显式 Scope 决策：逐页翻「与本次修改无关」，非锁定页面全部显式排除（不臆造包含）
   await page.getByTestId('draft-text-input').fill('Acme 旗舰店标题')
-  const excludeButtons = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
-  for (let index = 0; index < await excludeButtons.count(); index += 1) await excludeButtons.nth(index).click()
-  // 全部页面显式决策后门控解除：生成候选按钮可用
+  await page.getByTestId('step-tab-3').click()
+  for (let i = 0; i < 6; i += 1) {
+    const exclude = page.locator('button[data-testid^="scope-exclude-"]').first()
+    if (await exclude.count() > 0 && await exclude.isEnabled()) await exclude.click()
+    const next = page.getByTestId('scope-pager-next')
+    if (await next.isEnabled().catch(() => false)) await next.click()
+    else break
+  }
+  // 全部页面显式决策后门控解除：生成候选按钮可用（第 4 步）
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('create-candidate')).toBeEnabled()
 
   // 5. POST /candidate：真实生成 CandidateRecord（响应即服务端持久化结果）
@@ -194,8 +201,16 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await expect(page.getByTestId('draft-text-input')).toBeVisible()
   await page.getByTestId('picker-toggle').click() // 退出点选模式
   await page.getByTestId('draft-text-input').fill('Acme 旗舰店文案。')
-  const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
-  for (let index = 0; index < await excludeButtons2.count(); index += 1) await excludeButtons2.nth(index).click()
+  // 第二轮范围决策：同样逐页显式排除
+  await page.getByTestId('step-tab-3').click()
+  for (let i = 0; i < 6; i += 1) {
+    const exclude = page.locator('button[data-testid^="scope-exclude-"]').first()
+    if (await exclude.count() > 0 && await exclude.isEnabled()) await exclude.click()
+    const next = page.getByTestId('scope-pager-next')
+    if (await next.isEnabled().catch(() => false)) await next.click()
+    else break
+  }
+  await page.getByTestId('step-tab-4').click()
   await expect(page.getByTestId('create-candidate')).toBeEnabled()
   const candidate2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
   await page.getByTestId('create-candidate').click()

@@ -514,11 +514,38 @@
  * 原写法与整页根容器同名，会继承 min-height:100vh 与整页 flex，造成大块空白。 */
 .ripple-xp-scope-panel {
   background: var(--xp-surface); border: 1px solid var(--xp-line);
-  border-radius: var(--xp-radius-lg); padding: 16px 18px 20px;
+  border-radius: var(--xp-radius-lg); padding: 16px 18px 14px;
   align-self: start; position: sticky; top: 62px;
+  display: flex; flex-direction: column;
 }
-.ripple-xp-scope-panel .ripple-xp-section-title { margin: 20px 0 10px; }
-.ripple-xp-selection-block { display: grid; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--xp-line-soft); }
+
+/* 分步流程：顶部进度段（可点击回跳）+ 步数 */
+.ripple-xp-stephead { display: flex; align-items: center; gap: 12px; }
+.ripple-xp-stepseg { display: flex; gap: 5px; flex: 1; }
+.ripple-xp-stepseg button {
+  flex: 1; height: 4px; border: none; border-radius: 2px; background: var(--xp-line);
+  padding: 0; cursor: pointer; transition: background 0.2s ease;
+}
+.ripple-xp-stepseg button.is-done { background: var(--xp-brand); }
+.ripple-xp-stepseg button.is-now { background: var(--xp-brand); opacity: 0.45; }
+.ripple-xp-stepseg button:hover { background: var(--xp-brand); }
+.ripple-xp-stepcount { font-size: 12px; color: var(--xp-ink-soft); white-space: nowrap; }
+.ripple-xp-steptitle { margin: 10px 0 4px; font-size: 17px; }
+.ripple-xp-stepbody { flex: 1; padding: 6px 0 4px; }
+
+/* 底部步骤导航：箭头翻页，可自由来回 */
+.ripple-xp-stepnav {
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1px solid var(--xp-line-soft); padding-top: 10px; margin-top: 10px;
+}
+.ripple-xp-stepnav button {
+  border: none; background: none; font: inherit; font-size: 13.5px;
+  color: var(--xp-ink-soft); padding: 6px 4px; cursor: pointer;
+}
+.ripple-xp-stepnav button:hover { color: var(--xp-brand); }
+.ripple-xp-stepnav button.is-next { color: var(--xp-brand); font-weight: 600; }
+
+.ripple-xp-selection-block { display: grid; gap: 8px; }
 .ripple-xp-selection-block p { margin: 0; font-size: 14px; color: var(--xp-ink-soft); }
 .ripple-xp-warn { color: var(--xp-clay) !important; }
 .ripple-xp-intent { display: grid; gap: 6px; font-size: 14px; color: var(--xp-ink-soft); }
@@ -529,30 +556,45 @@
 }
 .ripple-xp-intent input:focus-visible { outline: 2px solid var(--xp-brand-tint); border-color: var(--xp-brand); }
 
-.ripple-xp-scope-list { list-style: none; margin: 0; padding: 0; display: grid; }
-.ripple-xp-scope-row { padding: 12px 2px; display: grid; gap: 8px; }
-.ripple-xp-scope-row + .ripple-xp-scope-row { border-top: 1px solid var(--xp-line-soft); }
-.ripple-xp-scope-row.is-locked { background: none; box-shadow: inset 3px 0 0 var(--xp-line); padding-left: 12px; }
-.ripple-xp-scope-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ripple-xp-scope-head strong { font-size: 15px; }
-.ripple-xp-scope-reason { font-size: 13px; color: var(--xp-ink-soft); flex: 1; }
-.ripple-xp-scope-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.ripple-xp-scope-actions button {
-  border: 1px solid var(--xp-line); background: var(--xp-surface); border-radius: 999px;
-  padding: 4px 14px; min-height: 34px; font-size: 13px; color: var(--xp-ink-soft);
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+/* 影响范围：一次一页（‹ › 翻页），选项是带后果说明的整行单选 */
+.ripple-xp-scope-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ripple-xp-scope-pager > button {
+  width: 34px; height: 34px; flex: none; border: 1px solid var(--xp-line); background: var(--xp-surface);
+  border-radius: var(--xp-radius); font-size: 17px; line-height: 1; color: var(--xp-ink); cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
-.ripple-xp-scope-actions button:hover:not(:disabled) { border-color: var(--xp-brand); color: var(--xp-brand); }
-.ripple-xp-scope-actions button.is-active {
-  border-color: var(--xp-brand); color: var(--xp-paper); background: var(--xp-brand); font-weight: 600;
+.ripple-xp-scope-pager > button:hover:not(:disabled) { border-color: var(--xp-brand); color: var(--xp-brand); }
+.ripple-xp-scope-pager > button:disabled { opacity: 0.4; cursor: not-allowed; }
+.ripple-xp-scope-pager-name { text-align: center; }
+.ripple-xp-scope-pager-name strong { font-size: 16px; display: block; }
+.ripple-xp-scope-pager-name span { font-size: 12px; color: var(--xp-ink-soft); }
+.ripple-xp-scope-why {
+  margin: 10px 0 12px; font-size: 13px; color: var(--xp-amber);
+  background: var(--xp-amber-tint); border-radius: 7px; padding: 6px 12px;
 }
-/* 范围决定标记：已决定的中性色，「未决定」是需要用户操作的事项才用琥珀色 */
-.ripple-xp-scope-mark { margin-left: auto; font-size: 13px; font-weight: 600; }
-.ripple-xp-mark-include { color: var(--xp-ink); }
-.ripple-xp-mark-protect { color: var(--xp-amber); }
-.ripple-xp-mark-exclude { color: var(--xp-stone); }
-.ripple-xp-mark-undecided { color: var(--xp-amber); }
-.ripple-xp-scope-summary { font-size: 13px; color: var(--xp-ink-soft); margin: 12px 0 0; }
+.ripple-xp-scope-why.is-green { color: var(--xp-brand); background: var(--xp-brand-tint); }
+.ripple-xp-scope-options { display: grid; gap: 8px; }
+.ripple-xp-scope-option {
+  display: flex; gap: 12px; align-items: flex-start; text-align: left;
+  padding: 11px 13px; border: 1px solid var(--xp-line); border-radius: var(--xp-radius-lg);
+  background: var(--xp-surface); cursor: pointer; font: inherit; color: var(--xp-ink);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ripple-xp-scope-option:hover { border-color: #c9c6ba; }
+.ripple-xp-scope-option.is-active { border-color: var(--xp-brand); background: #f2f7f1; }
+.ripple-xp-scope-option-dot {
+  width: 16px; height: 16px; flex: none; margin-top: 3px; border-radius: 50%;
+  border: 2px solid #b9b6aa;
+}
+.ripple-xp-scope-option.is-active .ripple-xp-scope-option-dot {
+  border-color: var(--xp-brand);
+  background: radial-gradient(circle, var(--xp-brand) 0 4.5px, transparent 5.5px);
+}
+.ripple-xp-scope-option strong { font-size: 14.5px; display: block; }
+.ripple-xp-scope-option small { font-size: 12.5px; color: var(--xp-ink-soft); line-height: 1.5; display: block; margin-top: 2px; }
+.ripple-xp-scope-progress { text-align: center; font-size: 12.5px; color: var(--xp-ink-soft); margin: 10px 0 8px; }
+.ripple-xp-scope-progress b { color: var(--xp-brand); }
+
 .ripple-xp-approval { margin-top: 0; display: grid; gap: 10px; }
 /* 主操作按钮：实心墨绿（品牌色仅在此类关键动作上重色出现） */
 .ripple-xp-primary {

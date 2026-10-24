@@ -9,6 +9,17 @@ import { createRealAdapter } from './real-adapter'
 
 const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 
+/** 跳到右侧面板第 N 步（四步流程：选择元素 → 修改内容 → 影响范围 → 检查并生成）。 */
+const gotoStep = (n: number) => fireEvent.click(screen.getByTestId(`step-tab-${n}`))
+/** 影响范围逐页翻：先回到第一页，再逐页向后翻到目标页。 */
+function scopeGoto(pageId: string) {
+  gotoStep(3)
+  for (let i = 0; i < 5; i += 1) fireEvent.click(screen.getByTestId('scope-pager-prev'))
+  for (let i = 0; i < 5 && !screen.queryByTestId(`scope-row-${pageId}`); i += 1) {
+    fireEvent.click(screen.getByTestId('scope-pager-next'))
+  }
+}
+
 /** 青野连续演示流（任务书第五节）：打开→选中标题→输入→关联页面→范围→对照→证据→历史。 */
 describe('F 体验工作台 · 青野演示流', () => {
   afterEach(cleanup)
@@ -43,6 +54,7 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('无选中/无修改时不得审批（门控前置条件）', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('scope-panel')
+    gotoStep(4)
     expect(text('approval-area')).toContain('修改前检查')
     expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
   })
@@ -52,13 +64,16 @@ describe('F 体验工作台 · 青野演示流', () => {
     await selectAndType()
     expect(text('selection-toast')).toContain('已选中')
     expect(text('selection-toast')).toContain('活动标题')
+    // 选中后自动进入第 2 步；源码视图在第 1 步，可翻回查看
+    gotoStep(1)
     expect(text('selection-source')).toContain('src/data/campaign.ts')
     // 源码视图默认折叠，点击展开后圈选文字所在行高亮呈现
     fireEvent.click(screen.getByTestId('source-toggle'))
     expect(text('source-excerpt')).toContain("heroTitle: '秋日茶器市集'")
     expect(text('compare-candidate')).toContain('冬日茶器市集')
     expect(text('compare-baseline')).toContain('秋日茶器市集')
-    expect(screen.getByTestId('scope-include-page:home').getAttribute('aria-pressed')).toBe('true')
+    // 正在修改的首页不参与翻页决策；同源的商品专题默认「一起改」
+    scopeGoto('page:products')
     expect(screen.getByTestId('scope-include-page:products').getAttribute('aria-pressed')).toBe('true')
   })
 
@@ -91,27 +106,30 @@ describe('F 体验工作台 · 青野演示流', () => {
 
   it('任务一：切换目标重建页面关系与默认 Scope（标题→副标题→标题）', async () => {
     render(<ExperienceWorkbench />)
-    // 初次选中活动标题：商品专题存在同源关系
+    // 初次选中活动标题：商品专题使用同一段文字
     fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
-    expect(text('scope-row-page:products')).toContain('同源页面')
+    scopeGoto('page:products')
+    expect(text('scope-row-page:products')).toContain('这页和当前页使用同一段文字')
     expect(screen.getByTestId('scope-include-page:products').getAttribute('aria-pressed')).toBe('true')
-    // 修改 Scope：商品专题改为保护（旧决定，稍后不得跨目标残留）
+    // 修改 Scope：商品专题改为保持不动（旧决定，稍后不得跨目标残留）
     fireEvent.click(screen.getByTestId('scope-protect-page:products'))
     expect(screen.getByTestId('scope-protect-page:products').getAttribute('aria-pressed')).toBe('true')
     // 切换到副标题：商品专题不再虚假显示同源关联
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-subtitle'))
-    expect(text('scope-row-page:products')).toContain('影响未证明')
-    expect(text('scope-row-page:products')).not.toContain('同源')
-    // 默认 Scope 与当前目标一致：商品专题回到未决定（三个范围按钮均未按下），不继承上一目标的保护/包含
+    scopeGoto('page:products')
+    expect(text('scope-row-page:products')).toContain('还没法确定这页会不会被影响')
+    // 默认 Scope 与当前目标一致：商品专题回到未决定（三个范围选项均未选中），不继承上一目标的决定
     for (const choice of ['include', 'protect', 'exclude']) {
       expect(screen.getByTestId(`scope-${choice}-page:products`).getAttribute('aria-pressed')).toBe('false')
     }
     // Evidence 随目标切换，不串入旧草稿
+    gotoStep(2)
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '以器会友，以茶传心' } })
     expect(text('evidence-ev:expect')).toContain('把「以茶会友，以器传心」改为「以器会友，以茶传心」')
     // 返回活动标题：恢复标题对应的默认影响关系与 Scope
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-title'))
-    expect(text('scope-row-page:products')).toContain('同源页面')
+    scopeGoto('page:products')
+    expect(text('scope-row-page:products')).toContain('这页和当前页使用同一段文字')
     expect(screen.getByTestId('scope-include-page:products').getAttribute('aria-pressed')).toBe('true')
     // 旧草稿不串回标题
     expect(text('evidence-ev:expect')).toContain('把「秋日茶器市集」改为「（尚未输入）」')
@@ -121,14 +139,16 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     // partial 目标：没有页面被自动标为"已证明无影响"
     fireEvent.click(await screen.findByTestId('canvas-el-el:seasonal-banner'))
-    expect(text('scope-row-page:products')).toContain('影响未证明')
+    scopeGoto('page:products')
+    expect(text('scope-row-page:products')).toContain('还没法确定这页会不会被影响')
     for (const choice of ['include', 'protect', 'exclude']) {
       expect(screen.getByTestId(`scope-${choice}-page:products`).getAttribute('aria-pressed')).toBe('false')
     }
     // unknown 目标同样如此
     fireEvent.click(screen.getByTestId('canvas-el-el:promo-card'))
     for (const id of ['page:products', 'page:seasonal', 'page:contact']) {
-      expect(text(`scope-row-${id}`)).toContain('影响未证明')
+      scopeGoto(id)
+      expect(text(`scope-row-${id}`)).toContain('还没法确定这页会不会被影响')
     }
   })
 
@@ -163,30 +183,41 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     await selectAndType()
     // 完成 Scope（排除两个未证明页面）→ 演示审批 → 确认横幅出现
+    scopeGoto('page:contact')
     fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
+    scopeGoto('page:seasonal')
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
+    gotoStep(4)
     fireEvent.click(screen.getByTestId('demo-approve'))
     expect(text('approve-feedback')).toContain('演示范围决策已确认')
     // 修改范围决策 → 旧反馈立即消失，approvalGate 重新阻断
+    scopeGoto('page:contact')
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
     expect(screen.queryByTestId('approve-feedback')).toBeNull()
+    gotoStep(4)
     expect(text('approval-area')).toContain('风险检查')
     // 主按钮常显但禁用（检查清单门控），点击不产生任何审批
     expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
     // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
+    scopeGoto('page:contact')
     fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
+    gotoStep(4)
     fireEvent.click(screen.getByTestId('demo-approve'))
     expect(text('approve-feedback')).toContain('演示范围决策已确认')
+    gotoStep(2)
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '初冬茶器市集' } })
     expect(screen.queryByTestId('approve-feedback')).toBeNull()
     // 重新审批 → 清空草稿 → 旧反馈消失（不得继续显示已确认）
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '初冬茶器市集' } })
+    gotoStep(4)
     fireEvent.click(screen.getByTestId('demo-approve'))
     expect(text('approve-feedback')).toContain('演示范围决策已确认')
+    gotoStep(2)
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '' } })
     expect(screen.queryByTestId('approve-feedback')).toBeNull()
     // 重新审批 → 切换目标 → 旧反馈不得跨目标复用
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '初冬茶器市集' } })
+    gotoStep(4)
     fireEvent.click(screen.getByTestId('demo-approve'))
     expect(text('approve-feedback')).toContain('演示范围决策已确认')
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-subtitle'))
@@ -196,21 +227,27 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('来源未知的元素只能查看，不能进入编辑', async () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('canvas-el-el:promo-card'))
+    // 第 2 步不提供输入框
     expect(screen.queryByTestId('draft-text-input')).toBeNull()
+    // 第 1 步显示来源未知警示；且不臆造源码位置（不渲染源码视图）
+    gotoStep(1)
     expect(screen.getByText(/来源未知：可以先查看，但不能承诺修改范围/)).not.toBeNull()
-    // 来源未知的元素没有源码定位：不渲染源码视图（不臆造文件位置）
     expect(screen.queryByTestId('selection-source')).toBeNull()
   })
 
   it('partial 来源的元素即使可编辑，排除未知页面后也不给安全审批', async () => {
     render(<ExperienceWorkbench />)
     // 先排除两个未证明页面，扫清"未决定/未证明包含"门控
-    fireEvent.click(await screen.findByTestId('scope-exclude-page:contact'))
+    fireEvent.click(await screen.findByTestId('step-tab-3'))
+    scopeGoto('page:contact')
+    fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
+    scopeGoto('page:seasonal')
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
     // 选中 partial + editable 的当季横幅并输入
     fireEvent.click(screen.getByTestId('canvas-el-el:seasonal-banner'))
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新春限定' } })
     // 检查清单中"选择要修改的元素"未通过（来源未完全证明），审批被门控
+    gotoStep(4)
     expect(screen.getByTestId('approval-area').querySelectorAll('li.is-pending').length).toBeGreaterThan(0)
     expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
   })
@@ -219,14 +256,20 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     await selectAndType()
     // 两个未证明页面未决定 → 门控
+    gotoStep(4)
     expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
-    // 把未证明页面“包含” → 仍然不得审批（不得提升为安全范围）
+    // 把未证明页面“一起改” → 仍然不得审批（不得提升为安全范围）
+    scopeGoto('page:contact')
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
+    gotoStep(4)
     expect(text('approval-area')).toContain('风险检查')
     expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
     // 排除两个未证明页面 → 允许演示审批
+    scopeGoto('page:contact')
     fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
+    scopeGoto('page:seasonal')
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
+    gotoStep(4)
     expect(text('demo-approve')).toContain('演示审批')
     expect(text('demo-approve')).toContain('不写入真实工程')
     fireEvent.click(screen.getByTestId('demo-approve'))
@@ -387,6 +430,7 @@ describe('F 体验工作台 · REAL 模式异步竞态', () => {
     expect(screen.queryByTestId('picker-hint')).not.toBeNull()
     fireEvent.click(screen.getByTestId('canvas-el-el:title'))
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新标题' } })
+    gotoStep(4)
     await act(async () => { fireEvent.click(screen.getByTestId('create-candidate')) })
     expect(screen.queryByTestId('picker-hint')).toBeNull()
     // 第二轮（6c 真实切换路径）：点击必须重新进入点选。
@@ -410,8 +454,9 @@ describe('F 体验工作台 · 真实/演示隔离', () => {
     // 演示状态切换器与 DEMO 标记不出现
     expect(screen.queryByTestId('demo-canvas-state')).toBeNull()
     expect(screen.queryByTestId('demo-badge')).toBeNull()
-    // real 模式没有可执行的审批入口，明确提示未接入
+    // real 模式没有可执行的审批入口，明确提示未接入（在第 4 步）
     expect(screen.queryByTestId('demo-approve')).toBeNull()
+    gotoStep(4)
     expect(text('real-approval-pending')).toContain('真实审批尚未接入')
   })
 })
@@ -484,10 +529,12 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     await screen.findByTestId('version-candidate-real-1')
     expect(text('version-candidate-real-1')).toContain('已应用')
     fireEvent.click(screen.getByTestId('version-candidate-real-1'))
-    // 真实审批未接入；元素可选中并查看真实来源
+    // 真实审批未接入（第 4 步）；元素可选中并查看真实来源（第 1 步源码视图）
+    gotoStep(4)
     expect(text('real-approval-pending')).toContain('真实审批尚未接入')
     fireEvent.click(screen.getByTestId('close-filmstrip'))
     fireEvent.click(screen.getByTestId('canvas-el-data:hero-title'))
+    gotoStep(1)
     expect(text('selection-source')).toContain('src/data/site.ts')
     expect(screen.getAllByTestId('certainty-source-proven').length).toBeGreaterThan(0)
   })

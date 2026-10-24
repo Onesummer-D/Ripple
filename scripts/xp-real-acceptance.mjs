@@ -77,9 +77,12 @@ try {
 
   // 选中真实目标 + 本地草稿
   await page.getByTestId('target-strip').getByRole('button', { name: /Acme 真实首页标题/ }).click()
-  await assert('源码定位（真实源码路径，折叠在选择元素内）', page.getByTestId('selection-source'), 'src/pages/HomePage.jsx')
+  await page.getByTestId('step-tab-1').click()
+  await assert('源码定位（真实源码路径，折叠在第 1 步）', page.getByTestId('selection-source'), 'src/pages/HomePage.jsx')
+  await page.getByTestId('step-tab-2').click()
   await page.getByTestId('draft-text-input').fill('Acme 新首页标题')
   await assert('本地草稿意向', page.getByTestId('evidence-ev:intent'), 'Acme 新首页标题')
+  await page.getByTestId('step-tab-4').click()
   await assert('候选生命周期不被本地动作改写（仍为可生成态）', page.getByTestId('create-candidate'), '生成')
   await page.screenshot({ path: `${outDir}/xp-real-2-target-drafted.png`, fullPage: true })
 
