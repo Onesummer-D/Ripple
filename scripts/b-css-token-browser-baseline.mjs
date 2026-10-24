@@ -388,7 +388,9 @@ async function captureCopy(root, label, baseUrl, sourceServing, routePaths) {
     for (const viewport of VIEWPORTS) {
       const context = await browser.newContext({ viewport })
       const tracePath = path.join(artifactRoot, `${label}-${viewportKey(viewport)}-playwright-trace.zip`)
-      await context.tracing.start({ screenshots: true, snapshots: true, sources: true })
+      // Keep DOM snapshots and source files in traces for failure diagnosis.
+      // The 16 full-page browser screenshots are saved separately below.
+      await context.tracing.start({ screenshots: false, snapshots: true, sources: true })
       await context.route('https://fonts.googleapis.com/**', route => route.fulfill({ status: 200, contentType: 'text/css', body: '/* external font stylesheet isolated for deterministic color/layout sampling */' }))
       const page = await context.newPage()
       const browserErrors = []
