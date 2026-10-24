@@ -372,11 +372,13 @@ export type CrossVersionMissingEvidence = 'source-version' | 'page-context' | 'c
 export interface CrossVersionPairingScope {
   /**
    * What this pairing IS: candidate pairing supported by the runtime
-   * annotation only. It is explicitly NOT the C+D full identity assessment
-   * (sourceVersion / pageContext / collection reasons / graph membership).
+   * annotation only. It is explicitly NOT the A host's full identity
+   * assessment (sourceVersion / pageContext / collection reasons / graph
+   * membership). Strict proof remains unavailable until A's frozen runtime
+   * records and E's run-bound consumer are integrated.
    */
   level: 'annotation-pairing'
-  /** True only when missingEvidence is empty AND a C+D-grade assessment ran. */
+  /** True only when formal host proof covers every usable record from both samples; never means one pair passed. */
   strictInstanceProofAvailable: boolean
   missingEvidence: CrossVersionMissingEvidence[]
 }
@@ -440,56 +442,8 @@ const UNSTABLE_REASON: Record<IdentityCertainty, string | null> = {
  * absent, the legacy conservative rule applies: any declared difference is
  * recorded as a downgrade reason, never as "invalid".
  */
-/**
- * A host-graded identity verdict for ONE element of ONE side — the only
- * shape through which A's ①② runtimeIdentities wiring may raise a pairing
- * toward strict instance proof (A frozen contract v1.1 §4). The host
- * (never E) produces these from `assessRuntimeIdentity`; each verdict names
- * the exact record it grades, so no single object can speak for a whole
- * page. `recordKey` carries the A v1.1 recordKey
- * (`sourceRef#'#'+(runtimeInstanceId ?? '@'+index)`) for traceability; E
- * matches verdicts by (side, sourceRef, runtimeInstanceId), the coordinates
- * it actually holds.
- */
-export interface HostIdentityVerdict {
-  side: 'baseline' | 'candidate'
-  /** The graded element's sourceRef in the side's geometry sample. */
-  sourceRef: string
-  /** The graded element's runtime instance id, or null when it has none. */
-  runtimeInstanceId: string | null
-  /** A v1.1 recordKey of the assessed snapshot record (traceability only). */
-  recordKey: string
-  /** The host's formal per-instance conclusion — the only accepted proof source. */
-  instanceIdentityProven: boolean
-  /** Degradation reasons from the formal assessment; non-empty ⇒ not proven. */
-  reasons: string[]
-}
-
-const isHostIdentityVerdict = (value: unknown): value is HostIdentityVerdict => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const verdict = value as Record<string, unknown>
-  return (verdict.side === 'baseline' || verdict.side === 'candidate') &&
-    typeof verdict.sourceRef === 'string' && verdict.sourceRef.length > 0 &&
-    (typeof verdict.runtimeInstanceId === 'string' || verdict.runtimeInstanceId === null) &&
-    typeof verdict.recordKey === 'string' && verdict.recordKey.length > 0 &&
-    typeof verdict.instanceIdentityProven === 'boolean' &&
-    Array.isArray(verdict.reasons) && verdict.reasons.every(reason => typeof reason === 'string')
-}
-
 export interface CrossVersionPairingOptions {
   expectedSourceVersions?: { baseline?: Record<string, string>; candidate?: Record<string, string> } | null
-  /**
-   * Per-element, per-side host identity verdicts (A ①②), consumed read-only.
-   * Strict instance proof additionally requires an empty missingEvidence
-   * list AND a proven, reason-free verdict for EVERY usable element on BOTH
-   * sides: one unproven element — or one side without its own verdict —
-   * degrades the whole scope. A legacy single-object `identityAssessment`
-   * input existed before and was removed: a non-null check can never prove
-   * anything (A v1.1 §4-1), and a global true must not apply to a page's
-   * other instances. Verdicts are validated at runtime; shapes that do not
-   * satisfy HostIdentityVerdict are ignored, which keeps strict proof false.
-   */
-  hostIdentityVerdicts?: readonly HostIdentityVerdict[] | null
 }
 
 /**
@@ -674,33 +628,18 @@ export function pairCrossVersionElements(baseline: DomGeometrySample, candidate:
   }
 
   const rest = (sample: DomGeometrySample, consumed: Set<string>) => sample.elements.filter(element => usable(element) && !consumed.has(element.id))
-  // --- Strict instance proof (A frozen contract v1.1 §4) --------------------
-  // The ONLY accepted proof source is a formal per-element, per-side host
-  // verdict with instanceIdentityProven === true and NO reasons. Scope-level
-  // availability requires, cumulatively:
-  //   1. an empty missingEvidence list (host-cleared evidence gaps; an empty
-  //      array alone never upgrades), AND
-  //   2. at least one well-formed verdict, AND
-  //   3. EVERY usable element on EACH side carrying its own proven,
-  //      reason-free verdict for that side.
-  // A missing side verdict, an unproven sibling (e.g. only one of several
-  // same-source instances proven), non-empty reasons (version/page binding
-  // evidence degraded) or any unrecognized verdict shape all degrade to
-  // strictInstanceProofAvailable === false — a single global "true" can
-  // never speak for the page's other instances.
-  const verdicts = (Array.isArray(options?.hostIdentityVerdicts) ? options!.hostIdentityVerdicts! : []).filter(isHostIdentityVerdict)
-  const provenVerdictFor = (side: 'baseline' | 'candidate', element: DomElementGeometry): boolean =>
-    verdicts.some(verdict => verdict.side === side &&
-      verdict.sourceRef === element.sourceRef &&
-      verdict.runtimeInstanceId === (element.runtimeInstanceId ?? null) &&
-      verdict.instanceIdentityProven === true &&
-      verdict.reasons.length === 0)
-  const sideFullyProven = (sample: DomGeometrySample, side: 'baseline' | 'candidate'): boolean => {
-    const elements = sample.elements.filter(usable)
-    return elements.length > 0 && elements.every(element => provenVerdictFor(side, element))
-  }
-  const strictInstanceProofAvailable = missingEvidence.length === 0 && verdicts.length > 0 &&
-    sideFullyProven(baseline, 'baseline') && sideFullyProven(candidate, 'candidate')
+  // Strict proof is deliberately disabled at this boundary. A v1.1
+  // `RuntimeRunIdentity` is bound to checkId × route × viewport × state × side,
+  // a run revision, snapshot/page/version evidence and one assessment per
+  // recordKey. This function currently receives only geometry; accepting a
+  // boolean or a locally assembled verdict here would lose those bindings.
+  // Keep each annotation pair at `instance-candidate`/observation level until
+  // E③ consumes A's actual host records. That later consumer must assess pairs
+  // independently, allow an A/C+D versioned sourceRef mapping when present,
+  // and set the scope flag only when the complete collected record set is
+  // covered. DOM order, element IDs, `identityCertainty` and ID equality alone
+  // are never sufficient.
+  const strictInstanceProofAvailable = false
   return {
     scope: { level: 'annotation-pairing', strictInstanceProofAvailable, missingEvidence },
     instanceCandidate, sameSourceRefObserved, unproven,
