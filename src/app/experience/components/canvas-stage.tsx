@@ -8,6 +8,13 @@ const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
   'stale-evidence': '证据已过期，需要重新验证',
 }
 
+/** 设备名称与视口宽度分开；同名设备（例如两个手机视口）追加宽度区分。 */
+function deviceName(item: ExperienceViewModel['viewports'][number], viewports: ExperienceViewModel['viewports']) {
+  const base = item.label.replace(/\s*\d+$/, '')
+  const duplicates = viewports.filter(viewport => viewport.label.replace(/\s*\d+$/, '') === base).length > 1
+  return duplicates ? `${base}·${item.width}` : base
+}
+
 /**
  * 真实项目源码预演 iframe。地址只能来自适配器的 preview 会话（服务端身份核验），
  * sandbox/referrerPolicy 与 A 的工作台预演面板一致；加载状态明确标记，
@@ -63,15 +70,28 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const realFrameRef = useRef<HTMLIFrameElement>(null)
+  const demoContentRef = useRef<HTMLDivElement>(null)
   const [hostWidth, setHostWidth] = useState(0)
+  const [demoContentHeight, setDemoContentHeight] = useState(0)
   const [hoveredId, setHoveredId] = useState<string>()
   const [demoCanvasState, setDemoCanvasState] = useState<ExperienceViewModel['canvasState']>('ready')
+  const [toastId, setToastId] = useState<string>()
+  const selected = model.elements.find(item => item.id === model.selectedElementId)
+  useEffect(() => {
+    if (!selected) { setToastId(undefined); return }
+    setToastId(selected.id)
+    const timer = setTimeout(() => setToastId(undefined), 2600)
+    return () => clearTimeout(timer)
+  }, [selected?.id])
   const viewport = model.viewports.find(item => item.id === model.activeViewportId) ?? model.viewports[0]
   const scale = hostWidth ? Math.min(1, hostWidth / viewport.width) : 1
   const canvasState = model.dataProvenance === 'demo' ? demoCanvasState : model.canvasState
   const currentPage = model.pages.find(page => page.id === model.currentPageRef)
-  const selected = model.elements.find(item => item.id === model.selectedElementId)
   const isReal = model.dataProvenance !== 'demo'
+  // Demo 外壳跟随内容实测高度；真实 iframe 仍使用声明的完整视口高度。
+  const shellHeight = !isReal && demoContentHeight > 0
+    ? Math.max(120, Math.round(Math.min(viewport.height, demoContentHeight) * scale))
+    : Math.round(viewport.height * scale)
 
   /**
    * 点选模式同步：把【当前有效状态】发给预演 iframe——进入携带 nonce、退出发
@@ -122,6 +142,17 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+
+  // 演示页面只测量自身内容，不把空白区域算进画布外壳；真实 iframe 不受影响。
+  useEffect(() => {
+    const element = demoContentRef.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => {
+      setDemoContentHeight(entries[0]?.contentRect.height ?? 0)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [model.dataProvenance, canvasState, currentPage?.id])
 
   const renderElement = (element: CanvasElementXp, children: ReactNode) => {
     const isSelected = element.id === model.selectedElementId
@@ -190,53 +221,64 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   )
 
   return <section className="ripple-xp-stage reveal" aria-label="网页画布" data-testid="canvas-stage">
-    <div className="ripple-xp-stage-toolbar">
-      <div className="ripple-xp-viewport-switch" role="group" aria-label="视口选择">
-        {model.viewports.map(item => (
-          <button
-            key={item.id}
-            type="button"
-            className={item.id === model.activeViewportId ? 'is-active' : ''}
-            aria-pressed={item.id === model.activeViewportId}
-            data-testid={`viewport-${item.id}`}
-            onClick={() => onViewportChange(item.id)}
-          >
-            {item.label}
-            {item.verificationStatus === 'in-verification' && <span className="ripple-xp-verify-badge">验证中</span>}
-            {item.verificationStatus === 'unavailable' && <span className="ripple-xp-verify-badge">不可用</span>}
-          </button>
-        ))}
+    {currentPage && (
+      <div className="ripple-xp-page-head">
+        <span className="ripple-xp-page-crumb">页面列表 / {currentPage.label}</span>
+        <h2 className="ripple-xp-page-title">{currentPage.label}</h2>
       </div>
-      {model.dataProvenance === 'demo' && (
-        <label className="ripple-xp-demo-state">
-          演示状态
-          <select
-            data-testid="demo-canvas-state"
-            value={demoCanvasState}
-            onChange={event => setDemoCanvasState(event.target.value as ExperienceViewModel['canvasState'])}
+    )}
+    <div className="ripple-xp-stage-toolbar">
+      <div className="ripple-xp-stage-toolbar-group">
+        <div className="ripple-xp-viewport-switch" role="group" aria-label="视口选择">
+          {model.viewports.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              className={item.id === model.activeViewportId ? 'is-active' : ''}
+              aria-pressed={item.id === model.activeViewportId}
+              data-testid={`viewport-${item.id}`}
+              onClick={() => onViewportChange(item.id)}
+            >
+              {deviceName(item, model.viewports)}
+              {item.verificationStatus === 'in-verification' && <span className="ripple-xp-verify-badge">验证中</span>}
+              {item.verificationStatus === 'unavailable' && <span className="ripple-xp-verify-badge">不可用</span>}
+            </button>
+          ))}
+        </div>
+        <span className="ripple-xp-viewport-size" data-testid="viewport-size">{viewport.width} px</span>
+      </div>
+      <div className="ripple-xp-stage-toolbar-group">
+        {model.dataProvenance === 'demo' && (
+          <label className="ripple-xp-demo-state">
+            演示状态
+            <select
+              data-testid="demo-canvas-state"
+              value={demoCanvasState}
+              onChange={event => setDemoCanvasState(event.target.value as ExperienceViewModel['canvasState'])}
+            >
+              <option value="ready">正常</option>
+              <option value="loading">加载中</option>
+              <option value="failed">加载失败</option>
+              <option value="unavailable">不可用</option>
+              <option value="stale-evidence">证据过期</option>
+            </select>
+          </label>
+        )}
+        {isReal && (
+          // 画布点选（D 桥）：仅在项目预演会话可用时出现；不可用时不隐藏入口而给出准确原因
+          <button
+            type="button"
+            className={`ripple-xp-picker-toggle ${pickerActive ? 'is-active' : ''}`}
+            data-testid="picker-toggle"
+            aria-pressed={!!pickerActive}
+            disabled={!model.pickerAvailable}
+            title={model.pickerAvailable ? '在预演画布中点选要修改的文本' : '项目预演不可用，无法画布点选'}
+            onClick={onTogglePicker}
           >
-            <option value="ready">正常</option>
-            <option value="loading">加载中</option>
-            <option value="failed">加载失败</option>
-            <option value="unavailable">不可用</option>
-            <option value="stale-evidence">证据过期</option>
-          </select>
-        </label>
-      )}
-      {isReal && (
-        // 画布点选（D 桥）：仅在项目预演会话可用时出现；不可用时不隐藏入口而给出准确原因
-        <button
-          type="button"
-          className={`ripple-xp-picker-toggle ${pickerActive ? 'is-active' : ''}`}
-          data-testid="picker-toggle"
-          aria-pressed={!!pickerActive}
-          disabled={!model.pickerAvailable}
-          title={model.pickerAvailable ? '在预演画布中点选要修改的文本' : '项目预演不可用，无法画布点选'}
-          onClick={onTogglePicker}
-        >
-          {pickerActive ? '退出画布点选' : '画布点选'}
-        </button>
-      )}
+            {pickerActive ? '退出画布点选' : '画布点选'}
+          </button>
+        )}
+      </div>
     </div>
 
     {isReal && pickerActive && (
@@ -286,14 +328,16 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
           && ` · 同源渲染 ${selected.runtimeIdentity.sameSourceCount} 处，改源影响全部`}
       </p>
     )}
+    {toastId && selected && (
+      <div className="ripple-xp-selection-toast" role="status" data-testid="selection-toast">已选中：{selected.label}</div>
+    )}
 
     <div
       className="ripple-xp-viewport-shell"
       ref={hostRef}
       data-testid="viewport-shell"
-      // surface 使用 transform: scale()，不参与布局：外壳必须显式给出缩放后的高度，
-      // 否则画布渲染出来高度塌陷（空白根因修复）
-      style={{ height: Math.round(viewport.height * scale) }}
+      // surface 用 transform 缩放，不参与布局，外壳需显式设置缩放后高度。
+      style={{ height: shellHeight }}
     >
       <div
         className="ripple-xp-viewport-surface"
@@ -330,18 +374,22 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
               {model.blockedReasons?.length === 0 && model.projectStatus === 'failed' && <button type="button" className="ripple-xp-quiet" onClick={() => window.location.reload()}>重试</button>}
             </div>
           )
-        ) : canvasState === 'ready' ? (
-          currentPage?.id === 'page:home' ? demoPage : (
-            <div className="ripple-xp-demo-page is-placeholder" data-testid="demo-canvas-placeholder">
-              <h2>{currentPage?.label}</h2>
-              <p>演示数据：该页面的画布内容未包含在本轮演示中。</p>
-              <p>页面关系：{currentPage?.relation === 'same-source' ? '与当前修改同源，修改会随范围决策生效。' : '影响范围未证明。'}</p>
-            </div>
-          )
         ) : (
-          <div className={`ripple-xp-canvas-state ripple-xp-canvas-${canvasState}`} role="status" data-testid="canvas-state-banner">
-            {CANVAS_STATE_LABEL[canvasState]}
-            {canvasState === 'failed' && <button type="button" className="ripple-xp-quiet" data-testid="canvas-retry" onClick={() => setDemoCanvasState('ready')}>重试</button>}
+          <div ref={demoContentRef} className="ripple-xp-demo-measure">
+            {canvasState === 'ready' ? (
+              currentPage?.id === 'page:home' ? demoPage : (
+                <div className="ripple-xp-demo-page is-placeholder" data-testid="demo-canvas-placeholder">
+                  <h2>{currentPage?.label}</h2>
+                  <p>演示数据：该页面的画布内容未包含在本轮演示中。</p>
+                  <p>页面关系：{currentPage?.relation === 'same-source' ? '与当前修改同源，修改会随范围决策生效。' : '影响范围未证明。'}</p>
+                </div>
+              )
+            ) : (
+              <div className={`ripple-xp-canvas-state ripple-xp-canvas-${canvasState}`} role="status" data-testid="canvas-state-banner">
+                {CANVAS_STATE_LABEL[canvasState]}
+                {canvasState === 'failed' && <button type="button" className="ripple-xp-quiet" data-testid="canvas-retry" onClick={() => setDemoCanvasState('ready')}>重试</button>}
+              </div>
+            )}
           </div>
         )}
       </div>
