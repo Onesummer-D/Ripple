@@ -552,6 +552,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     const latest = latestCandidate()
     // 本 session 刚创建、历史尚未回读时，如实反映"已有活跃候选"（服务端已持久化）
     if (!latest) return activeCandidate ? 'candidate' : 'none'
+    // fail-safe 与 workflowFromHistory 一致：出现 rollback 痕迹时终态以回滚为准
+    //（痕迹冲突时更接近工程原始状态），哪怕 lifecycle 字段声明为 applied
+    if (latest.rollback) return 'rolled-back'
     switch (latest.lifecycle) {
       case 'applied': return 'applied'
       case 'rolled-back': return 'rolled-back'
@@ -800,14 +803,18 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             // 第三批：生命周期投影全部来自服务端 workflow/历史，绝不本地生成。
             // A 的 workflow.lifecycle 是候选生命周期（active/applied/rolled-back），
             // 审批态在 workflow.approval。注意 session 在回滚后仍保留 applied 记录
-            // （applied/rollback 都是历史痕迹），当前终态必须先看 rollback 再看 applied。
+            // （applied/rollback 都是历史痕迹），当前终态必须先看 rollback 再看 applied；
+            // 历史痕迹整体缺失（旧版/部分响应）时以 lifecycle 终态字段兜底——
+            // 持久化权威声明的终态绝不允许被残留审批记录降级显示。
             lifecycle: activeWorkflow?.rollback
               ? 'rolled-back'
               : activeWorkflow?.applied
                 ? 'applied'
-                : activeWorkflow?.approval
-                  ? 'approved'
-                  : activeWorkflow?.lifecycle ?? 'active',
+                : activeWorkflow?.lifecycle === 'rolled-back' || activeWorkflow?.lifecycle === 'applied'
+                  ? activeWorkflow.lifecycle
+                  : activeWorkflow?.approval
+                    ? 'approved'
+                    : activeWorkflow?.lifecycle ?? 'active',
             approval: activeWorkflow?.approval,
             appliedAt: activeWorkflow?.applied?.appliedAt,
             rollbackAvailable: activeWorkflow?.rollbackAvailable,
