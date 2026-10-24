@@ -193,3 +193,59 @@ jobs:
             a-core/test-results/verification/evidence/**
           retention-days: 30
           if-no-files-found: warn
+
+  # CSS Custom Properties source-evidence study (P1, Issue #6): runs the B
+  # probe against a REAL React/Vite project that consumes pure CSS custom
+  # properties, on the A public core. --assert pins the current unsupported
+  # boundary (multi-scope overrides, dist artifacts, no page impact) as a
+  # regression baseline; expectations flip when A lands scoped token identity
+  # and HashRouter route recognition (see a-interface-requirements-issue6.md
+  # AC-P6 and docs/probes/b-css-token-source-20261024.md).
+  css-token-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      A_CORE_SHA: 2f2e5a708bff554775bea539fb659974203e67b8
+      CSS_PROJECT_SHA: b244f857457d2a07f118155602eef9097fd322bd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check out A public core integration SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.A_CORE_SHA }}
+          path: a-core
+      - name: Verify A core provenance (HEAD equals declared SHA)
+        run: test "$(git -C a-core rev-parse HEAD)" = "$A_CORE_SHA"
+      - name: Install A core dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: a-core
+      - name: Fetch pinned CSS custom-properties project
+        # allanhue/webportflio @ b244f85 — MIT License file in repo.
+        run: |
+          git clone --quiet https://github.com/allanhue/webportflio.git "$RUNNER_TEMP/css-proj"
+          git -C "$RUNNER_TEMP/css-proj" checkout --detach "$CSS_PROJECT_SHA"
+          test "$(git -C "$RUNNER_TEMP/css-proj" rev-parse HEAD)" = "$CSS_PROJECT_SHA"
+          git -C "$RUNNER_TEMP/css-proj" log -1 --format='%s'
+      - name: Install project dependencies (analysis only resolves imports; deps never executed)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: ${{ env.RUNNER_TEMP }}/css-proj
+      - name: Transplant B CSS token probe onto A core byte-for-byte
+        run: |
+          cp scripts/b-css-token-probe.mjs a-core/scripts/b-css-token-probe.mjs
+          cp scripts/ts-extension-loader.mjs a-core/scripts/ts-extension-loader.mjs
+          cmp scripts/b-css-token-probe.mjs a-core/scripts/b-css-token-probe.mjs
+      - name: "CSS token source probe (--assert: current boundary as regression baseline)"
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --assert --json test-results/css-token-probe.json
+        working-directory: a-core
+      - name: Retain CSS token probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-b-css-token-source-${{ github.run_id }}
+          path: |
+            a-core/test-results/css-token-probe.json
+          retention-days: 30
+          if-no-files-found: warn

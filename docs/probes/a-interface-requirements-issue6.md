@@ -130,6 +130,45 @@ reads 边**（同一 `from`=`component:…ProfileHeader.tsx#131`、同一 `to`�
 **需求**：SourceGraph 构建时对 (from,to,kind) 完全相同的边去重（保留一条，确定性
 选择 certainty 较高者），并加一条回归测试。
 
+## AC-P6：CSS Custom Properties 来源证据与执行器最小合同（P1 研究结论）
+
+**实证基线**：真实 React/Vite + 纯 CSS Custom Properties 工程
+（allanhue/webportflio @ `b244f85`，MIT），A core `2f2e5a7`。
+完整报告：`docs/probes/b-css-token-source-20261024.md`；
+探针：`scripts/b-css-token-probe.mjs`（`--assert` 固化 9 项边界为回归基线）。
+
+**现状（实测）**：
+1. token **定义**提取真实可用（11 个变量，值+文件/偏移精确捕获）；
+2. token **消费**几乎全部缺失：212 处 `var(--x)` ground truth 对 1 条
+   uses-token 边，且该边是指向上游提交的 dist/ 构建产物的顺序伪影；
+3. 根因是"恰好唯一定义才连边"门控 × 真实工程普遍存在的**多作用域覆盖**
+   （`:root` 暗色 + `[data-theme="light"]` 亮色逐变量覆盖）+ 已提交构建产物；
+4. core 不捕获选择器/作用域 → token 身份仅 label 级，无法区分
+   "改品牌色（全部主题）"与"仅改亮色主题"；
+5. 该 HashRouter 工程 0 page 节点 → token→page 影响不可计算；
+6. 链式别名（`--skill-color: var(--accent)`）、回退消费
+   （`var(--accent-color, var(--accent))` 且 `--accent-color` 无定义）、
+   媒体查询/伪类上下文、运行时主题状态（localStorage + data-theme）
+   均无模型。
+
+**最小合同建议**（A 统筹执行器/补丁/Scope/computed-style 验证，B 不新建管线）：
+1. **Token 唯一来源标识**：`{file, offset, selectorScope}` 三元组替代 label 级
+   身份；同名多作用域定义各自成节点，"编辑哪个作用域"是 Scope 决策输入；
+2. **声明与消费关系**：`var(--x)` 消费连边不再要求全局唯一定义，而是连到
+   声明集合并记录"选择器作用域 → 解析结果"映射（含层叠/继承规则与
+   specificity 的确定性裁决，无法裁决时标 unknown 而非丢边）；
+3. **页面影响范围**：CSS 消费边需要元素级锚点（selector 匹配到 jsx/host
+   DOM 元素）才能借用 AC-P2a 的传播链到页面；file 级边不足。HashRouter
+   `<Route element>` 形态需纳入路由识别，否则此类真实工程页面影响恒为
+   不可计算；
+4. **用户 Scope 决策**：候选创建时把"目标作用域"（如仅亮色 / 全部主题 /
+   某断点）作为用户可确认的决策项，随 CandidateRecord 持久化；
+5. **样式覆盖与不确定性**：层叠冲突、未定义变量回退、运行时注入
+   （setAttribute / localStorage）显式建模为 unknown，禁止静默丢弃；
+6. **浏览器 computed-style 证据要求**：Verification 对 token 修改断言
+   `getComputedStyle(element).getPropertyValue('--x')` 的 before/after，
+   作为 target-change 的机器可判证据（比 DOM 文本比对更贴合样式操作）。
+
 ---
 
 ## English version — ready-to-post GitHub Issue #6 comment
@@ -233,3 +272,38 @@ creation/mutation in the caller checkout), so this does not affect B's
 conclusions. Ask: add the two `isAbsolute` guards (aligned with
 `outsideProject`) plus a positive test with candidate and artifact on
 separate drives.
+
+**AC-P6 — CSS Custom Properties source evidence and minimal executor contract
+(P1 study).** Empirical baseline: a REAL React/Vite project using pure CSS
+Custom Properties (allanhue/webportflio @ `b244f85`, MIT), on A core
+`2f2e5a7`. Full report `docs/probes/b-css-token-source-20261024.md`; probe
+`scripts/b-css-token-probe.mjs` (`--assert` pins 9 boundary facts as a
+regression baseline). Measured: (1) token DEFINITION extraction is real and
+source-proven (11 variables, byte-exact values with file/offset); (2) token
+CONSUMPTION is almost entirely missing — 212 raw `var(--x)` occurrences
+against ONE uses-token edge, and that edge is a per-file ordering artifact
+pointing into the upstream-committed dist/ build output; (3) root cause: the
+"exactly one definition" edge gate × multi-scope overrides that real projects
+actually have (`:root` dark + `[data-theme="light"]` per-variable overrides)
+× committed build artifacts; (4) no selector/scope capture → token identity
+is label-only, cannot distinguish "rebrand everywhere" from "light theme
+only"; (5) zero page nodes for this HashRouter project → token→page impact
+is not computable; (6) chained aliases, fallback-only consumers, media-query
+and pseudo-class contexts, and runtime theme state (localStorage +
+setAttribute) are all unmodelled. Minimal contract ask (A owns the
+executor/patch/Scope/computed-style verification; B is not building a
+parallel pipeline): (a) token identity = `{file, offset, selectorScope}`
+triple, same-name scoped definitions are distinct nodes and "which scope to
+edit" is a Scope decision input; (b) `var(--x)` edges connect to the
+declaration SET with a deterministic cascade/inheritance resolution, marking
+unresolvable cases unknown instead of dropping them; (c) page impact needs
+element-level anchors (selector → jsx/host element) to reuse the AC-P2a
+propagation chain — file-level edges are insufficient — and HashRouter
+`<Route element>` needs route recognition, otherwise page impact is
+uncomputable for this class of real projects; (d) persist the user's target
+scope decision (all themes vs light only vs breakpoint) in the
+CandidateRecord; (e) model cascade conflicts, undefined-variable fallbacks
+and runtime injection as explicit unknowns, never silently drop; (f)
+Verification should assert before/after
+`getComputedStyle(el).getPropertyValue('--x')` as the machine-checkable
+target-change evidence for style operations.
