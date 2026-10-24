@@ -79,6 +79,64 @@ assessRuntimeIdentity(graph, snapshot, record, {fileDigest 按侧, expectedPage}
 | ③ 视觉差异归因 | regions.sourceRefs（来源标注）+ crossVersion 候选配对 | 配对升级：评估通过的 instance-candidate | 候选配对措辞不得暗示实例证明 |
 | ④ 正式 Verification 断言 | manifest.assertions（attestBrowserExecution） | 不变 | 视觉证据永不参与 |
 
+### 1.3 双侧身份归档合同问题（复审补充①）
+
+C+D §2.2 拟议的 `VerificationRun.runtimeIdentity` 条目仅含
+`{checkId, viewport, state, snapshot}`，**缺 baseline/candidate 侧别**——同一次
+视觉比较有两个运行点采集（双侧各一份 snapshot），无侧别则无法回答"这份身份
+证据属于哪一侧的修订"，按侧版本核验（§1.4 两侧绝不混用）也无从执行。
+
+E 建议（供 A/C+D 裁决，不自行修改 model.ts）：
+
+1. **每份 snapshot 必须显式携带 `side: 'baseline' | 'candidate'`**；或改为双侧分组
+   `{checkId, viewport, state, baseline: snapshot | null, candidate: snapshot | null}`——
+   后者把"同一运行点的双侧身份对"作为归档单元，与视觉证据的双侧比较天然对齐，
+   E 倾向双侧分组，但尊重 A 的字段化决定。
+2. **每份 snapshot 的四重关联要求**：
+   - **运行点**：checkId + viewport + state 三元组，与 `manifest.visualCaptures[]`
+     及 `VisualRunEvidence` 的键完全一致，可按运行点回查；
+   - **工程版本绑定**：baseline 侧绑定基线修订（`projectRoot` 工作树 /
+     `baseSourceDigest`），candidate 侧绑定候选修订（`candidateTreeDigest`），
+     两侧绝不混用——快照条目本身应可核对它所声称的版本；
+   - **页面身份**：snapshot.page 三元组必须与该运行点采集 descriptor 的
+     route/suffix 摘要一致（宿主归档时即可校验，不一致归档为带原因条目）；
+   - **工件哈希**：与该运行点 geometry 文件 SHA-256、截图 SHA-256 并列记录
+     （manifest 已有），snapshot 自身须可序列化、可哈希（C+D §2.2 已要求），
+     使身份证据能绑定到具体字节。
+3. 归档失败的运行点不得静默省略：侧别缺失或版本不可核对的条目以带原因形式
+   保留（与 E "缺失证据不发明"语义一致）。
+
+### 1.4 严格证明判定缺口（复审补充②，接线前必要修复）
+
+`visual-geometry.ts:640` 当前以
+`options?.identityAssessment !== undefined && !== null` 作为
+`strictInstanceProofAvailable` 的部分条件——**只查非空，未核验
+`instanceIdentityProven === true`**。生产路径目前无人传 assessment
+（结果恒 false，无现实风险），但阶段二一旦宿主接线，任何非空 Assessment
+（包括评估未通过的）都会错误置位严格证明。
+
+接线前必须完成的最小修复（E 登记，待启动条件满足后实现）：
+
+1. 判定位必须核验**真实 Assessment 的 `instanceIdentityProven === true`**；
+   `missingEvidence` 为空数组**不得单独升级**（既有注释语义在代码层落实）。
+2. 严格证明依赖 **A/C+D 宿主侧正式评估**，且需**逐对**核验身份与版本：
+   现状是整个配对作用域共用一个 assessment，阶段二须改为按
+   (side, sourceRef/instanceId) 键控的逐对评估回执，一对不合格不污染其他对。
+3. 不传 assessment 的路径保持既有保守语义（annotation-pairing 不升级）。
+
+### 1.5 页面身份校验差异（复审补充③）
+
+`assessRuntimeIdentity()` 内 `samePage` 对 `expectedPage` 的 pathname 强制
+（缺失即 `page-context-unverified`），但 search/hash 为**可选比较**
+（`undefined` 即通过，runtime-identity.ts:160-163）。这与"三元组完整核验"的
+合同表述存在差异：仅给 pathname 的 expectedPage 也能产出
+`instanceIdentityProven=true`，且 search/hash 不匹配不会被发现。
+
+E 不自行裁定，登记交 A/C+D 决定：严格证明与 page-context 缺失清除的最终
+条件，是保持 pathname 强制 + search/hash 可选，还是要求完整三元组比对；
+E 消费侧按冻结结论执行（`missingEvidence` 的 page-context 项在条件满足前
+一律不清除）。
+
 ## 2. P0 — 阶段二验收矩阵（正反例，对齐 C+D it.each 词表）
 
 C+D 评估矩阵（runtime-identity.test.ts:953）七项负例 + 正例已冻结。下表按 E 消费面
@@ -108,9 +166,10 @@ view 不得出现实例级已证明措辞；`locatable=true` 仅允许"可导航
    13 项 reason 词表（`model.ts:42-61`、`runtime-identity.ts`）均为 C+D 已冻结类型；
    E 配对层 `expectedSourceVersions` 按侧核验已上线（PR #30）。**新增公共类型仅
    C+D §2.2 一项**：`VerificationRun.runtimeIdentity?: Array<{checkId, viewport, state, snapshot}>`。
-2. **容器侧零改动可行性**：采集函数已自包含并经 input.json 数据下发（与
-   `candidate-preview-vite.config.mjs` 同模式）。阶段二只需容器把已采集的
-   snapshot 额外按运行点写入清单/工件（或新字段），sampler 与 collector 本身不动。
+2. **采集函数可复用，但归档与接线需新实现**：现有 `collectRuntimeIdentitySnapshot`
+   已自包含并经 input.json 数据下发（与 `candidate-preview-vite.config.mjs` 同模式），
+   sampler 与 collector 本身无需改动；但 snapshot 按运行点的**独立归档**（双侧、
+   带 §1.3 四重关联）与**宿主侧评估接线**是阶段二新工作，不是"零改动"。
 3. **宿主侧接入点已预留**：`attachVisualEvidence` 的按侧 digestFor 与
    `analyzeVisualDifference` 的 `expectedSourceVersions` + identityAssessment 门
    均为可选参数；不传保持阶段一保守语义（冻结测试全过的兼容路径保留）。
@@ -150,9 +209,9 @@ proofLabel 逐字渲染）、完整性（artifacts 哈希）。建议按 (route,
 
 | # | 事项 | 阻塞内容 | 需要谁 |
 |---|---|---|---|
-| ① | `VerificationRun.runtimeIdentity` 字段化裁决（C+D §2.2，含字段名/归档格式/哈希要求；或批准工件替代方案） | 容器归档与宿主读取路径 | A（C+D 已提案） |
+| ① | `VerificationRun.runtimeIdentity` 字段化裁决（C+D §2.2，含字段名/归档格式/哈希要求；或批准工件替代方案）——**须含 baseline/candidate 侧别或双侧分组**，并满足 §1.3 的四重关联要求 | 容器归档与宿主读取路径 | A（C+D 已提案） |
 | ② | 宿主评估接线契约：谁来调 `assessRuntimeIdentity`（attach 内 vs runner）、expectedPage 从 verificationContract 派生的规则、fileDigest 按侧 memo 复用口径 | E 配对层传入 assessments，view 升级路径 | A + C+D |
-| ③ | 严格证明措辞升级规则：`instanceIdentityProven=true` 时 view/pairs 允许的新 proof 级别与文案（含 `sameSourceCount>1` 必附警示）、`strictInstanceProofAvailable=true` 的置位条件 | view schema additive 扩展 | A（F 会签文案） |
+| ③ | 严格证明判定修复与措辞升级规则：`instanceIdentityProven===true` 逐对核验（修复 §1.4 缺口）、view/pairs 允许的新 proof 级别与文案（含 `sameSourceCount>1` 必附警示）、`strictInstanceProofAvailable=true` 的置位条件 | view schema additive 扩展 + visual-geometry 判定修正 | A（F 会签文案） |
 | ④ | page-context 缺失清除的三条件核验由谁执行（宿主代核后只给结论，还是给 expectedPage+pageRefs 让 E 自核） | missingEvidence 清除逻辑 | A/C+D（合同 §3.2/§3.3 已给条件，缺执行归属） |
 | ⑤ | 阶段二验收矩阵（§2）与 C+D it.each 词表的联合回归挂载点 | 联合 CI 用例 | A |
 
