@@ -2,9 +2,14 @@
 
 > E Agent，2026-10-24。依据：C+D 阶段二合同 v2
 > （`feat/runtime-identity-phase2-20261024 @ 71da59d`，下称"合同 v2"）与
-> `e-identity-phase2-prep-20261024.md`。本文档只设计容器侧 snapshot 采集归档
-> 与宿主消费边界，**不修改生产代码、不决定正式 Schema**（Schema 冻结权属 A）。
-> 正式编码启动条件见 §8。
+> `e-identity-phase2-prep-20261024.md`。
+> **权威口径更新：A 冻结版 v1 `9c2c780`
+> （`docs/architecture/runtime-identity-phase2-frozen.md`）已取代 C+D v2 成为
+> 唯一权威；A 后续 v1.1 为最终权威。两者冲突处（跨版本严格配对条件）在
+> v1.1 出具前一律按 A v1 执行，E 不采用 C+D 四支柱判定做 strict 升级。**
+> 本文档只设计容器侧 snapshot 采集归档与宿主消费边界，**不修改生产代码、
+> 不决定正式 Schema**（Schema 冻结权属 A；A v1 §2 已冻结数据结构，容器归档
+> 实施权属 A，见 §8/§10）。正式编码启动条件见 §8。
 
 ## 1. 采集时机
 
@@ -97,7 +102,7 @@ manifest 增量（新段 `runtimeIdentityCaptures[]`，不动现有 `visualCaptu
 | sourceVersion 摘要 recipe | `sha256(原始文件内容 utf8)`（插件注册用 transform 输入 code 计算，v2 §8.1）；宿主 fileDigest 必须同 recipe，建议冻结公共函数（D2） | E attach 现有 `sourceFileDigest` 来自 C+D `project.ts`，需 A 确认与 D2 函数同口径后统一 | **待 A 冻结 D2**；口径漂移会导致 source-version-mismatch 误报 |
 | expectedPage 三元组 | 严格证明路径宿主传完整三元组（裁决④）；samePage 逐字段可选只是传参问题（v2 §8.4） | E 只消费 assessment 结论；冻结前不清除 search/hash 缺失标记 | **待 A 裁决严格度**（可与 ①②③ 并行，不阻塞归档开发） |
 | 多实例逐条 Assessment | `assessments.length === snapshot.records.length`，逐 record 调一次；一对不污染其他对（v2 §2） | E `visual-geometry.ts:640` 判定位改按 (side, sourceRef/instanceId) 键控逐对核验 `instanceIdentityProven===true` | **E 实施项**，冻结 ③ 后开工 |
-| 跨版本实例对应 | 四支柱（双侧证明/图侧来源对应/生命周期连续/理由干净）；id 字符串相等既不必要也不充分；图侧来源对应归 A（v2 §4、§14） | E 视觉配对继续用 sampler 数据，但对外措辞区分"候选配对"与"C+D 实例证明"；配对升级只消费宿主四支柱回执 | **部分待决**：图侧节点对应（含偏移 digest 映射）由 A 实现，C+D 配合 |
+| 跨版本实例对应 | **A v1 §3 冻结（六项全满足）**：双侧 `instanceIdentityProven===true`；双侧 `runtimeInstanceId` 相等、非空、≠sourceRef；双侧 sourceRef 相等；双侧 snapshot.page 三元组一致且等于 expectedPage；按 id 唯一配对（禁数组序，配不出唯一对 → 全部降级）；reason 新增 `cross-side-assessment-mismatch`（词表 13→14）。**与 C+D v2 四支柱冲突**（四支柱的"图侧来源对应""id 相等既不必要也不充分"与 A v1 第 3/4 条直接矛盾），以 A v1.1 为最终权威，v1.1 前按 A v1 执行 | E 视觉配对继续用 sampler 数据，对外措辞区分"候选配对"与"宿主实例证明"；配对升级只消费宿主按 A v1 §3（及 v1.1）给出的回执，E 不实现四支柱 | **A v1 已冻结，v1.1 修订中**；v1.1 出具后 E 核对消费口径 |
 | 严格证明与视觉观察独立 | #3/#6/#8/#9 locatable=true 而 instanceIdentityProven=false 全程独立（v2 §7） | E view 的两层（identityStatus vs crossVersion.scope）天然分离，保持 | **已对齐**，无需改动 |
 | 侧别组织形式 | 每侧一条 vs 双侧分组，A 二选一（v2 §2） | 容器侧两种形状都不变（per-side 写盘） | **待 A 冻结 D1** |
 | 归档过渡方案 | 字段冻结前先按 Evidence 工件归档，冻结后双写迁移（D5，C+D 认可） | 本设计即工件方案；model.ts 冻结后宿主双写 | **待 A 确认 D3/D4**（写入权、保留期） |
@@ -122,18 +127,44 @@ manifest 增量（新段 `runtimeIdentityCaptures[]`，不动现有 `visualCaptu
 
 ## 8. 正式编码所需条件
 
-1. A 冻结合同 v2 决策 ①②③（D1 侧别组织、D2 digest 公共函数、D3 写入权、
-   D4 保留期）。按合同 v2 §11，④可与 ①②③ 并行，不阻塞归档开发；
-2. A 批准 manifest 新段 `runtimeIdentityCaptures[]` 与 `identity/` 目录白名单
-   的扩展方案（本设计 §3，属接线合同，非 model.ts 变更）；
-3. 容器工件写入失败不影响验证成功的既有边界保持（回归 visual e2e）；
-4. 编码顺序：容器归档（sampler 透传 snapshot + 写盘 + manifest）→
-   宿主读取校验（白名单 + 哈希，只读路径）→ A 接线评估与
-   `runtimeIdentities` 写入 → E 判定修复（visual-geometry.ts:640）→
-   矩阵 A1–A10 真实浏览器用例 → view additive 扩展。
+1. A v1（`9c2c780`）已冻结 ①–⑤ 与数据结构；跨版本严格配对以 A v1.1 为最终
+   权威（v1.1 出具前按 v1 §3 六项执行，E 不采用 C+D 四支柱升级）；
+2. **职责确认（A v1 §2/§6 冻结）**：容器双侧归档与宿主评估写入 **A 负责**
+   （C+D 会签评估语义）；本设计的容器实施方案（§10 清单）移交 A 执行，
+   E 不改动 A 负责的核心文件，除非 A 正式委派并指定独立工作分支；
+3. A 批准 manifest 新段 `runtimeIdentityCaptures[]` 与 `identity/` 目录白名单
+   的扩展方案（本设计 §3，属接线合同）；
+4. 编码顺序（A v1 §6 冻结）：A ①容器归档 + servedSourceDigest 公共函数 →
+   A ②宿主评估写入 runtimeIdentities（C+D 会签）→ **E ③配对层接线 +
+   View additive 扩展（须在 A 完成 ①② 的集成预演分支上进行）** → F ④UI。
+   E ③内容：`visual-geometry.ts:640` 判定修复（逐对核验
+   `instanceIdentityProven===true`，非空口径废弃）、按 A v1 §4-4 的
+   `crossVersion.pairs[]` additive 回执 `{recordKey, instanceIdentityProven,
+   reasons}` + scope `provenance: 'host-assessed'`、View 证明等级与缺失原因
+   展示（措辞待 F 会签）；宿主代核后 E 只消费 missingEvidence 清除结论。
 
 ## 9. 边界重申
 
 不修改 model.ts / VerificationRun / 视觉证明升级逻辑 / Approval 门控；
 PR #34 保持 Draft；不合并 main；不触发 Bolt。本设计全部内容在合同冻结前
 不进入生产代码。
+
+## 10. 容器归档实施清单（文件级，移交 A 执行）
+
+负责人按 A v1 §2 冻结：T1–T6 属 A（容器归档与宿主写入），T7 为 A/C+D 会签
+接口，T8 中 A1–A10 容器用例随 A ①② 落地、View 矩阵部分归 E ③。
+
+| # | 任务 | 涉及文件 | 负责人 | 测试 | 验收条件 |
+|---|---|---|---|---|---|
+| T1 | sampler 透传完整 RuntimeIdentitySnapshot | `src/core/visual-geometry-sampler.mjs`（collector 可用时 snapshot 随 geometry 返回，失败 degrade null） | A | sampler 单测 + browser 用例 | collector 可用时 snapshot.records 完整透出；不可用/抛错时字段 null 且 geometry 其余字段不受影响（现有 10 用例不回退） |
+| T2 | 双侧工件写入与 SHA-256 | `src/core/visual-capture-executor.mjs`（`writeIdentitySideArtifacts`，镜像现有 `writeVisualSideArtifacts`） | A | 执行器单测 | `identity/<viewport-dir>/<side>-identity.json` 落盘；manifest 记录 path+sha256；超限整份拒收并留 bounded 原因 |
+| T3 | manifest `runtimeIdentityCaptures[]` 新段 | `src/core/candidate-verification-runner.mjs`（manifest 组装）+ `src/core/visual-capture-executor.mjs`（条目生成，含 failure 结构） | A | manifest 结构校验用例 | 键控 checkId×route×viewport×state；双侧独立条目；缺失/失败侧带 failure 原因不静默省略；既有 manifest v4 校验不回退 |
+| T4 | `identity/` 路径白名单与文件上限 | `src/core/visual-verification-attach.ts`（或 A 指定的宿主读取点）白名单 `^identity/[a-z0-9-]{1,32}/(baseline\|candidate)-identity\.json$` + 16MB 上限 | A | 白名单正反例 | 逃逸路径/双扩展名/超上限被拒收为 failed 条目；合法路径可读 |
+| T5 | 快照缺失/写盘失败/哈希错误的结果结构 | 容器侧：`visual-capture-executor.mjs` failure 条目；宿主侧：attach/归档读取点统一映射 not-run / 带原因保留 | A | A2–A5、A9 用例 | collectorSource 缺失→snapshot null+failure；哈希不符→拒收；写盘失败→该侧 failure 且其余运行点继续、验证不受影响 |
+| T6 | 宿主读取、哈希复核与评估写入 | `src/core/verification-runner.ts`（定稿前写 `runtimeIdentities`）+ 归档核验（snapshot.page vs descriptor route、boundDigest 声明核验） | A（C+D 会签评估语义） | runtime-identity 词表 it.each 扩展 | 每 record 一条 assessment（recordKey=sourceRef#'#'+(id??'@'+index)）；逐条 `assessmentSha256`；归档失败以 `assessments=[]`+原因条目保留；接线前全部门控测试 `strictInstanceProofAvailable===false`，新增测试先红后绿 |
+| T7 | 多实例逐条 Assessment 接口 | `src/core/runtime-identity.ts`（词表 13→14 加 `cross-side-assessment-mismatch`，C+D 维护）+ E 消费键约定 | A/C+D 会签 | 词表 it.each + 原型矩阵 | `assessments.length === snapshot.records.length`；一对不污染其他对；E 可按 (side, recordKey) 查单条 |
+| T8 | A1–A10 及九项 View 矩阵 | A1–A10：容器归档测试（随 A ①②）；九项 View 矩阵：E ③阶段 `visual-evidence.browser.test.ts` / `visual-dual-targets.test.ts` 扩展 + F 会签 | A（A1–A10）/ E（View 矩阵，A ①② 预演分支上） | 联合 CI（A v1 §5：`runtime-identity.test.ts` + 视觉接线测试） | 正例真实浏览器产出、禁手工构造 passed；负例断言具体 reason（含 `cross-side-assessment-mismatch`）；Approval 门控测试不回退 |
+
+E 侧（③，A ①② 集成预演分支上实施，独立提交）：`visual-geometry.ts:640`
+判定修复、`crossVersion.pairs[]` additive 回执与 scope `provenance`、View 证明
+等级展示；F ④会签文案后落地 UI。

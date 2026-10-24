@@ -207,12 +207,14 @@ proofLabel 逐字渲染）、完整性（artifacts 哈希）。建议按 (route,
 
 ## 5. 等待 A/C+D 冻结的最小接口清单
 
-> **状态更新（2026-10-24，C+D 阶段二合同 v2 `feat/runtime-identity-phase2-20261024 @ 71da59d`，
-> 已取代 v1 `2ad8528`）**：五项均已有候选方案，不再视为完全缺失；冻结前 E 不动核心写入。
-> C+D v2 已含双侧归档字段（`side: 'baseline' | 'candidate'`）与逐实例一对多 assessment
-> 结构（`RuntimeInstanceAssessmentEntry[]`）。本文 §1.3 的"侧别缺失"降级为"组织形式
-> 二选一"（每侧一条 vs 双侧分组，A 冻结）；§1.4 逐实例关联缺口由 v2 §2 硬规则 1–3
-> 覆盖，E 的 `visual-geometry.ts:640` 判定修复仍登记为 E 实施项。
+> **状态更新（2026-10-24 晚，A 冻结版 v1 `9c2c780`
+> `runtime-identity-phase2-frozen.md`）**：①–⑤ 已由 A 正式冻结，C+D v2
+> 与本文档冲突处以 A v1 为准，A v1.1 为最终权威。**跨版本严格配对存在
+> 冲突**：A v1 §3 六项条件（含双侧 id 相等、sourceRef 相等）与 C+D v2
+> 四支柱（图侧来源对应、id 相等既不必要也不充分）直接矛盾，v1.1 出具前
+> 按 A v1 执行，E 不采用四支柱做 strict 升级。职责按 A v1 §2 冻结：容器
+> 归档与宿主写入归 A；E ③（判定修复 + View additive）在 A ①② 集成预演
+> 分支上实施。冻结前 E 不动核心写入、不清除任何 search/hash 缺失标记。
 
 | # | 事项 | 阻塞内容 | 需要谁 | 状态（C+D v2 对照） |
 |---|---|---|---|---|
