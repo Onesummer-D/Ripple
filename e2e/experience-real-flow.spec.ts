@@ -59,6 +59,73 @@ async function analyzeFixture() {
 
 test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候选创建 → 候选预演 → 会话清理', async ({ page }) => {
   test.setTimeout(420_000)
+  const apiTrace: Array<{ event: string; method?: string; path: string; status?: number; detail?: string }> = []
+  const relevantApi = (pathname: string) =>
+    pathname === '/__ripple/api/analyze'
+    || pathname === '/__ripple/api/project/preview'
+    || pathname === '/__ripple/api/project/preview/stop'
+    || pathname === '/__ripple/api/project/source-selection'
+    || pathname === '/__ripple/api/history'
+    || pathname === '/__ripple/api/candidate'
+    || pathname.startsWith('/__ripple/api/candidate/')
+  const redact = (value: string) => value
+    .replaceAll(projectRoot, '<PROJECT_ROOT>')
+    .replaceAll(sandbox, '<TEST_SANDBOX>')
+    .replace(/\/home\/runner\/work\/[^\s/]+\/[^\s/]+/g, '<WORKSPACE>')
+    .replace(/[A-Za-z]:\\Users\\[^\\\s]+(?:\\[^\\\s]+)*/g, '<LOCAL_PATH>')
+    .slice(0, 2000)
+  const recordApi = (event: { event: string; method?: string; path: string; status?: number; detail?: string }) => {
+    apiTrace.push(event)
+    console.log(`[f-candidate-diagnostic] ${JSON.stringify(event)}`)
+  }
+  page.on('request', request => {
+    const pathname = new URL(request.url()).pathname
+    if (!relevantApi(pathname)) return
+    const payload = request.postDataJSON() as Record<string, unknown> | null
+    const detail = payload ? JSON.stringify({
+      projectId: payload.projectId,
+      previewId: payload.previewId,
+      sourceRef: payload.sourceRef,
+      candidateId: payload.candidateId,
+    }) : undefined
+    recordApi({ event: 'request', method: request.method(), path: pathname, detail })
+  })
+  page.on('response', async response => {
+    const pathname = new URL(response.url()).pathname
+    if (!relevantApi(pathname)) return
+    let detail: string | undefined
+    if (response.status() >= 400) {
+      detail = redact(await response.text().catch(() => '<response body unavailable>'))
+    } else if (pathname.endsWith('/project/source-selection')) {
+      const body = await response.json().catch(() => ({})) as { element?: { id?: string }; editableText?: Array<{ id?: string }> }
+      detail = JSON.stringify({ elementId: body.element?.id, editableTargetIds: body.editableText?.map(item => item.id) })
+    } else if (pathname === '/__ripple/api/candidate') {
+      const body = await response.json().catch(() => ({})) as { candidate?: { id?: string } }
+      detail = JSON.stringify({ candidateId: body.candidate?.id })
+    }
+    recordApi({ event: 'response', method: response.request().method(), path: pathname, status: response.status(), detail })
+  })
+  page.on('requestfailed', request => {
+    const pathname = new URL(request.url()).pathname
+    if (!relevantApi(pathname)) return
+    recordApi({ event: 'requestfailed', method: request.method(), path: pathname, detail: request.failure()?.errorText })
+  })
+  const readCandidateUiState = () => page.evaluate(() => {
+    const text = (testId: string) => document.querySelector(`[data-testid="${testId}"]`)?.textContent?.trim() ?? null
+    const button = document.querySelector<HTMLButtonElement>('[data-testid="create-candidate"]')
+    const error = document.querySelector<HTMLElement>('[data-testid="candidate-error"]')
+    const draft = document.querySelector<HTMLInputElement>('[data-testid="draft-text-input"]')
+    return {
+      candidateStatus: text('candidate-status'),
+      candidateBoxPresent: !!document.querySelector('[data-testid="candidate-box"]'),
+      verificationStatus: text('verification-status'),
+      selectionSummary: text('selection-summary'),
+      scopeSummary: text('scope-summary'),
+      draftValue: draft?.value ?? null,
+      createCandidate: button ? { disabled: button.disabled, ariaBusy: button.getAttribute('aria-busy'), text: button.textContent?.trim() } : null,
+      candidateError: error ? { visible: error.getClientRects().length > 0, text: error.textContent?.trim() ?? '' } : null,
+    }
+  })
   await page.setViewportSize({ width: 1440, height: 1000 })
   const analysis = await analyzeFixture()
   const titleTarget = analysis.targets.find(item => item.label.includes('Acme 真实首页标题'))
@@ -194,6 +261,12 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await expect(page.getByTestId('candidate-box')).toHaveCount(0)
   await expect(page.getByTestId('verification-status')).toHaveCount(0)
   await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
+  const refreshHistoryResponse = await fetch(`${API}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)
+  expect(refreshHistoryResponse.ok(), '刷新后应能读取服务端候选历史').toBe(true)
+  const refreshHistory = await refreshHistoryResponse.json() as { history: Array<{ candidateId: string; lifecycle: string }> }
+  const retiredFirstCandidate = refreshHistory.history.find(item => item.candidateId === candidatePayload.candidate.id)
+  console.log(`[f-candidate-diagnostic] after-refresh ${JSON.stringify({ oldCandidateLifecycle: retiredFirstCandidate?.lifecycle, candidateStatus: await page.getByTestId('candidate-status').innerText(), previewVisible: await page.getByTestId('real-preview-frame').isVisible() })}`)
+  expect(retiredFirstCandidate?.lifecycle, '重新分析必须在服务端退役旧候选').toBe('discarded')
   // 点选第二目标（正文段落）
   await page.getByTestId('picker-toggle').click()
   await expect(page.getByTestId('picker-hint')).toBeVisible()
@@ -204,9 +277,25 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
   for (let index = 0; index < await excludeButtons2.count(); index += 1) await excludeButtons2.nth(index).click()
   await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
-  const candidate2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
-  await page.getByTestId('create-candidate').click()
-  const candidate2Payload = await (await candidate2Response).json() as { candidate: { id: string } }
+  const beforeCandidate2 = await readCandidateUiState()
+  console.log(`[f-candidate-diagnostic] before-candidate2 ${JSON.stringify(beforeCandidate2)}`)
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-candidate2-before.png'), fullPage: true })
+  let candidate2Payload: { candidate: { id: string } }
+  try {
+    const candidate2Response = await page.waitForResponse(
+      response => new URL(response.url()).pathname === '/__ripple/api/candidate',
+      { timeout: 60_000 },
+    )
+    const candidate2Text = await candidate2Response.text()
+    console.log(`[f-candidate-diagnostic] candidate2-response ${JSON.stringify({ status: candidate2Response.status(), body: candidate2Response.status() >= 400 ? redact(candidate2Text) : '<success body omitted>' })}`)
+    expect(candidate2Response.status(), `second candidate HTTP response: ${redact(candidate2Text)}`).toBe(200)
+    candidate2Payload = JSON.parse(candidate2Text) as { candidate: { id: string } }
+  } catch (cause) {
+    const afterCandidate2 = await readCandidateUiState()
+    console.log(`[f-candidate-diagnostic] candidate2-timeout ${JSON.stringify({ state: afterCandidate2, apiTrace })}`)
+    await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-candidate2-timeout.png'), fullPage: true }).catch(() => undefined)
+    throw cause
+  }
   expect(candidate2Payload.candidate.id).not.toBe(candidatePayload.candidate.id)
   // 复核点 1（真实浏览器）：新候选不得展示上一个候选的验证运行
   await expect(page.getByTestId('verification-status')).toHaveCount(0)
