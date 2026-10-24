@@ -225,7 +225,7 @@ describe('visual evidence attached to a verification run', () => {
   it('does not follow a parent-directory symlink outside the evidence root for geometry', async () => {
     if (process.platform === 'win32') return // symlink creation privilege
     const { manifest, evidenceRoot } = await execute(input())
-    const dir = path.join(evidenceRoot, 'visual', 'desktop')
+    const dir = path.dirname(path.join(evidenceRoot, manifest.visualCaptures[0].baseline.geometry.path))
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-visual-outside-'))
     fs.cpSync(dir, outside, { recursive: true })
     fs.rmSync(dir, { recursive: true, force: true })
