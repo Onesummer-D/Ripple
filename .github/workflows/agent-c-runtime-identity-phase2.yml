@@ -1,0 +1,36 @@
+# Runtime Identity 阶段二真实采集原型（C+D 自有探针，静态+真实浏览器）。
+# exit 0 = 8 场景断言全过；2 = 有场景未达预期（证据 JSON 仍归档）。
+name: agent-c-runtime-identity-phase2
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/runtime-identity-phase2-20261024
+    paths:
+      - scripts/runtime-identity-phase2-proto.mjs
+      - src/core/runtime-identity.ts
+      - src/core/source-annotation.ts
+      - src/core/project.ts
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+      - name: Real collection prototype (real React page -> snapshot -> assessment)
+        run: node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/runtime-identity-phase2-proto.mjs test-results/agent-c-runtime-identity-phase2.json
+      - name: Retain full evidence JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-c-runtime-identity-phase2-${{ github.run_id }}
+          path: test-results/agent-c-runtime-identity-phase2.json
+          retention-days: 30
+          if-no-files-found: warn
