@@ -1,0 +1,408 @@
+{
+  "schemaVersion": 1,
+  "task": "thirdparty-codescandy-verification",
+  "codescandySha": "b700bbd55b31a62fe04d4cd8210fc37232f0c9f0",
+  "coreVerification": {
+    "declared": "2f2e5a708bff554775bea539fb659974203e67b8",
+    "actualHead": "2f2e5a708bff554775bea539fb659974203e67b8",
+    "headMatchesDeclared": true,
+    "acp2Ancestor": "f804c7e0908e6dc8831c46ca55b92d357df72c10",
+    "acp2LineagePresent": true
+  },
+  "platform": {
+    "host": "linux/x64",
+    "node": "v22.23.3"
+  },
+  "docker": {
+    "serverVersion": "28.0.4"
+  },
+  "environment": [
+    {
+      "where": "analysis-vs-runtime-deps",
+      "message": "analysis baseline is the dependency-free clone (gated ACCEPTED baseline); node_modules added after candidate creation for the browser preview runtime only"
+    }
+  ],
+  "candidate": {
+    "id": "candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41",
+    "patchHash": "a737fd2ac3626a1f09636df176a3beb0d24b1e1bb79100e2c64bb5e273f90a64",
+    "baseSourceDigest": "016aee03ac1a1fdb64f5f81cfec8a74c1b5d26463b13d4e0766d6142977cdced",
+    "candidateTreeDigest": "ae56e1e2adf71147adc5b06ce265dc5a6529bef6f386ccf8290f458bd1cc272e",
+    "modifiedPaths": [
+      "src/sub-components/profile/ProfileHeader.tsx"
+    ],
+    "scopeDecisionId": "scope-reprobe-full-1",
+    "scopeVersion": 1,
+    "patchArtifact": "/tmp/ripple-b-verify-UD3Re6/artifacts/candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41.patch"
+  },
+  "contract": {
+    "pages": [
+      {
+        "pageRef": "page:/pages/profile",
+        "path": "/pages/profile",
+        "markerText": "Overview (reprobe)"
+      }
+    ],
+    "interactions": []
+  },
+  "preview": {
+    "candidateId": "candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41",
+    "url": "http://127.0.0.1:33997/",
+    "containerName": "ripple-preview-candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41-280fa14d",
+    "networkName": "ripple-preview-pool-5a131a92-07d9-442b-9950-e5943c3f31b6",
+    "authorizedResourceUrls": []
+  },
+  "verification": {
+    "run": {
+      "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745",
+      "status": "incomplete",
+      "startedAt": "2026-10-24T13:06:46.516Z",
+      "completedAt": "2026-10-24T13:07:12.200Z",
+      "checks": [
+        {
+          "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop",
+          "route": "/",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "state": "rendered",
+          "description": "rendered",
+          "mandatory": true
+        },
+        {
+          "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet",
+          "route": "/",
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "state": "rendered",
+          "description": "rendered",
+          "mandatory": true
+        },
+        {
+          "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375",
+          "route": "/",
+          "viewport": {
+            "width": 375,
+            "height": 812
+          },
+          "state": "rendered",
+          "description": "rendered",
+          "mandatory": true
+        },
+        {
+          "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390",
+          "route": "/",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "state": "rendered",
+          "description": "rendered",
+          "mandatory": true
+        }
+      ],
+      "assertions": [
+        {
+          "id": "target-change",
+          "result": "unknown",
+          "detail": "The modified source target could not be uniquely associated with rendered elements."
+        },
+        {
+          "id": "non-target-preserved",
+          "result": "unknown",
+          "detail": "The baseline comparison could not uniquely mask every edited text target or both projects did not render on every viewport."
+        },
+        {
+          "id": "scope-propagation",
+          "result": "unknown",
+          "detail": "At least one route marker was missing, ambiguous, or did not identify the requested page in the original/candidate DOM; Scope propagation remains unknown."
+        },
+        {
+          "id": "interaction",
+          "result": "unknown",
+          "detail": "No complete supported button/link interaction contract was supplied; interaction remains unknown."
+        },
+        {
+          "id": "responsive-layout",
+          "result": "pass",
+          "detail": "Candidate rendered without horizontal document overflow at desktop, tablet and mobile widths."
+        },
+        {
+          "id": "source-mapping",
+          "result": "unknown",
+          "detail": "At least one changed source target could not be mapped to a rendered annotated element with a runtime instance identity."
+        },
+        {
+          "id": "browser-errors",
+          "result": "risk",
+          "detail": "48 browser or page error(s) were observed."
+        }
+      ],
+      "baselineComparisons": [
+        {
+          "route": "/",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "maskedOperationIds": [],
+          "matched": false,
+          "reason": "Source binding for op-overview-text is not unique."
+        },
+        {
+          "route": "/",
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "maskedOperationIds": [],
+          "matched": false,
+          "reason": "Source binding for op-overview-text is not unique."
+        },
+        {
+          "route": "/",
+          "viewport": {
+            "width": 375,
+            "height": 812
+          },
+          "maskedOperationIds": [],
+          "matched": false,
+          "reason": "Source binding for op-overview-text is not unique."
+        },
+        {
+          "route": "/",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "maskedOperationIds": [],
+          "matched": false,
+          "reason": "Source binding for op-overview-text is not unique."
+        }
+      ],
+      "scopeObservations": [
+        {
+          "pageRef": "page:/pages/profile",
+          "route": "/pages/profile",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "markerText": "Overview (reprobe)",
+          "baselineMarkerVisible": false,
+          "candidateMarkerVisible": true,
+          "baselineMarkerMatchCount": 0,
+          "candidateMarkerMatchCount": 1,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "verified",
+          "baselineNavigationDisambiguated": false,
+          "candidateNavigationDisambiguated": false,
+          "operations": [
+            {
+              "operationId": "op-overview-text",
+              "expectedBaselineText": "Overview\n              ",
+              "expectedCandidateText": "Overview (reprobe)\n              ",
+              "baselineValues": [
+                "Overview"
+              ],
+              "candidateValues": [
+                "Overview (reprobe)"
+              ]
+            }
+          ]
+        },
+        {
+          "pageRef": "page:/pages/profile",
+          "route": "/pages/profile",
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "markerText": "Overview (reprobe)",
+          "baselineMarkerVisible": false,
+          "candidateMarkerVisible": true,
+          "baselineMarkerMatchCount": 0,
+          "candidateMarkerMatchCount": 1,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "verified",
+          "baselineNavigationDisambiguated": false,
+          "candidateNavigationDisambiguated": false,
+          "operations": [
+            {
+              "operationId": "op-overview-text",
+              "expectedBaselineText": "Overview\n              ",
+              "expectedCandidateText": "Overview (reprobe)\n              ",
+              "baselineValues": [
+                "Overview"
+              ],
+              "candidateValues": [
+                "Overview (reprobe)"
+              ]
+            }
+          ]
+        },
+        {
+          "pageRef": "page:/pages/profile",
+          "route": "/pages/profile",
+          "viewport": {
+            "width": 375,
+            "height": 812
+          },
+          "markerText": "Overview (reprobe)",
+          "baselineMarkerVisible": false,
+          "candidateMarkerVisible": true,
+          "baselineMarkerMatchCount": 0,
+          "candidateMarkerMatchCount": 1,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "verified",
+          "baselineNavigationDisambiguated": false,
+          "candidateNavigationDisambiguated": false,
+          "operations": [
+            {
+              "operationId": "op-overview-text",
+              "expectedBaselineText": "Overview\n              ",
+              "expectedCandidateText": "Overview (reprobe)\n              ",
+              "baselineValues": [
+                "Overview"
+              ],
+              "candidateValues": [
+                "Overview (reprobe)"
+              ]
+            }
+          ]
+        },
+        {
+          "pageRef": "page:/pages/profile",
+          "route": "/pages/profile",
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "markerText": "Overview (reprobe)",
+          "baselineMarkerVisible": false,
+          "candidateMarkerVisible": true,
+          "baselineMarkerMatchCount": 0,
+          "candidateMarkerMatchCount": 1,
+          "baselineRouteIdentity": "missing",
+          "candidateRouteIdentity": "verified",
+          "baselineNavigationDisambiguated": false,
+          "candidateNavigationDisambiguated": false,
+          "operations": [
+            {
+              "operationId": "op-overview-text",
+              "expectedBaselineText": "Overview\n              ",
+              "expectedCandidateText": "Overview (reprobe)\n              ",
+              "baselineValues": [
+                "Overview"
+              ],
+              "candidateValues": [
+                "Overview (reprobe)"
+              ]
+            }
+          ]
+        }
+      ],
+      "interactionObservations": [],
+      "browserErrorDetails": {
+        "total": 48,
+        "byCategory": {
+          "console-error": 48
+        },
+        "samples": [
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+          "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375 http://172.18.0.2:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked."
+        ],
+        "truncated": true
+      },
+      "execution": {
+        "executor": "playwright",
+        "recordPath": "/tmp/ripple-b-verify-UD3Re6/artifacts/verification/candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41/verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/execution.json",
+        "recordHash": "bd2c0e6a791f359b582cd192d29cad435a7a789d7ae97cd22395f3dccc0c6756"
+      }
+    },
+    "sessionStatus": "candidate",
+    "visualEvidenceCount": 0,
+    "evidenceArtifacts": [
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/execution.json",
+        "bytes": 46061,
+        "sha256": "bd2c0e6a791f359b582cd192d29cad435a7a789d7ae97cd22395f3dccc0c6756"
+      },
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/progress.jsonl",
+        "bytes": 28910,
+        "sha256": "66c9ebc6043a80bc70f50579d7dd7be4b904baa74e33c4337c8359707b525d64"
+      },
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/resource-fetch-log.json",
+        "bytes": 44,
+        "sha256": "de8cd7b69e29b32305aaf8ba5f061e937b2d2645a6931547fac5f499e0482a49"
+      },
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/snapshot-timing.json",
+        "bytes": 84,
+        "sha256": "8ddde96be1c4cba7c5d6ae3ab42edf85a66b48813e5ac97291ad5955031ff97d"
+      },
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop.png",
+        "bytes": 217805,
+        "sha256": "6c152cd50225e7cafc85dd7b0cd15418c5b8e3aa0e6985bd8025bbc4034f4170"
+      },
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375.png",
+        "bytes": 128135,
+        "sha256": "9405add88063e274e8636452661cf90b6de200ff71b8d263701de745dfde3b7a"
+      },
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390.png",
+        "bytes": 129770,
+        "sha256": "5e46b5201d7bb74a512b9dc59c892d0e2026c30788b7d7f1bc0a873422bf61f0"
+      },
+      {
+        "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745/verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet.png",
+        "bytes": 172729,
+        "sha256": "14dac27d5ae70c65be86e17b8f9c8952bf1c5abe003fedb04912e19c21b0e0c9"
+      }
+    ]
+  },
+  "cleanup": {
+    "previewStopped": true,
+    "candidateRemoved": true,
+    "networkPoolStopped": true,
+    "tempRootRemoved": true
+  },
+  "postChecks": {
+    "sourceRepoDigestUnchanged": true,
+    "sourceRepoWorktreesUnchanged": true,
+    "sourceRepoStillPinned": true,
+    "sourceRepoClean": true
+  },
+  "classification": "incomplete",
+  "failure": null,
+  "remainingIssues": []
+}

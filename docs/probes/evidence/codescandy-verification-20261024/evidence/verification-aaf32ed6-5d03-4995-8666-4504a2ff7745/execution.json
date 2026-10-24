@@ -1,0 +1,782 @@
+{
+  "schemaVersion": 4,
+  "executor": "playwright",
+  "completed": true,
+  "runId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745",
+  "candidateId": "candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41",
+  "scopeDecisionId": "scope-reprobe-full-1",
+  "scopeVersion": 1,
+  "baseSourceDigest": "016aee03ac1a1fdb64f5f81cfec8a74c1b5d26463b13d4e0766d6142977cdced",
+  "patchHash": "a737fd2ac3626a1f09636df176a3beb0d24b1e1bb79100e2c64bb5e273f90a64",
+  "candidateTreeDigest": "ae56e1e2adf71147adc5b06ce265dc5a6529bef6f386ccf8290f458bd1cc272e",
+  "runtimeFingerprint": "5be540728f9f2bf58ae5c027e51fbacb0fcf6bfe0beb253e187e79c80ce7cac3",
+  "verificationContractHash": "d606d7e7a731cf5534e6473ac6a825b5d18b878b802fbaf63785c94a17666f3d",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "name": "mobile-375",
+      "width": 375,
+      "height": 812
+    },
+    {
+      "name": "mobile-390",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "checks": [
+    {
+      "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop",
+      "route": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "state": "rendered",
+      "passed": true
+    },
+    {
+      "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet",
+      "route": "/",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "state": "rendered",
+      "passed": true
+    },
+    {
+      "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375",
+      "route": "/",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "state": "rendered",
+      "passed": true
+    },
+    {
+      "id": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390",
+      "route": "/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "state": "rendered",
+      "passed": true
+    }
+  ],
+  "baselineComparisons": [
+    {
+      "route": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "maskedOperationIds": [],
+      "matched": false,
+      "reason": "Source binding for op-overview-text is not unique."
+    },
+    {
+      "route": "/",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "maskedOperationIds": [],
+      "matched": false,
+      "reason": "Source binding for op-overview-text is not unique."
+    },
+    {
+      "route": "/",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "maskedOperationIds": [],
+      "matched": false,
+      "reason": "Source binding for op-overview-text is not unique."
+    },
+    {
+      "route": "/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "maskedOperationIds": [],
+      "matched": false,
+      "reason": "Source binding for op-overview-text is not unique."
+    }
+  ],
+  "scopeObservations": [
+    {
+      "pageRef": "page:/pages/profile",
+      "route": "/pages/profile",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "markerText": "Overview (reprobe)",
+      "baselineMarkerVisible": false,
+      "candidateMarkerVisible": true,
+      "baselineMarkerMatchCount": 0,
+      "candidateMarkerMatchCount": 1,
+      "baselineRouteIdentity": "missing",
+      "candidateRouteIdentity": "verified",
+      "baselineNavigationDisambiguated": false,
+      "candidateNavigationDisambiguated": false,
+      "operations": [
+        {
+          "operationId": "op-overview-text",
+          "expectedBaselineText": "Overview\n              ",
+          "expectedCandidateText": "Overview (reprobe)\n              ",
+          "baselineValues": [
+            "Overview"
+          ],
+          "candidateValues": [
+            "Overview (reprobe)"
+          ]
+        }
+      ]
+    },
+    {
+      "pageRef": "page:/pages/profile",
+      "route": "/pages/profile",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "markerText": "Overview (reprobe)",
+      "baselineMarkerVisible": false,
+      "candidateMarkerVisible": true,
+      "baselineMarkerMatchCount": 0,
+      "candidateMarkerMatchCount": 1,
+      "baselineRouteIdentity": "missing",
+      "candidateRouteIdentity": "verified",
+      "baselineNavigationDisambiguated": false,
+      "candidateNavigationDisambiguated": false,
+      "operations": [
+        {
+          "operationId": "op-overview-text",
+          "expectedBaselineText": "Overview\n              ",
+          "expectedCandidateText": "Overview (reprobe)\n              ",
+          "baselineValues": [
+            "Overview"
+          ],
+          "candidateValues": [
+            "Overview (reprobe)"
+          ]
+        }
+      ]
+    },
+    {
+      "pageRef": "page:/pages/profile",
+      "route": "/pages/profile",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "markerText": "Overview (reprobe)",
+      "baselineMarkerVisible": false,
+      "candidateMarkerVisible": true,
+      "baselineMarkerMatchCount": 0,
+      "candidateMarkerMatchCount": 1,
+      "baselineRouteIdentity": "missing",
+      "candidateRouteIdentity": "verified",
+      "baselineNavigationDisambiguated": false,
+      "candidateNavigationDisambiguated": false,
+      "operations": [
+        {
+          "operationId": "op-overview-text",
+          "expectedBaselineText": "Overview\n              ",
+          "expectedCandidateText": "Overview (reprobe)\n              ",
+          "baselineValues": [
+            "Overview"
+          ],
+          "candidateValues": [
+            "Overview (reprobe)"
+          ]
+        }
+      ]
+    },
+    {
+      "pageRef": "page:/pages/profile",
+      "route": "/pages/profile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "markerText": "Overview (reprobe)",
+      "baselineMarkerVisible": false,
+      "candidateMarkerVisible": true,
+      "baselineMarkerMatchCount": 0,
+      "candidateMarkerMatchCount": 1,
+      "baselineRouteIdentity": "missing",
+      "candidateRouteIdentity": "verified",
+      "baselineNavigationDisambiguated": false,
+      "candidateNavigationDisambiguated": false,
+      "operations": [
+        {
+          "operationId": "op-overview-text",
+          "expectedBaselineText": "Overview\n              ",
+          "expectedCandidateText": "Overview (reprobe)\n              ",
+          "baselineValues": [
+            "Overview"
+          ],
+          "candidateValues": [
+            "Overview (reprobe)"
+          ]
+        }
+      ]
+    }
+  ],
+  "interactionObservations": [],
+  "assertions": [
+    {
+      "id": "target-change",
+      "result": "unknown",
+      "detail": "The modified source target could not be uniquely associated with rendered elements."
+    },
+    {
+      "id": "non-target-preserved",
+      "result": "unknown",
+      "detail": "The baseline comparison could not uniquely mask every edited text target or both projects did not render on every viewport."
+    },
+    {
+      "id": "scope-propagation",
+      "result": "unknown",
+      "detail": "At least one route marker was missing, ambiguous, or did not identify the requested page in the original/candidate DOM; Scope propagation remains unknown."
+    },
+    {
+      "id": "interaction",
+      "result": "unknown",
+      "detail": "No complete supported button/link interaction contract was supplied; interaction remains unknown."
+    },
+    {
+      "id": "responsive-layout",
+      "result": "pass",
+      "detail": "Candidate rendered without horizontal document overflow at desktop, tablet and mobile widths."
+    },
+    {
+      "id": "source-mapping",
+      "result": "unknown",
+      "detail": "At least one changed source target could not be mapped to a rendered annotated element with a runtime instance identity."
+    },
+    {
+      "id": "browser-errors",
+      "result": "risk",
+      "detail": "48 browser or page error(s) were observed."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence-verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop",
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop",
+      "result": "pass",
+      "capturedAt": "2026-10-24T13:06:46.516Z",
+      "pageUrl": "http://172.18.0.2:5173/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtimeState": "rendered",
+      "elementRefs": [
+        "jsx:src/layouts/RootLayout.tsx#462",
+        "jsx:src/layouts/RootLayout.tsx#499",
+        "jsx:src/layouts/RootLayout.tsx#572",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#1470",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#12939",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#2094",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#606",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#915",
+        "jsx:src/layouts/RootLayout.tsx#702",
+        "jsx:src/layouts/RootLayout.tsx#736",
+        "jsx:src/components/navbars/topbar/Header.tsx#430",
+        "jsx:src/components/navbars/topbar/Header.tsx#493",
+        "jsx:src/components/navbars/topbar/Header.tsx#760",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#767",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#1125",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#1233",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#1347",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#1397",
+        "jsx:src/components/navbars/topbar/NotificationList.tsx#810",
+        "jsx:src/components/navbars/topbar/NotificationList.tsx#871",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#1573",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#2098",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#2612",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#2650",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#2837",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#2967",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#3094",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#3237",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#3345",
+        "jsx:src/components/navbars/topbar/DesktopNotifications.tsx#3467",
+        "jsx:src/pages/dashboard/Index.tsx#498",
+        "jsx:src/pages/dashboard/Index.tsx#659",
+        "jsx:src/pages/dashboard/Index.tsx#679",
+        "jsx:src/pages/dashboard/Index.tsx#763",
+        "jsx:src/pages/dashboard/Index.tsx#812",
+        "jsx:src/pages/dashboard/Index.tsx#898",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#364",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#447",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#465",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#531",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#672",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#688",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#740",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#473",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#610",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#656",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#677",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#715",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#746",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#780",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#813",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#884",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1010",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1049",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1101",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1169",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1201",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1490",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1544",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1857",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1924",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1976",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2146",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2198",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2361",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2846",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2923",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3150",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3212",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3291",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2123",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2201",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2219",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2329",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2582",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2659",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2701",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2770",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2826",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2870",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2912",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2980",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3036",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3082",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3124",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3193",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3249",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1410",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1521",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1563",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1580",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1606",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1632",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1667",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1718",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1798",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1833",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1881",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1945",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2192",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2242",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2303",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2430",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2492",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2562"
+      ],
+      "artifactPath": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop.png",
+      "artifactHash": "6c152cd50225e7cafc85dd7b0cd15418c5b8e3aa0e6985bd8025bbc4034f4170"
+    },
+    {
+      "id": "evidence-verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet",
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet",
+      "result": "pass",
+      "capturedAt": "2026-10-24T13:06:55.261Z",
+      "pageUrl": "http://172.18.0.2:5173/",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "runtimeState": "rendered",
+      "elementRefs": [
+        "jsx:src/layouts/RootLayout.tsx#462",
+        "jsx:src/layouts/RootLayout.tsx#499",
+        "jsx:src/layouts/RootLayout.tsx#572",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#1470",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#12939",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#2094",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#606",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#915",
+        "jsx:src/layouts/RootLayout.tsx#702",
+        "jsx:src/layouts/RootLayout.tsx#736",
+        "jsx:src/components/navbars/topbar/Header.tsx#430",
+        "jsx:src/components/navbars/topbar/Header.tsx#493",
+        "jsx:src/components/navbars/topbar/Header.tsx#760",
+        "jsx:src/components/navbars/topbar/MobileNotifications.tsx#764",
+        "jsx:src/components/navbars/topbar/MobileNotifications.tsx#2079",
+        "jsx:src/pages/dashboard/Index.tsx#498",
+        "jsx:src/pages/dashboard/Index.tsx#659",
+        "jsx:src/pages/dashboard/Index.tsx#679",
+        "jsx:src/pages/dashboard/Index.tsx#763",
+        "jsx:src/pages/dashboard/Index.tsx#812",
+        "jsx:src/pages/dashboard/Index.tsx#898",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#364",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#447",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#465",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#531",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#672",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#688",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#740",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#473",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#610",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#656",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#677",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#715",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#746",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#780",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#813",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#884",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1010",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1049",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1101",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1169",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1201",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1490",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1544",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1857",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1924",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1976",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2146",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2198",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2361",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2846",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2923",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3150",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3212",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3291",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2123",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2201",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2219",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2329",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2582",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2659",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2701",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2770",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2826",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2870",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2912",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2980",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3036",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3082",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3124",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3193",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3249",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1410",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1521",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1563",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1580",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1606",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1632",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1667",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1718",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1798",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1833",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1881",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1945",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2192",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2242",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2303",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2430",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2492",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2562"
+      ],
+      "artifactPath": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet.png",
+      "artifactHash": "14dac27d5ae70c65be86e17b8f9c8952bf1c5abe003fedb04912e19c21b0e0c9"
+    },
+    {
+      "id": "evidence-verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375",
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375",
+      "result": "pass",
+      "capturedAt": "2026-10-24T13:07:03.759Z",
+      "pageUrl": "http://172.18.0.2:5173/",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "runtimeState": "rendered",
+      "elementRefs": [
+        "jsx:src/layouts/RootLayout.tsx#462",
+        "jsx:src/layouts/RootLayout.tsx#499",
+        "jsx:src/layouts/RootLayout.tsx#572",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#1470",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#12939",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#2094",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#606",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#915",
+        "jsx:src/layouts/RootLayout.tsx#702",
+        "jsx:src/layouts/RootLayout.tsx#736",
+        "jsx:src/components/navbars/topbar/Header.tsx#430",
+        "jsx:src/components/navbars/topbar/Header.tsx#493",
+        "jsx:src/components/navbars/topbar/Header.tsx#760",
+        "jsx:src/components/navbars/topbar/MobileNotifications.tsx#764",
+        "jsx:src/components/navbars/topbar/MobileNotifications.tsx#2079",
+        "jsx:src/pages/dashboard/Index.tsx#498",
+        "jsx:src/pages/dashboard/Index.tsx#659",
+        "jsx:src/pages/dashboard/Index.tsx#679",
+        "jsx:src/pages/dashboard/Index.tsx#763",
+        "jsx:src/pages/dashboard/Index.tsx#812",
+        "jsx:src/pages/dashboard/Index.tsx#898",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#364",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#447",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#465",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#531",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#672",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#688",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#740",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#473",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#610",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#656",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#677",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#715",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#746",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#780",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#813",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#884",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1010",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1049",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1101",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1169",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1201",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1490",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1544",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1857",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1924",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1976",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2146",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2198",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2361",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2846",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2923",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3150",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3212",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3291",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2123",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2201",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2219",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2329",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2582",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2659",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2701",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2770",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2826",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2870",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2912",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2980",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3036",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3082",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3124",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3193",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3249",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1410",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1521",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1563",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1580",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1606",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1632",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1667",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1718",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1798",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1833",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1881",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1945",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2192",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2242",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2303",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2430",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2492",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2562"
+      ],
+      "artifactPath": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375.png",
+      "artifactHash": "9405add88063e274e8636452661cf90b6de200ff71b8d263701de745dfde3b7a"
+    },
+    {
+      "id": "evidence-verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390",
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390",
+      "result": "pass",
+      "capturedAt": "2026-10-24T13:07:12.200Z",
+      "pageUrl": "http://172.18.0.2:5173/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "runtimeState": "rendered",
+      "elementRefs": [
+        "jsx:src/layouts/RootLayout.tsx#462",
+        "jsx:src/layouts/RootLayout.tsx#499",
+        "jsx:src/layouts/RootLayout.tsx#572",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#1470",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#12939",
+        "jsx:src/components/navbars/sidebar/Sidebar.tsx#2094",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#606",
+        "jsx:src/components/navbars/sidebar/CustomToggle.tsx#915",
+        "jsx:src/layouts/RootLayout.tsx#702",
+        "jsx:src/layouts/RootLayout.tsx#736",
+        "jsx:src/components/navbars/topbar/Header.tsx#430",
+        "jsx:src/components/navbars/topbar/Header.tsx#493",
+        "jsx:src/components/navbars/topbar/Header.tsx#760",
+        "jsx:src/components/navbars/topbar/MobileNotifications.tsx#764",
+        "jsx:src/components/navbars/topbar/MobileNotifications.tsx#2079",
+        "jsx:src/pages/dashboard/Index.tsx#498",
+        "jsx:src/pages/dashboard/Index.tsx#659",
+        "jsx:src/pages/dashboard/Index.tsx#679",
+        "jsx:src/pages/dashboard/Index.tsx#763",
+        "jsx:src/pages/dashboard/Index.tsx#812",
+        "jsx:src/pages/dashboard/Index.tsx#898",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#364",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#447",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#465",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#531",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#672",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#688",
+        "jsx:src/widgets/stats/StatRightTopIcon.tsx#740",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#473",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#610",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#656",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#677",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#715",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#746",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#780",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#813",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#884",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1010",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1049",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1101",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1169",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1201",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1490",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1544",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1857",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1924",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#1976",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2146",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2198",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2361",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2846",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#2923",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3150",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3212",
+        "jsx:src/sub-components/dashboard/ActiveProjects.tsx#3291",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2123",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2201",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2219",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2329",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2582",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2659",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2701",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2770",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2826",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2870",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2912",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#2980",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3036",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3082",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3124",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3193",
+        "jsx:src/sub-components/dashboard/TasksPerformance.tsx#3249",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1410",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1521",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1563",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1580",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1606",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1632",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1667",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1718",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1798",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1833",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1881",
+        "jsx:src/sub-components/dashboard/Teams.tsx#1945",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2192",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2242",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2303",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2430",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2492",
+        "jsx:src/sub-components/dashboard/Teams.tsx#2562"
+      ],
+      "artifactPath": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390.png",
+      "artifactHash": "5e46b5201d7bb74a512b9dc59c892d0e2026c30788b7d7f1bc0a873422bf61f0"
+    }
+  ],
+  "artifacts": [
+    {
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop",
+      "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop.png",
+      "sha256": "6c152cd50225e7cafc85dd7b0cd15418c5b8e3aa0e6985bd8025bbc4034f4170"
+    },
+    {
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet",
+      "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet.png",
+      "sha256": "14dac27d5ae70c65be86e17b8f9c8952bf1c5abe003fedb04912e19c21b0e0c9"
+    },
+    {
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375",
+      "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375.png",
+      "sha256": "9405add88063e274e8636452661cf90b6de200ff71b8d263701de745dfde3b7a"
+    },
+    {
+      "checkId": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390",
+      "path": "verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-390.png",
+      "sha256": "5e46b5201d7bb74a512b9dc59c892d0e2026c30788b7d7f1bc0a873422bf61f0"
+    }
+  ],
+  "visualCaptures": [],
+  "resourceSnapshots": [],
+  "unavailableResources": [],
+  "loadedExternalResourceUrls": [],
+  "blockedExternalResourceUrls": [],
+  "browserErrorDetails": {
+    "total": 48,
+    "byCategory": {
+      "console-error": 48
+    },
+    "samples": [
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-desktop http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.2:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-tablet http://172.18.0.3:5173/pages/profile: Loading the stylesheet 'https://cdnjs.cloudflare.com/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.",
+      "[console-error] verification-aaf32ed6-5d03-4995-8666-4504a2ff7745-mobile-375 http://172.18.0.2:5173/: Loading the stylesheet 'https://fonts.googleapis.com/css2' violates the following Content Security Policy directive: \"style-src 'self' 'unsafe-inline'\". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked."
+    ],
+    "truncated": true
+  }
+}

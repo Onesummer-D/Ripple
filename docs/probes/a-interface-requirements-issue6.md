@@ -90,6 +90,46 @@ Windows）。B 已把自身负例改为平台稳定断言（`negative-inside-pro
 `&& !path.isAbsolute(artifactRelative)`（与 `outsideProject` 对齐），并为跨盘/UNC 路径
 补一条正例测试（候选与工件分置两盘应成功创建）。
 
+## AC-P4：基线 DOM 比对的页面选择与"绑定不唯一"误报文案（Verification incomplete 根因）
+
+**现象**：codescandy ACCEPTED 候选的正式 Verification（A 核心 2f2e5a7）全链路走通
+（预览启动、四视口 rendered、截图与 VerificationRun 产出），但七项断言中五项为
+unknown，baselineComparisons 全部 `matched=false`，原因
+`"Source binding for op-overview-text is not unique."`（证据：
+`docs/probes/evidence/codescandy-verification-20261024/`）。
+
+**根因（已定位到行，B 附最小复现）**：
+1. `verification-execution.mjs` 的 `verifyViewport` 把基线 DOM 比对**固定在根页面 `/`**
+   （两侧导航 `/` 后调 `snapshotOutsideTargets`）；而本候选的唯一受影响页是
+   `/pages/profile`，`pageExpectations` 无 `/` 条目 → `spec.text=''` →
+   L561 的 `!spec.text.trim()` 命中，返回上述文案。
+2. L561 把 `sourceRefs.length!==1` 与 `!spec.text.trim()` 合并为同一句文案：
+   **空页面期望被误报为"绑定不唯一"**，诊断方向被误导。
+3. B 的复现 `scripts/b-verify-binding-probe.mjs`（可在 A-core 检出直接运行，无需
+   Docker）证明 `sourceBindings()` 对两侧都返回**唯一**引用
+   （`jsx:ProfileHeader.tsx#2522`，经包含元素回退）——绑定本身无问题。
+
+**需求**（A 判断，B 不改核心）：
+1. 比对页语义：当合同未声明 `/` 页面时，基线比对应改在**受影响页**（或跳过并说明），
+   而不是固定在 `/` 要求一份不存在的期望；
+2. 原因文案拆分：`sourceRefs.length!==1` 与 `!spec.text.trim()` 分别报告
+   （如 `binding-not-unique` vs `page-expectation-missing:<pageRef>`）；
+3. 补一条正例测试：页面级 Scope 候选（影响页非根页）的比对应在正确页面上进行。
+
+## AC-P5：AC-P2a 引入的重复 reads 边（图卫生）
+
+**现象**：`Overview` 字面量
+（`literal:src/sub-components/profile/ProfileHeader.tsx#2620`）存在 **2 条完全相同的
+reads 边**（同一 `from`=`component:…ProfileHeader.tsx#131`、同一 `to`、同一 kind、
+均 source-proven）。`scripts/b-verify-binding-probe.mjs` 的 `duplicateIdenticalEdges`
+可稳定复现。
+
+**影响**：未影响本次绑定判定（`renderedSourceRefs` 按 jsx-element 过滤后走包含回退），
+但重复边会放大一切按边计数的统计与传播逻辑，属于图构建卫生缺陷。
+
+**需求**：SourceGraph 构建时对 (from,to,kind) 完全相同的边去重（保留一条，确定性
+选择 certainty 较高者），并加一条回归测试。
+
 ---
 
 ## English version — ready-to-post GitHub Issue #6 comment
@@ -144,6 +184,35 @@ EOL (#2620 ↔ #2691); artifacts carrying source offsets must record EOL state.
 `scripts/b-thirdparty-reprobe-stats.mjs`, reports in `docs/probes/`
 (`b-codescandy-reprobe-2026-10-23.json`, `b-codescandy-reprobe-stats-20261023.json`,
 `thirdparty-text-blocker-matrix.md` v2).
+
+**AC-P4 — baseline DOM comparison page selection + misleading "not unique"
+reason (root cause of the Verification incomplete).** The formal codescandy
+Verification on A core 2f2e5a7 ran the full chain (preview started, all four
+viewports rendered, screenshots + VerificationRun produced) but five of seven
+assertions are unknown; every baselineComparison reports
+`"Source binding for op-overview-text is not unique."` (evidence:
+`docs/probes/evidence/codescandy-verification-20261024/`). Root cause, pinned to
+the line: `verifyViewport` in verification-execution.mjs always runs the
+baseline DOM comparison on the ROOT page `/`, while this candidate's only
+impacted page is `/pages/profile`, so `pageExpectations` has no entry for it →
+`spec.text=''` → the `!spec.text.trim()` branch at L561 returns that message.
+L561 merges `sourceRefs.length!==1` and `!spec.text.trim()` into one string, so
+a missing page expectation is misreported as a non-unique binding. B's minimal
+repro `scripts/b-verify-binding-probe.mjs` (runs on any A-core checkout, no
+Docker) proves `sourceBindings()` returns a UNIQUE ref on both sides
+(`jsx:ProfileHeader.tsx#2522` via the containing fallback) — the binding is
+fine. Ask A: (1) when the contract declares no `/` page, run the baseline
+comparison on the impacted page (or skip with explanation), not on `/`; (2)
+split the refusal reasons (`binding-not-unique` vs
+`page-expectation-missing:<pageRef>`); (3) add a positive test for a page-level
+candidate whose impacted page is not the root.
+
+**AC-P5 — duplicate reads edges from AC-P2a (graph hygiene).** The Overview
+literal has TWO identical reads edges (same from=`component:…ProfileHeader.tsx#131`,
+same to, same kind, both source-proven); `duplicateIdenticalEdges` in
+`scripts/b-verify-binding-probe.mjs` reproduces it. It did not affect this
+binding decision but inflates any edge-counting logic. Ask A: dedupe edges
+identical on (from,to,kind) at graph build time and add a regression test.
 
 **AC-P3 — add the missing `path.isAbsolute` guard to the candidate/artifact
 mutual-containment check (false rejection across Windows drives).**

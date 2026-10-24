@@ -1,14 +1,25 @@
-# 第三方 TEXT 全生命周期阻断矩阵（Issue #6 / codescandy）— v2
+# 第三方 TEXT 全生命周期阻断矩阵（Issue #6 / codescandy）— v3
 
-- 日期：2026-10-23（v2，复验版）
-- v1 日期：2026-10-21（基线：Ripple PR #9 分支）
-- v2 基线：Ripple `feat/b-thirdparty-reprobe-20261023`（基于 A 稳定集成基线 `feat/a-cd-rehearsal-20261023` @ `1485439`）
-- 第三方固定 SHA：`b700bbd55b31a62fe04d4cd8210fc37232f0c9f0`（dash-ui-react-vitejs-typescript，两次实测一致）
-- 状态取值：PASS / RISK / UNKNOWN / UNSUPPORTED / NOT RUN / BLOCKED
+- 日期：2026-10-24（v3，正式 Verification 版）
+- v2 日期：2026-10-23（复验版，基线 A `feat/a-cd-rehearsal-20261023` @ `1485439`）
+- v3 基线：A 最终集成候选 `feat/a-final-integration-20261023` @ `2f2e5a7`
+  （含 AC-P2a/b 修复 + codescandy 通配别名存在性回退 `6f22551`）
+- 第三方固定 SHA：`b700bbd55b31a62fe04d4cd8210fc37232f0c9f0`（dash-ui-react-vitejs-typescript，多次实测一致）
+- 状态取值：PASS / RISK / UNKNOWN / UNSUPPORTED / NOT RUN / BLOCKED / INCOMPLETE
 - 原则：第一项失败不级联——未运行的环节标记 NOT RUN/BLOCKED 并写明前置依赖；
-  route 数量增加不等于项目接入成功。
+  route 数量增加不等于项目接入成功；Verification incomplete/risk 不得升格为 PASS。
 
-## 新旧基线实测对比（SourceGraph，静态分析，未执行目标代码）
+## v3 更新（正式 Verification 已运行，结论 incomplete）
+
+- **AC-P2a/b 修复已验证落地**：`--expect accepted` 在 A 核心 2f2e5a7 上 pass=true，
+  真实 CandidateRecord 创建成功（patchHash `a737fd2ac362…`，CI 与本地逐字节一致）。
+- **`* → ./src/*` 通配别名阻断解除**：受限预览正常启动，四视口真实渲染。
+- 正式 Verification 全链路走通并产出证据，但按证据语义 **classification=incomplete**：
+  5/7 断言 unknown（根页比对 + 误报文案，AC-P4）+ 1 risk（Google Fonts 被 CSP 拦截）。
+  证据：`docs/probes/evidence/codescandy-verification-20261024/` +
+  报告 `b-codescandy-verification-20261024.md`。Approval/Apply/Rollback 保持 NOT RUN。
+
+## v2 历史基线对比（SourceGraph，静态分析，未执行目标代码）
 
 | 指标 | v1 旧基线（10-21，PR #9） | v2 新基线（10-23，含 PR #28 data-router 能力） |
 | --- | --- | --- |
@@ -39,9 +50,9 @@ Profile → ProfileHeader → Overview 三段链路全部 source-proven），但
 | 1 | 项目能力识别与来源证明 | UNSUPPORTED | **PASS（带限制）** | 37 route、媒体 asset-consumer 61 source-proven（与旧基线同口径持平）、Overview 目标页面影响定位到 `page:/pages/profile`；限制 4 项如实保留：composite-jsx-child（semantic-candidate）、errorElement 条件回退未建模、route-coverage 未决、theme.scss 导入未解析 |
 | 2 | 受限预演启动并显示真实网站 | NOT RUN | **PARTIAL EVIDENCE** | Ripple 沙箱预演需要 Candidate（被 #4 门控拒绝）+ Docker 容器（本机无 Docker，仅 CI 可验）。旁证：codescandy 自有工具链 `npm run build` 成功（4632 模块），真实 Chromium 下 `/` 与 `/pages/profile` 均 200、零 page error、「Overview」可见——见 `docs/probes/evidence/codescandy-real-site/`。该旁证不等于 Ripple 受限沙箱已支持 |
 | 3 | DOM→源码可靠定位 | NOT RUN | **NOT RUN** | 依赖 #2 Ripple 沙箱预演；源码侧唯一性已具备（图内目标唯一 + 源码双定位） |
-| 4 | 一次简单 TEXT 候选创建 | BLOCKED | **BLOCKED（实测复现）** | `scripts/b-thirdparty-candidate-gate.mjs` 实测 `createCandidate` 抛 CandidateError：`无法证明目标的完整页面影响：composite-jsx-child…；工程存在尚未证明的 data-router 消费者…`。fail-closed 行为正确，**不得放宽** |
-| 5 | 四视口验证与证据 | NOT RUN | **NOT RUN** | 依赖 #2/#3/#4 |
-| 6 | Approval / Apply / Rollback | NOT RUN | **NOT RUN** | 依赖 #3–#5 |
+| 4 | 一次简单 TEXT 候选创建 | BLOCKED | **PASS（v3，A 核心 2f2e5a7）** | AC-P2a/b 修复后 `--expect accepted` pass=true；CandidateRecord + patchHash `a737fd2ac362…` + marker + 精确编辑字节 + 树摘要全部核对通过；postChecks 全 true |
+| 5 | 四视口验证与证据 | NOT RUN | **INCOMPLETE（如实记录）** | 正式 Verification 全链路运行（预览启动、四视口 rendered、截图+VerificationRun 产出、marker 在 /pages/profile 四视口精确命中）；7 断言 = 1 pass / 1 risk / 5 unknown；unknown 根因 = 基线比对固定根页 + 文案误报（AC-P4），risk = Google Fonts 被 CSP 拦截（48 条 console-error）。证据 `evidence/codescandy-verification-20261024/` |
+| 6 | Approval / Apply / Rollback | NOT RUN | **NOT RUN** | incomplete 的 VerificationRun 不可审批；待 A 修复 AC-P4 后重跑至 pass 再推进，**不放宽门控** |
 
 ## 第一个真实阻断点（v2）
 
@@ -73,16 +84,14 @@ Profile → ProfileHeader → Overview 三段链路全部 source-proven），但
   检出策略或源码版本合同由 A 判断。证据与工件需记录 EOL 状态。
 - 本机无 Docker：Ripple 容器预演链只能经 CI 验证；`_scratch` 旁证仅证明第三方工程本身可构建可渲染。
 
-## 推进条件（进入下一阶段前必须满足）
+## 推进条件（v3 更新）
 
-1. A/C+D 处理 AC-P2a（composite JSX 子代传播证明）与 AC-P2b（errorElement/条件回退建模），
-   见 `docs/probes/a-interface-requirements-issue6.md` v2；保持 fail-closed，不放宽门控。
-2. 修复后固定三方 SHA 重跑：`acceptance:codescandy` + `b-thirdparty-reprobe-stats.mjs` +
-   `b-thirdparty-candidate-gate.mjs`（切至 `--expect accepted`）三件全绿，外加
-   `b-candidate-accepted-fixture.mjs` 成功正例持续通过，才可推进 #3。
-   注意：门控脚本在 BLOCKED 状态下以"拒绝"为预期通过条件，绿色只代表拒绝语义正确，
-   不代表真实编辑成功；成功合同由正例夹具独立证明。
-3. #4 转 PASS 前，任何"接入成功"表述都视为过早结论。
+1. ~~AC-P2a/AC-P2b~~ ✅ 已由 A 交付并验证（2f2e5a7，#4 转 PASS）。
+2. 下一轮前置：A 处理 **AC-P4**（基线比对页选择 + 原因文案拆分）与 **AC-P5**
+   （重复 reads 边去重），见 `a-interface-requirements-issue6.md` v3；保持 fail-closed。
+3. A 修复后同固定 SHA 重跑 `scripts/b-candidate-verify.mjs`（CI thirdparty-verification
+   job 已钉 2f2e5a7），classification 转 passed 后才可推进 #6（Approval/Apply/Rollback）。
+4. incomplete/risk 期间，任何"接入成功"表述都视为过早结论。
 
 ## 任务三结论（SCSS × CSS Token）
 

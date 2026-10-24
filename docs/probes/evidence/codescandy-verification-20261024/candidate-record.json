@@ -1,0 +1,28 @@
+{
+  "id": "candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41",
+  "projectRoot": "/tmp/ripple-b-verify-UD3Re6/project-clone",
+  "markerPath": "/tmp/ripple-b-verify-UD3Re6/candidate/.ripple-candidate.json",
+  "baseSourceDigest": "016aee03ac1a1fdb64f5f81cfec8a74c1b5d26463b13d4e0766d6142977cdced",
+  "scopeDecisionId": "scope-reprobe-full-1",
+  "scopeVersion": 1,
+  "patchHash": "a737fd2ac3626a1f09636df176a3beb0d24b1e1bb79100e2c64bb5e273f90a64",
+  "candidateTreeDigest": "ae56e1e2adf71147adc5b06ce265dc5a6529bef6f386ccf8290f458bd1cc272e",
+  "candidateRoot": "/tmp/ripple-b-verify-UD3Re6/candidate",
+  "artifactPath": "/tmp/ripple-b-verify-UD3Re6/artifacts/candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41.patch",
+  "diffArtifact": "/tmp/ripple-b-verify-UD3Re6/artifacts/candidate-76cb63c6-5546-493a-90ce-f0145b6b6c41.patch",
+  "operations": [
+    {
+      "id": "op-overview-text",
+      "kind": "TEXT",
+      "targetRef": "literal:src/sub-components/profile/ProfileHeader.tsx#2620",
+      "before": "Overview\n              ",
+      "after": "Overview (reprobe)\n              "
+    }
+  ],
+  "modifiedPaths": [
+    "src/sub-components/profile/ProfileHeader.tsx"
+  ],
+  "operationTargetRefs": {
+    "op-overview-text": "literal:src/sub-components/profile/ProfileHeader.tsx#2620"
+  }
+}
