@@ -208,6 +208,8 @@ describe('real project graph and candidate executor', () => {
     expect(navigation?.pages?.sort()).toEqual(['autumn', 'home'])
     const palette = graph.nodes.find(node => node.kind === 'token' && node.label === 'ink.900')
     expect(palette?.value).toBe('#1a1611')
+    expect(palette?.tokenOrigin).toBe('tailwind-palette')
+    expect(palette?.id).toMatch(/^token:tailwind\.config\.js#\d+$/)
     expect(graph.edges.some(edge => edge.kind === 'uses-token' && edge.to === palette?.id)).toBe(true)
     const imageEdges = graph.edges.filter(edge => edge.kind === 'asset-consumer' && edge.from.includes('HomePage'))
     expect(imageEdges).toHaveLength(2)
@@ -301,6 +303,9 @@ describe('real project graph and candidate executor', () => {
     const importedCssToken = graph.nodes.find(node => node.kind === 'token' && node.label === '--brand-accent')!
     const jsxToken = graph.nodes.find(node => node.kind === 'token' && node.label === 'ink.900')!
 
+    expect(importedCssToken.tokenOrigin).toBe('css-custom-property')
+    expect(importedCssToken.location?.path).toBe('src/styles/a-theme.css')
+
     expect(sourceProvenPageImpact(graph, unused.id)).toMatchObject({
       pageRefs: [], certainty: 'unknown',
     })
@@ -311,6 +316,44 @@ describe('real project graph and candidate executor', () => {
     expect(sourceProvenPageImpact(graph, jsxToken.id)).toMatchObject({
       pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
     })
+
+    // Ordinary TEXT/MEDIA nodes carry no token provenance and keep their existing graph kinds.
+    expect(graph.nodes.filter(node => node.kind === 'data' || node.kind === 'media').every(node => node.tokenOrigin === undefined)).toBe(true)
+  })
+
+  it('keeps same-name CSS theme declarations distinct and refuses ambiguous consumption proof', () => {
+    const { root } = sampleProject()
+    const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')
+    const styles = path.join(root, 'src', 'styles')
+    fs.mkdirSync(styles, { recursive: true })
+    fs.writeFileSync(path.join(styles, 'light.css'), ':root { --brand-accent: #111; }')
+    fs.writeFileSync(path.join(styles, 'dark.css'), '[data-theme="dark"] { --brand-accent: #222; }')
+    fs.writeFileSync(path.join(styles, 'consumer.css'), '.home-card { color: var(--brand-accent); }')
+    fs.writeFileSync(homePath, `import '../styles/light.css';\nimport '../styles/dark.css';\nimport '../styles/consumer.css';\n${fs.readFileSync(homePath, 'utf8')}`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add same-name CSS theme declarations')
+
+    const graph = analyzeProject(root)
+    const tokens = graph.nodes.filter(node => node.kind === 'token' && node.label === '--brand-accent')
+    expect(tokens).toHaveLength(2)
+    expect(new Set(tokens.map(node => node.id)).size).toBe(2)
+    expect(tokens.map(node => node.tokenOrigin)).toEqual(['css-custom-property', 'css-custom-property'])
+    expect(tokens.map(node => node.location?.path).sort()).toEqual(['src/styles/dark.css', 'src/styles/light.css'])
+
+    const tokenIds = new Set(tokens.map(node => node.id))
+    expect(graph.edges.filter(edge => edge.kind === 'uses-token' && tokenIds.has(edge.to))).toEqual([])
+    expect(sourceProvenPageImpact(graph, tokens[0].id)).toMatchObject({ pageRefs: [], certainty: 'unknown' })
+  })
+
+  it('keeps token origin metadata additive to graph semantics', () => {
+    const { root } = sampleProject()
+    const graph = analyzeProject(root)
+    const tokens = graph.nodes.filter(node => node.kind === 'token')
+    expect(tokens.every(node => node.tokenOrigin === 'tailwind-palette')).toBe(true)
+    expect(graph.nodes.filter(node => node.kind !== 'token').every(node => node.tokenOrigin === undefined)).toBe(true)
+    expect(graph.unresolved).toEqual([])
+    expect(graph.edges.filter(edge => edge.kind === 'uses-token')).toHaveLength(1)
+    expect(sourceProvenPageImpact(graph, tokens[0].id)).toMatchObject({ pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [] })
   })
 
   it('narrows member-access media candidates by the receiver declared type and keeps the name-level fallback for untyped receivers', () => {

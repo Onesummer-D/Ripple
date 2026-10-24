@@ -502,7 +502,10 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
               const token = [...parts, segment].join('.')
               const start = literal.getStart(source) + 1
               const end = literal.getEnd() - 1
-              addIndexedValue({ id: nodeId(file, 'token', start), kind: 'token', label: token, value: literal.text, location: { path: file, start, end } }, tokenNodes, token)
+              addIndexedValue({
+                id: nodeId(file, 'token', start), kind: 'token', label: token, value: literal.text,
+                location: { path: file, start, end }, tokenOrigin: 'tailwind-palette',
+              }, tokenNodes, token)
             }
           }
           walkPalette(node.initializer, [])
@@ -525,7 +528,10 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const raw = match[2]
       const value = raw.trim()
       const start = match.index! + match[0].indexOf(raw) + raw.indexOf(value)
-      const token: SourceNode = { id: nodeId(file, 'token', start), kind: 'token', label: match[1], value, location: { path: file, start, end: start + value.length } }
+      const token: SourceNode = {
+        id: nodeId(file, 'token', start), kind: 'token', label: match[1], value,
+        location: { path: file, start, end: start + value.length }, tokenOrigin: 'css-custom-property',
+      }
       addIndexedValue(token, tokenNodes, match[1])
     }
     for (const match of css.matchAll(/var\((--[\w-]+)/g)) {

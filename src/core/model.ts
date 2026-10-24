@@ -12,6 +12,13 @@ export interface ProjectRevision {
   ref?: string
   runtimeFingerprint: string
 }
+/**
+ * Coarse source category for a token declaration.
+ *
+ * This is provenance metadata. It is not a CSS selector, theme, media-query,
+ * cascade, inheritance, or DOM-consumer scope proof.
+ */
+export type TokenOrigin = 'css-custom-property' | 'tailwind-palette'
 export interface SourceNode {
   id: Id
   kind: 'file' | 'symbol' | 'component' | 'route' | 'data' | 'media' | 'token' | 'jsx-element' | 'state'
@@ -22,6 +29,8 @@ export interface SourceNode {
   selector?: string
   value?: string
   pageOverrides?: Record<Id, string>
+  /** Additive source provenance; only meaningful for `kind: 'token'`. */
+  tokenOrigin?: TokenOrigin
 }
 export interface Relation {
   id: Id
