@@ -1,6 +1,6 @@
 import type { ExperienceViewModel, PageXp } from '../view-model'
 import { approvalGate, scopeSummary } from '../view-model'
-import { CertaintyPill, SectionTitle } from './status-pill'
+import { SectionTitle } from './status-pill'
 
 const SCOPE_LABEL: Record<PageXp['scope'], string> = { include: '包含', exclude: '排除', protect: '保护', undecided: '未决定' }
 
@@ -30,36 +30,29 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   const unrelatedPages = model.pages.filter(page => page.relation === 'unrelated')
   const unprovenPages = model.pages.filter(page => page.relation === 'unproven')
 
-  // 修改前检查清单：状态从真实模型读取（与 approvalGate 同源的判定输入），
-  // 不虚构任何检查结果；未通过项的说明文字与 approvalGate 的阻断原因逐字一致。
+  // 修改前检查清单：状态从真实模型读取（与 approvalGate 同源的判定输入），不虚构任何检查结果。
   const selectReason = !selected ? '尚未选中要修改的位置'
     : !selected.editable ? '选中位置来源未知，不能作为修改目标'
     : selected.certainty !== 'source-proven' ? '选中位置来源未完全证明，不能作为安全修改目标' : ''
   const draftOk = !!model.draftAfterText.trim()
   const checks = [
-    { key: 'select', title: '选择要修改的元素', ok: !selectReason, note: selectReason || `已选中：${selected?.label ?? ''}` },
-    { key: 'draft', title: '填写修改内容', ok: draftOk, note: draftOk ? '修改内容已填写' : '修改内容为空' },
-    { key: 'scope', title: '确认影响范围', ok: summary.undecided === 0, note: summary.undecided === 0 ? '受影响页面范围已决定' : `还有 ${summary.undecided} 个受影响页面未决定范围` },
+    { key: 'select', title: '选择要修改的元素', ok: !selectReason },
+    { key: 'draft', title: '填写修改内容', ok: draftOk },
+    { key: 'scope', title: '确认影响范围', ok: summary.undecided === 0 },
   ]
   if (summary.unprovenIncluded > 0) {
-    checks.push({ key: 'risk', title: '风险检查', ok: false, note: `${summary.unprovenIncluded} 个影响范围无法完全证明的页面被选为修改范围，不能安全审批` })
+    checks.push({ key: 'risk', title: '风险检查', ok: false })
   }
   const precheck = (
     <div className="ripple-xp-precheck">
       <div className="ripple-xp-precheck-head">
         <strong>修改前检查</strong>
-        <span className={`ripple-xp-precheck-status ${gate.allowed ? 'is-ready' : ''}`}>
-          {gate.allowed ? '已就绪' : '尚未就绪'}
-        </span>
       </div>
       <ul className="ripple-xp-precheck-list">
         {checks.map(check => (
           <li key={check.key} className={check.ok ? 'is-ok' : 'is-pending'}>
             <span className="ripple-xp-precheck-icon" aria-hidden>{check.ok ? '✓' : '!'}</span>
-            <div>
-              <strong>{check.title}</strong>
-              <p>{check.note}</p>
-            </div>
+            <strong>{check.title}</strong>
           </li>
         ))}
       </ul>
@@ -71,7 +64,6 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       <div className="ripple-xp-scope-head">
         <strong>{page.label}</strong>
         <span className="ripple-xp-scope-reason">{reason}</span>
-        <CertaintyPill certainty={page.relationCertainty} />
       </div>
       <div className="ripple-xp-scope-actions" role="group" aria-label={`${page.label} 范围`}>
         {(['include', 'protect', 'exclude'] as const).map(choice => (
@@ -87,7 +79,6 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
             {SCOPE_LABEL[choice]}
           </button>
         ))}
-        <span className={`ripple-xp-scope-mark ripple-xp-mark-${page.scope}`}>{SCOPE_LABEL[page.scope]}</span>
       </div>
     </li>
   )
@@ -98,7 +89,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   return <aside className="ripple-xp-scope-panel reveal" data-testid="scope-panel">
     {/* 决策面板按编辑器流程组织：选择元素 → 编辑修改内容 → 影响范围 → 生成候选并检查。
      * 不用步骤编号——面板随操作状态变化，而不是操作向导式的静态表单。 */}
-    <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>
+    <SectionTitle>
       选择元素
     </SectionTitle>
     {selected ? (
@@ -136,9 +127,6 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       {unrelatedPages.map(page => scopeRow(page, '已证明不受影响', false))}
       {unprovenPages.map(page => scopeRow(page, '影响未证明', false))}
     </ul>
-    <p className="ripple-xp-scope-summary" data-testid="scope-summary">
-      包含 {summary.included} · 保护 {summary.protected} · 排除 {summary.excluded} · 未决定 {summary.undecided}
-    </p>
 
     <SectionTitle>生成候选并检查</SectionTitle>
     <div className="ripple-xp-approval" data-testid="approval-area">

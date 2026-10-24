@@ -1,10 +1,5 @@
 import { useState } from 'react'
 import type { EvidenceItemXp } from '../view-model'
-import { EvidenceStatePill } from './status-pill'
-
-const SOURCE_KIND_LABEL: Record<EvidenceItemXp['sourceKind'], string> = {
-  'source-graph': '源码证实', 'runtime-observation': '运行时观测', 'user-choice': '用户选择', 'ai-suggestion': 'AI 建议',
-}
 
 /**
  * 证据阅读面板（主工作区底部标签页之一）：第一眼看到"预期修改 / 风险 / 未检查 /
@@ -22,11 +17,9 @@ export function EvidenceDrawer({ items }: { items: EvidenceItemXp[] }) {
             aria-expanded={expanded === item.id}
             onClick={() => setExpanded(expanded === item.id ? undefined : item.id)}
           >
-            <EvidenceStatePill state={item.state} />
             <strong>{item.title}</strong>
             <span className={`ripple-xp-ev-summary ${expanded === item.id ? '' : 'is-clamped'}`}>{item.summary}</span>
           </button>
-          <span className={`ripple-xp-src-kind ripple-xp-src-${item.sourceKind}`}>{SOURCE_KIND_LABEL[item.sourceKind]}</span>
           {expanded === item.id && item.detail && <p className="ripple-xp-ev-detail">{item.detail}</p>}
         </li>
       ))}

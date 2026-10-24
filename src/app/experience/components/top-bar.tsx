@@ -1,13 +1,5 @@
 import type { ExperienceViewModel } from '../view-model'
 
-const PROJECT_STATUS_LABEL: Record<ExperienceViewModel['projectStatus'], string> = {
-  ready: '工程就绪', analyzing: '分析中…', failed: '工程加载失败', unavailable: '工程不可用',
-}
-const CANDIDATE_STATUS_LABEL: Record<ExperienceViewModel['candidateStatus'], string> = {
-  none: '尚无候选', draft: '草稿', candidate: '候选已生成', verified: '验证通过', approved: '已审批',
-  applied: '已应用', 'rolled-back': '已回滚', stale: '候选已失效',
-}
-
 export function TopBar({ model, onOpenHistory, onRefresh }: { model: ExperienceViewModel; onOpenHistory: () => void; onRefresh?: () => void }) {
   return <header className="ripple-xp-topbar" data-testid="xp-topbar">
     <div className="ripple-xp-brand">
@@ -19,12 +11,7 @@ export function TopBar({ model, onOpenHistory, onRefresh }: { model: ExperienceV
       </div>
     </div>
     <div className="ripple-xp-topbar-status">
-      <span className={`ripple-xp-chip ripple-xp-chip-${model.projectStatus}`} data-testid="project-status">
-        {PROJECT_STATUS_LABEL[model.projectStatus]}
-      </span>
-      <span className={`ripple-xp-chip ripple-xp-chip-${model.candidateStatus}`} data-testid="candidate-status">
-        {CANDIDATE_STATUS_LABEL[model.candidateStatus]}
-      </span>
+      {/* 演示/真实来源标记是唯一保留的状态徽章：它是演示数据与真实验证的分界线，必须常显 */}
       {model.dataProvenance === 'demo' && (
         <span className="ripple-xp-chip ripple-xp-chip-demo" data-testid="demo-badge">演示数据 DEMO</span>
       )}

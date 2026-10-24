@@ -20,9 +20,8 @@ async function openExperience(page: Page, url = '/experience.html') {
 
 test.beforeEach(() => { consoleErrors.length = 0 })
 
-test('初始页面：工程状态、页面导航、画布与 DEMO 标记', async ({ page }) => {
+test('初始页面：页面导航、画布与 DEMO 标记', async ({ page }) => {
   await openExperience(page)
-  await expect(page.getByTestId('project-status')).toContainText('工程就绪')
   await expect(page.getByTestId('demo-badge')).toContainText('演示数据')
   await expect(page.getByTestId('page-item-page:home')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('demo-canvas')).toBeVisible()
@@ -34,7 +33,6 @@ test('选中与编辑：标题更新、候选状态推进、前后对照同步',
   await page.getByTestId('canvas-el-el:hero-title').click()
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
   await page.getByTestId('draft-text-input').fill('冬日茶器市集')
-  await expect(page.getByTestId('candidate-status')).toContainText('候选已生成')
   await page.getByTestId('tab-compare').click()
   await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
   await expect(page.getByTestId('compare-baseline')).toContainText('秋日茶器市集')
@@ -69,9 +67,10 @@ test('Scope 阻断：未证明页面包含/未决定时不得审批，排除后�
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
   await page.getByTestId('draft-text-input').fill('冬日茶器市集')
-  await expect(page.getByTestId('approval-area')).toContainText('未决定')
+  await expect(page.getByTestId('demo-approve')).toBeDisabled()
   await page.getByTestId('scope-include-page:contact').click()
-  await expect(page.getByTestId('approval-area')).toContainText('无法完全证明')
+  await expect(page.getByTestId('approval-area')).toContainText('风险检查')
+  await expect(page.getByTestId('demo-approve')).toBeDisabled()
   await page.getByTestId('scope-exclude-page:contact').click()
   await page.getByTestId('scope-exclude-page:seasonal').click()
   await page.getByTestId('demo-approve').click()
@@ -80,19 +79,18 @@ test('Scope 阻断：未证明页面包含/未决定时不得审批，排除后�
 
 test('无选中/无修改不得审批', async ({ page }) => {
   await openExperience(page)
-  await expect(page.getByTestId('approval-area')).toContainText('尚未选中')
-  await expect(page.getByTestId('approval-area')).toContainText('修改内容为空')
+  await expect(page.getByTestId('approval-area')).toContainText('修改前检查')
   await expect(page.getByTestId('demo-approve')).toBeDisabled()
 })
 
-test('视口切换 1440/768/375 与 390 验证中标注', async ({ page }) => {
+test('视口切换 1440/768/375/390', async ({ page }) => {
   await openExperience(page)
   for (const id of ['desktop', 'tablet', 'mobile-375']) {
     await page.getByTestId(`viewport-${id}`).click()
     await expect(page.getByTestId(`viewport-${id}`)).toHaveAttribute('aria-pressed', 'true')
   }
   await page.getByTestId('viewport-mobile-390').click()
-  await expect(page.getByTestId('viewport-mobile-390')).toContainText('验证中')
+  await expect(page.getByTestId('viewport-mobile-390')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('demo-canvas')).toBeVisible()
 })
 
@@ -163,7 +161,10 @@ test('任务一：切换编辑目标重建页面关系与默认范围（标题�
   await page.getByTestId('canvas-el-el:hero-subtitle').click()
   await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
   await expect(page.getByTestId('scope-row-page:products')).not.toContainText('同源')
-  await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
+  // 未决定：三个范围按钮均未按下
+  for (const choice of ['include', 'protect', 'exclude']) {
+    await expect(page.getByTestId(`scope-${choice}-page:products`)).toHaveAttribute('aria-pressed', 'false')
+  }
   // 返回标题：默认影响关系与 Scope 恢复
   await page.getByTestId('canvas-el-el:hero-title').click()
   await expect(page.getByTestId('scope-row-page:products')).toContainText('同源页面')
@@ -174,7 +175,9 @@ test('任务一负例：partial 目标不产生已证明无关页，来源确定
   await openExperience(page)
   await page.getByTestId('canvas-el-el:seasonal-banner').click()
   await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
-  await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
+  for (const choice of ['include', 'protect', 'exclude']) {
+    await expect(page.getByTestId(`scope-${choice}-page:products`)).toHaveAttribute('aria-pressed', 'false')
+  }
   // 影响范围中除当前编辑页外不允许出现"来源已证实"的页面关系
   await page.getByTestId('canvas-el-el:promo-card').click()
   await expect(page.getByTestId('scope-row-page:products')).toContainText('影响未证明')
@@ -208,7 +211,7 @@ test('任务三：演示审批反馈随范围/草稿/目标修订失效', async 
   // 修改范围决策 → 旧反馈消失，门控重新阻断且审批按钮不可用
   await page.getByTestId('scope-include-page:contact').click()
   await expect(page.getByTestId('approve-feedback')).toHaveCount(0)
-  await expect(page.getByTestId('approval-area')).toContainText('无法完全证明')
+  await expect(page.getByTestId('approval-area')).toContainText('风险检查')
   await expect(page.getByTestId('demo-approve')).toBeDisabled()
   // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
   await page.getByTestId('scope-exclude-page:contact').click()
@@ -267,7 +270,6 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await openExperience(page, `/experience.html?adapter=real&project=${encodeURIComponent(realProjectRoot)}`)
   // 真实工程身份与页面列表来自 analyze 响应
   await expect(page.getByTestId('real-badge')).toContainText('真实工程')
-  await expect(page.getByTestId('project-status')).toContainText('工程就绪')
   await expect(page.getByTestId('demo-badge')).toHaveCount(0)
   await expect(page.getByTestId('page-item-page:home')).toBeVisible()
   // 真实页面导航第一阶段明确未接入：按钮停用 + 说明，不误导用户以为画布已切页
@@ -276,9 +278,8 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   // 编辑目标来自 targets，绝不出现演示 DOM
   await expect(page.getByTestId('target-strip')).toContainText('Acme 真实首页标题')
   await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
-  // 无真实候选：验证证据如实"尚未运行"，候选状态"尚无候选"
+  // 无真实候选：验证证据如实"尚未运行"
   await expect(page.getByTestId('evidence-ev:verification')).toContainText('尚未运行')
-  await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
   // 真实审批未接入；对照区无真实截图时明确提示
   await expect(page.getByTestId('real-approval-pending')).toContainText('真实审批尚未接入')
   await page.getByTestId('tab-compare').click()
@@ -288,7 +289,6 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await expect(page.getByTestId('selection-summary')).toBeVisible()
   await page.getByTestId('draft-text-input').fill('Acme 新首页标题')
   await expect(page.getByTestId('evidence-ev:intent')).toContainText('Acme 新首页标题')
-  await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
 })
 
 test('REAL 模式：画布预演两态均合法（有 Docker 出 iframe，无 Docker 出准确阻断原因）', async ({ page }) => {
@@ -321,7 +321,6 @@ test('REAL 模式：未打开工程显示打开入口；分析失败给出准确
   // 冷启动首次 analyze 在本机 Windows 环境可能超过默认 5s，放宽到 30s 防偶发超时
   await page.getByTestId('open-project-path').fill(realProjectRoot)
   await page.getByTestId('open-project-submit').click()
-  await expect(page.getByTestId('project-status')).toContainText('工程就绪', { timeout: 30_000 })
-  await expect(page.getByTestId('page-item-page:home')).toBeVisible()
+  await expect(page.getByTestId('page-item-page:home')).toBeVisible({ timeout: 30_000 })
   await expect(page.getByTestId('demo-canvas')).toHaveCount(0)
 })

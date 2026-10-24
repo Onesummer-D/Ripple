@@ -33,11 +33,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('viewport-match-note')).not.toContain('真实截图')
   })
 
-  it('打开网页：工程与候选状态、页面导航、画布就绪', async () => {
+  it('打开网页：页面导航、画布就绪、DEMO 标记常显', async () => {
     render(<ExperienceWorkbench />)
-    await screen.findByTestId('project-status')
-    expect(text('project-status')).toContain('工程就绪')
-    expect(text('candidate-status')).toContain('尚无候选')
+    await screen.findByTestId('demo-badge')
     expect(screen.getByTestId('page-item-page:home').getAttribute('aria-current')).toBe('page')
     expect(screen.getByTestId('demo-canvas')).not.toBeNull()
   })
@@ -45,8 +43,8 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('无选中/无修改时不得审批（门控前置条件）', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('scope-panel')
-    expect(text('approval-area')).toContain('尚未选中')
-    expect(text('approval-area')).toContain('修改内容为空')
+    expect(text('approval-area')).toContain('修改前检查')
+    expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('选中活动标题并输入新标题：候选状态推进、选中摘要与前后对照更新', async () => {
@@ -54,10 +52,10 @@ describe('F 体验工作台 · 青野演示流', () => {
     await selectAndType()
     expect(text('selection-summary')).toContain('活动标题')
     expect(text('selection-summary')).toContain('src/data/campaign.ts')
-    expect(text('candidate-status')).toContain('候选已生成')
     expect(text('compare-candidate')).toContain('冬日茶器市集')
     expect(text('compare-baseline')).toContain('秋日茶器市集')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(screen.getByTestId('scope-include-page:home').getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByTestId('scope-include-page:products').getAttribute('aria-pressed')).toBe('true')
   })
 
   it('原文与草稿分离：逐字输入后原文稳定，清空草稿后描述准确', async () => {
@@ -71,9 +69,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(screen.getByTestId('canvas-el-el:hero-title').textContent).toContain('秋日茶器市集')
     expect(text('evidence-ev:expect')).toContain('把「秋日茶器市集」改为「冬日茶器市集」')
     expect(text('compare-candidate')).toContain('冬日茶器市集')
-    // 清空草稿：候选状态回落，Evidence 不臆造修改内容
+    // 清空草稿：候选侧回落为未生成，Evidence 不臆造修改内容
     fireEvent.change(input, { target: { value: '' } })
-    expect(text('candidate-status')).toContain('草稿')
+    expect(text('compare-candidate')).toContain('尚未生成候选')
     expect(text('evidence-ev:expect')).toContain('（尚未输入）')
   })
 
@@ -92,7 +90,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     // 初次选中活动标题：商品专题存在同源关系
     fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
     expect(text('scope-row-page:products')).toContain('同源页面')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(screen.getByTestId('scope-include-page:products').getAttribute('aria-pressed')).toBe('true')
     // 修改 Scope：商品专题改为保护（旧决定，稍后不得跨目标残留）
     fireEvent.click(screen.getByTestId('scope-protect-page:products'))
     expect(screen.getByTestId('scope-protect-page:products').getAttribute('aria-pressed')).toBe('true')
@@ -100,16 +98,17 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-subtitle'))
     expect(text('scope-row-page:products')).toContain('影响未证明')
     expect(text('scope-row-page:products')).not.toContain('同源')
-    // 默认 Scope 与当前目标一致：商品专题回到未决定，不继承上一目标的保护/包含
-    expect(text('scope-row-page:products')).toContain('未决定')
+    // 默认 Scope 与当前目标一致：商品专题回到未决定（三个范围按钮均未按下），不继承上一目标的保护/包含
+    for (const choice of ['include', 'protect', 'exclude']) {
+      expect(screen.getByTestId(`scope-${choice}-page:products`).getAttribute('aria-pressed')).toBe('false')
+    }
     // Evidence 随目标切换，不串入旧草稿
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '以器会友，以茶传心' } })
     expect(text('evidence-ev:expect')).toContain('把「以茶会友，以器传心」改为「以器会友，以茶传心」')
     // 返回活动标题：恢复标题对应的默认影响关系与 Scope
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-title'))
     expect(text('scope-row-page:products')).toContain('同源页面')
-    expect(text('scope-row-page:products')).toContain('包含')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(screen.getByTestId('scope-include-page:products').getAttribute('aria-pressed')).toBe('true')
     // 旧草稿不串回标题
     expect(text('evidence-ev:expect')).toContain('把「秋日茶器市集」改为「（尚未输入）」')
   })
@@ -119,7 +118,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     // partial 目标：没有页面被自动标为"已证明无影响"
     fireEvent.click(await screen.findByTestId('canvas-el-el:seasonal-banner'))
     expect(text('scope-row-page:products')).toContain('影响未证明')
-    expect(text('scope-row-page:products')).toContain('未决定')
+    for (const choice of ['include', 'protect', 'exclude']) {
+      expect(screen.getByTestId(`scope-${choice}-page:products`).getAttribute('aria-pressed')).toBe('false')
+    }
     // unknown 目标同样如此
     fireEvent.click(screen.getByTestId('canvas-el-el:promo-card'))
     for (const id of ['page:products', 'page:seasonal', 'page:contact']) {
@@ -165,7 +166,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     // 修改范围决策 → 旧反馈立即消失，approvalGate 重新阻断
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
     expect(screen.queryByTestId('approve-feedback')).toBeNull()
-    expect(text('approval-area')).toContain('无法完全证明')
+    expect(text('approval-area')).toContain('风险检查')
     // 主按钮常显但禁用（检查清单门控），点击不产生任何审批
     expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
     // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
@@ -204,7 +205,8 @@ describe('F 体验工作台 · 青野演示流', () => {
     // 选中 partial + editable 的当季横幅并输入
     fireEvent.click(screen.getByTestId('canvas-el-el:seasonal-banner'))
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新春限定' } })
-    expect(text('approval-area')).toContain('未完全证明')
+    // 检查清单中"选择要修改的元素"未通过（来源未完全证明），审批被门控
+    expect(screen.getByTestId('approval-area').querySelectorAll('li.is-pending').length).toBeGreaterThan(0)
     expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
   })
 
@@ -212,10 +214,11 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     await selectAndType()
     // 两个未证明页面未决定 → 门控
-    expect(text('approval-area')).toContain('未决定')
+    expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
     // 把未证明页面“包含” → 仍然不得审批（不得提升为安全范围）
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
-    expect(text('approval-area')).toContain('无法完全证明')
+    expect(text('approval-area')).toContain('风险检查')
+    expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
     // 排除两个未证明页面 → 允许演示审批
     fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
@@ -227,16 +230,14 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(screen.queryByTestId('approve-feedback')).toBeNull()
   })
 
-  it('证据面板第一眼分区齐全且依据类型分开标注', async () => {
+  it('证据面板第一眼分区齐全', async () => {
     render(<ExperienceWorkbench />)
     await selectAndType()
     expect(text('evidence-ev:expect')).toContain('预期修改')
     expect(text('evidence-ev:risk')).toContain('已发现的风险')
     expect(text('evidence-ev:not-checked')).toContain('尚未检查')
-    expect(text('evidence-ev:not-checked')).toContain('未运行')
+    expect(text('evidence-ev:not-checked')).toContain('尚未运行')
     expect(text('evidence-ev:incomplete')).toContain('来源不完整的原因')
-    expect(text('evidence-ev:next')).toContain('AI 建议')
-    expect(text('evidence-ev:risk')).toContain('源码证实')
   })
 
   it('版本胶片：生命周期与证据可用性展示，点击定位页面', async () => {
@@ -250,10 +251,10 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(screen.getByTestId('page-item-page:products').getAttribute('aria-current')).toBe('page')
   })
 
-  it('视口切换：390 标注验证中；画布状态演示覆盖加载/失败/过期', async () => {
+  it('视口切换：390 可切换；画布状态演示覆盖加载/失败/过期', async () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('viewport-mobile-390'))
-    expect(text('viewport-mobile-390')).toContain('验证中')
+    expect(screen.getByTestId('viewport-mobile-390').getAttribute('aria-pressed')).toBe('true')
     fireEvent.change(screen.getByTestId('demo-canvas-state'), { target: { value: 'stale-evidence' } })
     expect(text('canvas-state-banner')).toContain('证据已过期')
     fireEvent.change(screen.getByTestId('demo-canvas-state'), { target: { value: 'failed' } })
@@ -469,7 +470,6 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     // 真实工程页面列表与元素
     await screen.findByTestId('page-item-page:home')
     expect(text('real-badge')).toContain('真实工程')
-    expect(text('project-status')).toContain('工程就绪')
     // 预演不可用：准确阻断原因，绝不渲染演示 DOM
     await screen.findByTestId('real-preview-pending')
     expect(text('real-preview-pending')).toContain('隔离预演网络池为空')

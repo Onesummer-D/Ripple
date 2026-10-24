@@ -223,7 +223,6 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
         <span className="ripple-xp-page-crumb">页面列表 / {currentPage.label}</span>
         <h2 className="ripple-xp-page-title">
           {currentPage.label}
-          <CertaintyPill certainty={currentPage.relationCertainty} />
         </h2>
       </div>
     )}
@@ -240,7 +239,6 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
               onClick={() => onViewportChange(item.id)}
             >
               {deviceName(item, model.viewports)}
-              {item.verificationStatus === 'in-verification' && <span className="ripple-xp-verify-badge">验证中</span>}
               {item.verificationStatus === 'unavailable' && <span className="ripple-xp-verify-badge">不可用</span>}
             </button>
           ))}
