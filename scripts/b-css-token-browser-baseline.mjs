@@ -605,7 +605,62 @@ function compareRuns(baseline, candidate) {
         ],
         }
         matrix.push(row)
-        checks.push(result(status, `${prefix}-${target.name}`, row))
+        checks.push(result(status, `${prefix}-${target.name}-observed`, row))
+
+        // Keep the first-run assertion semantics alongside the richer matrix:
+        // one assertion checks the expected computed value above, and this
+        // second assertion checks whether the candidate changed only the
+        // intended light-theme consumers or preserved the inline fallback.
+        if (!['section-title', 'section-title-after'].includes(target.name) && originalFound && candidateFound) {
+          let behaviorPass
+          let behaviorName
+          let behaviorExpected
+          if (target.behavior === 'inline-fallback') {
+            behaviorPass = originalValues.length === candidateValues.length &&
+              originalValues.every((actual, index) => same(actual, candidateValues[index])) &&
+              (originalSample?.values ?? []).every((item, index) => same(item?.accentColor ?? '', candidateSample?.values?.[index]?.accentColor ?? ''))
+            behaviorName = theme === 'dark' ? `${target.name}-dark-untouched` : `${target.name}-inline-scope-preserved`
+            behaviorExpected = 'computed consumer and inline --accent-color remain identical'
+          } else if (theme === 'dark') {
+            behaviorPass = originalValues.length === candidateValues.length && originalValues.every((actual, index) => same(actual, candidateValues[index]))
+            behaviorName = `${target.name}-dark-untouched`
+            behaviorExpected = 'dark-theme computed consumer remains identical'
+          } else {
+            behaviorPass = originalValues.length === candidateValues.length && originalValues.some((actual, index) => !same(actual, candidateValues[index]))
+            behaviorName = `${target.name}-light-target-differs`
+            behaviorExpected = 'light-theme computed consumer changes with --accent'
+          }
+          checks.push(result(behaviorPass ? 'pass' : 'fail', `${prefix}-${behaviorName}`, {
+            selector: target.selector,
+            property: target.property,
+            expected: behaviorExpected,
+            original: originalValues,
+            manualCandidate: candidateValues,
+          }))
+        }
+      }
+
+      if (theme === 'dark') {
+        const allDarkConsumersUnchanged = consumerTargets.every(target => {
+          const before = original.selectors[target.key]
+          const after = manualCandidate.selectors[target.key]
+          if (Boolean(before?.found) !== Boolean(after?.found)) return false
+          if (!before?.found) return true
+          const beforeValues = (before.values ?? []).map(item => item?.[target.property] ?? null)
+          const afterValues = (after.values ?? []).map(item => item?.[target.property] ?? null)
+          return beforeValues.length === afterValues.length && beforeValues.every((actual, index) => same(actual, afterValues[index]))
+        })
+        const darkUntouched = same(originalAccent, candidateAccent) &&
+          same(value(original, 'accentSecondary'), value(manualCandidate, 'accentSecondary')) &&
+          same(value(original, 'bodyBackground'), value(manualCandidate, 'bodyBackground')) &&
+          layoutPass && allDarkConsumersUnchanged
+        checks.push(result(darkUntouched ? 'pass' : 'fail', `${prefix}-dark-untouched`, {
+          rootAccent: { original: originalAccent, manualCandidate: candidateAccent },
+          accentSecondary: { original: value(original, 'accentSecondary'), manualCandidate: value(manualCandidate, 'accentSecondary') },
+          bodyBackground: { original: value(original, 'bodyBackground'), manualCandidate: value(manualCandidate, 'bodyBackground') },
+          layoutPass,
+          allDarkConsumersUnchanged,
+        }))
       }
     }
   }
