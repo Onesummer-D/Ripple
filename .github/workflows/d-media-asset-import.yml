@@ -20,8 +20,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/fixtures/react-vite-tailwind/package-lock.json
       - name: Install locked dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund
+        run: npm ci
+      - name: Install the pinned React/Vite/Tailwind preview fixture
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix test/fixtures/react-vite-tailwind
+      - name: Install Chromium for browser-backed Vitest cases
+        run: npx playwright install --with-deps chromium
       - name: TypeScript boundary
         shell: bash
         run: set -o pipefail; mkdir -p test-results-d-media; npm run typecheck 2>&1 | tee test-results-d-media/typecheck.log
@@ -41,8 +48,10 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          npx vitest run --reporter=default --reporter=json \
+          npm test -- --run --no-file-parallelism --reporter=default --reporter=json \
             --outputFile=test-results-d-media/full-vitest.json 2>&1 | tee test-results-d-media/full-vitest.log
+        env:
+          RIPPLE_LIVE_RESOURCE_TEST: '1'
       - name: Preserve D MEDIA assertions
         if: always()
         uses: actions/upload-artifact@v4

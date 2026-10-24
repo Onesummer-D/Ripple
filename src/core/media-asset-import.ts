@@ -384,6 +384,7 @@ export interface AssetImportLedger {
   get(importId: string): AssetImportRecord | undefined
   list(): AssetImportRecord[]
   bindTarget(importId: string, binding: AssetTargetBinding): AssetImportRecord
+  /** 只记录 pending provenance association；不验证 CandidateRecord，也不授予执行或审批权限。 */
   bindCandidate(importId: string, graph: SourceGraph, candidateId: string): AssetImportRecord
   assertCurrentForGraph(importId: string, graph: SourceGraph): AssetImportRecord
   retain(importId: string, reference: { kind: 'candidate' | 'verification-run' | 'manual'; id: string }): AssetImportRecord
@@ -571,9 +572,12 @@ export function createAssetImportLedger(root: string, authority: AssetImportCons
       const target = recordPath(recordsRoot, importId)
       if (!fs.existsSync(target)) return
       const record = readRecord(target, recordsRoot, authority)
+      const references = record.retainedReferences ?? []
+      if (record.candidateId || references.length > 0) {
+        throw new AssetImportError(`导入记录存在保留引用，拒绝删除：${importId}`)
+      }
       fs.unlinkSync(target)
       // 阶段一保留内容寻址字节；孤儿只预览，不物理删除。
-      void record
     },
     previewUnreferencedAssets() {
       const records = list()

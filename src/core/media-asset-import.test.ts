@@ -189,7 +189,7 @@ describe('AssetImportRecord ledger', () => {
     } finally { spy.mockRestore() }
   })
 
-  it('removes unreferenced staged bytes while retaining bytes referenced by records', () => {
+  it('previews unreferenced staged bytes while retaining bytes referenced by records', () => {
     const root = temp()
     const source = writeAsset(root)
     const ledger = makeLedger(path.join(root, 'ledger'))
@@ -246,6 +246,24 @@ describe('AssetImportRecord ledger', () => {
     ledger.remove(first.importId)
     expect(ledger.get(second.importId)).toBeDefined()
     expect(ledger.stagedStore.readStagedAsset(second.stagedAssetHash!)).toEqual(webp)
+  })
+
+  it.each(['candidate', 'verification-run', 'manual'] as const)('refuses to remove a record with a %s retention reference', kind => {
+    const root = temp()
+    const source = writeAsset(root)
+    const ledger = makeLedger(path.join(root, 'ledger'))
+    const record = ledger.importLocal({ localPath: source, consent, importId: `retained-${kind}` })
+    if (kind === 'candidate') {
+      const graph = provenMediaGraph()
+      ledger.bindTarget(record.importId, { targetRef: 'media:hero', graph })
+      ledger.bindCandidate(record.importId, graph, 'candidate-1')
+    } else {
+      ledger.retain(record.importId, { kind, id: `${kind}-1` })
+    }
+
+    expect(() => ledger.remove(record.importId)).toThrowError(/存在保留引用，拒绝删除/)
+    expect(ledger.get(record.importId)).toBeDefined()
+    expect(ledger.stagedStore.readStagedAsset(record.stagedAssetHash!)).toEqual(webp)
   })
 
   it('retains bytes referenced by Candidate, verification run, and other retention markers', () => {
