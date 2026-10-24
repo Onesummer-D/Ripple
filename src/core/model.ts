@@ -1,4 +1,6 @@
 /** Project-first contract. Pure TypeScript, no React or predefined CaseId. */
+import type { RuntimeIdentityAssessment, RuntimeIdentitySnapshot } from './runtime-identity'
+
 export type Id = string
 export type EditKind = 'TEXT' | 'MEDIA' | 'TOKEN' | 'CODE'
 export type EvidenceResult = 'pass' | 'risk' | 'unknown' | 'not-run' | 'failed-to-run' | 'stale'
@@ -246,6 +248,48 @@ export interface VisualRunEvidence {
     evidenceJson: { path: string; sha256: string } | null
   }
 }
+
+/** A host-verified failure to archive or validate one side's runtime snapshot. */
+export type RuntimeIdentityArchiveFailureReason =
+  | 'collector-error'
+  | 'snapshot-unavailable'
+  | 'side-missing'
+  | 'version-unverifiable'
+  | 'artifact-hash-mismatch'
+
+export interface RuntimeRunIdentityArchiveFailure {
+  checkId: Id
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  side: 'baseline' | 'candidate'
+  archive: 'failed'
+  reason: RuntimeIdentityArchiveFailureReason
+  /** The container's claim only. Its presence is not proof of artifact integrity. */
+  declaredSnapshotSha256?: string
+  detail?: string
+}
+
+export interface RuntimeRunIdentityAssessmentEntry {
+  recordKey: string
+  assessment: RuntimeIdentityAssessment
+  assessmentSha256: string
+}
+
+export interface RuntimeRunIdentity {
+  checkId: Id
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  side: 'baseline' | 'candidate'
+  snapshot: RuntimeIdentitySnapshot
+  snapshotSha256: string
+  assessments: RuntimeRunIdentityAssessmentEntry[]
+  sourceDigests: Record<string, string>
+  boundDigest: string
+  artifacts: { snapshot: { path: string; sha256: string } }
+}
+
 export interface VerificationRun {
   id: Id
   candidateId: Id
@@ -271,6 +315,8 @@ export interface VerificationRun {
    * of assertions, status or the approval gate; results can never be 'pass'.
    */
   visualEvidences?: VisualRunEvidence[]
+  /** Host-verified runtime identity data; supplementary and outside the seven assertion gate. */
+  runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityArchiveFailure>
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }

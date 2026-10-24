@@ -7,6 +7,7 @@ import * as path from 'node:path'
 import { REQUIRED_VERIFICATION_ASSERTION_IDS } from '../src/core/model'
 import { projectPreviewViewports } from '../src/core/project-viewports'
 import { collectRuntimeIdentitySnapshot } from '../src/core/runtime-identity'
+import { planRuntimeIdentityCaptures, readRuntimeIdentityArchives } from '../src/core/runtime-identity-archive'
 // @ts-expect-error The isolated executor is intentionally plain ESM for the Node container.
 import { captureVisualSide, visualViewportDir, writeRuntimeIdentityArtifact } from '../src/core/visual-capture-executor.mjs'
 
@@ -92,12 +93,13 @@ test('真实 VerificationRun 挂载视觉证据并以只读 View 输出，且不
     includedRefs: ['page:home', title.id], excludedRefs: [], protectedRefs: [],
     decidedBy: 'visual-wiring-test', decidedAt: new Date().toISOString(),
   }
+  const verificationContract = { pages: [{ pageRef: 'page:home', path: '/', markerText: 'Visual wiring baseline title' }], interactions: [] }
   const created = await post('candidate', {
     projectId: analysis.revision.projectId,
     rawIntent: 'Change only the home title and verify visual evidence wiring.',
     scope,
     operations: [{ id: 'title-op', kind: 'TEXT', targetRef: title.id, before: title.value, after: 'Visual wiring candidate title' }],
-    verificationContract: { pages: [{ pageRef: 'page:home', path: '/', markerText: 'Visual wiring baseline title' }], interactions: [] },
+    verificationContract,
   })
   sessionId = created.sessionId as string
   candidateId = created.candidate.id as string
@@ -150,6 +152,19 @@ test('真实 VerificationRun 挂载视觉证据并以只读 View 输出，且不
   expect(manifest.viewports).toEqual(projectPreviewViewports.map(({ name, width, height }) => ({ name, width, height })))
   expect(Array.isArray(manifest.runtimeIdentityCaptures)).toBe(true)
   expect(manifest.runtimeIdentityCaptures).toHaveLength(manifest.visualCaptures.length * 2)
+  const hostRead = readRuntimeIdentityArchives({
+    runRoot,
+    plannedCaptures: planRuntimeIdentityCaptures({
+      runId: verification.runId,
+      viewports: projectPreviewViewports,
+      verificationContract,
+    }),
+    manifestEntries: manifest.runtimeIdentityCaptures,
+  })
+  expect(hostRead.diagnostics).toEqual([])
+  expect(hostRead.entries).toHaveLength(manifest.visualCaptures.length * 2)
+  expect(hostRead.entries.every(entry => entry.archive === 'stored')).toBe(true)
+  expect(hostRead.entries.every(entry => entry.archive === 'stored' && entry.snapshotSha256 === entry.artifact.snapshot.sha256)).toBe(true)
 
   const assertionIds = manifest.assertions.map((assertion: { id: string }) => assertion.id)
   expect(assertionIds).toHaveLength(REQUIRED_VERIFICATION_ASSERTION_IDS.length)
