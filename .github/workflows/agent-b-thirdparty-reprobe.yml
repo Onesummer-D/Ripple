@@ -78,7 +78,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      A_CORE_SHA: 45a2d7cda2271ea5c212c8e0f3a469eb62dded31
+      # A final integration candidate: includes codescandy compat (bounded
+      # existence-fallback for bare '*' aliases + root-bounded host resolution,
+      # 6f22551 via ce7bc60) — lifts the wildcard-alias preview blocker.
+      A_CORE_SHA: 2f2e5a708bff554775bea539fb659974203e67b8
       ACP2_ANCESTOR: f804c7e0908e6dc8831c46ca55b92d357df72c10
       CODESCANDY_SHA: b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
     steps:
@@ -136,7 +139,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      A_CORE_SHA: 45a2d7cda2271ea5c212c8e0f3a469eb62dded31
+      # Same A final integration candidate as accepted-on-a-core (alias fallback).
+      A_CORE_SHA: 2f2e5a708bff554775bea539fb659974203e67b8
       ACP2_ANCESTOR: f804c7e0908e6dc8831c46ca55b92d357df72c10
       CODESCANDY_SHA: b700bbd55b31a62fe04d4cd8210fc37232f0c9f0
     steps:
