@@ -3,7 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import ts from 'typescript'
 import { afterEach, describe, expect, it } from 'vitest'
-import { resolveProjectConfigGraph, toViteAliasRules } from './project-config-resolver.mjs'
+import { probeExistenceFallback, resolveProjectConfigGraph, toViteAliasRules, toViteExistenceFallbackPrefixes } from './project-config-resolver.mjs'
 import { removeTree } from './test-fixture-dir'
 
 const roots: string[] = []
@@ -53,12 +53,68 @@ describe('shared application config resolution', () => {
     expect(toViteAliasRules(graph)).toEqual([])
   })
 
-  it('refuses unprefixed wildcard aliases that would capture package dependencies', () => {
+  it('models bare catch-all aliases as an existence-gated fallback instead of a capture-everything alias', () => {
     const root = project({
-      'site.config.json': { compilerOptions: { jsx: 'react-jsx', baseUrl: '.', paths: { '*': ['src/*'] } }, include: ['src'] },
+      'site.config.json': { compilerOptions: { jsx: 'react-jsx', baseUrl: '.', paths: { '*': ['./src/*'] } }, include: ['src'] },
     })
     const graph = resolveProjectConfigGraph(root, ts)
-    expect(graph.aliases).toMatchObject({ status: 'ambiguous', reason: expect.stringContaining('file-existence fallback') })
+    expect(graph.aliases).toMatchObject({ status: 'supported' })
+    expect(graph.aliases.rules).toEqual([{ kind: 'existence-fallback', pattern: '*', target: path.join(root, 'src', '*') }])
     expect(toViteAliasRules(graph)).toEqual([])
+    expect(toViteExistenceFallbackPrefixes(graph)).toEqual([path.join(root, 'src')])
+  })
+
+  it('keeps wildcard shapes that cannot be bounded as ambiguous', () => {
+    const root = project({
+      'site.config.json': {
+        compilerOptions: {
+          jsx: 'react-jsx',
+          baseUrl: '.',
+          paths: {
+            '*/x': ['src/*/x'],
+            '*a*': ['src/*a*'],
+            '*': ['src/*/*'],
+          },
+        },
+        include: ['src'],
+      },
+    })
+    const graph = resolveProjectConfigGraph(root, ts)
+    expect(graph.aliases.status).toBe('ambiguous')
+    expect(graph.aliases.rules).toEqual([])
+    expect(toViteAliasRules(graph)).toEqual([])
+    expect(toViteExistenceFallbackPrefixes(graph)).toEqual([])
+
+    for (const [pattern, destinations] of [
+      ['*', ['src/a', 'src/b']],
+      ['*', ['src/x']],
+    ] as const) {
+      const single = project({
+        'site.config.json': { compilerOptions: { jsx: 'react-jsx', baseUrl: '.', paths: { [pattern]: [...destinations] } }, include: ['src'] },
+      })
+      const resolved = resolveProjectConfigGraph(single, ts)
+      expect(resolved.aliases.status).toBe('ambiguous')
+      expect(resolved.aliases.rules).toEqual([])
+    }
+  })
+
+  it('probes the existence fallback only for bare specifiers inside the mapped prefix', () => {
+    const prefix = path.join('project', 'src')
+    const files = new Set([
+      path.join(prefix, 'pages', 'Home.tsx'),
+      path.join(prefix, 'lib', 'index.ts'),
+    ])
+    const fileExists = (candidate: string): boolean => files.has(path.normalize(candidate))
+    expect(probeExistenceFallback(prefix, 'pages/Home', fileExists)).toBe(path.join(prefix, 'pages', 'Home.tsx'))
+    expect(probeExistenceFallback(prefix, 'lib', fileExists)).toBe(path.join(prefix, 'lib', 'index.ts'))
+    expect(probeExistenceFallback(prefix, 'missing', fileExists)).toBeNull()
+    expect(probeExistenceFallback(prefix, 'react', fileExists)).toBeNull()
+    expect(probeExistenceFallback(prefix, 'react/jsx-runtime', fileExists)).toBeNull()
+    for (const specifier of ['./local', '/absolute', 'node:fs', 'https://cdn.example/x.js']) {
+      expect(probeExistenceFallback(prefix, specifier, () => true)).toBeNull()
+    }
+    expect(probeExistenceFallback(prefix, '../outside', () => true)).toBeNull()
+    expect(probeExistenceFallback(prefix, 'pages/../../outside', () => true)).toBeNull()
+    expect(probeExistenceFallback(prefix, '..', () => true)).toBeNull()
   })
 })

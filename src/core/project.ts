@@ -112,12 +112,14 @@ const routerHostBasis = (root: string, containingFile: string, specifier: string
       }
       return undefined
     }
-    // A resolution that walked past the project root (for example into the
-    // analyzer's own devDependencies) is not the project's installation.
-    // Fail closed: the declared-dependency fallback below may only stand in
-    // for a package that is NOT INSTALLED AT ALL (clean-clone analyses), never
-    // launder a declared value past an installation the project would not use.
-    return undefined
+    // A resolution that walked past the project root (ancestor node_modules
+    // visible on the analysis host) is not the project's installation. The
+    // isolated preview mounts only the project, so analysis models the same
+    // root-bounded resolution world: treat it exactly like an unresolvable
+    // module and let the declared-dependency fallback below stand in. This
+    // keeps proofs stable regardless of what happens to be installed around
+    // the checkout. Candidate creation re-validates declared bases against a
+    // later local installation and forces re-analysis on divergence.
   }
   // Clean-clone analyses (for example B's pinned candidate gate) have no
   // node_modules. Fall back to the version the project DECLARES for the
@@ -142,6 +144,27 @@ const routerHostBasis = (root: string, containingFile: string, specifier: string
     }
     return undefined
   } catch { return undefined }
+}
+
+// Re-analysis gate for declared-basis host proofs. Composite JSX child edges
+// promoted via the declared-dependency fallback (see routerHostBasis) were
+// analyzed in a project without a local router installation. If such an
+// installation has appeared since, the declared verdict is no longer the
+// definitive one: candidate creation must fail closed and require a fresh
+// analysis instead of trusting a graph computed under a different dependency
+// state. Returns the list of specifiers whose state changed.
+export function declaredHostProofsDiverged(graph: SourceGraph, root: string): string[] {
+  const diverged: string[] = []
+  for (const edge of graph.edges) {
+    if (!edge.id.startsWith('composite-jsx-child:') || edge.certainty !== 'source-proven') continue
+    const basis = /:host-proven:[^:]+:((?:react-router)(?:-dom)?)@.+\(declared\)$/.exec(edge.id)
+    if (!basis) continue
+    const specifier = basis[1]
+    const fromPath = edge.from.replace(/^component:/, '').split('#')[0]
+    const current = routerHostBasis(root, path.resolve(root, fromPath), specifier)
+    if (current?.endsWith('(installed)')) diverged.push(specifier)
+  }
+  return [...new Set(diverged)]
 }
 
 function runtimeFingerprint(root: string): string {

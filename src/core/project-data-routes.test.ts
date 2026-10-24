@@ -3,7 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it } from 'vitest'
-import { analyzeProject } from './project'
+import { analyzeProject, declaredHostProofsDiverged } from './project'
 import { createCandidate, removeCandidate } from './candidate'
 import type { EditOperation, ScopeDecision } from './model'
 import { sourceProvenPageImpact } from './scope'
@@ -818,10 +818,12 @@ describe('agent C AC-P2a: audited router host propagation (react-router Link/Nav
       expect(result.certainty).toBe('partial')
     }
   })
-  it('refuses to launder a declared version when module resolution escapes the project root', () => {
-    // node_modules lives ABOVE the analyzed project: the specifier resolves to
-    // an installation that is not the project's own, so the declared ^6.27.0
-    // must NOT be promoted into a host-proven basis.
+  it('never promotes a module resolution escaping the project root into an installed basis', () => {
+    // node_modules lives ABOVE the analyzed project. The hermetic preview
+    // container mounts only the project root, so that foreign installation
+    // can never influence the runtime: analysis models the same root boundary
+    // and falls back to the audited declared dependency instead of trusting
+    // (or being blocked by) the parent installation.
     const container = makeFixtureRoot('ripple-agent-c-escaping')
     directories.push(container)
     const root = path.join(container, 'app')
@@ -852,8 +854,18 @@ describe('agent C AC-P2a: audited router host propagation (react-router Link/Nav
     const graph = analyzeProject(root)
     const text = graph.nodes.find(node => node.kind === 'data' && node.value?.trim() === 'Overview')!
     const edge = graph.edges.find(item => item.id.startsWith('composite-jsx-child:') && item.to === text.id)!
-    expect(edge.certainty).toBe('semantic-candidate')
-    expect(sourceProvenPageImpact(graph, text.id).certainty).toBe('partial')
+    expect(edge.certainty).toBe('source-proven')
+    expect(edge.id).toContain('host-proven:Link:react-router-dom@^6.27.0(declared)')
+    expect(edge.id).not.toContain('(installed)')
+    expect(sourceProvenPageImpact(graph, text.id).certainty).toBe('source-proven')
+    // An in-root installation appearing after analysis diverges from the
+    // declared basis: candidate creation must fail closed until re-analysis.
+    for (const [name, value] of Object.entries(routerPkg('6.27.0'))) {
+      const target = path.join(root, name)
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.writeFileSync(target, value)
+    }
+    expect(declaredHostProofsDiverged(graph, root)).toEqual(['react-router-dom'])
   })
 })
 

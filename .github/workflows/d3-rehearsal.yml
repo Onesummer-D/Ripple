@@ -1,0 +1,84 @@
+# D3 专项验收：在 Linux CI 上固定三处 SHA，完整执行 MEDIA 最小联合集成预演。
+#   - A 公共核心基线：45a2d7c（分支祖先断言）
+#   - D 集成代码：本分支（含 scripts/d3-qiguang-rehearsal.ts 与本 workflow）
+#   - 栖光 Lab：77f9ae1（data-router 变体 + 真实「节目」导航链接）
+# 正例全链 + 两项故意破坏浏览器观测的负例（交互失败 / 证据篡改），
+# 负例必须被审批拒绝才算通过；全部证据工件上传。
+name: D3 Media Rehearsal
+
+on:
+  push:
+    branches: [feat/d-media-minimal-integration-20261023]
+  workflow_dispatch:
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      A_CORE_BASELINE: 45a2d7cda2271ea5c212c8e0f3a469eb62dded31
+      QIGUANG_LAB_SHA: 77f9ae1037a08cb73c4c0b1236150a90a36fbaba
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assert pinned A core baseline is an ancestor of this branch
+        run: |
+          git merge-base --is-ancestor "$A_CORE_BASELINE" HEAD \
+            && echo "A core baseline $A_CORE_BASELINE pinned OK (HEAD=$(git rev-parse HEAD))"
+
+      - name: Checkout pinned qiguang lab
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QIGUANG_LAB_SHA }}
+          path: qiguang-lab
+
+      - name: Verify pinned lab SHA
+        run: test "$(git -C qiguang-lab rev-parse HEAD)" = "$QIGUANG_LAB_SHA" && echo "lab SHA pinned OK"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Positive full-chain rehearsal
+        run: |
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
+            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
+            --out test-results/d3-rehearsal
+
+      - name: Negative 1 — real wrong-link click must block approval
+        run: |
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
+            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
+            --out test-results/d3-negative-interaction --negative wrong-interaction
+
+      - name: Negative 2 — tampered comparison artifact must fail attestation
+        run: |
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs \
+            scripts/d3-qiguang-rehearsal.ts --lab "$GITHUB_WORKSPACE/qiguang-lab" \
+            --out test-results/d3-negative-tamper --negative tamper-evidence
+
+      - name: Summarize verdicts
+        run: |
+          for dir in d3-rehearsal d3-negative-interaction d3-negative-tamper; do
+            node -e "const r=require('./test-results/$dir/d3-rehearsal-record.json'); console.log('$dir: verdict='+r.verdict, r.negativeResult ? JSON.stringify(r.negativeResult) : '')"
+          done
+
+      - name: Upload D3 evidence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: d3-rehearsal-evidence
+          path: |
+            test-results/d3-rehearsal/**
+            test-results/d3-negative-interaction/**
+            test-results/d3-negative-tamper/**
+          if-no-files-found: error

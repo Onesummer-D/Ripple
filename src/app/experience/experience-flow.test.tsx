@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ExperienceWorkbench } from './experience-workbench'
 import { StaleResponseError } from './real-adapter'
@@ -342,6 +342,52 @@ describe('F 体验工作台 · REAL 模式异步竞态', () => {
     expect(screen.getByTestId('page-item-page:home').getAttribute('aria-current')).toBe('page')
     expect((screen.getByTestId('real-preview-frame') as HTMLIFrameElement).src).toBe(model.preview!.url)
   })
+
+  it('候选创建成功后再次进入点选：旧点选会话不得把下一次点击误判为退出（6c 回归）', async () => {
+    const model: ExperienceViewModel = {
+      projectName: 'acme-shop', projectStatus: 'ready', candidateStatus: 'none', dataProvenance: 'real',
+      currentPageRef: 'page:home', draftAfterText: '', activeViewportId: 'desktop', canvasState: 'ready',
+      pages: [
+        { id: 'page:home', label: '首页', path: '/', relation: 'editing', relationCertainty: 'source-proven', scope: 'include' },
+      ],
+      elements: [
+        {
+          id: 'el:title', label: '首页标题', demoSelector: '', currentText: '原标题',
+          sourceRef: 'jsx:src/pages/HomePage.jsx#1', sourcePath: 'src/pages/HomePage.jsx',
+          certainty: 'source-proven', impactPageRefs: ['page:home'], unresolvedReasons: [], editable: true,
+        },
+      ],
+      viewports: VIEWPORTS, evidence: [], versions: [],
+      compare: { baseline: { state: 'unavailable' }, candidate: { state: 'unavailable' }, compareState: 'none' },
+      preview: { url: 'http://127.0.0.1:9999/preview/p1/', projectId: 'p', previewId: 'p1', sourceDigest: 'd' },
+      pickerAvailable: true,
+      projectIdentity: { projectId: 'p', sourceDigest: 'd' },
+    }
+    const adapter: ExperienceAdapter = {
+      provenance: 'real',
+      load: async () => model,
+      selectElement: (m, elementId) => ({ ...m, selectedElementId: elementId }),
+      setDraftText: (m, text) => ({ ...m, draftAfterText: text }),
+      setPageScope: m => m,
+      setViewport: m => m,
+      setPage: m => m,
+      createCandidate: async m => ({ ...m, candidateStatus: 'candidate' }),
+    }
+    render(<ExperienceWorkbench adapter={adapter} />)
+    await screen.findByTestId('picker-toggle')
+    // 第一轮：进入点选 → 选中 + 草稿 → 生成候选（成功后自动退出点选）
+    fireEvent.click(screen.getByTestId('picker-toggle'))
+    expect(screen.queryByTestId('picker-hint')).not.toBeNull()
+    fireEvent.click(screen.getByTestId('canvas-el-el:title'))
+    fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新标题' } })
+    await act(async () => { fireEvent.click(screen.getByTestId('create-candidate')) })
+    expect(screen.queryByTestId('picker-hint')).toBeNull()
+    // 第二轮（6c 真实切换路径）：点击必须重新进入点选。
+    // 回归根因：候选创建只清了 pickerNonce state，pickerSessionRef 残留旧会话，
+    // 以 ref 判定的 toggle 会把本次点击当成"退出"，点选永远进不去。
+    fireEvent.click(screen.getByTestId('picker-toggle'))
+    expect(screen.queryByTestId('picker-hint')).not.toBeNull()
+  })
 })
 
 describe('F 体验工作台 · 真实/演示隔离', () => {
@@ -359,7 +405,7 @@ describe('F 体验工作台 · 真实/演示隔离', () => {
     expect(screen.queryByTestId('demo-badge')).toBeNull()
     // real 模式没有可执行的审批入口，明确提示未接入
     expect(screen.queryByTestId('demo-approve')).toBeNull()
-    expect(text('real-approval-pending')).toContain('真实审批尚未接入')
+    expect(text('real-approval-pending')).toContain('正式接口')
   })
 })
 
@@ -414,7 +460,7 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     expect(screen.getByTestId('real-badge')).toBeTruthy()
   })
 
-  it('打开真实工程：真实页面/目标/历史呈现，审批入口明确未接入', async () => {
+  it('打开真实工程：真实页面/目标/历史呈现，已应用候选提供回滚入口（第三批）', async () => {
     const fetchImpl = mockFetch({ analyze: ANALYSIS, history: HISTORY, 'project/preview': { status: 503, body: { error: '隔离预演网络池为空' } } })
     render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl })} />)
     fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\work\\acme-shop' } })
@@ -432,8 +478,9 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     await screen.findByTestId('version-candidate-real-1')
     expect(text('version-candidate-real-1')).toContain('已应用')
     fireEvent.click(screen.getByTestId('version-candidate-real-1'))
-    // 真实审批未接入；元素可选中并查看真实来源
-    expect(text('real-approval-pending')).toContain('真实审批尚未接入')
+    // 第三批：历史最新候选被跟踪，已应用状态如实展示并提供回滚入口（走服务端正式接口）
+    expect(text('lifecycle-status')).toContain('已应用')
+    expect((screen.getByTestId('rollback-candidate') as HTMLButtonElement)).toBeTruthy()
     fireEvent.click(screen.getByTestId('close-filmstrip'))
     fireEvent.click(screen.getByTestId('canvas-el-data:hero-title'))
     expect(text('selection-summary')).toContain('src/data/site.ts')
@@ -447,5 +494,179 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     fireEvent.click(screen.getByTestId('open-project-submit'))
     await screen.findByTestId('open-project-error')
     expect(text('open-project-error')).toContain('项目路径不是目录')
+  })
+})
+
+
+describe('F 体验工作台 · 第三批生命周期 UI（审批门控/两步确认/终态展示）', () => {
+  afterEach(cleanup)
+
+  const VIEWPORTS_LC: ExperienceViewModel['viewports'] = [
+    { id: 'desktop', label: '桌面 1440', width: 1440, height: 900, verificationStatus: 'available' },
+    { id: 'tablet', label: '平板 768', width: 768, height: 1024, verificationStatus: 'available' },
+    { id: 'mobile-375', label: '手机 375', width: 375, height: 812, verificationStatus: 'available' },
+    { id: 'mobile-390', label: '手机 390', width: 390, height: 844, verificationStatus: 'in-verification' },
+  ]
+
+  function candidateModel(activeCandidate: NonNullable<ExperienceViewModel['activeCandidate']>): ExperienceViewModel {
+    return {
+      projectName: 'acme-shop', projectStatus: 'ready', candidateStatus: 'candidate', dataProvenance: 'real',
+      currentPageRef: 'page:home', draftAfterText: '', activeViewportId: 'desktop', canvasState: 'ready',
+      pages: [
+        { id: 'page:home', label: '首页', path: '/', relation: 'editing', relationCertainty: 'source-proven', scope: 'include' },
+      ],
+      elements: [
+        {
+          id: 'el:title', label: '首页标题', demoSelector: '', currentText: '原标题',
+          sourceRef: 'jsx:src/pages/HomePage.jsx#1', sourcePath: 'src/pages/HomePage.jsx',
+          certainty: 'source-proven', impactPageRefs: ['page:home'], unresolvedReasons: [], editable: true,
+        },
+      ],
+      viewports: VIEWPORTS_LC, evidence: [], versions: [],
+      compare: { baseline: { state: 'unavailable' }, candidate: { state: 'unavailable' }, compareState: 'none' },
+      preview: { url: 'http://127.0.0.1:9999/preview/p1/', projectId: 'p', previewId: 'p1', sourceDigest: 'd' },
+      pickerAvailable: true,
+      activeCandidate,
+    }
+  }
+
+  const VERIFICATION_INCOMPLETE: import('./view-model').CandidateVerificationXp = {
+    state: 'incomplete', stateLabel: '不完整', runId: 'run-41',
+    reason: '3/7 项断言未通过',
+    assertions: [
+      { id: 'a:1', result: 'pass', detail: '补丁文字出现' },
+      { id: 'a:2', result: 'fail', detail: '基线对比无法遮蔽编辑文本' },
+    ],
+    shots: [], visualEvidences: [],
+  }
+  const VERIFICATION_PASSED: import('./view-model').CandidateVerificationXp = {
+    state: 'passed', stateLabel: '通过', runId: 'run-42', recordHash: 'record-hash-abcdef',
+    assertions: [
+      { id: 'a:1', result: 'pass', detail: '补丁文字出现' },
+      { id: 'a:2', result: 'pass', detail: '其余文字稳定' },
+    ],
+    shots: [], visualEvidences: [],
+  }
+
+  function lifecycleAdapter(model: ExperienceViewModel) {
+    return {
+      adapter: {
+        provenance: 'real' as const,
+        load: async () => model,
+        selectElement: (m: ExperienceViewModel) => m,
+        setDraftText: (m: ExperienceViewModel) => m,
+        setPageScope: (m: ExperienceViewModel) => m,
+        setViewport: (m: ExperienceViewModel) => m,
+        setPage: (m: ExperienceViewModel) => m,
+        runVerification: vi.fn(async (m: ExperienceViewModel) => m),
+        approveCandidate: vi.fn(async (m: ExperienceViewModel) => m),
+        applyCandidate: vi.fn(async (m: ExperienceViewModel) => m),
+        rollbackCandidate: vi.fn(async (m: ExperienceViewModel) => m),
+      } satisfies ExperienceAdapter,
+    }
+  }
+
+  it('审批门控：最新验证 incomplete 时审批按钮禁用并给出原因；passed 时开放', async () => {
+    const model = candidateModel({
+      candidateId: 'candidate-9', patchHash: 'hash-9',
+      verification: VERIFICATION_INCOMPLETE,
+    })
+    const { adapter } = lifecycleAdapter(model)
+    render(<ExperienceWorkbench adapter={adapter} />)
+    await screen.findByTestId('lifecycle-actions')
+    // 七项断言逐条如实展示（含未通过项及原因）
+    expect(screen.getByTestId('verification-assertions').textContent).toContain('基线对比无法遮蔽编辑文本')
+    const approve = screen.getByTestId('approve-candidate') as HTMLButtonElement
+    expect(approve.disabled).toBe(true)
+    expect(text('approve-blocked-reason')).toContain('不完整')
+    expect(adapter.approveCandidate).not.toHaveBeenCalled()
+    // passed：开放审批，点击触发正式接口调用
+    const passedModel = candidateModel({ candidateId: 'candidate-9', patchHash: 'hash-9', verification: VERIFICATION_PASSED })
+    const second = lifecycleAdapter(passedModel)
+    cleanup()
+    render(<ExperienceWorkbench adapter={second.adapter} />)
+    await screen.findByTestId('lifecycle-actions')
+    const open = screen.getByTestId('approve-candidate') as HTMLButtonElement
+    expect(open.disabled).toBe(false)
+    fireEvent.click(open)
+    await act(async () => Promise.resolve())
+    expect(second.adapter.approveCandidate).toHaveBeenCalledTimes(1)
+  })
+
+  it('应用两步确认：第一次点击只进入确认态，确认后才调用正式接口，可取消', async () => {
+    const model: ExperienceViewModel = {
+      ...candidateModel({
+        candidateId: 'candidate-9', patchHash: 'hash-9',
+        lifecycle: 'approved', approval: { verificationRunId: 'run-42', at: '2026-10-23T12:00:00Z' },
+        verification: VERIFICATION_PASSED,
+      }),
+      candidateStatus: 'approved',
+    }
+    const { adapter } = lifecycleAdapter(model)
+    render(<ExperienceWorkbench adapter={adapter} />)
+    await screen.findByTestId('lifecycle-actions')
+    expect(text('lifecycle-status')).toContain('已审批')
+    expect(text('lifecycle-status')).toContain('run-42')
+    // 第一步：进入确认态，不调用接口
+    fireEvent.click(screen.getByTestId('apply-candidate'))
+    expect(screen.getByTestId('apply-candidate').textContent).toContain('确认应用')
+    expect(adapter.applyCandidate).not.toHaveBeenCalled()
+    // 取消：回到普通态
+    fireEvent.click(screen.getByTestId('apply-cancel'))
+    expect(screen.getByTestId('apply-candidate').textContent).toContain('应用到真实工程')
+    // 两步确认后才真正调用
+    fireEvent.click(screen.getByTestId('apply-candidate'))
+    fireEvent.click(screen.getByTestId('apply-candidate'))
+    await act(async () => Promise.resolve())
+    expect(adapter.applyCandidate).toHaveBeenCalledTimes(1)
+  })
+
+  it('终态展示：已应用提供回滚入口（两步确认），已回滚展示恢复结果且不再提供回滚', async () => {
+    const appliedModel: ExperienceViewModel = {
+      ...candidateModel({
+        candidateId: 'candidate-9', patchHash: 'hash-9',
+        lifecycle: 'applied', appliedAt: '2026-10-23T12:05:00Z', rollbackAvailable: true,
+        verification: VERIFICATION_PASSED,
+      }),
+      candidateStatus: 'applied',
+    }
+    const applied = lifecycleAdapter(appliedModel)
+    render(<ExperienceWorkbench adapter={applied.adapter} />)
+    await screen.findByTestId('lifecycle-actions')
+    expect(text('lifecycle-status')).toContain('已应用')
+    fireEvent.click(screen.getByTestId('rollback-candidate'))
+    expect(screen.getByTestId('rollback-candidate').textContent).toContain('确认回滚')
+    fireEvent.click(screen.getByTestId('rollback-candidate'))
+    await act(async () => Promise.resolve())
+    expect(applied.adapter.rollbackCandidate).toHaveBeenCalledTimes(1)
+    cleanup()
+    // 已应用但服务端确认不可回滚：入口禁用并给出准确原因
+    const blockedModel: ExperienceViewModel = {
+      ...candidateModel({
+        candidateId: 'candidate-9', patchHash: 'hash-9',
+        lifecycle: 'applied', rollbackAvailable: false,
+        verification: VERIFICATION_PASSED,
+      }),
+      candidateStatus: 'applied',
+    }
+    const blocked = lifecycleAdapter(blockedModel)
+    render(<ExperienceWorkbench adapter={blocked.adapter} />)
+    await screen.findByTestId('lifecycle-actions')
+    expect(text('rollback-blocked-reason')).toContain('不可回滚')
+    cleanup()
+    // 已回滚：状态如实，回滚入口消失（服务端 rollbackAvailable=false）
+    const rolledModel: ExperienceViewModel = {
+      ...candidateModel({
+        candidateId: 'candidate-9', patchHash: 'hash-9',
+        lifecycle: 'rolled-back', rollbackAvailable: false,
+        verification: VERIFICATION_PASSED,
+      }),
+      candidateStatus: 'rolled-back',
+    }
+    const rolled = lifecycleAdapter(rolledModel)
+    render(<ExperienceWorkbench adapter={rolled.adapter} />)
+    await screen.findByTestId('lifecycle-actions')
+    expect(text('lifecycle-status')).toContain('已回滚')
+    expect(screen.queryByTestId('rollback-candidate')).toBeNull()
   })
 })

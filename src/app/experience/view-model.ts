@@ -10,6 +10,18 @@ export type DataProvenance = 'demo' | 'simulated' | 'real'
 export type SourceCertainty = 'source-proven' | 'partial' | 'unknown'
 export type PageScopeChoiceXp = 'include' | 'exclude' | 'protect' | 'undecided'
 
+/** D 点选采集到的运行时实例身份（仅显示/导航，不构成编辑授权）。 */
+export interface RuntimeIdentityXp {
+  /** 信封采集确定性；仅 stable-keyed/stable-react 可用于精准实例级操作。 */
+  certainty: 'stable-keyed-instance' | 'stable-react-instance' | 'position-dependent' | 'unknown' | 'unmapped'
+  reasons: string[]
+  runtimeInstanceId?: string
+  sameSourceCount?: number
+  sourceVersion?: string
+  tagName?: string
+  runtimeText?: string
+}
+
 /** 画布元素（可悬停/选中）。location 是演示用摘要，真实实现换成 sourceRef。 */
 export interface CanvasElementXp {
   id: string
@@ -26,6 +38,8 @@ export interface CanvasElementXp {
   unresolvedReasons: string[]
   /** 能否进入编辑（unknown 元素只能查看，不能承诺修改范围）。 */
   editable: boolean
+  /** 真实模式：画布点选采集到的运行时身份（D 桥；缺省表示尚未点选采集）。 */
+  runtimeIdentity?: RuntimeIdentityXp
 }
 
 export interface PageXp {
@@ -132,6 +146,88 @@ export interface ExperienceViewModel {
    * 用于"看到无法操作的按钮及其准确阻断原因"，不得用演示默认值填充。
    */
   blockedReasons?: string[]
+  /**
+   * 真实模式：画布点选能力是否可用（有可信项目预演会话才可用）。
+   * 点选的激活状态是会话级 UI 状态，不放在模型里。
+   */
+  pickerAvailable?: boolean
+  /** 真实模式：当前活跃候选（POST /candidate 的真实响应投影；无活跃候选时缺省）。 */
+  activeCandidate?: {
+    candidateId: string
+    patchHash?: string
+    /** 候选预演地址（POST /candidate/preview 响应；iframe 唯一可信来源）。 */
+    previewUrl?: string
+    previewLoading?: boolean
+    /** 四视口验证运行中（POST /candidate/verify 在途；按钮禁用）。 */
+    verificationRunning?: boolean
+    /** 最近一次真实验证运行（POST /candidate/verify 响应投影；服务端权威，F 不自行生成）。 */
+    verification?: CandidateVerificationXp
+    /**
+     * 第三批：候选生命周期（全部来自服务端 workflow 响应/历史：active/approved/applied/rolled-back）。
+     * F 绝不自行生成 approved/applied/rolled-back。
+     */
+    lifecycle?: string
+    /** 第三批：服务端审批记录（审批绑定最新 passed 验证的 runId；recordHash 不能代替 runId）。 */
+    approval?: { verificationRunId: string; at?: string }
+    /** 第三批：服务端应用记录时间。 */
+    appliedAt?: string
+    /** 第三批：服务端回滚可用性（唯一权威；缺省时审批/应用/回滚按钮按 lifecycle 推导、服务端兜底拒绝）。 */
+    rollbackAvailable?: boolean
+    /** 第三批：生命周期操作在途（审批/应用/回滚；全部生命周期按钮禁用防重复提交）。 */
+    lifecycleBusy?: 'approving' | 'applying' | 'rolling-back'
+  }
+}
+
+/** 真实验证运行投影（第二批：POST /candidate/verify；全部字段来自服务端响应）。 */
+export interface CandidateVerificationXp {
+  state: 'not-run' | 'passed' | 'risks' | 'incomplete' | 'stale' | 'failed-to-run'
+  stateLabel: string
+  reason?: string
+  runId?: string
+  patchHash?: string
+  scopeVersion?: number
+  startedAt?: string
+  completedAt?: string
+  /** 执行记录哈希（审批必须绑定此运行，第三批接入）。 */
+  recordHash?: string
+  assertions: Array<{ id: string; result: string; detail: string }>
+  /** 四视口证据截图（imageUrl 已为绝对地址，可直接作 img src）。 */
+  shots: Array<{
+    viewportWidth: number
+    viewportHeight: number
+    result: string
+    runtimeState?: string
+    imageUrl?: string
+    reason?: string
+  }>
+  /** E 只读视觉差异证据（ripple-visual-evidence-view/v1 投影；无则缺省）。 */
+  visualEvidences: Array<{
+    checkId: string
+    route: string
+    result: string
+    resultReason?: string
+    /** 原始可读 view 投影（schema/stateLabel/summary/配对证明标签逐字渲染，不得改写升级）。 */
+    view?: VisualEvidenceViewXp
+  }>
+}
+
+/**
+ * E 的 ripple-visual-evidence-view/v1 可读字段（F 只读消费；结构以 A/E 为准，
+ * 缺失字段一律可选——不得臆造）。视觉证据仅为补充观察，永远不能是 pass。
+ */
+export interface VisualEvidenceViewXp {
+  schema?: string
+  stateLabel?: string
+  summary?: string
+  comparable?: boolean
+  changedPixels?: number | null
+  regionCount?: number
+  identityStatus?: string
+  limitations?: string[]
+  crossVersion?: {
+    scope?: { strictInstanceProofAvailable?: boolean }
+    pairs?: Array<{ proofLabel?: string; reasons?: string[] }>
+  }
 }
 
 /** 把 scope 选择汇总成一句即时摘要（纯函数，可测）。 */
@@ -226,6 +322,11 @@ export function approvalFeedbackStale(previous: ExperienceViewModel, next: Exper
   return previous.selectedElementId !== next.selectedElementId
     || previous.draftAfterText !== next.draftAfterText
     || previous.pages !== next.pages
+}
+
+/** 运行时身份是否达到精准实例级（stable-keyed / stable-react）。 */
+export function isStableRuntimeIdentity(identity: RuntimeIdentityXp | undefined): boolean {
+  return identity?.certainty === 'stable-keyed-instance' || identity?.certainty === 'stable-react-instance'
 }
 
 /** 状态文案（统一术语出口，避免散写）。 */
