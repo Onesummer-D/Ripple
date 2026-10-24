@@ -207,13 +207,24 @@ proofLabel 逐字渲染）、完整性（artifacts 哈希）。建议按 (route,
 
 ## 5. 等待 A/C+D 冻结的最小接口清单
 
-| # | 事项 | 阻塞内容 | 需要谁 |
-|---|---|---|---|
-| ① | `VerificationRun.runtimeIdentity` 字段化裁决（C+D §2.2，含字段名/归档格式/哈希要求；或批准工件替代方案）——**须含 baseline/candidate 侧别或双侧分组**，并满足 §1.3 的四重关联要求 | 容器归档与宿主读取路径 | A（C+D 已提案） |
-| ② | 宿主评估接线契约：谁来调 `assessRuntimeIdentity`（attach 内 vs runner）、expectedPage 从 verificationContract 派生的规则、fileDigest 按侧 memo 复用口径 | E 配对层传入 assessments，view 升级路径 | A + C+D |
-| ③ | 严格证明判定修复与措辞升级规则：`instanceIdentityProven===true` 逐对核验（修复 §1.4 缺口）、view/pairs 允许的新 proof 级别与文案（含 `sameSourceCount>1` 必附警示）、`strictInstanceProofAvailable=true` 的置位条件 | view schema additive 扩展 + visual-geometry 判定修正 | A（F 会签文案） |
-| ④ | page-context 缺失清除的三条件核验由谁执行（宿主代核后只给结论，还是给 expectedPage+pageRefs 让 E 自核） | missingEvidence 清除逻辑 | A/C+D（合同 §3.2/§3.3 已给条件，缺执行归属） |
-| ⑤ | 阶段二验收矩阵（§2）与 C+D it.each 词表的联合回归挂载点 | 联合 CI 用例 | A |
+> **状态更新（2026-10-24，C+D 阶段二合同 v2 `feat/runtime-identity-phase2-20261024 @ 71da59d`，
+> 已取代 v1 `2ad8528`）**：五项均已有候选方案，不再视为完全缺失；冻结前 E 不动核心写入。
+> C+D v2 已含双侧归档字段（`side: 'baseline' | 'candidate'`）与逐实例一对多 assessment
+> 结构（`RuntimeInstanceAssessmentEntry[]`）。本文 §1.3 的"侧别缺失"降级为"组织形式
+> 二选一"（每侧一条 vs 双侧分组，A 冻结）；§1.4 逐实例关联缺口由 v2 §2 硬规则 1–3
+> 覆盖，E 的 `visual-geometry.ts:640` 判定修复仍登记为 E 实施项。
+
+| # | 事项 | 阻塞内容 | 需要谁 | 状态（C+D v2 对照） |
+|---|---|---|---|---|
+| ① | `VerificationRun.runtimeIdentities` 字段化（v2 §2：含 side、snapshotSha256、assessmentSha256、四重关联） | 容器归档与宿主读取路径 | A（C+D 已提案） | **已有候选方案**，等待 A 冻结（D1）；侧别组织形式二选一 |
+| ② | 宿主评估接线：宿主编排调用 `assessRuntimeIdentity`（非 E）、attested 运行后定稿前、expectedPage 从合同 descriptor 派生 + 实际 URL 三元组、fileDigest 按侧 memo 固化 | E 配对层传入 assessments，view 升级路径 | A + C+D | **已有候选方案**（v2 §9-②），等待 A 冻结接线 |
+| ③ | 严格证明判定修复（E 实施）+ view/pairs 措辞升级规则（A 冻结、F 会签）+ 跨版本四支柱配对回执（图侧来源对应归 A，v2 §14 未决） | view schema additive 扩展 + visual-geometry 判定修正 | A（F 会签文案） | **部分候选**：判定分工已定；四支柱配对 C+D 原型已实测；view 文案待冻结 |
+| ④ | page-context 缺失清除：三元组全等 + pathname ∈ pageRefs + 无 route-namespace-stale；宿主代核、E 只消费；search/hash 清除以三元组全等为条件 | missingEvidence 清除逻辑 | A/C+D | **已有候选方案**（v2 §9-④），等待 A 裁决严格度；冻结前 E 不清除任何 search/hash 缺失标记 |
+| ⑤ | 联合 CI 验收入口：C+D 原型工作流 10 项（真实 Chromium）+ E 容器矩阵 + A 集成预演汇总 | 联合 CI 用例 | A | **已有分工候选**（v2 §9-⑤），等待 A 确认入口 |
+
+未决子项（详见配套设计文档 `e-container-snapshot-archival-design-20261024.md` §6
+对照表）：digest recipe 公共函数（D2）、runtimeIdentities 写入权（D3）、工件保留期
+（D4）、图侧来源对应 pillar 的 A 侧实现（v2 §14）。
 
 ## 6. 边界重申
 
