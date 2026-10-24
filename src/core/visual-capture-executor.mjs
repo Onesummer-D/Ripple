@@ -116,8 +116,11 @@ export async function captureVisualSide(page, options) {
 
 function sanitizeDetail(value, fallback = 'runtime identity snapshot was not collected') {
   const detail = String(value || fallback)
-    .replace(/[A-Za-z]:\\[^\s]+/g, '<path>')
     .replace(/https?:\/\/[^\s]+/gi, '<url>')
+    .replace(/[A-Za-z]:\\[^'"\r\n]+(?=['"]|$)/g, '<path>')
+    .replace(/[A-Za-z]:\\[^\s]+/g, '<path>')
+    .replace(/(['"])(\/[^'"]+)\1/g, '$1<path>$1')
+    .replace(/(^|\s)(\/[^\s'"]+)(?=$|\s)/g, '$1<path>')
     .replace(/\b(token|password|secret|api[_-]?key)=([^\s]+)/gi, '$1=<redacted>')
     .replace(/[\r\n\t]+/g, ' ')
     .trim()
@@ -136,6 +139,9 @@ function runtimeIdentityFailure(captured, fallback = 'runtime identity snapshot 
 function safeIdentityBase(evidenceRoot, dir) {
   if (!/^[a-z0-9-]{1,32}$/.test(String(dir ?? ''))) throw new Error('Runtime identity artifact directory is invalid.')
   const root = path.resolve(evidenceRoot)
+  fs.mkdirSync(root, { recursive: true })
+  const rootStat = fs.lstatSync(root)
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) throw new Error('Runtime identity artifact root must be a regular directory.')
   const identityRoot = path.join(root, RUNTIME_IDENTITY_CAPTURE_DIR)
   const base = path.join(identityRoot, dir)
   const relative = path.relative(root, base)

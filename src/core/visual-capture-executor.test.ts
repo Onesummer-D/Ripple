@@ -100,10 +100,52 @@ describe('A① runtime identity archive contract', () => {
 
   it('rejects path escape and non-regular destinations, and keeps errors bounded', () => {
     const root = tempRoot()
-    expect(writeRuntimeIdentityArtifact(root, '../escape', 'baseline', captured(snapshot([])))).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
+    const escaped = writeRuntimeIdentityArtifact(root, '../escape', 'baseline', captured(snapshot([])))
+    expect(escaped).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable', detail: 'Runtime identity artifact directory is invalid.' })
     fs.mkdirSync(path.join(root, 'identity', 'desktop'), { recursive: true })
     fs.mkdirSync(path.join(root, 'identity', 'desktop', 'baseline-identity.json'))
     expect(writeRuntimeIdentityArtifact(root, 'desktop', 'baseline', captured(snapshot([])))).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable', detail: 'Runtime identity artifact path is not a regular file.' })
+  })
+
+  it.skipIf(process.platform === 'win32')('rejects symlink destinations and scrubs exclusive-write failures', () => {
+    const root = tempRoot()
+    const outside = path.join(root, 'outside.json')
+    fs.writeFileSync(outside, 'leave-this-file-alone')
+    fs.mkdirSync(path.join(root, 'identity', 'desktop'), { recursive: true })
+    fs.symlinkSync(outside, path.join(root, 'identity', 'desktop', 'baseline-identity.json'), 'file')
+    const symlink = writeRuntimeIdentityArtifact(root, 'desktop', 'baseline', captured(snapshot([])))
+    expect(symlink).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable', detail: 'Runtime identity artifact path is not a regular file.' })
+    expect(fs.readFileSync(outside, 'utf8')).toBe('leave-this-file-alone')
+
+    const rootLinkParent = tempRoot()
+    const outsideRoot = path.join(rootLinkParent, 'outside-root')
+    const linkedRoot = path.join(rootLinkParent, 'linked-root')
+    fs.mkdirSync(outsideRoot)
+    fs.symlinkSync(outsideRoot, linkedRoot, 'dir')
+    expect(writeRuntimeIdentityArtifact(linkedRoot, 'desktop', 'baseline', captured(snapshot([])))).toMatchObject({
+      archive: 'failed', reason: 'snapshot-unavailable', detail: 'Runtime identity artifact root must be a regular directory.',
+    })
+    expect(fs.readdirSync(outsideRoot)).toEqual([])
+
+    const directoryRoot = tempRoot()
+    const outsideDirectory = path.join(directoryRoot, 'outside-directory')
+    fs.mkdirSync(outsideDirectory)
+    fs.symlinkSync(outsideDirectory, path.join(directoryRoot, 'identity'), 'dir')
+    expect(writeRuntimeIdentityArtifact(directoryRoot, 'desktop', 'baseline', captured(snapshot([])))).toMatchObject({
+      archive: 'failed', reason: 'snapshot-unavailable', detail: 'Runtime identity artifact directory must be a regular directory.',
+    })
+    expect(fs.readdirSync(outsideDirectory)).toEqual([])
+
+    const collisionRoot = tempRoot()
+    const stored = writeRuntimeIdentityArtifact(collisionRoot, 'desktop', 'baseline', captured(snapshot([{ id: 'first' }])))
+    expect(stored.archive).toBe('stored')
+    const artifactPath = path.join(collisionRoot, stored.artifact.snapshot.path)
+    const originalBytes = fs.readFileSync(artifactPath)
+    const collision = writeRuntimeIdentityArtifact(collisionRoot, 'desktop', 'baseline', captured(snapshot([{ id: 'second' }])))
+    expect(collision).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
+    expect(collision.detail).toContain('<path>')
+    expect(collision.detail).not.toContain(collisionRoot)
+    expect(fs.readFileSync(artifactPath)).toEqual(originalBytes)
   })
 
   it('retains one side when the other side fails', () => {
@@ -111,7 +153,7 @@ describe('A① runtime identity archive contract', () => {
     const baseline = writeRuntimeIdentityArtifact(baselineRoot, 'desktop', 'baseline', captured(snapshot([{ id: 'b' }])))
     const candidate = writeRuntimeIdentityArtifact(baselineRoot, 'desktop', 'candidate', captured(null, 'unavailable', 'collector source missing'))
     expect(baseline.archive).toBe('stored')
-    expect(candidate).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
+    expect(candidate).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable', detail: 'collector source missing' })
     expect(fs.existsSync(path.join(baselineRoot, 'identity', 'desktop', 'baseline-identity.json'))).toBe(true)
     expect(fs.existsSync(path.join(baselineRoot, 'identity', 'desktop', 'candidate-identity.json'))).toBe(false)
 
@@ -119,7 +161,7 @@ describe('A① runtime identity archive contract', () => {
     const candidateOnly = writeRuntimeIdentityArtifact(candidateRoot, 'desktop', 'candidate', captured(snapshot([{ id: 'c' }])))
     const baselineFailure = writeRuntimeIdentityArtifact(candidateRoot, 'desktop', 'baseline', captured(null, 'failed', 'collector exploded'))
     expect(candidateOnly.archive).toBe('stored')
-    expect(baselineFailure).toMatchObject({ archive: 'failed', reason: 'collector-error' })
+    expect(baselineFailure).toMatchObject({ archive: 'failed', reason: 'collector-error', detail: 'collector exploded' })
     expect(fs.existsSync(path.join(candidateRoot, 'identity', 'desktop', 'candidate-identity.json'))).toBe(true)
   })
 })
