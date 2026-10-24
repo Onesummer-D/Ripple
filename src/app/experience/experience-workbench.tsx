@@ -188,7 +188,11 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
     // 由 adapter 的 generation 守卫以 StaleResponseError 拒绝。
     const session = pickerSessionRef.current
     if (!session) return
-    activeAdapter.applyPickedSource(modelRef.current, { sourceRef: envelope.sourceRef, envelope })
+    activeAdapter.applyPickedSource(
+      modelRef.current,
+      { sourceRef: envelope.sourceRef, envelope },
+      () => pickerSessionRef.current === session,
+    )
       .then(next => {
         if (pickerSessionRef.current !== session) return
         setPickerError('')
