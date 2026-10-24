@@ -166,7 +166,8 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
     expect(screen.queryByTestId('approve-feedback')).toBeNull()
     expect(text('approval-area')).toContain('无法完全证明')
-    expect(screen.queryByTestId('demo-approve')).toBeNull()
+    // 主按钮常显但禁用（检查清单门控），点击不产生任何审批
+    expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
     // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
     fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
     fireEvent.click(screen.getByTestId('demo-approve'))
@@ -204,7 +205,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('canvas-el-el:seasonal-banner'))
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新春限定' } })
     expect(text('approval-area')).toContain('未完全证明')
-    expect(screen.queryByTestId('demo-approve')).toBeNull()
+    expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('范围决策：未证明页面被包含时审批被门控，排除后恢复，演示审批给出可见反馈', async () => {

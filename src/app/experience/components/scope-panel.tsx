@@ -30,6 +30,42 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   const unrelatedPages = model.pages.filter(page => page.relation === 'unrelated')
   const unprovenPages = model.pages.filter(page => page.relation === 'unproven')
 
+  // 修改前检查清单：状态从真实模型读取（与 approvalGate 同源的判定输入），
+  // 不虚构任何检查结果；未通过项的说明文字与 approvalGate 的阻断原因逐字一致。
+  const selectReason = !selected ? '尚未选中要修改的位置'
+    : !selected.editable ? '选中位置来源未知，不能作为修改目标'
+    : selected.certainty !== 'source-proven' ? '选中位置来源未完全证明，不能作为安全修改目标' : ''
+  const draftOk = !!model.draftAfterText.trim()
+  const checks = [
+    { key: 'select', title: '选择要修改的元素', ok: !selectReason, note: selectReason || `已选中：${selected?.label ?? ''}` },
+    { key: 'draft', title: '填写修改内容', ok: draftOk, note: draftOk ? '修改内容已填写' : '修改内容为空' },
+    { key: 'scope', title: '确认影响范围', ok: summary.undecided === 0, note: summary.undecided === 0 ? '受影响页面范围已决定' : `还有 ${summary.undecided} 个受影响页面未决定范围` },
+  ]
+  if (summary.unprovenIncluded > 0) {
+    checks.push({ key: 'risk', title: '风险检查', ok: false, note: `${summary.unprovenIncluded} 个影响范围无法完全证明的页面被选为修改范围，不能安全审批` })
+  }
+  const precheck = (
+    <div className="ripple-xp-precheck">
+      <div className="ripple-xp-precheck-head">
+        <strong>修改前检查</strong>
+        <span className={`ripple-xp-precheck-status ${gate.allowed ? 'is-ready' : ''}`}>
+          {gate.allowed ? '已就绪' : '尚未就绪'}
+        </span>
+      </div>
+      <ul className="ripple-xp-precheck-list">
+        {checks.map(check => (
+          <li key={check.key} className={check.ok ? 'is-ok' : 'is-pending'}>
+            <span className="ripple-xp-precheck-icon" aria-hidden>{check.ok ? '✓' : '!'}</span>
+            <div>
+              <strong>{check.title}</strong>
+              <p>{check.note}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+
   const scopeRow = (page: PageXp, reason: string, locked: boolean) => (
     <li key={page.id} className={`ripple-xp-scope-row ${locked ? 'is-locked' : ''}`} data-testid={`scope-row-${page.id}`}>
       <div className="ripple-xp-scope-head">
@@ -60,9 +96,10 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   // 工作台根容器的作用域类（携带 min-height:100vh / 整页 flex），右侧面板
   // 误用会继承整页高度，造成大面积空白与布局错乱。
   return <aside className="ripple-xp-scope-panel reveal" data-testid="scope-panel">
-    {/* 决策面板按编辑器流程组织：1 选择元素 → 2 编辑修改内容 → 3 影响范围 → 4 生成候选并检查 */}
+    {/* 决策面板按编辑器流程组织：选择元素 → 编辑修改内容 → 影响范围 → 生成候选并检查。
+     * 不用步骤编号——面板随操作状态变化，而不是操作向导式的静态表单。 */}
     <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>
-      <span className="ripple-xp-stage-num" aria-hidden>1</span>选择元素
+      选择元素
     </SectionTitle>
     {selected ? (
       <div className="ripple-xp-selection-block">
@@ -72,7 +109,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       </div>
     ) : <p className="ripple-xp-panel-hint">在中间画布点选想要修改的位置。</p>}
 
-    <SectionTitle><span className="ripple-xp-stage-num" aria-hidden>2</span>编辑修改内容</SectionTitle>
+    <SectionTitle>编辑修改内容</SectionTitle>
     {selected?.editable ? (
       <div className="ripple-xp-intent-block">
         <p className="ripple-xp-current-text">当前内容：{selected.currentText}</p>
@@ -92,7 +129,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       </p>
     )}
 
-    <SectionTitle><span className="ripple-xp-stage-num" aria-hidden>3</span>影响范围</SectionTitle>
+    <SectionTitle>影响范围</SectionTitle>
     <ul className="ripple-xp-scope-list">
       {editingPage && scopeRow(editingPage, '本次修改的位置', true)}
       {sameSourcePages.map(page => scopeRow(page, '同源页面', false))}
@@ -103,7 +140,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       包含 {summary.included} · 保护 {summary.protected} · 排除 {summary.excluded} · 未决定 {summary.undecided}
     </p>
 
-    <SectionTitle><span className="ripple-xp-stage-num" aria-hidden>4</span>生成候选并检查</SectionTitle>
+    <SectionTitle>生成候选并检查</SectionTitle>
     <div className="ripple-xp-approval" data-testid="approval-area">
       {model.dataProvenance !== 'demo' ? (
         model.activeCandidate ? (
@@ -185,8 +222,8 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
           </div>
         ) : (
           <>
-            {/* 风险与阻断原因先于候选操作展示：先说明为什么还不能生成，再给操作入口 */}
-            {!gate.allowed && <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+            {/* 先说明为什么还不能生成（检查清单），再给操作入口 */}
+            {precheck}
             <button
               type="button"
               className="ripple-xp-primary"
@@ -194,18 +231,27 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
               disabled={!gate.allowed}
               onClick={onCreateCandidate}
             >
-              生成真实候选
+              {gate.allowed ? '生成真实候选' : '生成修改候选 · 完成检查后可用'}
             </button>
             {candidateError && <p className="ripple-xp-candidate-error" role="alert" data-testid="candidate-error">{candidateError}</p>}
             <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">真实审批尚未接入（验证/审批批次接入）</p>
           </>
         )
-      ) : gate.allowed ? (
-        <button type="button" className="ripple-xp-primary" data-testid="demo-approve" onClick={onDemoApprove}>
-          演示审批（不写入真实工程）
-        </button>
       ) : (
-        <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
+        // 演示模式：主按钮常显但受检查清单门控——未完成时禁用并说明原因，
+        // 全部就绪后切换为墨绿实色可用的演示审批
+        <>
+          {precheck}
+          <button
+            type="button"
+            className="ripple-xp-primary"
+            data-testid="demo-approve"
+            disabled={!gate.allowed}
+            onClick={onDemoApprove}
+          >
+            {gate.allowed ? '演示审批（不写入真实工程）' : '生成修改候选 · 完成检查后可用'}
+          </button>
+        </>
       )}
     </div>
   </aside>

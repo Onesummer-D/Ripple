@@ -8,6 +8,13 @@ const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
   'stale-evidence': '证据已过期，需要重新验证',
 }
 
+/** 设备类型与视口宽度分开：按钮只显示设备名；同名设备（两个手机视口）追加宽度以区分。 */
+function deviceName(item: ExperienceViewModel['viewports'][number], viewports: ExperienceViewModel['viewports']) {
+  const base = item.label.replace(/\s*\d+$/, '')
+  const duplicates = viewports.filter(v => v.label.replace(/\s*\d+$/, '') === base).length > 1
+  return duplicates ? `${base}·${item.width}` : base
+}
+
 /**
  * 真实项目源码预演 iframe。地址只能来自适配器的 preview 会话（服务端身份核验），
  * sandbox/referrerPolicy 与 A 的工作台预演面板一致；加载状态明确标记，
@@ -232,12 +239,14 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
               data-testid={`viewport-${item.id}`}
               onClick={() => onViewportChange(item.id)}
             >
-              {item.label}
+              {deviceName(item, model.viewports)}
               {item.verificationStatus === 'in-verification' && <span className="ripple-xp-verify-badge">验证中</span>}
               {item.verificationStatus === 'unavailable' && <span className="ripple-xp-verify-badge">不可用</span>}
             </button>
           ))}
         </div>
+        {/* 视口宽度独立于设备类型展示，不与设备名混排 */}
+        <span className="ripple-xp-viewport-size" data-testid="viewport-size">{viewport.width} px</span>
       </div>
       <div className="ripple-xp-stage-toolbar-group">
         {model.dataProvenance === 'demo' && (

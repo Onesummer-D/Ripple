@@ -82,7 +82,7 @@ test('无选中/无修改不得审批', async ({ page }) => {
   await openExperience(page)
   await expect(page.getByTestId('approval-area')).toContainText('尚未选中')
   await expect(page.getByTestId('approval-area')).toContainText('修改内容为空')
-  await expect(page.getByTestId('demo-approve')).toHaveCount(0)
+  await expect(page.getByTestId('demo-approve')).toBeDisabled()
 })
 
 test('视口切换 1440/768/375 与 390 验证中标注', async ({ page }) => {
@@ -209,7 +209,7 @@ test('任务三：演示审批反馈随范围/草稿/目标修订失效', async 
   await page.getByTestId('scope-include-page:contact').click()
   await expect(page.getByTestId('approve-feedback')).toHaveCount(0)
   await expect(page.getByTestId('approval-area')).toContainText('无法完全证明')
-  await expect(page.getByTestId('demo-approve')).toHaveCount(0)
+  await expect(page.getByTestId('demo-approve')).toBeDisabled()
   // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
   await page.getByTestId('scope-exclude-page:contact').click()
   await page.getByTestId('demo-approve').click()

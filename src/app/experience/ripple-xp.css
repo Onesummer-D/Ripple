@@ -22,7 +22,7 @@
   --xp-line-soft: #ebe9e1;
   --xp-brand: #315746;
   --xp-brand-deep: #27463a;
-  --xp-brand-tint: #e5ece7;
+  --xp-brand-tint: #d7e5d8;
   --xp-amber: #96690f;
   --xp-amber-tint: #f6efdd;
   --xp-clay: #a44434;
@@ -126,17 +126,17 @@
 .ripple-xp-chip-candidate::before, .ripple-xp-chip-draft::before { background: var(--xp-brand); }
 .ripple-xp-chip-analyzing { color: var(--xp-amber); }
 .ripple-xp-chip-analyzing::before { background: var(--xp-amber); animation: ripple-xp-pulse 1.4s ease-in-out infinite; }
-.ripple-xp-chip-stale, .ripple-xp-chip-rolled-back, .ripple-xp-chip-failed,
-.ripple-xp-chip-none {
+.ripple-xp-chip-stale, .ripple-xp-chip-rolled-back, .ripple-xp-chip-failed {
   color: var(--xp-clay); background: var(--xp-clay-tint);
   border-radius: 999px; padding: 2px 10px;
 }
-.ripple-xp-chip-stale::before, .ripple-xp-chip-rolled-back::before, .ripple-xp-chip-failed::before,
-.ripple-xp-chip-none::before { background: var(--xp-clay); }
-/* DEMO 标识：实心墨绿徽章，整站唯一的重色标记 */
+.ripple-xp-chip-stale::before, .ripple-xp-chip-rolled-back::before, .ripple-xp-chip-failed::before { background: var(--xp-clay); }
+/* 「尚无候选 / 无证据」是正常工作状态而非错误：中性灰点，不用偏红胶囊 */
+.ripple-xp-chip-none { color: var(--xp-ink-soft); }
+/* DEMO 标识：描边样式，不做顶栏最抢眼的元素，但始终明确标注演示身份 */
 .ripple-xp-chip-demo {
-  background: var(--xp-brand); color: #f6f5f0;
-  padding: 3px 12px; border-radius: 999px; font-size: 12px; letter-spacing: 0.12em;
+  background: none; border: 1px solid var(--xp-brand); color: var(--xp-brand);
+  padding: 2px 11px; border-radius: 999px; font-size: 12px; letter-spacing: 0.12em;
 }
 .ripple-xp-chip-demo::before { content: none; }
 .ripple-xp-chip-real { color: var(--xp-brand); font-weight: 600; }
@@ -193,13 +193,15 @@
   display: flex; gap: 4px; padding: 10px 0 0;
 }
 .ripple-xp-deck-tab {
-  border: none; background: none; border-radius: var(--xp-radius);
-  padding: 6px 12px; font-size: 14px; font-weight: 500; color: var(--xp-ink-soft);
-  transition: background 0.15s ease, color 0.15s ease;
+  border: none; background: none; border-radius: 0;
+  padding: 6px 2px 8px; margin-right: 18px;
+  font-size: 14px; font-weight: 500; color: var(--xp-ink-soft);
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
-.ripple-xp-deck-tab:hover { background: var(--xp-surface); }
+.ripple-xp-deck-tab:hover { color: var(--xp-ink); }
 .ripple-xp-deck-tab.is-active {
-  background: var(--xp-brand-tint); color: var(--xp-brand); font-weight: 600;
+  color: var(--xp-brand); font-weight: 600; border-bottom-color: var(--xp-brand);
 }
 .ripple-xp-deck-tab:focus-visible { outline: 2px solid var(--xp-brand); outline-offset: 1px; }
 .ripple-xp-deck-hidden { display: none; }
@@ -333,7 +335,12 @@
 .ripple-xp-viewport-switch button.is-active {
   color: var(--xp-brand); background: var(--xp-brand-tint); font-weight: 600;
 }
-.ripple-xp-verify-badge { font-size: 12px; color: var(--xp-amber); font-weight: 500; }
+.ripple-xp-verify-badge {
+  font-size: 12px; color: var(--xp-amber); font-weight: 500;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.ripple-xp-verify-badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--xp-amber); }
+.ripple-xp-viewport-size { font-size: 13px; color: var(--xp-stone); white-space: nowrap; }
 .ripple-xp-demo-state { font-size: 13px; color: var(--xp-ink-soft); display: inline-flex; gap: 8px; align-items: center; }
 .ripple-xp-demo-state select {
   font: inherit; font-size: 13px; color: var(--xp-ink); background: var(--xp-surface);
@@ -497,7 +504,7 @@
 .ripple-xp-scope-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ripple-xp-scope-actions button {
   border: 1px solid var(--xp-line); background: var(--xp-surface); border-radius: 999px;
-  padding: 4px 14px; min-height: 30px; font-size: 13px; color: var(--xp-ink-soft);
+  padding: 4px 14px; min-height: 34px; font-size: 13px; color: var(--xp-ink-soft);
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 .ripple-xp-scope-actions button:hover:not(:disabled) { border-color: var(--xp-brand); color: var(--xp-brand); }
@@ -520,17 +527,37 @@
 }
 .ripple-xp-primary:hover:not(:disabled) { background: var(--xp-brand-deep); }
 .ripple-xp-primary:active:not(:disabled) { transform: scale(0.985); }
-.ripple-xp-gate-reasons { margin: 0; padding-left: 20px; color: var(--xp-clay); font-size: 14px; display: grid; gap: 6px; }
+.ripple-xp-primary:disabled {
+  background: var(--xp-stone-tint); color: var(--xp-stone); cursor: not-allowed; font-weight: 500;
+}
 .ripple-xp-real-approval-pending { margin: 0; color: var(--xp-ink-soft); font-size: 13px; }
 .ripple-xp-panel-hint { margin: 0; font-size: 14px; color: var(--xp-stone); }
 
-/* 编辑器流程的阶段序号：小圆环数字，克制不抢层级 */
-.ripple-xp-stage-num {
-  display: inline-grid; place-items: center; width: 18px; height: 18px;
-  border-radius: 50%; border: 1px solid var(--xp-line);
-  font-size: 11px; font-weight: 600; color: var(--xp-stone);
-  margin-right: 7px; vertical-align: 2px;
+/* 修改前检查清单：状态驱动，非向导式编号；未通过项琥珀色，通过项墨绿 */
+.ripple-xp-precheck {
+  border: 1px solid var(--xp-line); border-radius: var(--xp-radius-lg);
+  background: var(--xp-surface); padding: 12px 14px;
 }
+.ripple-xp-precheck-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 14px; margin-bottom: 8px;
+}
+.ripple-xp-precheck-status {
+  font-size: 12px; font-weight: 600; color: var(--xp-amber);
+  background: var(--xp-amber-tint); border-radius: 999px; padding: 1px 9px;
+}
+.ripple-xp-precheck-status.is-ready { color: var(--xp-brand); background: var(--xp-brand-tint); }
+.ripple-xp-precheck-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ripple-xp-precheck-list li { display: flex; align-items: flex-start; gap: 9px; }
+.ripple-xp-precheck-icon {
+  flex: none; width: 16px; height: 16px; margin-top: 2px;
+  display: inline-grid; place-items: center;
+  border-radius: 50%; font-size: 11px; font-weight: 700;
+  color: var(--xp-amber); border: 1px solid var(--xp-amber);
+}
+.ripple-xp-precheck-list li.is-ok .ripple-xp-precheck-icon { color: var(--xp-brand); border-color: var(--xp-brand); }
+.ripple-xp-precheck-list strong { font-size: 14px; font-weight: 600; color: var(--xp-ink); }
+.ripple-xp-precheck-list p { margin: 1px 0 0; font-size: 13px; color: var(--xp-ink-soft); }
 .ripple-xp-intent-block { display: grid; gap: 8px; }
 .ripple-xp-current-text { margin: 0; font-size: 14px; color: var(--xp-ink-soft); }
 
@@ -542,11 +569,14 @@
 .ripple-xp-evidence .ripple-xp-section-title,
 .ripple-xp-compare .ripple-xp-section-title { margin-top: 2px; padding-top: 0; border-top: none; }
 .ripple-xp-evidence-list { list-style: none; margin: 0; padding: 0; display: grid; }
+/* 证据条目：用留白分组而非逐行横线；摘要默认单行截断，点击展开完整内容 */
 .ripple-xp-evidence-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 2px; }
-.ripple-xp-evidence-item + .ripple-xp-evidence-item { border-top: 1px solid var(--xp-line-soft); }
 .ripple-xp-evidence-head { display: contents; border: none; background: none; text-align: left; cursor: pointer; }
 .ripple-xp-ev-head, .ripple-xp-evidence-head strong { font-size: 15px; }
 .ripple-xp-ev-summary { flex: 1; min-width: 220px; color: var(--xp-ink-soft); font-size: 14px; }
+.ripple-xp-ev-summary.is-clamped {
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
 .ripple-xp-src-kind { font-size: 13px; font-weight: 600; color: var(--xp-stone); }
 .ripple-xp-ev-detail { width: 100%; margin: 4px 0 0; font-size: 14px; color: var(--xp-ink-soft); border-top: 1px dashed var(--xp-line); padding-top: 10px; }
 

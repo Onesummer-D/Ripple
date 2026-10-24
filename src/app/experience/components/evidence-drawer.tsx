@@ -24,7 +24,7 @@ export function EvidenceDrawer({ items }: { items: EvidenceItemXp[] }) {
           >
             <EvidenceStatePill state={item.state} />
             <strong>{item.title}</strong>
-            <span className="ripple-xp-ev-summary">{item.summary}</span>
+            <span className={`ripple-xp-ev-summary ${expanded === item.id ? '' : 'is-clamped'}`}>{item.summary}</span>
           </button>
           <span className={`ripple-xp-src-kind ripple-xp-src-${item.sourceKind}`}>{SOURCE_KIND_LABEL[item.sourceKind]}</span>
           {expanded === item.id && item.detail && <p className="ripple-xp-ev-detail">{item.detail}</p>}
