@@ -408,6 +408,48 @@ describe('Real Adapter · 审查返工（终态优先 / Scope 隔离）', () => 
     expect(model.activeCandidate?.approval?.verificationRunId).toBe('run-9')
   })
 
+  it('workflow 投影负例：痕迹缺失、痕迹冲突、跨工程记录与各字段缺省全部如实处理', async () => {
+    // 1. 痕迹缺失（旧版/部分服务端响应）：lifecycle 声明 rolled-back 但无 rollback/applied 痕迹，
+    //    持久化终态兜底——绝不被残留审批降级为「已审批」
+    const partial = await loadWithHistory(historyWith({
+      candidateId: 'c-8', lifecycle: 'rolled-back', verification: { state: 'passed' }, ...approval,
+    }))
+    expect(partial.model.activeCandidate?.lifecycle).toBe('rolled-back')
+    expect(partial.model.candidateStatus).toBe('rolled-back')
+    expect(partial.model.activeCandidate?.rollbackAvailable).toBe(false)
+
+    // 2. 痕迹冲突：lifecycle 声明 applied 但出现 rollback 痕迹（fail-safe：终态以 rollback 为准，
+    //    更接近工程原始状态）
+    const conflicted = await loadWithHistory(historyWith({
+      candidateId: 'c-9', lifecycle: 'applied', verification: { state: 'passed' }, ...approval,
+      applied: { appliedAt: '2026-10-22T11:05:00Z' },
+      rollback: { rolledBackAt: '2026-10-22T11:10:00Z' },
+    }))
+    expect(conflicted.model.activeCandidate?.lifecycle).toBe('rolled-back')
+    expect(conflicted.model.candidateStatus).toBe('rolled-back')
+
+    // 3. 跨工程记录：其他 projectId 的历史条目不得被跟踪（身份错配即幽灵候选）
+    const { fetchImpl } = mockFetch({
+      analyze: ANALYSIS,
+      history: { status: 200, body: { history: [
+        { candidateId: 'c-other', projectId: 'proj-other', lifecycle: 'applied', patchHash: 'hash-other', updatedAt: '2026-10-22T10:00:00Z', verification: { state: 'passed' } },
+      ] } },
+      'project/preview': PREVIEW,
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const model = await adapter.load()
+    expect(model.activeCandidate).toBeUndefined()
+    expect(model.candidateStatus).toBe('none')
+
+    // 4. 字段缺省：active 生命周期 + 无审批 + 无验证结果 → 如实为候选，绝不臆造 approved/verified
+    const bare = await loadWithHistory(historyWith({
+      candidateId: 'c-10', lifecycle: 'active', verification: { state: 'not-run' },
+    }))
+    expect(bare.model.activeCandidate?.lifecycle).toBe('active')
+    expect(bare.model.candidateStatus).toBe('candidate')
+    expect(bare.model.activeCandidate?.approval).toBeUndefined()
+  })
+
   it('切换目标清除旧 Scope 意向：新目标默认 Scope 完全由其来源证明生成', async () => {
     const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_NOT_RUN, 'project/preview': PREVIEW })
     const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
