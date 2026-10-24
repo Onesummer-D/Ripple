@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ExperienceWorkbench } from './experience-workbench'
+import { CompareStrip } from './components/compare-strip'
 import { StaleResponseError } from './real-adapter'
 import { createStubRealAdapter } from './stub-real-adapter'
+import { createDemoAdapter } from './demo-adapter'
 import type { ExperienceAdapter } from './adapter'
 import type { ExperienceViewModel } from './view-model'
 import { createRealAdapter } from './real-adapter'
@@ -24,6 +26,23 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('demo-badge')).toContain('演示数据')
   })
 
+  it('工作区标签切换保留证据、对照、历史和范围决策入口', async () => {
+    render(<ExperienceWorkbench />)
+    await screen.findByTestId('work-deck')
+    expect(screen.getByTestId('evidence-drawer').parentElement?.classList.contains('ripple-xp-deck-hidden')).toBe(false)
+    expect(screen.getByTestId('scope-panel')).toBeTruthy()
+    fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
+
+    fireEvent.click(screen.getByTestId('tab-compare'))
+    expect(screen.getByTestId('tab-compare').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByTestId('compare-strip').parentElement?.classList.contains('ripple-xp-deck-hidden')).toBe(false)
+    expect(screen.getByTestId('selection-summary')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('tab-history'))
+    expect(screen.getByTestId('version-filmstrip').parentElement?.classList.contains('ripple-xp-deck-hidden')).toBe(false)
+    expect(screen.getByTestId('scope-panel')).toBeTruthy()
+  })
+
   it('DEMO 对照文案负例：绝不显示真实截图校验通过的结论', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('compare-strip')
@@ -31,6 +50,47 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('viewport-match-note')).toContain('未经真实浏览器验证')
     expect(text('viewport-match-note')).not.toContain('可比较')
     expect(text('viewport-match-note')).not.toContain('真实截图')
+  })
+
+  it('REAL 对照只有两张真实截图成功加载时才标记可比较', async () => {
+    const demoModel = await createDemoAdapter().load()
+    const model: ExperienceViewModel = {
+      ...demoModel,
+      dataProvenance: 'real',
+      compare: {
+        baseline: { state: 'ready', imageUrl: '/baseline.png' },
+        candidate: { state: 'ready', imageUrl: '/candidate.png' },
+        compareState: 'comparable',
+      },
+    }
+    const { rerender } = render(<CompareStrip model={model} />)
+    expect(text('viewport-match-note')).toBe('真实截图加载中，暂不可比较')
+
+    const images = screen.getAllByTestId('compare-real-img')
+    fireEvent.load(images[0])
+    expect(text('viewport-match-note')).toBe('真实截图加载中，暂不可比较')
+    fireEvent.load(images[1])
+    expect(text('viewport-match-note')).toBe('两端真实截图身份、视口与交互状态一致，可比较')
+
+    fireEvent.error(images[0])
+    expect(text('viewport-match-note')).toBe('真实截图加载失败，不可比较')
+
+    const unavailableStates: Array<[ExperienceViewModel['compare']['baseline']['state'], string]> = [
+      ['stale', '真实截图已过期，不可比较'],
+      ['unavailable', '真实截图缺失或不可用，不可比较'],
+      ['loading', '真实截图正在加载，暂不可比较'],
+      ['failed', '真实截图加载失败，不可比较'],
+    ]
+    for (const [state, expectedNote] of unavailableStates) {
+      rerender(<CompareStrip model={{
+        ...model,
+        compare: {
+          ...model.compare,
+          baseline: { state },
+        },
+      }} />)
+      expect(text('viewport-match-note')).toBe(expectedNote)
+    }
   })
 
   it('打开网页：工程与候选状态、页面导航、画布就绪', async () => {
@@ -236,6 +296,10 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('evidence-ev:incomplete')).toContain('来源不完整的原因')
     expect(text('evidence-ev:next')).toContain('AI 建议')
     expect(text('evidence-ev:risk')).toContain('源码证实')
+    for (const id of ['ev:risk', 'ev:not-checked', 'ev:incomplete']) {
+      const summary = screen.getByTestId(`evidence-${id}`).querySelector('.ripple-xp-ev-summary')
+      expect(summary?.classList.contains('is-clamped')).toBe(false)
+    }
   })
 
   it('版本胶片：生命周期与证据可用性展示，点击定位页面', async () => {
