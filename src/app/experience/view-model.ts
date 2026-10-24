@@ -114,6 +114,31 @@ export interface ProjectIdentityXp {
   graphId?: string
 }
 
+/**
+ * 验证合同（A 核心 BrowserVerificationContract 的体验层投影）。
+ * 合同在创建候选时绑定（服务端按合同哈希校验执行记录），内容必须来自
+ * 用户明确确认/填写：页面标记与交互声明决定验证运行能证明什么，
+ * F 只能从分析结果提出初始建议，绝不臆造交互。
+ */
+export interface VerificationContractPageXp {
+  pageRef: string
+  path: string
+  /** 页面上唯一可见的标识文本（验证运行要求运行时在页面内唯一命中）。 */
+  markerText: string
+}
+export interface VerificationContractInteractionXp {
+  pageRef: string
+  role: 'button' | 'link'
+  /** 可访问名称（与 getByRole name 精确匹配）。 */
+  name: string
+  /** 交互后必须出现的可见文本（基线与候选两侧都要达到）。 */
+  expectedText: string
+}
+export interface VerificationContractXp {
+  pages: VerificationContractPageXp[]
+  interactions: VerificationContractInteractionXp[]
+}
+
 export interface ExperienceViewModel {
   projectName: string
   projectStatus: 'ready' | 'analyzing' | 'failed' | 'unavailable'
@@ -151,6 +176,12 @@ export interface ExperienceViewModel {
    * 点选的激活状态是会话级 UI 状态，不放在模型里。
    */
   pickerAvailable?: boolean
+  /**
+   * 真实模式：验证合同草案（创建候选时提交并绑定；服务端按合同哈希校验执行记录）。
+   * 页面标记由分析结果提出初始建议、用户可改；交互只能由用户显式声明。
+   * 无合同时验证运行的 scope-propagation / interaction 断言如实保持 unknown（fail-closed）。
+   */
+  verificationContract?: VerificationContractXp
   /** 真实模式：当前活跃候选（POST /candidate 的真实响应投影；无活跃候选时缺省）。 */
   activeCandidate?: {
     candidateId: string

@@ -581,6 +581,9 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     body: {
       candidateId: 'candidate-9',
       workflow: { lifecycle: 'applied', applied: { appliedAt: '2026-10-23T12:05:00Z' }, rollbackAvailable: true },
+      // A 正式响应：apply 成功后服务端重新分析并随响应返回（应用后工作树未提交，
+      // F 必须直接采用该结果，绝不再请求 analyze——requireClean 会拒绝脏树）
+      analysis: ANALYSIS.body,
     },
   }
   const rollbackRoute = {
@@ -588,6 +591,7 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     body: {
       candidateId: 'candidate-9',
       workflow: { lifecycle: 'rolled-back', rollback: { rolledBackAt: '2026-10-23T12:10:00Z' }, rollbackAvailable: false },
+      analysis: ANALYSIS.body,
     },
   }
   const historyItem9 = (lifecycle: string, extras: Record<string, unknown> = {}) => ({
@@ -667,7 +671,8 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
       // 历史回读：审批后带 approval；应用触发的回读（第 5 次起）以 applied 终态为权威
       history: { status: 200, body: (index: number) => ({
         history: index >= 4
-          ? [historyItem9('applied', { approval: { verificationRunId: 'run-42' } })]
+          // A 历史合同：applied 终态的 history 携带 applied 痕迹（session 记录保留）
+          ? [historyItem9('applied', { approval: { verificationRunId: 'run-42' }, applied: { appliedAt: '2026-10-23T12:05:00Z' } })]
           : index >= 2 ? [historyItem9('active', { approval: { verificationRunId: 'run-42' } })] : [],
       }) },
     })
@@ -679,8 +684,10 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     expect(applied.activeCandidate?.appliedAt).toBe('2026-10-23T12:05:00Z')
     expect(applied.activeCandidate?.rollbackAvailable).toBe(true)
     expect(applied.candidateStatus).toBe('applied')
-    // 应用后全量回读：重新分析 + 重建项目预演（画布反映应用后的真实工程）
-    expect(calls.filter(item => item.path === 'analyze').length).toBeGreaterThan(before)
+    // 应用后刷新：采用服务端随响应返回的重新分析结果（不重复 analyze——应用后工作树
+    // 带未提交字节，A 核心 requireClean 会拒绝，重复 analyze 会把成功写盘误报为失败），
+    // 并尽力重建项目预演（画布反映应用后的真实工程）
+    expect(calls.filter(item => item.path === 'analyze').length).toBe(before)
     expect(calls.filter(item => item.path === 'project/preview').length).toBeGreaterThanOrEqual(2)
     expect(applied.canvasState).toBe('ready')
   })
@@ -692,8 +699,13 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
       'candidate/apply': applyRoute,
       'candidate/rollback': rollbackRoute,
       history: { status: 200, body: (index: number) => ({
+        // A 历史合同：回滚后 session 仍保留 applied 记录——applied 与 rollback 并存
         history: index >= 2
-          ? [historyItem9(index >= 4 ? 'rolled-back' : 'active', { approval: { verificationRunId: 'run-42' } })]
+          ? [historyItem9(index >= 4 ? 'rolled-back' : 'active', {
+              approval: { verificationRunId: 'run-42' },
+              applied: index >= 3 ? { appliedAt: '2026-10-23T12:05:00Z' } : undefined,
+              rollback: index >= 4 ? { rolledBackAt: '2026-10-23T12:10:00Z' } : undefined,
+            })]
           : [],
       }) },
     })
@@ -704,7 +716,8 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
     expect(rolled.activeCandidate?.lifecycle).toBe('rolled-back')
     expect(rolled.activeCandidate?.rollbackAvailable).toBe(false)
     expect(rolled.candidateStatus).toBe('rolled-back')
-    expect(calls.filter(item => item.path === 'analyze').length).toBeGreaterThan(before)
+    // 回滚后同样采用服务端随响应返回的分析结果，不重复 analyze
+    expect(calls.filter(item => item.path === 'analyze').length).toBe(before)
   })
 
   it('回滚负例：未应用的候选被服务端拒绝', async () => {
@@ -750,7 +763,10 @@ describe('第三批：真实生命周期（approve/apply/rollback，全部服务
       'candidate/apply': applyRoute,
       // 审批后历史回读带 approval；应用后历史保持 applied 终态
       history: { status: 200, body: (index: number) => ({
-        history: index >= 2 ? [historyItem9(index >= 3 ? 'applied' : 'active', { approval: { verificationRunId: 'run-42' } })] : [],
+        history: index >= 2 ? [historyItem9(index >= 3 ? 'applied' : 'active', {
+          approval: { verificationRunId: 'run-42' },
+          applied: index >= 3 ? { appliedAt: '2026-10-23T12:05:00Z' } : undefined,
+        })] : [],
       }) },
     })
     const approved = await adapter.approveCandidate!(verified)
