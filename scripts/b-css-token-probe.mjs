@@ -116,7 +116,10 @@ const report = {
 }
 
 console.log(JSON.stringify(report, null, 2))
-if (jsonOut) fs.writeFileSync(jsonOut, JSON.stringify(report, null, 2))
+if (jsonOut) {
+  fs.mkdirSync(path.dirname(path.resolve(jsonOut)), { recursive: true })
+  fs.writeFileSync(jsonOut, JSON.stringify(report, null, 2))
+}
 
 if (assertMode) {
   const checks = [
