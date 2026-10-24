@@ -262,7 +262,7 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await expect(page.getByTestId('verification-status')).toHaveCount(0)
   await expect(page.getByTestId('candidate-status')).toContainText('尚无候选')
   const refreshHistoryResponse = await fetch(`${API}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)
-  expect(refreshHistoryResponse.ok(), '刷新后应能读取服务端候选历史').toBe(true)
+  expect(refreshHistoryResponse.ok, '刷新后应能读取服务端候选历史').toBe(true)
   const refreshHistory = await refreshHistoryResponse.json() as { history: Array<{ candidateId: string; lifecycle: string }> }
   const retiredFirstCandidate = refreshHistory.history.find(item => item.candidateId === candidatePayload.candidate.id)
   console.log(`[f-candidate-diagnostic] after-refresh ${JSON.stringify({ oldCandidateLifecycle: retiredFirstCandidate?.lifecycle, candidateStatus: await page.getByTestId('candidate-status').innerText(), previewVisible: await page.getByTestId('real-preview-frame').isVisible() })}`)
