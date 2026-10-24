@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ExperienceViewModel, PageXp } from '../view-model'
+import type { ExperienceViewModel, PageXp, VerificationContractInteractionXp } from '../view-model'
 import { approvalGate, scopeSummary } from '../view-model'
 import { CertaintyPill, SectionTitle } from './status-pill'
 
@@ -9,7 +9,7 @@ const SCOPE_LABEL: Record<PageXp['scope'], string> = { include: '包含', exclud
  * 右侧：选中元素 + 修改意图 + 来源信息 + 范围决策。
  * unknown/partial 页面可以被查看，但不得被提升为可安全审批的范围（approvalGate 强制）。
  */
-export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onCreateCandidate, onToggleCandidatePreview, onRunVerification, onApproveCandidate, onApplyCandidate, onRollbackCandidate, candidateError }: {
+export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onCreateCandidate, onToggleCandidatePreview, onRunVerification, onApproveCandidate, onApplyCandidate, onRollbackCandidate, onContractMarker, onContractInteractions, candidateError }: {
   model: ExperienceViewModel
   onDraftText: (text: string) => void
   onPageScope: (pageRef: string, scope: PageXp['scope']) => void
@@ -26,11 +26,17 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   onApplyCandidate?: () => void
   /** 真实模式（第三批）：回滚（POST /candidate/rollback，两步确认后执行）。 */
   onRollbackCandidate?: () => void
+  /** 联合验收批次：编辑验证合同页面标记。 */
+  onContractMarker?: (pageRef: string, markerText: string) => void
+  /** 联合验收批次：整体替换验证合同交互声明（用户显式声明）。 */
+  onContractInteractions?: (interactions: VerificationContractInteractionXp[]) => void
   /** 真实模式：候选创建/预演/验证/生命周期失败原因（如实显示）。 */
   candidateError?: string
 }) {
   // 应用/回滚的两步确认：第一次点击只进入确认态，第二次点击才真正提交
   const [confirmAction, setConfirmAction] = useState<'apply' | 'rollback' | ''>('')
+  // 验证合同交互声明表单（本地草稿；提交时整体写入模型）
+  const [interactionDraft, setInteractionDraft] = useState<{ pageRef: string; role: 'button' | 'link'; name: string; expectedText: string }>({ pageRef: '', role: 'button', name: '', expectedText: '' })
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const summary = scopeSummary(model.pages)
   const gate = approvalGate({ pages: model.pages, selectedElement: selected, draftAfterText: model.draftAfterText })
@@ -234,7 +240,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                         type="button"
                         className="ripple-xp-primary"
                         data-testid="rollback-candidate"
-                        disabled={busy === 'rolling-back'}
+                        disabled={busy === 'rolling-back' || candidate.rollbackAvailable === false}
                         onClick={() => {
                           if (confirmAction !== 'rollback') { setConfirmAction('rollback'); return }
                           setConfirmAction('')
@@ -267,6 +273,90 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
           </div>
         ) : (
           <>
+            {model.verificationContract && onContractInteractions && (
+              <div className="ripple-xp-contract" data-testid="verification-contract">
+                <p className="ripple-xp-candidate-note">
+                  验证合同：创建候选时绑定，四视口验证按它核对每页标记与交互。标记取分析建议、可改；交互由你显式声明，不声明则交互断言保持未证实。
+                </p>
+                <ul className="ripple-xp-contract-pages">
+                  {model.verificationContract.pages.map(page => (
+                    <li key={page.pageRef}>
+                      <label>
+                        <code>{page.path}</code> 页面标记
+                        <input
+                          data-testid={`contract-marker-${page.pageRef}`}
+                          value={page.markerText}
+                          onChange={event => onContractMarker?.(page.pageRef, event.target.value)}
+                        />
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                {model.verificationContract.interactions.length > 0 && (
+                  <ul className="ripple-xp-contract-interactions">
+                    {model.verificationContract.interactions.map((interaction, index) => (
+                      <li key={index} data-testid={`contract-interaction-${index}`}>
+                        <span>{model.pages.find(page => page.id === interaction.pageRef)?.label ?? interaction.pageRef} · {interaction.role === 'button' ? '按钮' : '链接'}「{interaction.name}」→ 「{interaction.expectedText}」</span>
+                        <button
+                          type="button"
+                          className="ripple-xp-quiet"
+                          data-testid={`contract-interaction-remove-${index}`}
+                          onClick={() => onContractInteractions(model.verificationContract!.interactions.filter((_, itemIndex) => itemIndex !== index))}
+                        >
+                          移除
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <form
+                  className="ripple-xp-contract-form"
+                  onSubmit={event => {
+                    event.preventDefault()
+                    if (!interactionDraft.name.trim() || !interactionDraft.expectedText.trim()) return
+                    onContractInteractions([
+                      ...model.verificationContract!.interactions,
+                      {
+                        pageRef: interactionDraft.pageRef || model.verificationContract!.pages[0]?.pageRef || '',
+                        role: interactionDraft.role,
+                        name: interactionDraft.name.trim(),
+                        expectedText: interactionDraft.expectedText.trim(),
+                      },
+                    ])
+                    setInteractionDraft({ pageRef: interactionDraft.pageRef, role: interactionDraft.role, name: '', expectedText: '' })
+                  }}
+                >
+                  <select
+                    data-testid="contract-interaction-page"
+                    value={interactionDraft.pageRef || model.verificationContract.pages[0]?.pageRef || ''}
+                    onChange={event => setInteractionDraft({ ...interactionDraft, pageRef: event.target.value })}
+                  >
+                    {model.verificationContract.pages.map(page => <option key={page.pageRef} value={page.pageRef}>{page.path}</option>)}
+                  </select>
+                  <select
+                    data-testid="contract-interaction-role"
+                    value={interactionDraft.role}
+                    onChange={event => setInteractionDraft({ ...interactionDraft, role: event.target.value as 'button' | 'link' })}
+                  >
+                    <option value="button">按钮</option>
+                    <option value="link">链接</option>
+                  </select>
+                  <input
+                    data-testid="contract-interaction-name"
+                    value={interactionDraft.name}
+                    placeholder="控件名称（如：展开服务详情）"
+                    onChange={event => setInteractionDraft({ ...interactionDraft, name: event.target.value })}
+                  />
+                  <input
+                    data-testid="contract-interaction-expected"
+                    value={interactionDraft.expectedText}
+                    placeholder="交互后出现的文本"
+                    onChange={event => setInteractionDraft({ ...interactionDraft, expectedText: event.target.value })}
+                  />
+                  <button type="submit" className="ripple-xp-quiet" data-testid="contract-interaction-add">添加交互</button>
+                </form>
+              </div>
+            )}
             <button
               type="button"
               className="ripple-xp-primary"

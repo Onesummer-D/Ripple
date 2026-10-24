@@ -27,7 +27,7 @@
  *   rejected promise 或 model.projectStatus/blockedReasons 如实透出，
  *   由工作台展示重试入口。
  */
-import type { ExperienceViewModel, PageScopeChoiceXp } from './view-model'
+import type { ExperienceViewModel, PageScopeChoiceXp, VerificationContractInteractionXp } from './view-model'
 
 export interface ExperienceAdapter {
   /** 数据来源标记，体验层必须把它渲染给用户看。 */
@@ -84,4 +84,11 @@ export interface ExperienceAdapter {
    * 回滚成功后工程源码恢复，目标/页面/版本历史必须以服务端重新分析结果刷新。
    */
   rollbackCandidate?(model: ExperienceViewModel): Promise<ExperienceViewModel>
+  /**
+   * 联合验收批次：编辑验证合同的页面标记（同步纯派生，与 setPageScope 同级）。
+   * 初始建议由真实实现从分析结果提出；用户改后的合同在 createCandidate 时提交服务端绑定。
+   */
+  setContractMarker?(model: ExperienceViewModel, pageRef: string, markerText: string): ExperienceViewModel
+  /** 联合验收批次：整体替换验证合同的交互声明（用户显式声明，绝不自动臆造）。 */
+  setContractInteractions?(model: ExperienceViewModel, interactions: VerificationContractInteractionXp[]): ExperienceViewModel
 }

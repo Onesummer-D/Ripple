@@ -313,6 +313,48 @@ describe('Real Adapter · 异步契约', () => {
     expect(model.candidateStatus).toBe('none')
     expect(evidence(model, 'ev:verification').state).toBe('not-run')
   })
+
+  it('reload 竞态：analyze/preview 撞服务端预览锁的瞬时错误被退避重试吸收', async () => {
+    // 模拟跨页 reload：旧页 dispose 的 preview/stop 仍持有锁时，
+    // 新页 analyze 前两次、preview 第一次返回锁冲突，随后锁释放成功
+    const LOCKED = { status: 409, body: { error: '项目预览已有启动、停止或源码定位操作正在执行' } }
+    let analyzeAttempts = 0
+    let previewAttempts = 0
+    const { fetchImpl, calls } = mockFetch({
+      analyze: () => {
+        analyzeAttempts += 1
+        return Promise.resolve(analyzeAttempts <= 2 ? LOCKED : ANALYSIS)
+      },
+      history: { status: 200, body: { history: [] } },
+      'project/preview': () => {
+        previewAttempts += 1
+        return Promise.resolve(previewAttempts === 1 ? LOCKED : PREVIEW)
+      },
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl, busyRetryDelayMs: 1 })
+    const model = await adapter.load()
+    // 瞬时锁冲突被吸收，模型如实就绪，绝不落入全屏错误态
+    expect(model.projectStatus).toBe('ready')
+    expect(model.preview?.previewId).toBe('preview-1')
+    expect(analyzeAttempts).toBe(3)
+    expect(previewAttempts).toBe(2)
+    expect(calls.filter(call => call.path === 'analyze')).toHaveLength(3)
+    expect(calls.filter(call => call.path === 'project/preview')).toHaveLength(2)
+  })
+
+  it('锁冲突持续存在：有限重试后如实抛出，绝不伪装成功', async () => {
+    const LOCKED = { status: 409, body: { error: '项目预览已有启动、停止或源码定位操作正在执行' } }
+    let attempts = 0
+    const { fetchImpl } = mockFetch({
+      analyze: () => {
+        attempts += 1
+        return Promise.resolve(LOCKED)
+      },
+    })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl, busyRetryDelayMs: 1 })
+    await expect(adapter.load()).rejects.toThrow('正在执行')
+    expect(attempts).toBe(5)
+  })
 })
 
 describe('Real Adapter · 审查返工（终态优先 / Scope 隔离）', () => {
@@ -346,6 +388,24 @@ describe('Real Adapter · 审查返工（终态优先 / Scope 隔离）', () => 
     // 5b. discarded + 保留历史审批 → 无活跃候选
     const f = await loadWithHistory(historyWith({ candidateId: 'c-6', lifecycle: 'discarded', verification: { state: 'passed' }, ...approval }))
     expect(f.model.candidateStatus).toBe('none')
+  })
+
+  it('刷新/重开后 workflow 投影由历史痕迹整体重建：applied/rollback 并存时终态不误显为已审批', async () => {
+    // A 语义：session 回滚后仍保留 applied 记录——历史里 applied 与 rollback 并存。
+    // workflow 投影必须携带全部痕迹，否则终态推导退化为 approval 优先，
+    // 刷新后会把"已回滚"误显示为"已审批"
+    const { model } = await loadWithHistory(historyWith({
+      candidateId: 'c-7', lifecycle: 'rolled-back', verification: { state: 'passed' },
+      ...approval,
+      applied: { appliedAt: '2026-10-22T11:05:00Z' },
+      rollback: { rolledBackAt: '2026-10-22T11:10:00Z' },
+    }))
+    expect(model.activeCandidate?.lifecycle).toBe('rolled-back')
+    expect(model.candidateStatus).toBe('rolled-back')
+    // 回滚后绝不可再回滚
+    expect(model.activeCandidate?.rollbackAvailable).toBe(false)
+    // 审批记录仍如实保留（展示用，不回写终态）
+    expect(model.activeCandidate?.approval?.verificationRunId).toBe('run-9')
   })
 
   it('切换目标清除旧 Scope 意向：新目标默认 Scope 完全由其来源证明生成', async () => {

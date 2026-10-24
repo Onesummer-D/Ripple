@@ -487,6 +487,52 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     expect(text('selection-summary')).toContain('来源已证实')
   })
 
+  it('验证合同：页面标记建议可改、交互由用户显式声明（联合验收批次）', async () => {
+    const twoPageAnalysis = {
+      status: 200,
+      body: {
+        projectRoot: 'D:\\work\\shop',
+        revision: { projectId: 'proj-shop', sourceDigest: 'digest-2', runtimeFingerprint: 'fp-2' },
+        graphId: 'graph-2',
+        unresolved: [],
+        routes: [
+          { id: 'page:home', label: '首页', page: '/' },
+          { id: 'page:about', label: '关于', page: '/about' },
+        ],
+        targets: [
+          { id: 'data:home-title', kind: 'data', label: '首页标题', value: 'Acme 商店', location: { path: 'src/data/site.ts', start: 10, end: 20 }, impact: { pageRefs: ['page:home'], unresolved: [], certainty: 'source-proven' } },
+          { id: 'data:about-title', kind: 'data', label: '关于标题', value: '关于我们', location: { path: 'src/data/site.ts', start: 30, end: 40 }, impact: { pageRefs: ['page:about'], unresolved: [], certainty: 'source-proven' } },
+        ],
+        relationCounts: { reads: 2 },
+      },
+    }
+    const fetchImpl = mockFetch({
+      analyze: twoPageAnalysis,
+      history: { status: 200, body: { history: [] } },
+      'project/preview': { status: 503, body: { error: '隔离预演网络池为空' } },
+    })
+    render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl })} />)
+    fireEvent.change(await screen.findByTestId('open-project-path'), { target: { value: 'D:\\work\\shop' } })
+    fireEvent.click(screen.getByTestId('open-project-submit'))
+    await screen.findByTestId('page-item-page:home')
+    // 选中元素并起草后、创建候选前：合同区块出现，标记为分析建议
+    fireEvent.click(screen.getByTestId('canvas-el-data:home-title'))
+    await screen.findByTestId('verification-contract')
+    expect((screen.getByTestId('contract-marker-page:home') as HTMLInputElement).value).toBe('Acme 商店')
+    expect((screen.getByTestId('contract-marker-page:about') as HTMLInputElement).value).toBe('关于我们')
+    // 标记可改
+    fireEvent.change(screen.getByTestId('contract-marker-page:home'), { target: { value: 'Acme 旗舰店' } })
+    expect((screen.getByTestId('contract-marker-page:home') as HTMLInputElement).value).toBe('Acme 旗舰店')
+    // 交互显式声明、可移除；未声明时列表为空
+    expect(screen.queryByTestId('contract-interaction-0')).toBeNull()
+    fireEvent.change(screen.getByTestId('contract-interaction-name'), { target: { value: '展开服务详情' } })
+    fireEvent.change(screen.getByTestId('contract-interaction-expected'), { target: { value: '服务详情已展开' } })
+    fireEvent.click(screen.getByTestId('contract-interaction-add'))
+    expect(text('contract-interaction-0')).toContain('展开服务详情')
+    fireEvent.click(screen.getByTestId('contract-interaction-remove-0'))
+    expect(screen.queryByTestId('contract-interaction-0')).toBeNull()
+  })
+
   it('打开工程失败：服务端错误如实显示，可修正后重试', async () => {
     const failing = mockFetch({ analyze: { status: 400, body: { error: '项目路径不是目录' } } })
     render(<ExperienceWorkbench adapter={createRealAdapter({ fetchImpl: failing })} />)
@@ -653,6 +699,11 @@ describe('F 体验工作台 · 第三批生命周期 UI（审批门控/两步确
     render(<ExperienceWorkbench adapter={blocked.adapter} />)
     await screen.findByTestId('lifecycle-actions')
     expect(text('rollback-blocked-reason')).toContain('不可回滚')
+    expect((screen.getByTestId('rollback-candidate') as HTMLButtonElement).disabled).toBe(true)
+    // 禁用状态下点击不得触发接口调用
+    fireEvent.click(screen.getByTestId('rollback-candidate'))
+    await act(async () => Promise.resolve())
+    expect(blocked.adapter.rollbackCandidate).not.toHaveBeenCalled()
     cleanup()
     // 已回滚：状态如实，回滚入口消失（服务端 rollbackAvailable=false）
     const rolledModel: ExperienceViewModel = {

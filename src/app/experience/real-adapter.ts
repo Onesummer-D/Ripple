@@ -36,6 +36,8 @@ import type {
   PageScopeChoiceXp,
   PageXp,
   RuntimeIdentityXp,
+  VerificationContractPageXp,
+  VerificationContractXp,
   VersionItemXp,
   ViewportXp,
 } from './view-model'
@@ -111,6 +113,8 @@ interface HistoryItem {
   patchHash: string
   updatedAt: string
   approval?: { verificationRunId: string; at: string }
+  applied?: { appliedAt?: string }
+  rollback?: { rolledBackAt?: string }
   verification: VerificationView
 }
 interface PreviewSession { projectId: string; previewId: string; sourceDigest: string; url: string }
@@ -121,6 +125,8 @@ export interface RealAdapterOptions {
   /** API 前缀（测试注入用；默认同源 /__ripple/api）。 */
   apiBase?: string
   fetchImpl?: typeof fetch
+  /** 瞬时锁冲突退避间隔（测试注入用；默认 700ms）。 */
+  busyRetryDelayMs?: number
 }
 
 /* ---------- C+D 数据合同预留（第四部分：来源关系与运行时实例身份） ---------- */
@@ -205,6 +211,7 @@ function provenSinglePageRef(target: TargetSummary): string {
 export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceAdapter {
   const apiBase = options.apiBase ?? ''
   const fetchImpl = options.fetchImpl ?? fetch
+  const busyRetryDelayMs = options.busyRetryDelayMs ?? 700
   let projectRoot = options.projectRoot
   /** generation 守卫：每次 load/openProject/refresh/dispose 自增，过期响应一律丢弃。 */
   let generation = 0
@@ -225,6 +232,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let activeWorkflow: WorkflowView | undefined
   /** 第三批：生命周期操作在途（审批/应用/回滚请求进行中；模型携带以禁用按钮防重复提交）。 */
   let lifecycleBusy: 'approving' | 'applying' | 'rolling-back' | undefined
+  /** 联合验收批次：验证合同草案（页面标记初始建议来自分析；交互只能用户显式声明）。 */
+  let draftContract: VerificationContractXp | undefined
   /** 本地交互状态（草稿/范围意向只属于体验层，绝不写服务端）。 */
   const ui: {
     selectedElementId?: string
@@ -257,6 +266,27 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     return payload
   }
 
+  /**
+   * A 核心的项目预览锁是瞬时互斥。跨页 reload 时旧页面 dispose 的 preview/stop
+   * 与新页面 load 的 analyze / preview/start 可能在服务端锁上短暂相撞，撞出的
+   * 「正在执行」错误是瞬时的（stop 完成即释放），不代表工程状态异常。
+   * 对此类错误做有限退避重试：期间遵守 generation 过期语义，持续失败仍如实抛出
+   * （fail-closed，绝不把持续锁冲突伪装成成功，也不放宽任何 A 核心门控）。
+   */
+  async function postWithBusyRetry<T>(gen: number, path: string, body: unknown, attempts = 5, delayMs = busyRetryDelayMs): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      stale(gen)
+      try {
+        return await post<T>(path, body)
+      } catch (error) {
+        if (error instanceof StaleResponseError) throw error
+        const message = error instanceof Error ? error.message : ''
+        if (attempt >= attempts - 1 || !message.includes('正在执行')) throw error
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+      }
+    }
+  }
+
   function resetForProject(): void {
     analysis = undefined
     history = []
@@ -269,6 +299,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     activeVerification = undefined
     activeWorkflow = undefined
     lifecycleBusy = undefined
+    draftContract = undefined
     ui.selectedElementId = undefined
     ui.draftAfterText = ''
     ui.currentPageRef = ''
@@ -313,19 +344,68 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     for (const session of [...pendingCleanup]) await stopPreview(session)
   }
 
-  /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
-  async function loadProjectState(gen: number): Promise<void> {
-    if (!projectRoot?.trim()) return
-    const analyzed = await post<AnalysisResponse>('analyze', { projectRoot })
-    stale(gen)
-    analysis = analyzed
-    const projectId = analyzed.revision.projectId
+  /**
+   * 从分析结果提出验证合同初始建议：
+   * - 页面 = 工程全部路由（A 运行器要求合同页面与路由集合一致才能 PASS）；
+   * - 每页标记 = 该页 source-proven 文本目标：优先选不被其他路由共享的值，其次较短者
+   *  （运行时在页面内唯一命中的概率最高）；任一页面提不出可信标记则不提交合同
+   *  （scope-propagation / interaction 断言如实保持 unknown，fail-closed）；
+   * - 交互绝不自动臆造，只能由用户在界面显式声明。
+   */
+  function proposeContract(): VerificationContractXp | undefined {
+    if (!analysis || analysis.routes.length === 0) return undefined
+    const pages: VerificationContractPageXp[] = []
+    for (const route of analysis.routes) {
+      // A 核心 safePath 合同：合同页面路径必须是同源绝对路径（'/' 开头）。
+      // 路由路径不满足时整个合同不提交——运行器要求合同页面与全部路由一致，
+      // 部分页面无法声明路径的项目如实保持无合同（相关断言 unknown，fail-closed）。
+      const path = route.page ?? route.label
+      if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return undefined
+      const values = analysis.targets
+        .filter(target => target.kind === 'data'
+          && typeof target.value === 'string'
+          && target.value.trim().length > 0 && target.value.trim().length <= 300
+          && target.impact.certainty === 'source-proven'
+          && target.impact.pageRefs.includes(route.id))
+        .map(target => target.value!.trim())
+      if (values.length === 0) return undefined
+      const sharedWithOtherRoutes = (value: string) => analysis!.targets.some(target =>
+        typeof target.value === 'string' && target.value.trim() === value
+        && target.impact.pageRefs.some(ref => ref !== route.id))
+      const markerText = [...new Set(values)]
+        .sort((a, b) => Number(sharedWithOtherRoutes(a)) - Number(sharedWithOtherRoutes(b)) || a.length - b.length)[0]
+      pages.push({ pageRef: route.id, path, markerText })
+    }
+    return { pages, interactions: [] }
+  }
+
+  /**
+   * 从历史记录重建 workflow 投影。A 的 history 携带 approval/applied/rollback
+   * 全部痕迹（回滚后 applied 记录仍保留），终态推导必须三者齐备；
+   * rollbackAvailable 仅服务端实时 workflow 响应给出——applied 终态保留
+   * 上一次已知的服务端结论，其余生命周期一律视为不可回滚。
+   */
+  function workflowFromHistory(item: HistoryItem, previous: WorkflowView | undefined): WorkflowView {
+    return {
+      lifecycle: item.lifecycle,
+      approval: item.approval,
+      applied: item.applied,
+      rollback: item.rollback,
+      rollbackAvailable: item.lifecycle === 'applied' ? previous?.rollbackAvailable : false,
+    }
+  }
+
+  /**
+   * 历史回读 + 候选 reconcile（A 语义：重新分析使活跃候选退役 fail-closed；
+   * applied/rolled-back 终态保留跟踪供终态展示与回滚入口；绝不展示幽灵候选）。
+   * 历史记录是持久化权威且携带 approval/applied/rollback 全部痕迹——
+   * workflow 投影必须由历史整体重建，漏掉 applied/rollback 会让终态推导
+   * 退化为 approval 优先（回滚后误显示"已审批"）。
+   */
+  async function refreshHistoryAndReconcile(gen: number, projectId: string): Promise<void> {
     const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
     stale(gen)
     history = (historyPayload.history ?? []).filter(item => item.projectId === projectId)
-    // A 语义：重新分析会使该工程的全部活跃候选退役（fail-closed）。刷新后按服务端
-    // 历史逐生命周期 reconcile 本地跟踪——绝不展示"幽灵候选"，也不得让旧候选的
-    // 验证运行挂在新状态上；applied/rolled-back 终态保留跟踪，供终态展示与回滚入口。
     if (activeCandidate) {
       const tracked = history.find(item => item.candidateId === activeCandidate!.candidateId)
       if (!tracked || tracked.lifecycle === 'stale' || tracked.lifecycle === 'discarded') {
@@ -335,8 +415,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         candidatePreviewUrl = undefined
         candidatePreviewLoading = false
       } else {
-        // 历史回读是持久化权威：验证投影随历史刷新（切换候选后旧验证不残留）
+        // 历史回读是持久化权威：验证投影随历史刷新（切换候选后旧验证不残留）；
+        // workflow 投影同样以历史为准重建（含 applied/rollback 痕迹）
         activeVerification = tracked.verification
+        activeWorkflow = workflowFromHistory(tracked, activeWorkflow)
         if (tracked.lifecycle !== 'active') {
           candidatePreviewUrl = undefined
           candidatePreviewLoading = false
@@ -350,17 +432,18 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       if (latest.lifecycle === 'active' || latest.lifecycle === 'applied' || latest.lifecycle === 'rolled-back') {
         activeCandidate = { candidateId: latest.candidateId, patchHash: latest.patchHash }
         activeVerification = latest.verification
-        activeWorkflow = {
-          lifecycle: latest.lifecycle,
-          approval: latest.approval,
-          rollbackAvailable: latest.lifecycle === 'applied' ? undefined : false,
-        }
+        activeWorkflow = workflowFromHistory(latest, undefined)
       }
     }
+  }
+
+  /** 尽力启动项目源码预演：失败如实记录原因（如应用后工作树未提交，A 核心 fail-closed 拒绝）。 */
+  async function startPreviewBestEffort(gen: number, projectId: string): Promise<void> {
     previewSession = undefined
     previewFailedReason = ''
     try {
-      const session = await post<PreviewSession>('project/preview', { projectId })
+      // 重试仅覆盖 reload 时与旧页 dispose 相撞的瞬时锁冲突；持续失败仍走下方降级
+      const session = await postWithBusyRetry<PreviewSession>(gen, 'project/preview', { projectId })
       if (gen !== generation) {
         // 请求期间已切换/失效：立即回收刚创建的会话，再按过期处理
         await stopPreview(session)
@@ -373,6 +456,35 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     }
     stale(gen)
   }
+
+  /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
+  async function loadProjectState(gen: number): Promise<void> {
+    if (!projectRoot?.trim()) return
+    // reload 时旧页 dispose 的 preview/stop 可能仍持有服务端预览锁，
+    // analyze 内部按项目收锁，撞锁是瞬时错误——有限重试后仍失败才如实抛出
+    const analyzed = await postWithBusyRetry<AnalysisResponse>(gen, 'analyze', { projectRoot })
+    stale(gen)
+    analysis = analyzed
+    // 刷新（同一工程）保留用户已编辑的合同草案；只有工程切换/首次加载才提出初始建议
+    if (!draftContract) draftContract = proposeContract()
+    await refreshHistoryAndReconcile(gen, analyzed.revision.projectId)
+    await startPreviewBestEffort(gen, analyzed.revision.projectId)
+  }
+
+  /**
+   * 应用/回滚成功后的状态刷新：直接采用服务端响应内嵌的重新分析结果
+   * （A 在 apply/rollback 成功后已重分析并随响应返回），不再请求 analyze——
+   * 应用后工作树带未提交的应用字节，A 核心的 analyze 以 requireClean 拒绝（fail-closed），
+   * 重复 analyze 会让已成功写盘的应用被误报为失败。历史与预演照常回读。
+   */
+  async function refreshAfterLifecycleWrite(gen: number, nextAnalysis: AnalysisResponse | undefined): Promise<void> {
+    // A 正式合同保证 apply/rollback 响应携带重新分析结果；防御缺省时不替换分析
+    if (nextAnalysis?.revision?.projectId) analysis = nextAnalysis
+    if (!draftContract) draftContract = proposeContract()
+    await refreshHistoryAndReconcile(gen, analysis?.revision.projectId ?? '')
+    await startPreviewBestEffort(gen, analysis?.revision.projectId ?? '')
+  }
+
 
   function elements(): CanvasElementXp[] {
     return (analysis?.targets ?? []).map(target => {
@@ -687,11 +799,12 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             verification: candidateVerificationView(activeVerification),
             // 第三批：生命周期投影全部来自服务端 workflow/历史，绝不本地生成。
             // A 的 workflow.lifecycle 是候选生命周期（active/applied/rolled-back），
-            // 审批态在 workflow.approval：session 状态 approved 必须映射为界面生命周期 approved
-            lifecycle: activeWorkflow?.applied
-              ? 'applied'
-              : activeWorkflow?.rollback
-                ? 'rolled-back'
+            // 审批态在 workflow.approval。注意 session 在回滚后仍保留 applied 记录
+            // （applied/rollback 都是历史痕迹），当前终态必须先看 rollback 再看 applied。
+            lifecycle: activeWorkflow?.rollback
+              ? 'rolled-back'
+              : activeWorkflow?.applied
+                ? 'applied'
                 : activeWorkflow?.approval
                   ? 'approved'
                   : activeWorkflow?.lifecycle ?? 'active',
@@ -721,6 +834,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         graphId: analysis.graphId,
       } : undefined,
       blockedReasons,
+      verificationContract: draftContract,
     }
   }
 
@@ -838,6 +952,21 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
 
     setPageScope(current, pageRef, scope) {
       ui.scopes[pageRef] = scope
+      return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
+    },
+
+    setContractMarker(current, pageRef, markerText) {
+      if (!draftContract) return current
+      draftContract = {
+        ...draftContract,
+        pages: draftContract.pages.map(page => page.pageRef === pageRef ? { ...page, markerText } : page),
+      }
+      return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
+    },
+
+    setContractInteractions(current, interactions) {
+      if (!draftContract) return current
+      draftContract = { ...draftContract, interactions }
       return { ...buildModel(current.projectStatus, current.blockedReasons), candidateStatus: current.candidateStatus }
     },
 
@@ -968,6 +1097,12 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
             rawIntent: input.rawIntent,
             operations,
             scope,
+            // 验证合同：创建候选时绑定（服务端按合同哈希校验执行记录）。
+            // 页面标记来自分析建议（用户可改）；交互为用户显式声明。无合同不发送——
+            // 服务端对缺页/缺交互如实给出 unknown 断言（fail-closed）。
+            ...(draftContract && draftContract.pages.length > 0
+              ? { verificationContract: { pages: draftContract.pages, interactions: draftContract.interactions } }
+              : {}),
           })
         } catch (error) {
           // A 的 POST /candidate 在创建候选【之前】停止项目预演（local-project-api.ts）：
@@ -1101,6 +1236,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           if (gen === generation) {
             history = (historyPayload.history ?? []).filter(item => item.projectId === analysis?.revision.projectId)
           }
+          // 返回模型前清除在途标记：否则 UI 永久卡在"审批提交中"（busy 仅用于在途禁用）
+          lifecycleBusy = undefined
           return buildModel(current.projectStatus, current.blockedReasons)
         } finally {
           lifecycleBusy = undefined
@@ -1120,14 +1257,17 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         if (!activeCandidate) throw new Error('当前没有候选，无法应用')
         lifecycleBusy = 'applying'
         try {
-          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/apply', { candidateId: activeCandidate.candidateId })
+          const response = await post<{ candidateId: string; workflow: WorkflowView; analysis: AnalysisResponse }>('candidate/apply', { candidateId: activeCandidate.candidateId })
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('应用响应与当前候选不一致，已丢弃')
           activeWorkflow = response.workflow
           candidatePreviewUrl = undefined
           candidatePreviewLoading = false
-          await loadProjectState(gen)
+          // 应用后工作树带未提交的应用字节：采用服务端随响应返回的重新分析结果，
+          // 绝不再请求 analyze（A 核心 requireClean 会拒绝，导致已成功写盘被误报失败）。
+          await refreshAfterLifecycleWrite(gen, response.analysis)
           stale(gen)
+          lifecycleBusy = undefined
           return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
         } finally {
           lifecycleBusy = undefined
@@ -1145,14 +1285,15 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         if (!activeCandidate) throw new Error('当前没有候选，无法回滚')
         lifecycleBusy = 'rolling-back'
         try {
-          const response = await post<{ candidateId: string; workflow: WorkflowView }>('candidate/rollback', { candidateId: activeCandidate.candidateId })
+          const response = await post<{ candidateId: string; workflow: WorkflowView; analysis: AnalysisResponse }>('candidate/rollback', { candidateId: activeCandidate.candidateId })
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('回滚响应与当前候选不一致，已丢弃')
           activeWorkflow = response.workflow
           candidatePreviewUrl = undefined
           candidatePreviewLoading = false
-          await loadProjectState(gen)
+          await refreshAfterLifecycleWrite(gen, response.analysis)
           stale(gen)
+          lifecycleBusy = undefined
           return buildModel('ready', previewFailedReason ? [`真实预览不可用：${previewFailedReason}`] : [])
         } finally {
           lifecycleBusy = undefined
