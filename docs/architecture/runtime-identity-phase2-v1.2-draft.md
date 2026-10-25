@@ -8,7 +8,7 @@
 
 - v1.1 冻结合同来源：提交 `7b24e72b4dc2bba56c8b3f36e36fcd49b46fcaa5`，文件 `docs/architecture/runtime-identity-phase2-frozen.md`。该文件及提交历史不修改、不重写。
 - A②-2 补充说明：PR #43 的 `docs/architecture/runtime-identity-phase2-host-assessment-addendum.md`。它记录实现阶段的补充行为，不单独构成高于本合同的权威来源。
-- 本 v1.2 经三方会签后，替代 v1.1 中下列条款：第 0、1 节 recordKey 公式；第 1.1 节把版本不可核验归入归档失败的状态表达；第 2 节页面身份及 expectedPage 解释；第 3 节把跨侧 mismatch 写入单侧 reason 词表的要求；以及 Assessment 哈希证明范围的未定义部分。
+- 本 v1.2 经三方会签后，替代 v1.1 中下列条款：第 0、1 节 recordKey 公式；第 1.1 节把版本不可核验归入归档失败的状态表达；第 2 节页面身份及 expectedPage 解释；第 3 节把跨侧 mismatch 写入单侧 reason 词表的要求，以及仅凭 sourceRef 映射满足跨版本同源条件的解释；以及 Assessment 哈希证明范围的未定义部分。
 - v1.1 其他不冲突条款继续有效，包括 13 项单侧原因、来源图与版本检查原则、Verified/Proven 的区分、Verification 七项断言及 Scope/Approval/Apply/Rollback 门控。
 
 | v1.1 条款 | v1.2 修订 |
@@ -17,6 +17,7 @@
 | 版本不可证明列为 archive failure | 通过宿主完整性核验的 Snapshot 保持 `archive: stored`，使用 `assessmentStatus: version-unverifiable` 并明确标出诊断 digest |
 | 页面检查比较合同路径与 Snapshot 三元组，但 namespace 只含 pathname | v1 在 search/hash 非空时 fail-closed；v2 namespace 绑定 pathname/search/hash 精确 tuple |
 | 跨侧 mismatch 被列入 record reason 扩展 | 保留 13 个 record-level reason；新增独立 pair-level `RuntimeIdentityPairReason` |
+| sourceRef 相等或正式节点映射满足同源条件 | sourceRef 关系与 runtimeInstanceId 相等为独立必要条件；当前 sourceRef 锚定 ID 下，不同 sourceRef 即使有位置映射也不配对，实例级映射另行会签 |
 | Assessment 哈希只含 Assessment 内容 | v1.2 哈希绑定捕获元组、已验证 Snapshot SHA-256、recordKey 与 Assessment 内容；仍不视为签名 |
 
 ## 2. 身份数据的三种状态
