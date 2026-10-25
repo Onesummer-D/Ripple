@@ -141,6 +141,9 @@ function stableSerialize(value: unknown): string {
   throw new Error('Runtime identity snapshot contains an unsupported value.')
 }
 
+/** Deterministic JSON for host-side snapshot and per-record assessment hashes. */
+export const canonicalRuntimeIdentityJson = stableSerialize
+
 const planKey = (item: Pick<RuntimeIdentityCapturePlan, 'checkId' | 'route' | 'viewport' | 'state' | 'side'>) =>
   `${item.checkId}\u0000${item.route}\u0000${item.viewport.width}x${item.viewport.height}\u0000${item.state}\u0000${item.side}`
 
