@@ -161,3 +161,15 @@ test('AC6.3 maps all seven fixed HashRouter paths to distinct exact nodes', () =
   assert.deepEqual(result.matches.map(match => match.identityFields), paths.map(() => ['routePath']))
   assert.equal(result.routeIdentityConflicts.length, 0)
 })
+
+test('AC6.3 uses the next path-shaped field when routePath is absent', () => {
+  const result = matchExactRoutes(['/about'], [{
+    id: 'route:/about',
+    kind: 'route',
+    path: '#/about/',
+    page: '/about',
+    label: 'About',
+  }])
+  assert.equal(result.pass, true)
+  assert.deepEqual(result.matches[0].identityFields, ['path'])
+})
