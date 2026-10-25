@@ -8,7 +8,7 @@ export function sourcePath(node) {
 
 export function sourceByteOffset(node) {
   const value = node?.byteOffset ?? node?.location?.byteOffset ?? node?.sourceRange?.byteStart ??
-    node?.range?.byteStart ?? node?.offset ?? node?.location?.offset
+    node?.range?.byteStart
   return Number.isInteger(value) ? value : null
 }
 
@@ -92,7 +92,8 @@ function edgeUseMatches(edge, use) {
   const sources = [edge.sourceUse, edge.use, edge.location, edge.sourcePosition].filter(Boolean)
   for (const source of sources) {
     const file = source.path ?? source.file ?? source.location?.path
-    const charOffset = source.offset ?? source.location?.offset
+    const charOffset = source.charOffset ?? source.codeUnitOffset ??
+      (['code-unit', 'utf16'].includes(source.offsetUnit) ? source.offset ?? source.location?.offset : null)
     const byteOffset = source.byteOffset ?? source.location?.byteOffset
     if (file === use.file && (
       (Number.isInteger(byteOffset) && byteOffset === use.byteOffset) ||

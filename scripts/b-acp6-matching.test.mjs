@@ -4,6 +4,7 @@ import {
   consumerNodeMatches,
   evaluateAc62,
   evaluateAc64,
+  exactDefinitionNodes,
   matchExactRoutes,
   selectorClassTokens,
   strictTokenConsumerEdge,
@@ -13,10 +14,15 @@ const declaration = { token: '--accent', file: 'src/theme.css', byteOffset: 12, 
 const tokenNode = { id: 'token:light-accent', kind: 'token', label: '--accent', location: { path: declaration.file, byteOffset: 12, selectorScope: declaration.selector } }
 const use = { token: '--accent', file: 'src/button.css', index: 44, byteOffset: 47, selector: '.btn-primary', consumerElements: [{ file: 'src/Button.jsx', elementOffset: 100, matchedClass: 'btn-primary', className: 'btn btn-primary', dynamic: false }] }
 const consumer = { id: 'jsx:button', kind: 'jsx-element', location: { path: 'src/Button.jsx', start: 100 }, className: 'btn btn-primary' }
-const validEdge = { id: 'edge:valid', kind: 'uses-token', from: tokenNode.id, to: consumer.id, sourceUse: { path: use.file, offset: use.index }, selectorScope: declaration.selector }
+const validEdge = { id: 'edge:valid', kind: 'uses-token', from: tokenNode.id, to: consumer.id, sourceUse: { path: use.file, charOffset: use.index }, selectorScope: declaration.selector }
 
 test('AC6.2 accepts only declaration + exact use-position + actual consumer edges', () => {
   assert.deepEqual(strictTokenConsumerEdge(validEdge, tokenNode, consumer, use, use.consumerElements[0], declaration), { matches: true, reason: null })
+})
+
+test('AC6.1 refuses ambiguous character offsets as byte-offset identity', () => {
+  const ambiguous = { id: 'token:ambiguous', kind: 'token', label: declaration.token, location: { path: declaration.file, start: declaration.byteOffset, selectorScope: declaration.selector } }
+  assert.equal(exactDefinitionNodes(declaration, [ambiguous]).length, 0)
 })
 
 test('AC6.2 rejects unrelated edges even when they touch a token declaration', () => {
@@ -31,7 +37,7 @@ test('AC6.2 rejects unrelated edges even when they touch a token declaration', (
 test('AC6.2 rejects wrong consumers and absent source-use provenance', () => {
   const wrongConsumer = { ...validEdge, to: 'jsx:other-button' }
   assert.equal(strictTokenConsumerEdge(wrongConsumer, tokenNode, consumer, use, use.consumerElements[0], declaration).matches, false)
-  const wrongUse = { ...validEdge, sourceUse: { path: use.file, offset: use.index + 1 } }
+  const wrongUse = { ...validEdge, sourceUse: { path: use.file, charOffset: use.index + 1 } }
   assert.equal(strictTokenConsumerEdge(wrongUse, tokenNode, consumer, use, use.consumerElements[0], declaration).matches, false)
 })
 

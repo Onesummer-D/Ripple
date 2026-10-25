@@ -154,9 +154,9 @@ This revision hardens B's acceptance checker only; it does not change A's Source
 
 A uses-token relation is accepted only when all of the following match the pinned source evidence:
 
-- One endpoint is the exact token declaration node: token label, source path, UTF-8 byte offset, and selector scope all match one parsed declaration.
+- One endpoint is the exact token declaration node: token label, source path, UTF-8 byte offset (the graph must expose byteOffset/byteStart explicitly), and selector scope all match one parsed declaration. Generic offset/start fields are not assumed to be byte offsets.
 - The other endpoint is a real source-positioned element node (jsx-element, host-element, or element), at the exact JSX element source offset and source path for a static consumer candidate.
-- The relation carries a source-use reference matching the CSS file and exact var() source offset (sourceUse/use location or css-token-use:<path>:<offset> evidence reference).
+- The relation carries a source-use reference matching the CSS file and exact var() source offset (an explicit byteOffset, charOffset/codeUnitOffset, an offset annotated as code-unit/utf16, or a stable css-token-use:<path>:<offset> evidence reference).
 - Any scope carried by the edge agrees with the declaration node's scope.
 
 A file edge, unrelated consumer, wrong source offset, wrong scope, dynamic-only candidate, or missing consumer cannot cover a declaration or use. AC6.2 checks each source declaration and every source use with such strict evidence. Missing graph evidence remains PENDING; malformed checkout/graph/report input remains ERROR.
