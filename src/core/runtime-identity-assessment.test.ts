@@ -152,6 +152,21 @@ describe('host runtime identity assessment', () => {
     }
   })
 
+  it('preserves collector route-namespace-stale after a v1 route returns to an empty namespace', () => {
+    const route = '/products'
+    const staleRecord = record({
+      runtimeInstanceId: '/products:jsx:src/App.tsx#1',
+      reasons: ['route-namespace-stale'],
+    })
+    const baseline = stored('baseline', snapshot([staleRecord], { pathname: route, search: '', hash: '' }))
+    const { result } = fixture({ baseline, route, paths: [{ pageRef: 'page:products', path: route, markerText: 'Products' }] })
+
+    expect(result[0]).toMatchObject({
+      archive: 'stored',
+      assessments: [{ assessment: { instanceIdentityProven: false, reasons: ['route-namespace-stale'] } }],
+    })
+  })
+
   it('proves only a canonical v2 namespace bound to the complete page tuple', () => {
     const route = '/products?tab=spec#reviews'
     const parsed = new URL(route, 'http://ripple.local')

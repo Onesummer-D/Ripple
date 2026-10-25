@@ -130,6 +130,8 @@ sourceRef 映射关系与实例 ID 是配对键。无法满足时不能以 recor
 
 `ripple-runtime-identity/v1` 的实例 ID 只含 pathname namespace。仅当 Snapshot 的 search 与 hash 都为空、ID pathname 前缀和 owner/source suffix 合法且含该 record 的精确 sourceRef anchor、且 Snapshot 页面三元组与唯一 expectedPage 完全相等时，v1 record 才可能通过 namespace 检查。任何非空 search 或 hash 均追加 `route-namespace-stale`，Assessment 保持未证明。v1 可继续用于历史读取和来源导航。
 
+兼容阶段一的 sticky fail-closed 规则：若 C+D collector 在同一文档生命周期观察到 pathname 不变而 search 或 hash 变化，则必须将该 pathname 的 v1 namespace 标为歧义；即使后续 URL 回到空 search/hash，collector 仍须在相关 records 保留 `route-namespace-stale`。宿主 Assessment 必须保留 Snapshot 中已有的该 reason，不能因最终 `Snapshot.page` 与 expectedPage 相等而移除或覆盖它。此规则只能约束 collector 实际观察到的导航；未被采样的中间状态不可还原，不构成完整历史证明，也不替代 v2 render-time tuple。
+
 ### 5.2 v2 namespace
 
 `ripple-runtime-identity/v2` 使用如下 ID 表示：
