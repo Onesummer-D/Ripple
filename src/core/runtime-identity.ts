@@ -132,12 +132,17 @@ export function collectRuntimeIdentitySnapshot(options: { root?: string; label?:
       runtimeInstanceId = undefined
       reasons.push('unmapped-owner')
     } else if (!runtimeInstanceId) reasons.push('instance-unavailable')
-    // The id embeds the pathname at render time. A component that did not re-render
-    // after a client-side navigation (React.memo, unchanged props) still shows the
-    // previous route's namespace and must not be attributed to the current page. The
-    // owner part after the namespace is a boundary path (`jsx:`) or a React useId, which
-    // keeps `/a:b:...` from passing as `/a`.
-    else if (!runtimeInstanceId.startsWith(`${page.pathname}:`) || !/^(?:jsx:|[_:\u00ab])/.test(runtimeInstanceId.slice(page.pathname.length + 1))) reasons.push('route-namespace-stale')
+    // v1 ids embed only pathname at render time. A component that did not re-render
+    // after a pathname navigation (React.memo, unchanged props) still shows the old
+    // namespace. Search/hash routes are also unverifiable in v1: even a fresh-looking
+    // pathname prefix cannot distinguish the current page tuple from a retained DOM
+    // instance created under a different query or HashRouter route. Keep v1 locatable,
+    // but never treat it as instance proof while either part is present. The owner part
+    // after the namespace is a boundary path (`jsx:`) or a React useId, which keeps
+    // `/a:b:...` from passing as `/a`.
+    else if (page.search !== '' || page.hash !== '' ||
+      !runtimeInstanceId.startsWith(`${page.pathname}:`) ||
+      !/^(?:jsx:|[_:\u00ab])/.test(runtimeInstanceId.slice(page.pathname.length + 1))) reasons.push('route-namespace-stale')
     if (instance.keysUnavailable) reasons.push('react-keys-unavailable')
     if (runtimeInstanceId && (byInstance.get(runtimeInstanceId) ?? 0) > 1) reasons.push('duplicate-runtime-instance')
     let domNode = state.nodes.get(element)
