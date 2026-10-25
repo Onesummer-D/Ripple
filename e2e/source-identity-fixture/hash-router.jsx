@@ -8,16 +8,23 @@ function Pinned({ epoch }) {
 }
 const MemoPinned = memo(Pinned)
 
-function App() {
+function RouteControls() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [epoch, setEpoch] = useState(0)
-  return <main>
+  return <>
     <output data-testid="hash-route">{location.pathname}</output>
     <button type="button" onClick={() => navigate('/products')}>Go products</button>
+  </>
+}
+
+function App() {
+  const [epoch, setEpoch] = useState(0)
+  return <main>
+    <output data-testid="hash-document-location">{window.location.hash}</output>
     <button type="button" onClick={() => setEpoch(value => value + 1)}>Render memo again</button>
     <MemoPinned epoch={epoch} />
+    <HashRouter><RouteControls /></HashRouter>
   </main>
 }
 
-createRoot(document.getElementById('root')).render(<HashRouter><App /></HashRouter>)
+createRoot(document.getElementById('root')).render(<App />)
