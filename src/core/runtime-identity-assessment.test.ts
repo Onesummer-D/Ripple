@@ -215,6 +215,45 @@ describe('host runtime identity assessment', () => {
     expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['route-namespace-stale']) } }] })
   })
 
+  it('requires a unique sourceRef anchor at the current JSX leaf for v1 and v2 namespaces', () => {
+    const ancestorRef = 'jsx:src/Parent.tsx#1'
+    const leafRef = 'jsx:src/App.tsx#1'
+    const otherLeafRef = 'jsx:src/Other.tsx#9'
+    const nestedLeafTail = `${ancestorRef}:${leafRef}`
+    const pageAtRender = { pathname: '/', search: '', hash: '' }
+    const cases = [
+      { sourceRef: leafRef, tail: leafRef, proven: true },
+      { sourceRef: leafRef, tail: nestedLeafTail, proven: true },
+      { sourceRef: leafRef, tail: `${nestedLeafTail}:key:active`, proven: true },
+      { sourceRef: leafRef, tail: `${nestedLeafTail}:key%3Aactive/a%2Fb`, proven: true },
+      // The record claims the ancestor, while the identity suffix continues
+      // through the actual child. A lastIndexOf-only check accepts the parent
+      // because the remaining child suffix begins with a colon.
+      { sourceRef: ancestorRef, tail: nestedLeafTail, proven: false },
+      { sourceRef: leafRef, tail: `${ancestorRef}:${otherLeafRef}`, proven: false },
+      { sourceRef: leafRef, tail: `${nestedLeafTail}:${leafRef}`, proven: false },
+    ]
+
+    for (const protocol of [RUNTIME_IDENTITY_PROTOCOL, RUNTIME_IDENTITY_PROTOCOL_V2] as const) {
+      const prefix = protocol === RUNTIME_IDENTITY_PROTOCOL
+        ? '/:'
+        : `ripple-page-v2:${encodeURIComponent(JSON.stringify(['/','', '']))}:`
+      for (const item of cases) {
+        const current = record({ sourceRef: item.sourceRef, runtimeInstanceId: `${prefix}${item.tail}` })
+        const value: RuntimeIdentitySnapshot = { protocol, page: pageAtRender, records: [current] }
+        expect(runtimeIdentityNamespaceProven(value, current), `${protocol}: ${item.sourceRef} -> ${item.tail}`).toBe(item.proven)
+      }
+
+      const forged = record({ sourceRef: ancestorRef, runtimeInstanceId: `${prefix}${nestedLeafTail}` })
+      const forgedSnapshot: RuntimeIdentitySnapshot = { protocol, page: pageAtRender, records: [forged] }
+      const { result } = fixture({ baseline: stored('baseline', forgedSnapshot) })
+      expect(result[0]).toMatchObject({
+        archive: 'stored',
+        assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['route-namespace-stale']) } }],
+      })
+    }
+  })
+
   it('keeps invalid and duplicate trusted contract paths unverified', () => {
     const cases = [
       { route: '//other.example/path', paths: [{ pageRef: 'page:bad', path: '//other.example/path', markerText: 'Bad' }] },
