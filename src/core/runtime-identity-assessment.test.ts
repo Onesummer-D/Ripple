@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { RuntimeIdentityArchiveReadEntry } from './runtime-identity-archive'
-import { assessRuntimeIdentityArchives } from './runtime-identity-assessment'
-import { RUNTIME_IDENTITY_PROTOCOL, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
+import { assessRuntimeIdentityArchives, runtimeIdentityAssessmentSha256, runtimeIdentityNamespaceProven, runtimeIdentityRecordKey } from './runtime-identity-assessment'
+import { RUNTIME_IDENTITY_PROTOCOL, RUNTIME_IDENTITY_PROTOCOL_V2, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
 import type { SourceGraph } from './model'
 import { digestTrackedTree, servedSourceDigest } from './project'
 
@@ -104,6 +104,15 @@ describe('host runtime identity assessment', () => {
       boundDigest: baselineTreeDigest, sourceDigests: { 'src/App.tsx': hashText(baseBytes) },
       assessments: [{ recordKey: JSON.stringify(['jsx:src/App.tsx#1', '/:jsx:src/App.tsx#1', 0]), assessment: { instanceIdentityProven: true, reasons: [] }, assessmentSha256: expect.stringMatching(/^[a-f0-9]{64}$/) }],
     })
+    if ('assessments' in baseline) {
+      const assessed = baseline.assessments[0]
+      expect(assessed.assessmentSha256).toBe(runtimeIdentityAssessmentSha256(
+        { checkId: baseline.checkId, route: baseline.route, viewport: baseline.viewport, state: baseline.state, side: baseline.side },
+        baseline.snapshotSha256,
+        assessed.recordKey,
+        assessed.assessment,
+      ))
+    }
     expect(candidate).toMatchObject({
       archive: 'stored', assessmentStatus: 'complete',
       boundDigest: candidateTreeDigest, sourceDigests: { 'src/App.tsx': hashText(candidateBytes) },
@@ -125,7 +134,116 @@ describe('host runtime identity assessment', () => {
   it('keeps page pathname, search, and hash as an exact expected-page check', () => {
     const baseline = stored('baseline', snapshot([record()], { pathname: '/', search: '?old=1', hash: '#old' }))
     const { result } = fixture({ baseline })
-    expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: ['page-context-mismatch'] } }] })
+    expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['page-context-mismatch', 'route-namespace-stale']) } }] })
+  })
+
+  it('does not prove v1 pathname-only namespaces on query or hash routes', () => {
+    for (const route of ['/products?tab=spec', '/#/products']) {
+      const parsed = new URL(route, 'http://ripple.local')
+      const oldId = `${parsed.pathname}:jsx:src/App.tsx#1`
+      const baseline = stored('baseline', snapshot([record({ runtimeInstanceId: oldId })], {
+        pathname: parsed.pathname, search: parsed.search, hash: parsed.hash,
+      }))
+      const { result } = fixture({ baseline, route, paths: [{ pageRef: 'page:test', path: route, markerText: 'Test' }] })
+      expect(result[0]).toMatchObject({
+        archive: 'stored',
+        assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['route-namespace-stale']) } }],
+      })
+    }
+  })
+
+  it('preserves collector route-namespace-stale after a v1 route returns to an empty namespace', () => {
+    const route = '/products'
+    const staleRecord = record({
+      runtimeInstanceId: '/products:jsx:src/App.tsx#1',
+      reasons: ['route-namespace-stale'],
+    })
+    const baseline = stored('baseline', snapshot([staleRecord], { pathname: route, search: '', hash: '' }))
+    const { result } = fixture({ baseline, route, paths: [{ pageRef: 'page:products', path: route, markerText: 'Products' }] })
+
+    expect(result[0]).toMatchObject({
+      archive: 'stored',
+      assessments: [{ assessment: { instanceIdentityProven: false, reasons: ['route-namespace-stale'] } }],
+    })
+  })
+
+  it('proves only a canonical v2 namespace bound to the complete page tuple', () => {
+    const route = '/products?tab=spec#reviews'
+    const parsed = new URL(route, 'http://ripple.local')
+    const pageAtRender = { pathname: parsed.pathname, search: parsed.search, hash: parsed.hash }
+    const namespace = `ripple-page-v2:${encodeURIComponent(JSON.stringify([pageAtRender.pathname, pageAtRender.search, pageAtRender.hash]))}:jsx:src/App.tsx#1`
+    const value: RuntimeIdentitySnapshot = {
+      protocol: RUNTIME_IDENTITY_PROTOCOL_V2,
+      page: pageAtRender,
+      records: [record({ runtimeInstanceId: namespace })],
+    }
+    expect(runtimeIdentityNamespaceProven(value, value.records[0])).toBe(true)
+    const { result } = fixture({
+      baseline: stored('baseline', value), route,
+      paths: [{ pageRef: 'page:test', path: route, markerText: 'Test' }],
+    })
+    expect(result[0]).toMatchObject({ archive: 'stored', assessments: [{ assessment: { instanceIdentityProven: true, reasons: [] } }] })
+  })
+
+  it('marks malformed, non-canonical, or stale v2 namespaces route-namespace-stale', () => {
+    const pageAtRender = { pathname: '/products', search: '?tab=spec', hash: '#reviews' }
+    const goodTuple = encodeURIComponent(JSON.stringify([pageAtRender.pathname, pageAtRender.search, pageAtRender.hash]))
+    const malformedIds = [
+      `ripple-page-v2:${goodTuple.replace('%2F', '%2f')}:jsx:src/App.tsx#1`,
+      `ripple-page-v2:${encodeURIComponent(JSON.stringify(['/products', '?tab=old', '#reviews']))}:jsx:src/App.tsx#1`,
+      '/products:jsx:src/App.tsx#1',
+      'ripple-page-v2:not-json:jsx:src/App.tsx#1',
+    ]
+    for (const runtimeInstanceId of malformedIds) {
+      const value: RuntimeIdentitySnapshot = { protocol: RUNTIME_IDENTITY_PROTOCOL_V2, page: pageAtRender, records: [record({ runtimeInstanceId })] }
+      expect(runtimeIdentityNamespaceProven(value, value.records[0])).toBe(false)
+      const { result } = fixture({
+        baseline: stored('baseline', value), route: '/products?tab=spec#reviews',
+        paths: [{ pageRef: 'page:test', path: '/products?tab=spec#reviews', markerText: 'Test' }],
+      })
+      expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['route-namespace-stale']) } }] })
+    }
+  })
+
+  it('rejects a namespace suffix that is not anchored to the record sourceRef', () => {
+    const pageAtRender = { pathname: '/', search: '', hash: '' }
+    const runtimeInstanceId = `ripple-page-v2:${encodeURIComponent(JSON.stringify(['/','', '']))}:jsx:src/App.tsx#1`
+    const mismatched = record({ sourceRef: 'jsx:src/Other.tsx#9', runtimeInstanceId })
+    const value: RuntimeIdentitySnapshot = { protocol: RUNTIME_IDENTITY_PROTOCOL_V2, page: pageAtRender, records: [mismatched] }
+    expect(runtimeIdentityNamespaceProven(value, mismatched)).toBe(false)
+    const { result } = fixture({ baseline: stored('baseline', value) })
+    expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['route-namespace-stale']) } }] })
+  })
+
+  it('keeps invalid and duplicate trusted contract paths unverified', () => {
+    const cases = [
+      { route: '//other.example/path', paths: [{ pageRef: 'page:bad', path: '//other.example/path', markerText: 'Bad' }] },
+      { route: '/', paths: [
+        { pageRef: 'page:a', path: '/', markerText: 'A' },
+        { pageRef: 'page:b', path: '/./', markerText: 'B' },
+      ] },
+    ]
+    for (const item of cases) {
+      const { result } = fixture({ route: item.route, paths: item.paths })
+      expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['page-context-unverified']) } }] })
+    }
+  })
+
+  it('uses a canonical record key and hashes the capture tuple, key, and assessment together', () => {
+    const current = record()
+    const key = runtimeIdentityRecordKey(current, 0)
+    expect(key).toBe(JSON.stringify([current.sourceRef, current.runtimeInstanceId, 0]))
+    expect(runtimeIdentityRecordKey(current, 1)).not.toBe(key)
+    expect(() => runtimeIdentityRecordKey(current, -1)).toThrow(/non-negative/)
+
+    const capture = { checkId: 'check-1', route: '/', viewport: { width: 1280, height: 800 }, state: 'rendered', side: 'baseline' as const }
+    const assessment = { sourceRef: current.sourceRef, instanceIdentityProven: false, reasons: ['identity-not-stable'] }
+    const snapshotDigest = 'a'.repeat(64)
+    const digest = runtimeIdentityAssessmentSha256(capture, snapshotDigest, key, assessment)
+    expect(digest).toMatch(/^[a-f0-9]{64}$/)
+    expect(runtimeIdentityAssessmentSha256({ ...capture, side: 'candidate' }, snapshotDigest, key, assessment)).not.toBe(digest)
+    expect(runtimeIdentityAssessmentSha256(capture, snapshotDigest, runtimeIdentityRecordKey(current, 1), assessment)).not.toBe(digest)
+    expect(runtimeIdentityAssessmentSha256(capture, 'b'.repeat(64), key, assessment)).not.toBe(digest)
   })
 
   it('derives the full page tuple from trusted contract paths and fails closed on missing or ambiguous mappings', () => {
@@ -136,7 +254,16 @@ describe('host runtime identity assessment', () => {
       { route: '/products?tab=spec#reviews', page: { pathname: '/products', search: '?tab=spec', hash: '#reviews' } },
     ]
     for (const item of exactCases) {
-      const baseline = stored('baseline', snapshot([record()], item.page))
+      const fullTupleRequired = item.page.search !== '' || item.page.hash !== ''
+      const runtimeInstanceId = fullTupleRequired
+        ? `ripple-page-v2:${encodeURIComponent(JSON.stringify([item.page.pathname, item.page.search, item.page.hash]))}:jsx:src/App.tsx#1`
+        : `${item.page.pathname}:jsx:src/App.tsx#1`
+      const value: RuntimeIdentitySnapshot = {
+        protocol: fullTupleRequired ? RUNTIME_IDENTITY_PROTOCOL_V2 : RUNTIME_IDENTITY_PROTOCOL,
+        page: item.page,
+        records: [record({ runtimeInstanceId })],
+      }
+      const baseline = stored('baseline', value)
       const { result } = fixture({ baseline, route: item.route, paths: [{ pageRef: 'page:test', path: item.route, markerText: 'Test' }] })
       expect(result[0]).toMatchObject({ archive: 'stored', assessmentStatus: 'complete', assessments: [{ assessment: { instanceIdentityProven: true } }] })
     }
@@ -180,7 +307,7 @@ describe('host runtime identity assessment', () => {
   it('records an empty runtime instance id as unavailable while retaining the source record assessment', () => {
     const baseline = stored('baseline', snapshot([record({ runtimeInstanceId: '' })]))
     const { result } = fixture({ baseline })
-    expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: ['instance-unavailable'] } }] })
+    expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['instance-unavailable']) } }] })
   })
 
   it('retains only host-verified Snapshot evidence when side version binding fails', () => {
@@ -189,8 +316,11 @@ describe('host runtime identity assessment', () => {
       archive: 'stored', assessmentStatus: 'version-unverifiable', reason: 'version-unverifiable', side: 'baseline',
       snapshot: { protocol: RUNTIME_IDENTITY_PROTOCOL, records: [expect.any(Object)] },
       snapshotSha256: 'a'.repeat(64), artifacts: { snapshot: { path: 'identity/desktop/baseline.json', sha256: 'a'.repeat(64) } },
+      expectedBoundDigest: 'd'.repeat(64), observedSourceDigests: { 'src/App.tsx': hashText(baseBytes) },
       assessments: [{ assessment: { instanceIdentityProven: false, locatable: false, reasons: expect.arrayContaining(['source-version-unavailable']) } }],
     })
+    expect('boundDigest' in result[0]).toBe(false)
+    expect('sourceDigests' in result[0]).toBe(false)
     expect('snapshot' in result[1] && result[1].assessmentStatus === 'complete').toBe(true)
     expect('assessments' in result[1]).toBe(true)
   })

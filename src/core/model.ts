@@ -64,6 +64,8 @@ export type RuntimeIdentityReason =
   | 'page-context-unverified'
   | 'react-keys-unavailable'
   | 'identity-not-stable'
+/** Pair-level result; never a member of a single record's RuntimeIdentityReason list. */
+export type RuntimeIdentityPairReason = 'cross-side-assessment-mismatch'
 /** Browser location an element was observed at (client routing may use any of the parts). */
 export interface RuntimePageContext {
   pathname: string
@@ -254,21 +256,25 @@ export type RuntimeIdentityArchiveFailureReason =
   | 'collector-error'
   | 'snapshot-unavailable'
   | 'side-missing'
-  | 'version-unverifiable'
   | 'artifact-hash-mismatch'
 
-/** Capture/integrity failures cannot carry a trusted Snapshot. Version failures are a separate host result below. */
-export type RuntimeIdentityArtifactFailureReason = Exclude<RuntimeIdentityArchiveFailureReason, 'version-unverifiable'>
+/** Version failure is a stored, integrity-verified Snapshot state, never an archive failure. */
+export type RuntimeIdentityVersionFailureReason = 'version-unverifiable'
+
+/** Capture/integrity failures cannot carry a trusted Snapshot. */
+export type RuntimeIdentityArtifactFailureReason = RuntimeIdentityArchiveFailureReason
 
 export interface RuntimeRunIdentityAssessmentEntry {
   recordKey: string
   assessment: RuntimeIdentityAssessment
+  /** v1.2 content checksum binds capture tuple, verified snapshot digest, key, and assessment; it is not a signature. */
   assessmentSha256: string
 }
 
 export interface RuntimeRunIdentity {
-  /** The host verified the archived Snapshot and the bound source revision. */
+  /** The host verified the archived Snapshot and bound source revision; per-record proof remains independent. */
   archive: 'stored'
+  /** `complete` means revision binding completed, not that every record is proven. */
   assessmentStatus: 'complete'
   checkId: Id
   route: string
@@ -287,11 +293,15 @@ export interface RuntimeRunIdentity {
  * The Snapshot bytes passed host archive verification, but the side's source tree/graph could not be bound.
  * Per-record assessments are retained for traceability and must all remain non-proving.
  */
-export interface RuntimeRunIdentityVersionFailure extends Omit<RuntimeRunIdentity, 'assessmentStatus'> {
+export interface RuntimeRunIdentityVersionFailure extends Omit<RuntimeRunIdentity, 'assessmentStatus' | 'sourceDigests' | 'boundDigest'> {
   archive: 'stored'
   assessmentStatus: 'version-unverifiable'
-  reason: 'version-unverifiable'
+  reason: RuntimeIdentityVersionFailureReason
   detail: string
+  /** Host-observed file digests; diagnostic only because the side revision did not bind. */
+  observedSourceDigests: Record<string, string>
+  /** Expected run-side digest claim; diagnostic only because the side revision did not bind. */
+  expectedBoundDigest: string
 }
 
 /** Collection or artifact integrity failed. No Snapshot is trusted or attached. */
@@ -306,6 +316,21 @@ export interface RuntimeRunIdentityArchiveFailure {
   /** The container's claim only. Its presence is not proof of artifact integrity. */
   declaredSnapshotSha256?: string
   detail?: string
+}
+
+/** Host-validated directional mapping; its digest is a content checksum, not a signature. */
+export interface RuntimeIdentitySourceRefMappingReceipt {
+  protocol: 'ripple-source-ref-mapping/v1'
+  verificationRunId: Id
+  candidateId: Id
+  patchHash: string
+  baselineSourceDigest: string
+  candidateSourceDigest: string
+  baselineGraphId: Id
+  candidateGraphId: Id
+  parserSchemaVersion: string
+  mappingSha256: string
+  mappings: Array<{ baselineSourceRef: Id; candidateSourceRef: Id }>
 }
 
 export interface VerificationRun {
@@ -335,6 +360,8 @@ export interface VerificationRun {
   visualEvidences?: VisualRunEvidence[]
   /** Host-verified runtime identity data; supplementary and outside the seven assertion gate. */
   runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityVersionFailure | RuntimeRunIdentityArchiveFailure>
+  /** Host-validated source-location receipts; v1.2 does not allow them to override runtimeInstanceId equality. */
+  runtimeIdentitySourceRefMappings?: RuntimeIdentitySourceRefMappingReceipt[]
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }

@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import type { BrowserVerificationContract } from './model'
-import { RUNTIME_IDENTITY_PROTOCOL, type RuntimeIdentitySnapshot } from './runtime-identity'
+import { RUNTIME_IDENTITY_PROTOCOL, RUNTIME_IDENTITY_PROTOCOL_V2, type RuntimeIdentitySnapshot } from './runtime-identity'
 import {
   planRuntimeIdentityCaptures,
   readRuntimeIdentityArchives,
@@ -145,6 +145,14 @@ describe('host runtime identity archive verification', () => {
     }
   })
 
+  it('accepts a v2 snapshot as an archived protocol while leaving namespace proof to the host assessor', () => {
+    const root = createRunRoot()
+    const v2 = { ...snapshot(), protocol: RUNTIME_IDENTITY_PROTOCOL_V2 }
+    const bytes = Buffer.from(`${canonicalJson(v2)}\n`, 'utf8')
+    const result = read(root, [storedEntry(root, baselinePlan, bytes), storedEntry(root, candidatePlan)])
+    expect(result.entries[0]).toMatchObject({ archive: 'stored', snapshot: { protocol: RUNTIME_IDENTITY_PROTOCOL_V2 } })
+  })
+
   it('accepts a legal empty records list', () => {
     const root = createRunRoot()
     const bytes = Buffer.from(`${canonicalJson(snapshot([]))}\n`)
@@ -179,10 +187,18 @@ describe('host runtime identity archive verification', () => {
     expect(result.entries[1].archive).toBe('stored')
   })
 
-  it('uses only the five v1.1 archive reasons and fails unknown container reasons closed', () => {
+  it('uses only v1.2 archive failure reasons and fails unknown container reasons closed', () => {
     const root = createRunRoot()
     const result = read(root, [failedEntry(baselinePlan, 'container-invented-state'), storedEntry(root, candidatePlan)])
     expect(result.entries[0]).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
+    expect(result.entries[1].archive).toBe('stored')
+  })
+
+  it('does not accept container-declared version-unverifiable as an archive failure state', () => {
+    const root = createRunRoot()
+    const result = read(root, [failedEntry(baselinePlan, 'version-unverifiable'), storedEntry(root, candidatePlan)])
+    expect(result.entries[0]).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
+    expect('snapshot' in result.entries[0]).toBe(false)
     expect(result.entries[1].archive).toBe('stored')
   })
 

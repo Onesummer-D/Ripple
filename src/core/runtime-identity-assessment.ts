@@ -6,7 +6,7 @@ import type {
   RuntimeRunIdentityVersionFailure,
   SourceGraph,
 } from './model'
-import { assessRuntimeIdentity, sourceFileFromRef, type RuntimeIdentityRecord } from './runtime-identity'
+import { assessRuntimeIdentity, RUNTIME_IDENTITY_PROTOCOL, RUNTIME_IDENTITY_PROTOCOL_V2, sourceFileFromRef, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
 import { canonicalRuntimeIdentityJson, type RuntimeIdentityArchiveReadEntry } from './runtime-identity-archive'
 import { digestTrackedTree, servedSourceDigest } from './project'
 
@@ -58,10 +58,54 @@ function revisionBound(side: RuntimeIdentitySideSource): boolean {
   catch { return false }
 }
 
-function hostRecordForAssessment(record: RuntimeIdentityRecord, duplicateIds: ReadonlySet<string>, sameSourceCounts: ReadonlyMap<string, number>): RuntimeIdentityRecord {
+function validOwnerTail(value: string, sourceRef: string): boolean {
+  if (!/^(?:jsx:|[_:\u00ab])/.test(value) || !nonEmpty(sourceRef)) return false
+  const sourceOffset = value.lastIndexOf(sourceRef)
+  if (sourceOffset < 0) return false
+  const suffix = value.slice(sourceOffset + sourceRef.length)
+  return suffix === '' || suffix.startsWith(':')
+}
+
+/**
+ * The v1 namespace records pathname only. It cannot prove a page with search/hash.
+ * V2 binds the exact serialized [pathname, search, hash] tuple into each id.
+ */
+export function runtimeIdentityNamespaceProven(snapshot: RuntimeIdentitySnapshot, record: Pick<RuntimeIdentityRecord, 'runtimeInstanceId' | 'sourceRef'>): boolean {
+  const runtimeInstanceId = record.runtimeInstanceId
+  if (!nonEmpty(runtimeInstanceId)) return false
+  const { pathname, search, hash } = snapshot.page
+  if (!pathname.startsWith('/') || pathname.startsWith('//') || pathname.includes('\\') ||
+    search && !search.startsWith('?') || hash && !hash.startsWith('#')) return false
+  try {
+    const parsed = new URL(`${pathname}${search}${hash}`, CONTRACT_ORIGIN)
+    if (parsed.origin !== CONTRACT_ORIGIN || parsed.pathname !== pathname || parsed.search !== search || parsed.hash !== hash) return false
+  } catch { return false }
+
+  if (snapshot.protocol === RUNTIME_IDENTITY_PROTOCOL) {
+    if (search !== '' || hash !== '') return false
+    const prefix = `${pathname}:`
+    return runtimeInstanceId.startsWith(prefix) && validOwnerTail(runtimeInstanceId.slice(prefix.length), record.sourceRef)
+  }
+
+  if (snapshot.protocol !== RUNTIME_IDENTITY_PROTOCOL_V2) return false
+  const prefix = 'ripple-page-v2:'
+  if (!runtimeInstanceId.startsWith(prefix)) return false
+  const separator = runtimeInstanceId.indexOf(':', prefix.length)
+  if (separator < 0) return false
+  const encodedTuple = runtimeInstanceId.slice(prefix.length, separator)
+  const ownerTail = runtimeInstanceId.slice(separator + 1)
+  let decoded: unknown
+  try { decoded = JSON.parse(decodeURIComponent(encodedTuple)) } catch { return false }
+  const expectedTuple = [pathname, search, hash]
+  return encodedTuple === encodeURIComponent(JSON.stringify(decoded)) &&
+    JSON.stringify(decoded) === JSON.stringify(expectedTuple) && validOwnerTail(ownerTail, record.sourceRef)
+}
+
+function hostRecordForAssessment(record: RuntimeIdentityRecord, snapshot: RuntimeIdentitySnapshot, duplicateIds: ReadonlySet<string>, sameSourceCounts: ReadonlyMap<string, number>): RuntimeIdentityRecord {
   const reasons = new Set(record.reasons)
   if (!nonEmpty(record.runtimeInstanceId)) reasons.add('instance-unavailable')
   else if (duplicateIds.has(record.runtimeInstanceId)) reasons.add('duplicate-runtime-instance')
+  if (!runtimeIdentityNamespaceProven(snapshot, record)) reasons.add('route-namespace-stale')
 
   // sourceRef, not a container supplied sourceFile string, selects the host file.
   // This prevents a mismatching advisory field from redirecting the digest read.
@@ -76,7 +120,33 @@ function hostRecordForAssessment(record: RuntimeIdentityRecord, duplicateIds: Re
 
 /** Stable, unambiguous tuple key; the snapshot index distinguishes duplicate source/id records. */
 export function runtimeIdentityRecordKey(record: RuntimeIdentityRecord, index: number): string {
+  if (!Number.isSafeInteger(index) || index < 0) throw new Error('Runtime identity snapshot index must be a non-negative safe integer.')
   return JSON.stringify([record.sourceRef, record.runtimeInstanceId ?? null, index])
+}
+
+export interface RuntimeIdentityAssessmentCaptureTuple {
+  checkId: string
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  side: 'baseline' | 'candidate'
+}
+
+/** Deterministic content checksum over the assessment and its local trusted keys; not a signature. */
+export function runtimeIdentityAssessmentSha256(capture: RuntimeIdentityAssessmentCaptureTuple, snapshotSha256: string, recordKey: string, assessment: unknown): string {
+  return sha256(canonicalRuntimeIdentityJson({
+    protocol: 'ripple-runtime-identity-assessment/v1.2',
+    capture: {
+      checkId: capture.checkId,
+      route: capture.route,
+      viewport: { width: capture.viewport.width, height: capture.viewport.height },
+      state: capture.state,
+      side: capture.side,
+    },
+    snapshotSha256,
+    recordKey,
+    assessment,
+  }))
 }
 
 function sourceDigestsFor(records: readonly RuntimeIdentityRecord[], side: RuntimeIdentitySideSource): Record<string, string> {
@@ -106,7 +176,7 @@ function assessRecords(
   const duplicateIds = new Set([...idCounts].filter(([, count]) => count > 1).map(([id]) => id))
 
   return records.map((record, index) => {
-    const hostRecord = hostRecordForAssessment(record, duplicateIds, sourceCounts)
+    const hostRecord = hostRecordForAssessment(record, entry.snapshot, duplicateIds, sourceCounts)
     const sourceFile = sourceFileFromRef(record.sourceRef)
     const assessment = assessRuntimeIdentity(side.graph, entry.snapshot, hostRecord, {
       // A graph/root binding failure withholds source digests even when files can be read.
@@ -122,7 +192,7 @@ function assessRecords(
     return {
       recordKey: runtimeIdentityRecordKey(record, index),
       assessment: failClosedAssessment,
-      assessmentSha256: sha256(canonicalRuntimeIdentityJson(failClosedAssessment)),
+      assessmentSha256: runtimeIdentityAssessmentSha256(entry, entry.snapshotSha256, runtimeIdentityRecordKey(record, index), failClosedAssessment),
     }
   })
 }
@@ -149,11 +219,16 @@ function assessStoredEntry(
     boundDigest: side.boundDigest,
     artifacts: { snapshot: { ...entry.artifact.snapshot } },
   }
-  if (!versionBound) return {
-    ...verifiedArchive,
-    assessmentStatus: 'version-unverifiable',
-    reason: 'version-unverifiable',
-    detail: `${entry.side} source tree or graph revision does not match its trusted bound digest.`,
+  if (!versionBound) {
+    const { sourceDigests: observedSourceDigests, boundDigest: expectedBoundDigest, ...archiveWithoutUnverifiedBindings } = verifiedArchive
+    return {
+      ...archiveWithoutUnverifiedBindings,
+      assessmentStatus: 'version-unverifiable',
+      reason: 'version-unverifiable',
+      detail: `${entry.side} source tree or graph revision does not match its trusted bound digest.`,
+      observedSourceDigests,
+      expectedBoundDigest,
+    }
   }
   return { ...verifiedArchive, assessmentStatus: 'complete' }
 }

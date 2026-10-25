@@ -81,6 +81,10 @@ describe('A① runtime identity archive contract', () => {
     expect(writeRuntimeIdentityArtifact(root, 'circular', 'baseline', captured(circular))).toMatchObject({
       archive: 'failed', reason: 'snapshot-unavailable', detail: 'Runtime identity snapshot contains a circular reference.',
     })
+
+    const v2 = writeRuntimeIdentityArtifact(root, 'desktop-v2', 'candidate', captured({ ...snapshot([]), protocol: 'ripple-runtime-identity/v2' }))
+    expect(v2.archive).toBe('stored')
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'identity', 'desktop-v2', 'candidate-identity.json'), 'utf8')).protocol).toBe('ripple-runtime-identity/v2')
   })
 
   it('stores snapshots at or below the 16MB limit and refuses oversized snapshots without truncating', () => {
