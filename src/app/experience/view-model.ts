@@ -88,6 +88,12 @@ export interface VersionItemXp {
   summary: string
   pageRef: string
   evidenceAvailable: boolean
+  /**
+   * 证据可用时的逐条人话明细（折叠角标展开后展示）。
+   * 只陈述适配器真实拥有的数据；历史接口未返回明细时缺省，
+   * UI 会如实说明「明细未随历史接口返回」，不臆造证据内容。
+   */
+  evidenceList?: string[]
 }
 
 export interface CompareSideXp {

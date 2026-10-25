@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { PageXp, SourceCertainty } from '../view-model'
 import { CERTAINTY_LABEL } from '../view-model'
 
@@ -15,10 +16,19 @@ function PageIcon() {
 
 const CERTAINTY_ORDER: SourceCertainty[] = ['source-proven', 'partial', 'unknown']
 
+/** 概览展开明细里每页的关系短句（与右侧「影响范围」口径一致，只取短版）。 */
+const RELATION_SHORT: Record<PageXp['relation'], string> = {
+  editing: '当前编辑页',
+  'same-source': '同源关联',
+  unrelated: '已确认无影响',
+  unproven: '影响未证实',
+}
+
 /**
  * 左侧：页面导航 + 来源概览。
  * 参考视觉：图标菜单式导航——当前项为浅色圆角条 + 左侧墨绿短竖线；
- * 组标题右侧带页面计数；细分隔线后是与全局状态语言一致的概览统计（真实数据）。
+ * 组标题右侧带页面计数；细分隔线后是与全局状态语言一致的概览统计（真实数据），
+ * 统计行可点开：展开显示该分类下的具体页面与关系，数字不永远是黑盒。
  * 每个页面的关联关系与确定性在右侧「影响范围」逐页呈现，导航项不再堆叠小字。
  * 真实模式第一阶段：iframe 预演尚不支持页面切换，导航明确停用并标注未接入，
  * 绝不只是高亮变化而让用户误以为画布已经切页。
@@ -33,8 +43,11 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
     const rank = (page: PageXp) => page.relation === 'editing' ? 0 : page.relation === 'same-source' ? 1 : 2
     return rank(a) - rank(b) || a.label.localeCompare(b.label, 'zh')
   })
-  const certaintyCount = (certainty: SourceCertainty) =>
-    pages.filter(page => page.relationCertainty === certainty).length
+  // 概览统计行可点开：展开显示该确定性分类下的具体页面（即数字背后的「证据」）。
+  // 一次只展开一行，再点同一行收起；数据只来自真实 pages，不臆造条目。
+  const [openCertainty, setOpenCertainty] = useState<SourceCertainty | null>(null)
+  const toggleOverview = (certainty: SourceCertainty) =>
+    setOpenCertainty(prev => (prev === certainty ? null : certainty))
   return <nav className="ripple-xp-page-rail reveal" aria-label="页面导航" data-testid="page-rail">
     <h3><span>页面</span><span className="ripple-xp-rail-count">{pages.length}</span></h3>
     {navigationDisabled && (
@@ -63,13 +76,38 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
     <div className="ripple-xp-rail-overview" aria-label="网站概览">
       <h4>网站概览</h4>
       <ul>
-        {CERTAINTY_ORDER.map(certainty => (
-          <li key={certainty} className="ripple-xp-rail-overview-row">
-            <span className={`ripple-xp-rail-dot ripple-xp-rail-dot-${certainty}`} aria-hidden="true" />
-            <span className="ripple-xp-rail-overview-label">{CERTAINTY_LABEL[certainty]}</span>
-            <span className="ripple-xp-rail-count">{certaintyCount(certainty)}</span>
-          </li>
-        ))}
+        {CERTAINTY_ORDER.map(certainty => {
+          const matched = pages.filter(page => page.relationCertainty === certainty)
+          const open = openCertainty === certainty
+          return (
+            <li key={certainty}>
+              <button
+                type="button"
+                className={`ripple-xp-rail-overview-row ${open ? 'is-open' : ''}`}
+                aria-expanded={open}
+                data-testid={`overview-toggle-${certainty}`}
+                onClick={() => toggleOverview(certainty)}
+              >
+                <span className={`ripple-xp-rail-dot ripple-xp-rail-dot-${certainty}`} aria-hidden="true" />
+                <span className="ripple-xp-rail-overview-label">{CERTAINTY_LABEL[certainty]}</span>
+                <span className="ripple-xp-rail-count">{matched.length}</span>
+                <i className="ripple-xp-rail-overview-fold" aria-hidden>{open ? '▴' : '▾'}</i>
+              </button>
+              {open && (
+                <ul className="ripple-xp-rail-overview-detail" data-testid={`overview-list-${certainty}`}>
+                  {matched.length === 0
+                    ? <li className="ripple-xp-rail-overview-empty">这一类暂无页面</li>
+                    : matched.map(page => (
+                      <li key={page.id}>
+                        <span className="ripple-xp-rail-overview-page">{page.label}</span>
+                        <span className="ripple-xp-rail-overview-why">{RELATION_SHORT[page.relation]}</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </div>
   </nav>

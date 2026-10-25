@@ -226,7 +226,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
 
   return <section className="ripple-xp-stage reveal" aria-label="网页画布" data-testid="canvas-stage">
     {currentPage && (
-      // 页面标题层级：面包屑 + 一级标题（18–22px），让中间列先有「在改什么」再是工具
+      // 页面标题层级：面包屑 + 一级标题（28px），让中间列先有「在改什么」再是工具
       <div className="ripple-xp-page-head">
         <span className="ripple-xp-page-crumb">页面列表 / {currentPage.label}</span>
         <h2 className="ripple-xp-page-title">

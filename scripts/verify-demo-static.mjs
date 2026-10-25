@@ -40,8 +40,8 @@ async function verifyFlow(page, label) {
   const response = await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' })
   check(`${label}：默认 / 直接进入体验工作台`, response.status() === 200 && new URL(page.url()).pathname === '/')
   await page.getByTestId('xp-topbar').waitFor()
-  // DEMO 标识保留
-  await check(`${label}：DEMO 标识（演示数据徽章）`, await page.getByTestId('demo-badge').isVisible())
+  // DEMO 徽章已按设计移除：演示模式以「无真实工程徽章」+ 演示画布为标记
+  check(`${label}：演示模式（无真实工程徽章）`, (await page.getByTestId('real-badge').count()) === 0)
   // 关系图：编辑目标与页面关系可操作
   await page.getByTestId('canvas-el-el:hero-title').click()
   check(`${label}：点选元素（关系图选中）`, (await page.getByTestId('canvas-el-el:hero-title').getAttribute('aria-pressed')) === 'true')
@@ -77,7 +77,8 @@ async function verifyFlow(page, label) {
     `hero ${assets.hero ? `${assets.hero.w}x${assets.hero.h}` : '缺失'}，film ${assets.film ? `${assets.film.w}x${assets.film.h}` : '缺失'}`)
   await page.getByTestId('version-v:3').click()
   check(`${label}：历史定位页面`, (await page.getByTestId('page-item-page:products').getAttribute('aria-current')) === 'page')
-  await page.getByTestId('close-filmstrip').click()
+  // 离开历史面板改用底部标签栏切换（「收起」按钮已移除）
+  await page.getByTestId('tab-compare').click()
   await page.getByTestId('page-item-page:home').click()
   // 演示审批：处理完全部未决定页后出现，反馈明确标注未执行真实应用
   await page.getByTestId('canvas-el-el:hero-title').click()
@@ -90,7 +91,7 @@ async function verifyFlow(page, label) {
   check(`${label}：无打开真实工程入口`, (await page.getByTestId('open-project-form').count()) === 0)
   // 真实后端 URL 参数在静态版被屏蔽
   await page.goto(`http://127.0.0.1:${port}/?adapter=real`, { waitUntil: 'networkidle' })
-  check(`${label}：?adapter=real 被强制演示模式`, await page.getByTestId('demo-badge').isVisible())
+  check(`${label}：?adapter=real 被强制演示模式`, (await page.getByTestId('real-badge').count()) === 0)
   check(`${label}：?adapter=real 无真实工程入口`, (await page.getByTestId('open-project-form').count()) === 0)
   check(`${label}：控制台无错误`, consoleErrors.length === errorsBefore, consoleErrors.slice(errorsBefore).join(' | ') || 'clean')
 }

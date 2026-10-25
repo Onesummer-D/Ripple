@@ -335,7 +335,6 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
                 // 真实历史不提供页面归属（pageRef 为空）时不切换页面，不臆造定位
                 if (version.pageRef) apply(activeAdapter.setPage(model, version.pageRef) ?? model)
               }}
-              onClose={() => setDeckTab('evidence')}
             />
           </div>
         </div>

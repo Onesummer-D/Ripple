@@ -32,9 +32,9 @@ async function scopeGoto(page: Page, pageId: string) {
   }
 }
 
-test('初始页面：页面导航、画布与 DEMO 标记', async ({ page }) => {
+test('初始页面：页面导航与画布（DEMO 徽章已按设计移除）', async ({ page }) => {
   await openExperience(page)
-  await expect(page.getByTestId('demo-badge')).toContainText('演示数据')
+  await expect(page.getByTestId('demo-badge')).toHaveCount(0)
   await expect(page.getByTestId('page-item-page:home')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('demo-canvas')).toBeVisible()
   await expect(page.getByTestId('evidence-drawer')).toBeVisible()

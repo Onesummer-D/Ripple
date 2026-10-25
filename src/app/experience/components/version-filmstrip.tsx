@@ -1,6 +1,6 @@
-import { useRef, useState, useEffect } from 'react'
-import type { ExperienceViewModel } from '../view-model'
-import { LifecyclePill } from './status-pill'
+import { useState } from 'react'
+import type { CandidateLifecycleXp, ExperienceViewModel } from '../view-model'
+import { LIFECYCLE_LABEL } from '../view-model'
 
 /** 版本配图：胶片条使用编辑式茶器摄影，悬停缩放；无图版本回退首图。 */
 const FILM_ART: Record<string, string> = {
@@ -11,78 +11,94 @@ const FILM_ART: Record<string, string> = {
 }
 const FILM_ART_FALLBACK = 'demo-assets/hero-market.jpg'
 
+/** 生命周期角标图标：一眼区分已应用 / 已回滚 / 已失效。 */
+const FILM_LIFECYCLE_ICON: Record<CandidateLifecycleXp, string> = {
+  candidate: '◐',
+  applied: '✓',
+  'rolled-back': '↺',
+  stale: '✕',
+  discarded: '○',
+}
+
 /**
- * 版本胶片：候选 / 已应用 / 已回滚 / 已失效 + 修改摘要 + 证据可用性。
- * smartify 式横向轮播：大图圆角矩形、左右箭头、滚动吸附。
- * 点击胶片定位到对应页面；不伪造 Git 提交或恢复成功状态。
+ * 版本胶片：生命周期以彩色角标压在图片左上角（图标+文字）；
+ * 证据可用性独立一行：「证据可用」为可折叠角标，点开展开逐条证据明细，
+ * 「无证据」红色标明。点击胶片定位到对应页面；不伪造 Git 提交或恢复成功状态。
  */
-export function VersionFilmstrip({ model, activeVersionId, onSelect, onClose }: {
+export function VersionFilmstrip({ model, activeVersionId, onSelect }: {
   model: ExperienceViewModel
   activeVersionId?: string
   onSelect: (version: ExperienceViewModel['versions'][number]) => void
-  onClose: () => void
 }) {
-  const listRef = useRef<HTMLOListElement>(null)
-  const [atStart, setAtStart] = useState(true)
-  const [atEnd, setAtEnd] = useState(false)
+  const [evOpen, setEvOpen] = useState<Record<string, boolean>>({})
 
-  // 箭头可用性：跟随实际滚动位置，窗口尺寸变化时重算
-  useEffect(() => {
-    const list = listRef.current
-    if (!list) return
-    const sync = () => {
-      setAtStart(list.scrollLeft <= 4)
-      setAtEnd(list.scrollLeft + list.clientWidth >= list.scrollWidth - 4)
-    }
-    sync()
-    list.addEventListener('scroll', sync, { passive: true })
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(sync)
-      observer.observe(list)
-      return () => { list.removeEventListener('scroll', sync); observer.disconnect() }
-    }
-    return () => list.removeEventListener('scroll', sync)
-  }, [model.versions.length])
-
-  const scrollByPage = (direction: 1 | -1) => {
-    listRef.current?.scrollBy({ left: direction * 340, behavior: 'smooth' })
+  const toggleEvidence = (id: string) => {
+    setEvOpen(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
   return <section className="ripple-xp-filmstrip" aria-label="版本历史" data-testid="version-filmstrip">
     <div className="ripple-xp-film-head">
       <h3>版本历史</h3>
-      <div className="ripple-xp-film-nav">
-        <button type="button" className="ripple-xp-film-arrow" aria-label="上一组版本" disabled={atStart} onClick={() => scrollByPage(-1)}>←</button>
-        <button type="button" className="ripple-xp-film-arrow" aria-label="下一组版本" disabled={atEnd} onClick={() => scrollByPage(1)}>→</button>
-        <button type="button" className="ripple-xp-quiet" onClick={onClose} data-testid="close-filmstrip">收起</button>
-      </div>
+      {/* 列表本身 overflow-x 可滚，无需滚动箭头；「收起」已移除——由底部标签栏
+       * （证据与解释 / 前后对照 / 历史记录）切换即可离开本面板，无需单独折叠按钮 */}
     </div>
-    <ol className="ripple-xp-film-list" ref={listRef}>
-      {model.versions.map(version => (
-        <li key={version.id}>
-          <button
-            type="button"
-            className={`ripple-xp-film-item ${activeVersionId === version.id ? 'is-active' : ''}`}
-            data-testid={`version-${version.id}`}
-            onClick={() => onSelect(version)}
-          >
-            <span className="ripple-xp-film-fig" aria-hidden>
-              <img className="ripple-xp-film-img" src={FILM_ART[version.id] ?? FILM_ART_FALLBACK} alt="" loading="lazy" />
-              <span className="ripple-xp-film-cap">{version.title}</span>
-            </span>
-            <span className="ripple-xp-film-meta">
-              <span className="ripple-xp-film-title">{version.summary}</span>
-              <span className="ripple-xp-film-tags">
-                <LifecyclePill lifecycle={version.lifecycle} />
-                <span className={`ripple-xp-chip ${version.evidenceAvailable ? 'ripple-xp-chip-ready' : 'ripple-xp-chip-none'}`}>
-                  {version.evidenceAvailable ? '证据可用' : '无证据'}
+    <ol className="ripple-xp-film-list">
+      {model.versions.map(version => {
+        const open = evOpen[version.id] ?? false
+        return (
+          <li key={version.id}>
+            <button
+              type="button"
+              className={`ripple-xp-film-item ${activeVersionId === version.id ? 'is-active' : ''}`}
+              data-testid={`version-${version.id}`}
+              onClick={() => onSelect(version)}
+            >
+              <span className="ripple-xp-film-fig">
+                <img className="ripple-xp-film-img" src={FILM_ART[version.id] ?? FILM_ART_FALLBACK} alt="" loading="lazy" />
+                <span className={`ripple-xp-film-flag ripple-xp-film-flag-${version.lifecycle}`}>
+                  <i aria-hidden>{FILM_LIFECYCLE_ICON[version.lifecycle]}</i>
+                  {LIFECYCLE_LABEL[version.lifecycle]}
                 </span>
-                <time>{version.updatedAt}</time>
+                <span className="ripple-xp-film-cap">{version.title}</span>
               </span>
-            </span>
-          </button>
-        </li>
-      ))}
+              <span className="ripple-xp-film-meta">
+                <span className="ripple-xp-film-title">{version.summary}</span>
+                <span className="ripple-xp-film-tags">
+                  {version.evidenceAvailable ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      data-testid={`evidence-toggle-${version.id}`}
+                      className="ripple-xp-film-ev ripple-xp-film-ev-ready"
+                      onClick={event => { event.stopPropagation(); toggleEvidence(version.id) }}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          toggleEvidence(version.id)
+                        }
+                      }}
+                    >
+                      证据可用
+                      <i className="ripple-xp-film-ev-fold" aria-hidden>{open ? '▴' : '▾'}</i>
+                    </span>
+                  ) : (
+                    <span className="ripple-xp-film-ev ripple-xp-film-ev-none">无证据</span>
+                  )}
+                  <time>{version.updatedAt}</time>
+                </span>
+                {version.evidenceAvailable && open && (
+                  <span className="ripple-xp-film-evlist" data-testid={`evidence-list-${version.id}`}>
+                    {(version.evidenceList?.length ? version.evidenceList : ['验证截图已归档（明细未随历史接口返回）'])
+                      .map((line, index) => <span key={index}>{line}</span>)}
+                  </span>
+                )}
+              </span>
+            </button>
+          </li>
+        )
+      })}
     </ol>
   </section>
 }

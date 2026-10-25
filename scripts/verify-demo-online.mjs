@@ -29,7 +29,7 @@ try {
   let resp = await desktop.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 45_000 })
   check('桌面：公网 / 直达体验工作台', resp.status() === 200 && new URL(desktop.url()).pathname === '/')
   await desktop.getByTestId('xp-topbar').waitFor()
-  check('桌面：DEMO 标识', await desktop.getByTestId('demo-badge').isVisible())
+  check('桌面：演示模式（DEMO 徽章已移除、无真实工程徽章）', (await desktop.getByTestId('real-badge').count()) === 0)
 
   await desktop.getByTestId('canvas-el-el:hero-title').click()
   check('桌面：目标选择（画布点选）', (await desktop.getByTestId('canvas-el-el:hero-title').getAttribute('aria-pressed')) === 'true')
@@ -41,7 +41,8 @@ try {
   await desktop.getByTestId('open-history').click()
   check('桌面：版本历史（生命周期）', (await desktop.getByTestId('version-v:3').textContent()).includes('已回滚'))
   await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-history.png`) })
-  await desktop.getByTestId('close-filmstrip').click()
+  // 离开历史面板改用底部标签栏切换（「收起」按钮已移除）
+  await desktop.getByTestId('tab-compare').click()
   await desktop.getByTestId('page-item-page:home').click()
   await desktop.getByTestId('canvas-el-el:hero-title').click()
   await desktop.getByTestId('draft-text-input').fill('冬日茶器市集')
@@ -56,7 +57,7 @@ try {
 
   // ?adapter=real 屏蔽
   resp = await desktop.goto(`${BASE}/?adapter=real`, { waitUntil: 'networkidle', timeout: 45_000 })
-  check('桌面：?adapter=real 仍强制 DEMO', resp.status() === 200 && await desktop.getByTestId('demo-badge').isVisible())
+  check('桌面：?adapter=real 仍强制演示（无真实工程徽章）', resp.status() === 200 && (await desktop.getByTestId('real-badge').count()) === 0)
   check('桌面：?adapter=real 无真实工程入口', (await desktop.getByTestId('open-project-form').count()) === 0)
   await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-adapter-real-blocked.png`) })
 
@@ -71,7 +72,7 @@ try {
   resp = await mobile.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 45_000 })
   check('手机：公网 / 直达体验工作台', resp.status() === 200 && new URL(mobile.url()).pathname === '/')
   await mobile.getByTestId('xp-topbar').waitFor()
-  check('手机：DEMO 标识', await mobile.getByTestId('demo-badge').isVisible())
+  check('手机：演示模式（无真实工程徽章）', (await mobile.getByTestId('real-badge').count()) === 0)
   await mobile.getByTestId('canvas-el-el:hero-title').tap()
   check('手机：目标选择（触摸点选）', (await mobile.getByTestId('canvas-el-el:hero-title').getAttribute('aria-pressed')) === 'true')
   check('手机：范围决策面板可见', await mobile.getByTestId('scope-panel').isVisible())

@@ -29,10 +29,10 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '冬日茶器市集' } })
   }
 
-  it('演示数据全程标记 DEMO', async () => {
+  it('演示模式顶栏不再显示 DEMO 徽章（已按设计移除）', async () => {
     render(<ExperienceWorkbench />)
-    await screen.findByTestId('demo-badge')
-    expect(text('demo-badge')).toContain('演示数据')
+    await screen.findByTestId('xp-topbar')
+    expect(screen.queryByTestId('demo-badge')).toBeNull()
   })
 
   it('DEMO 对照文案负例：绝不显示真实截图校验通过的结论', async () => {
@@ -44,9 +44,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('viewport-match-note')).not.toContain('真实截图')
   })
 
-  it('打开网页：页面导航、画布就绪、DEMO 标记常显', async () => {
+  it('打开网页：页面导航、画布就绪', async () => {
     render(<ExperienceWorkbench />)
-    await screen.findByTestId('demo-badge')
+    await screen.findByTestId('xp-topbar')
     expect(screen.getByTestId('page-item-page:home').getAttribute('aria-current')).toBe('page')
     expect(screen.getByTestId('demo-canvas')).not.toBeNull()
   })
@@ -270,8 +270,8 @@ describe('F 体验工作台 · 青野演示流', () => {
     scopeGoto('page:seasonal')
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
     gotoStep(4)
-    expect(text('demo-approve')).toContain('演示审批')
-    expect(text('demo-approve')).toContain('不写入真实工程')
+    expect(text('demo-approve')).toContain('确定生成')
+    expect((screen.getByTestId('demo-approve') as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(screen.getByTestId('demo-approve'))
     expect(text('approve-feedback')).toContain('演示范围决策已确认，未执行真实应用')
     fireEvent.click(screen.getByTestId('dismiss-feedback'))
@@ -297,6 +297,27 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('version-v:1')).toContain('无证据')
     fireEvent.click(screen.getByTestId('version-v:3'))
     expect(screen.getByTestId('page-item-page:products').getAttribute('aria-current')).toBe('page')
+  })
+
+  it('网站概览统计行可点开：展开显示该分类下的页面与关系，互斥且可收起', async () => {
+    render(<ExperienceWorkbench />)
+    await screen.findByTestId('page-rail')
+    // 默认收起
+    expect(screen.queryByTestId('overview-list-source-proven')).toBeNull()
+    // 点开「来源已证实」：显示该分类下的页面与关系短句
+    fireEvent.click(screen.getByTestId('overview-toggle-source-proven'))
+    expect(screen.getByTestId('overview-toggle-source-proven').getAttribute('aria-expanded')).toBe('true')
+    expect(text('overview-list-source-proven')).toContain('首页')
+    expect(text('overview-list-source-proven')).toContain('当前编辑页')
+    expect(text('overview-list-source-proven')).toContain('商品专题')
+    expect(text('overview-list-source-proven')).toContain('同源关联')
+    // 互斥展开：点开「未知」自动收起「来源已证实」
+    fireEvent.click(screen.getByTestId('overview-toggle-unknown'))
+    expect(screen.queryByTestId('overview-list-source-proven')).toBeNull()
+    expect(text('overview-list-unknown')).toContain('联系我们')
+    // 再点同一行收起
+    fireEvent.click(screen.getByTestId('overview-toggle-unknown'))
+    expect(screen.queryByTestId('overview-list-unknown')).toBeNull()
   })
 
   it('视口切换：390 可切换；画布状态演示覆盖加载/失败/过期', async () => {
@@ -532,7 +553,8 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     // 真实审批未接入（第 4 步）；元素可选中并查看真实来源（第 1 步源码视图）
     gotoStep(4)
     expect(text('real-approval-pending')).toContain('真实审批尚未接入')
-    fireEvent.click(screen.getByTestId('close-filmstrip'))
+    // 离开历史面板改用底部标签栏切换（「收起」按钮已移除）
+    fireEvent.click(screen.getByTestId('tab-compare'))
     fireEvent.click(screen.getByTestId('canvas-el-data:hero-title'))
     gotoStep(1)
     expect(text('selection-source')).toContain('src/data/site.ts')

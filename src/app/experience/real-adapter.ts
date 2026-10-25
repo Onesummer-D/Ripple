@@ -520,6 +520,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       evidenceAvailable: item.verification.state === 'passed'
         || item.verification.state === 'risks'
         || (item.verification.evidence?.some(entry => entry.artifactUrl) ?? false),
+      // 折叠角标展开的明细：只列历史接口真实返回的证据条目，不臆造
+      evidenceList: (item.verification.evidence ?? [])
+        .filter(entry => entry.artifactUrl)
+        .map(entry => `${entry.viewport.width}px 视口验证截图（已归档）`),
     }))
   }
 

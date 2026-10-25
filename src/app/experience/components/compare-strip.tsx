@@ -70,7 +70,8 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
                   ) : (
                     <span className="ripple-xp-compare-note">尚未生成候选</span>
                   )}
-                  {selected && <span className="ripple-xp-focus-ring" aria-hidden>⟶ {focusArea}</span>}
+                  {/* 非交互标注：仅指明草稿作用的修改位置，样式刻意去按钮化避免误点击 */}
+                  {selected && <span className="ripple-xp-focus-ring" aria-hidden>⟶ 修改位置：{focusArea}</span>}
                 </>
               )
             ) : <span className="ripple-xp-compare-note">{SIDE_STATE_LABEL[sideState.state]}</span>
@@ -102,7 +103,7 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
     {guide && <p className="ripple-xp-compare-guide" data-testid="compare-guide">{guide}</p>}
     <div className="ripple-xp-compare-row">
       {side('修改前', baseline, 'compare-baseline')}
-      {side('修改后 · 候选', candidate, 'compare-candidate')}
+      {side('修改后', candidate, 'compare-candidate')}
     </div>
   </section>
 }
