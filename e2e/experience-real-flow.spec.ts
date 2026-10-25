@@ -204,9 +204,16 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
   for (let index = 0; index < await excludeButtons2.count(); index += 1) await excludeButtons2.nth(index).click()
   await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
-  const candidate2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
+  const candidate2Request = page.waitForRequest(request => {
+    const requestUrl = new URL(request.url())
+    return requestUrl.pathname === '/__ripple/api/candidate' && request.method() === 'POST'
+  }, { timeout: 30_000 })
   await page.getByTestId('create-candidate').click()
-  const candidate2Payload = await (await candidate2Response).json() as { candidate: { id: string } }
+  const candidate2Response = await (await candidate2Request).response()
+  expect(candidate2Response, '第二个候选 POST 必须收到 HTTP 响应').toBeTruthy()
+  const candidate2Body = await candidate2Response!.text()
+  expect(candidate2Response!.status(), `第二个候选 POST 失败：${candidate2Body}`).toBe(200)
+  const candidate2Payload = JSON.parse(candidate2Body) as { candidate: { id: string } }
   expect(candidate2Payload.candidate.id).not.toBe(candidatePayload.candidate.id)
   // 复核点 1（真实浏览器）：新候选不得展示上一个候选的验证运行
   await expect(page.getByTestId('verification-status')).toHaveCount(0)

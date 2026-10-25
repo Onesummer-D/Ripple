@@ -6,7 +6,7 @@ import * as path from 'node:path'
 import ts from 'typescript'
 import type { RuntimeElementObservation, SourceGraph } from './model'
 import { createRuntimeSourceMap, resolveRuntimeElement, resolveRuntimeInstance } from './project'
-import { assessRuntimeIdentity, compareRuntimeSnapshots, selectableRuntimeObservations, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
+import { assessRuntimeIdentity, collectRuntimeIdentitySnapshot, compareRuntimeSnapshots, selectableRuntimeObservations, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
 import { classifyKeyExpression, createProjectEscapeIndex, RIPPLE_IDENTITY_RUNTIME, sourceAnnotationPlugin } from './source-annotation'
 import { removeLink, removeTree } from './test-fixture-dir'
 
@@ -976,6 +976,80 @@ describe('runtime identity assessment', () => {
     const ambiguous = record({ sourceVersion: undefined, reasons: ['source-version-ambiguous'] })
     expect(assessRuntimeIdentity(graph, snap([ambiguous]), ambiguous, { fileDigest, expectedPage: page })).toMatchObject({ locatable: false, instanceIdentityProven: false })
     expect(assessRuntimeIdentity(graph, snap([record()]), record(), { fileDigest: () => { throw new Error('ENOENT') }, expectedPage: page }).reasons).toEqual(['source-version-unavailable'])
+  })
+
+  it.each(['/?tab=b', '/#/products', '/?tab=b#/products'])(
+    'fails closed for a v1 path-only instance on page URL %s while retaining its source location',
+    location => {
+      const previousLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      const versionRegistryKey = Symbol.for('ripple.runtime-identity')
+      const previousRegistryDescriptor = Object.getOwnPropertyDescriptor(globalThis, versionRegistryKey)
+      try {
+        window.history.replaceState(null, '', location)
+        Object.defineProperty(globalThis, versionRegistryKey, {
+          value: { sourceVersions: new Map([['src/App.jsx', 'v1']]), sourceVersionHistory: new Map() },
+          configurable: true,
+          writable: true,
+        })
+        document.body.innerHTML = '<div data-ripple-source="jsx:src/App.jsx#10" data-ripple-instance="/:jsx:src/App.jsx#10" data-ripple-identity-certainty="stable-react-instance"></div>'
+        const snapshot = collectRuntimeIdentitySnapshot()
+        const collected = snapshot.records[0]
+        const assessment = assessRuntimeIdentity(graph, snapshot, collected, {
+          fileDigest: file => file === 'src/App.jsx' ? 'v1' : undefined,
+          expectedPage: snapshot.page,
+        })
+
+        expect(snapshot.page).toMatchObject({
+          pathname: new URL(location, window.location.origin).pathname,
+          search: new URL(location, window.location.origin).search,
+          hash: new URL(location, window.location.origin).hash,
+        })
+        expect(collected).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
+        expect(assessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
+      } finally {
+        document.body.replaceChildren()
+        window.history.replaceState(null, '', previousLocation || '/')
+        if (previousRegistryDescriptor) Object.defineProperty(globalThis, versionRegistryKey, previousRegistryDescriptor)
+        else Reflect.deleteProperty(globalThis, versionRegistryKey)
+      }
+    },
+  )
+
+  it('keeps a same-path v1 namespace ambiguous after observed query/hash navigation returns to empty URL', () => {
+    const previousLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const registryKey = Symbol.for('ripple.runtime-identity')
+    const collectorKey = Symbol.for('ripple.runtime-identity.collector')
+    const previousRegistryDescriptor = Object.getOwnPropertyDescriptor(globalThis, registryKey)
+    const previousCollectorDescriptor = Object.getOwnPropertyDescriptor(globalThis, collectorKey)
+    try {
+      Reflect.deleteProperty(globalThis, collectorKey)
+      window.history.replaceState(null, '', '/runtime.html?tab=a#/home')
+      Object.defineProperty(globalThis, registryKey, {
+        value: { sourceVersions: new Map([['src/App.jsx', 'v1']]), sourceVersionHistory: new Map() },
+        configurable: true,
+        writable: true,
+      })
+      document.body.innerHTML = '<div data-ripple-source="jsx:src/App.jsx#10" data-ripple-instance="/runtime.html:jsx:src/App.jsx#10" data-ripple-identity-certainty="stable-react-instance"></div>'
+
+      const before = collectRuntimeIdentitySnapshot()
+      expect(before.records[0].reasons).toContain('route-namespace-stale')
+      window.history.replaceState(null, '', '/runtime.html')
+      const after = collectRuntimeIdentitySnapshot()
+      const collected = after.records[0]
+      const assessment = assessRuntimeIdentity(graph, after, collected, { fileDigest, expectedPage: after.page })
+
+      expect(after.page).toMatchObject({ pathname: '/runtime.html', search: '', hash: '' })
+      expect(collected).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
+      expect(assessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
+      expect(selectableRuntimeObservations(after)).toEqual([])
+    } finally {
+      document.body.replaceChildren()
+      window.history.replaceState(null, '', previousLocation || '/')
+      if (previousRegistryDescriptor) Object.defineProperty(globalThis, registryKey, previousRegistryDescriptor)
+      else Reflect.deleteProperty(globalThis, registryKey)
+      if (previousCollectorDescriptor) Object.defineProperty(globalThis, collectorKey, previousCollectorDescriptor)
+      else Reflect.deleteProperty(globalThis, collectorKey)
+    }
   })
 
   it('keeps only identities that survived collection for source navigation', () => {
