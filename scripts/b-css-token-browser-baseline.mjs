@@ -312,8 +312,38 @@ async function hoverStyle(page, selector) {
   }
 }
 
-async function capture(page, viewport, theme, method, screenshotPath, browserErrors) {
-  await page.waitForTimeout(250)
+async function movePointerToNeutral(page) {
+  const point = await page.evaluate(() => {
+    const targets = ['.btn-primary', '.nav-link', '.skill-badge']
+    const candidates = [
+      [1, 1], [innerWidth - 2, 1], [1, innerHeight - 2], [innerWidth - 2, innerHeight - 2],
+      [Math.floor(innerWidth / 2), 1], [Math.floor(innerWidth / 2), innerHeight - 2],
+    ]
+    return candidates.find(([x, y]) => {
+      const element = document.elementFromPoint(x, y)
+      return !element || !targets.some(selector => element.matches(selector) || element.closest(selector))
+    }) ?? null
+  })
+  await page.mouse.move(point?.[0] ?? -1, point?.[1] ?? -1)
+  const hoverRemains = await page.evaluate(() => ['.btn-primary', '.nav-link', '.skill-badge'].some(selector =>
+    [...document.querySelectorAll(selector)].some(element => element.matches(':hover'))))
+  if (hoverRemains) throw new Error('could not move the pointer away from style consumers before sampling')
+}
+
+async function capture(page, viewport, theme, method, revision, screenshotPath, browserErrors) {
+  await movePointerToNeutral(page)
+  const expectedButtonBackground = hexToRgb(expectedThemeAccent(theme, revision))
+  let buttonTransitionSettled = true
+  try {
+    await page.waitForFunction(expected => {
+      const button = document.querySelector('.btn-primary')
+      return Boolean(button) && getComputedStyle(button).backgroundColor === expected
+    }, expectedButtonBackground, { timeout: 5_000 })
+  } catch {
+    // Keep sampling the real computed value. The ordinary assertion below
+    // reports a mismatch instead of converting a transition timeout to PASS.
+    buttonTransitionSettled = false
+  }
   const selectors = {
     sectionTitle: await styleFor(page, '.section-title'),
     nameHighlight: await styleFor(page, '.name-highlight'),
@@ -327,6 +357,7 @@ async function capture(page, viewport, theme, method, screenshotPath, browserErr
   }
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.waitForTimeout(100)
+  await movePointerToNeutral(page)
   const layout = await page.evaluate(() => {
     const rect = selector => {
       const element = document.querySelector(selector)
@@ -350,6 +381,7 @@ async function capture(page, viewport, theme, method, screenshotPath, browserErr
     viewport,
     route: '#/',
     url: page.url(),
+    transitionSettle: { selector: '.btn-primary', property: 'backgroundColor', expected: expectedButtonBackground, matchedBeforeCapture: buttonTransitionSettled },
     selectors,
     layout,
     browserErrors: [...browserErrors],
@@ -417,9 +449,9 @@ async function captureCopy(root, label, baseUrl, sourceServing, routePaths) {
         await page.reload({ waitUntil: 'commit', timeout: 15_000 })
         await page.locator(ROUTE_SENTINELS['/']).waitFor({ state: 'attached', timeout: 20_000 })
         const darkMethod = await setTheme(page, 'dark')
-        const dark = await capture(page, viewport, 'dark', darkMethod.method, path.join(artifactRoot, `${label}-dark-${viewportKey(viewport)}.png`), browserErrors)
+        const dark = await capture(page, viewport, 'dark', darkMethod.method, label, path.join(artifactRoot, `${label}-dark-${viewportKey(viewport)}.png`), browserErrors)
         const lightMethod = await setTheme(page, 'light')
-        const light = await capture(page, viewport, 'light', lightMethod.method, path.join(artifactRoot, `${label}-light-${viewportKey(viewport)}.png`), browserErrors)
+        const light = await capture(page, viewport, 'light', lightMethod.method, label, path.join(artifactRoot, `${label}-light-${viewportKey(viewport)}.png`), browserErrors)
         runs.push({ viewport, dark, light, sourceServing })
 
         for (const theme of ['dark', 'light']) {
