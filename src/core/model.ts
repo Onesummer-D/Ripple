@@ -257,18 +257,8 @@ export type RuntimeIdentityArchiveFailureReason =
   | 'version-unverifiable'
   | 'artifact-hash-mismatch'
 
-export interface RuntimeRunIdentityArchiveFailure {
-  checkId: Id
-  route: string
-  viewport: { width: number; height: number }
-  state: string
-  side: 'baseline' | 'candidate'
-  archive: 'failed'
-  reason: RuntimeIdentityArchiveFailureReason
-  /** The container's claim only. Its presence is not proof of artifact integrity. */
-  declaredSnapshotSha256?: string
-  detail?: string
-}
+/** Capture/integrity failures cannot carry a trusted Snapshot. Version failures are a separate host result below. */
+export type RuntimeIdentityArtifactFailureReason = Exclude<RuntimeIdentityArchiveFailureReason, 'version-unverifiable'>
 
 export interface RuntimeRunIdentityAssessmentEntry {
   recordKey: string
@@ -277,6 +267,9 @@ export interface RuntimeRunIdentityAssessmentEntry {
 }
 
 export interface RuntimeRunIdentity {
+  /** The host verified the archived Snapshot and the bound source revision. */
+  archive: 'stored'
+  assessmentStatus: 'complete'
   checkId: Id
   route: string
   viewport: { width: number; height: number }
@@ -288,6 +281,31 @@ export interface RuntimeRunIdentity {
   sourceDigests: Record<string, string>
   boundDigest: string
   artifacts: { snapshot: { path: string; sha256: string } }
+}
+
+/**
+ * The Snapshot bytes passed host archive verification, but the side's source tree/graph could not be bound.
+ * Per-record assessments are retained for traceability and must all remain non-proving.
+ */
+export interface RuntimeRunIdentityVersionFailure extends Omit<RuntimeRunIdentity, 'assessmentStatus'> {
+  archive: 'stored'
+  assessmentStatus: 'version-unverifiable'
+  reason: 'version-unverifiable'
+  detail: string
+}
+
+/** Collection or artifact integrity failed. No Snapshot is trusted or attached. */
+export interface RuntimeRunIdentityArchiveFailure {
+  checkId: Id
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  side: 'baseline' | 'candidate'
+  archive: 'failed'
+  reason: RuntimeIdentityArtifactFailureReason
+  /** The container's claim only. Its presence is not proof of artifact integrity. */
+  declaredSnapshotSha256?: string
+  detail?: string
 }
 
 export interface VerificationRun {
@@ -316,7 +334,7 @@ export interface VerificationRun {
    */
   visualEvidences?: VisualRunEvidence[]
   /** Host-verified runtime identity data; supplementary and outside the seven assertion gate. */
-  runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityArchiveFailure>
+  runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityVersionFailure | RuntimeRunIdentityArchiveFailure>
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }

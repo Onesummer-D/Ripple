@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type {
   BrowserVerificationContract,
-  RuntimeIdentityArchiveFailureReason,
+  RuntimeIdentityArtifactFailureReason,
   RuntimeRunIdentityArchiveFailure,
   RuntimePageContext,
 } from './model'
@@ -17,8 +17,8 @@ const HASH_PATTERN = /^[a-f0-9]{64}$/
 const DETAIL_LIMIT = 240
 const READ_CHUNK_BYTES = 64 * 1024
 
-const archiveFailureReasons: readonly RuntimeIdentityArchiveFailureReason[] = [
-  'collector-error', 'snapshot-unavailable', 'side-missing', 'version-unverifiable', 'artifact-hash-mismatch',
+const archiveFailureReasons: readonly RuntimeIdentityArtifactFailureReason[] = [
+  'collector-error', 'snapshot-unavailable', 'side-missing', 'artifact-hash-mismatch',
 ]
 const runtimeIdentityReasons = new Set([
   'invalid-certainty', 'unmapped-owner', 'instance-unavailable', 'duplicate-runtime-instance',
@@ -73,7 +73,7 @@ export interface ReadRuntimeIdentityArchivesInput {
 
 class ArchiveReadError extends Error {
   constructor(
-    readonly reason: RuntimeIdentityArchiveFailureReason,
+    readonly reason: RuntimeIdentityArtifactFailureReason,
     readonly detail: string,
     readonly artifactLanded = false,
   ) {
@@ -167,7 +167,7 @@ function captureKey(value: unknown): string | undefined {
 
 function failure(
   plan: RuntimeIdentityCapturePlan,
-  reason: RuntimeIdentityArchiveFailureReason,
+  reason: RuntimeIdentityArtifactFailureReason,
   detail?: unknown,
   declaredSnapshotSha256?: unknown,
 ): RuntimeRunIdentityArchiveFailure {
@@ -185,9 +185,10 @@ function failure(
   }
 }
 
-function failureReason(value: unknown): RuntimeIdentityArchiveFailureReason {
-  return typeof value === 'string' && archiveFailureReasons.includes(value as RuntimeIdentityArchiveFailureReason)
-    ? value as RuntimeIdentityArchiveFailureReason
+function failureReason(value: unknown): RuntimeIdentityArtifactFailureReason {
+  // `version-unverifiable` is host-only: a container claim cannot establish source-version failure.
+  return typeof value === 'string' && archiveFailureReasons.includes(value as RuntimeIdentityArtifactFailureReason)
+    ? value as RuntimeIdentityArtifactFailureReason
     : 'snapshot-unavailable'
 }
 

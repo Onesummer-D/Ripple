@@ -65,7 +65,7 @@ function stored(side: 'baseline' | 'candidate', value = snapshot(), sourceVersio
   }
 }
 
-function fixture(options: { baseline?: RuntimeIdentityArchiveReadEntry; candidate?: RuntimeIdentityArchiveReadEntry; baselineBound?: string; candidateBound?: string; paths?: Array<{ pageRef: string; path: string; markerText: string }>; } = {}) {
+function fixture(options: { baseline?: RuntimeIdentityArchiveReadEntry; candidate?: RuntimeIdentityArchiveReadEntry; baselineBound?: string; candidateBound?: string; paths?: Array<{ pageRef: string; path: string; markerText: string }>; route?: string; omitContract?: boolean; } = {}) {
   const baselineRoot = rootWithSource(baseBytes)
   const candidateRoot = rootWithSource(candidateBytes)
   const baselineTreeDigest = digestTrackedTree(baselineRoot)
@@ -75,10 +75,10 @@ function fixture(options: { baseline?: RuntimeIdentityArchiveReadEntry; candidat
   const planned = [
     options.baseline ?? stored('baseline'),
     options.candidate ?? stored('candidate', snapshot([record({ sourceVersion: hashText(candidateBytes) })]), hashText(candidateBytes)),
-  ]
+  ].map(entry => options.route ? { ...entry, route: options.route } : entry)
   const result = assessRuntimeIdentityArchives({
     archiveEntries: planned,
-    verificationContract: { pages: options.paths ?? [{ pageRef: 'page:home', path: '/', markerText: 'Home' }], interactions: [] },
+    verificationContract: options.omitContract ? undefined : { pages: options.paths ?? [{ pageRef: 'page:home', path: '/', markerText: 'Home' }], interactions: [] },
     sides: {
       baseline: { root: baselineRoot, graph: graph(baselineBound), boundDigest: baselineBound },
       candidate: { root: candidateRoot, graph: graph(candidateBound), boundDigest: candidateBound },
@@ -100,10 +100,12 @@ describe('host runtime identity assessment', () => {
     expect(result).toHaveLength(2)
     expect(result.map(item => item.side)).toEqual(['baseline', 'candidate'])
     expect(baseline).toMatchObject({
+      archive: 'stored', assessmentStatus: 'complete',
       boundDigest: baselineTreeDigest, sourceDigests: { 'src/App.tsx': hashText(baseBytes) },
-      assessments: [{ recordKey: 'jsx:src/App.tsx#1#/:jsx:src/App.tsx#1', assessment: { instanceIdentityProven: true, reasons: [] }, assessmentSha256: expect.stringMatching(/^[a-f0-9]{64}$/) }],
+      assessments: [{ recordKey: JSON.stringify(['jsx:src/App.tsx#1', '/:jsx:src/App.tsx#1', 0]), assessment: { instanceIdentityProven: true, reasons: [] }, assessmentSha256: expect.stringMatching(/^[a-f0-9]{64}$/) }],
     })
     expect(candidate).toMatchObject({
+      archive: 'stored', assessmentStatus: 'complete',
       boundDigest: candidateTreeDigest, sourceDigests: { 'src/App.tsx': hashText(candidateBytes) },
       assessments: [{ assessment: { instanceIdentityProven: true, reasons: [] } }],
     })
@@ -126,6 +128,31 @@ describe('host runtime identity assessment', () => {
     expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: ['page-context-mismatch'] } }] })
   })
 
+  it('derives the full page tuple from trusted contract paths and fails closed on missing or ambiguous mappings', () => {
+    const exactCases = [
+      { route: '/products', page: { pathname: '/products', search: '', hash: '' } },
+      { route: '/products?tab=spec', page: { pathname: '/products', search: '?tab=spec', hash: '' } },
+      { route: '/#/products', page: { pathname: '/', search: '', hash: '#/products' } },
+      { route: '/products?tab=spec#reviews', page: { pathname: '/products', search: '?tab=spec', hash: '#reviews' } },
+    ]
+    for (const item of exactCases) {
+      const baseline = stored('baseline', snapshot([record()], item.page))
+      const { result } = fixture({ baseline, route: item.route, paths: [{ pageRef: 'page:test', path: item.route, markerText: 'Test' }] })
+      expect(result[0]).toMatchObject({ archive: 'stored', assessmentStatus: 'complete', assessments: [{ assessment: { instanceIdentityProven: true } }] })
+    }
+
+    const ambiguousCases: Array<{ omitContract?: boolean; route?: string; paths?: Array<{ pageRef: string; path: string; markerText: string }> }> = [
+      { omitContract: true },
+      { paths: [] },
+      { paths: [{ pageRef: 'page:a', path: '/', markerText: 'A' }, { pageRef: 'page:b', path: '/', markerText: 'B' }] },
+      { route: '/products', paths: [{ pageRef: 'page:a', path: '/products', markerText: 'A' }, { pageRef: 'page:b', path: '/products#', markerText: 'B' }] },
+    ]
+    for (const options of ambiguousCases) {
+      const { result } = fixture(options)
+      expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: expect.arrayContaining(['page-context-unverified']) } }] })
+    }
+  })
+
   it('downgrades a source version copied from the other side', () => {
     const baseline = stored('baseline', snapshot([record({ sourceVersion: hashText(candidateBytes) })]))
     const { result } = fixture({ baseline })
@@ -137,14 +164,17 @@ describe('host runtime identity assessment', () => {
     expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: ['page-context-unverified'] } }] })
   })
 
-  it('checks repeated runtime ids across the complete snapshot and downgrades every colliding record', () => {
+  it('assigns unique tuple keys to duplicate records and downgrades every colliding runtime id', () => {
     const duplicate = record({ domNode: 2 })
     const baseline = stored('baseline', snapshot([record(), duplicate]))
     const { result } = fixture({ baseline })
     expect(result[0]).toMatchObject({ assessments: [
-      { assessment: { instanceIdentityProven: false, reasons: ['duplicate-runtime-instance'] } },
-      { assessment: { instanceIdentityProven: false, reasons: ['duplicate-runtime-instance'] } },
+      { recordKey: JSON.stringify(['jsx:src/App.tsx#1', '/:jsx:src/App.tsx#1', 0]), assessment: { instanceIdentityProven: false, reasons: ['duplicate-runtime-instance'] } },
+      { recordKey: JSON.stringify(['jsx:src/App.tsx#1', '/:jsx:src/App.tsx#1', 1]), assessment: { instanceIdentityProven: false, reasons: ['duplicate-runtime-instance'] } },
     ] })
+    const assessments = (result[0] as { assessments: Array<{ recordKey: string; assessment: { instanceIdentityProven: boolean } }> }).assessments
+    expect(new Set(assessments.map(item => item.recordKey)).size).toBe(assessments.length)
+    expect(assessments.every(item => item.assessment.instanceIdentityProven === false)).toBe(true)
   })
 
   it('records an empty runtime instance id as unavailable while retaining the source record assessment', () => {
@@ -153,9 +183,15 @@ describe('host runtime identity assessment', () => {
     expect(result[0]).toMatchObject({ assessments: [{ assessment: { instanceIdentityProven: false, reasons: ['instance-unavailable'] } }] })
   })
 
-  it('returns version-unverifiable for a side whose graph revision is not the bound revision', () => {
+  it('retains only host-verified Snapshot evidence when side version binding fails', () => {
     const { result } = fixture({ baselineBound: 'd'.repeat(64) })
-    expect(result[0]).toMatchObject({ archive: 'failed', reason: 'version-unverifiable', side: 'baseline' })
+    expect(result[0]).toMatchObject({
+      archive: 'stored', assessmentStatus: 'version-unverifiable', reason: 'version-unverifiable', side: 'baseline',
+      snapshot: { protocol: RUNTIME_IDENTITY_PROTOCOL, records: [expect.any(Object)] },
+      snapshotSha256: 'a'.repeat(64), artifacts: { snapshot: { path: 'identity/desktop/baseline.json', sha256: 'a'.repeat(64) } },
+      assessments: [{ assessment: { instanceIdentityProven: false, locatable: false, reasons: expect.arrayContaining(['source-version-unavailable']) } }],
+    })
+    expect('snapshot' in result[1] && result[1].assessmentStatus === 'complete').toBe(true)
     expect('assessments' in result[1]).toBe(true)
   })
 
@@ -174,7 +210,8 @@ describe('host runtime identity assessment', () => {
         candidate: { root: candidateRoot, graph: graph(candidateDigest), boundDigest: candidateDigest },
       },
     })
-    expect(result[0]).toMatchObject({ archive: 'failed', reason: 'version-unverifiable' })
+    expect(result[0]).toMatchObject({ archive: 'stored', assessmentStatus: 'version-unverifiable', reason: 'version-unverifiable', snapshot: { records: [expect.any(Object)] } })
+    if ('assessments' in result[0]) expect(result[0].assessments.every(item => item.assessment.instanceIdentityProven === false)).toBe(true)
   })
 
   it('preserves A① capture failures as keyed host failure entries', () => {

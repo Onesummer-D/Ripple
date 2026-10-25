@@ -3,6 +3,7 @@ import type {
   BrowserVerificationContract,
   RuntimeRunIdentity,
   RuntimeRunIdentityArchiveFailure,
+  RuntimeRunIdentityVersionFailure,
   SourceGraph,
 } from './model'
 import { assessRuntimeIdentity, sourceFileFromRef, type RuntimeIdentityRecord } from './runtime-identity'
@@ -23,28 +24,32 @@ export interface AssessRuntimeIdentityArchivesInput {
   sides: Record<'baseline' | 'candidate', RuntimeIdentitySideSource>
 }
 
+const CONTRACT_ORIGIN = 'http://ripple.local'
 const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex')
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 
-function expectedPageFor(route: string, contract: BrowserVerificationContract | undefined) {
-  const matches = contract?.pages.filter(page => page.path === route) ?? []
-  if (matches.length !== 1) return undefined
-  return { pathname: matches[0].path, search: '', hash: '' }
+function parseSameOriginPagePath(value: unknown) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return undefined
+  try {
+    const parsed = new URL(value, CONTRACT_ORIGIN)
+    if (parsed.origin !== CONTRACT_ORIGIN) return undefined
+    return { pathname: parsed.pathname, search: parsed.search, hash: parsed.hash }
+  } catch {
+    return undefined
+  }
 }
 
-function failedVersionBinding(
-  entry: Extract<RuntimeIdentityArchiveReadEntry, { archive: 'stored' }>,
-): RuntimeRunIdentityArchiveFailure {
-  return {
-    checkId: entry.checkId,
-    route: entry.route,
-    viewport: { ...entry.viewport },
-    state: entry.state,
-    side: entry.side,
-    archive: 'failed',
-    reason: 'version-unverifiable',
-    detail: `${entry.side} source tree or graph revision does not match its trusted bound digest.`,
-  }
+function samePagePath(left: { pathname: string; search: string; hash: string }, right: { pathname: string; search: string; hash: string }): boolean {
+  return left.pathname === right.pathname && left.search === right.search && left.hash === right.hash
+}
+
+function expectedPageFor(route: string, contract: BrowserVerificationContract | undefined) {
+  const routePage = parseSameOriginPagePath(route)
+  if (!routePage || !Array.isArray(contract?.pages)) return undefined
+  const matches = contract.pages
+    .map(page => parseSameOriginPagePath(page?.path))
+    .filter((page): page is NonNullable<typeof page> => !!page && samePagePath(page, routePage))
+  return matches.length === 1 ? matches[0] : undefined
 }
 
 function revisionBound(side: RuntimeIdentitySideSource): boolean {
@@ -69,13 +74,28 @@ function hostRecordForAssessment(record: RuntimeIdentityRecord, duplicateIds: Re
   }
 }
 
-function assessStoredEntry(
-  entry: Extract<RuntimeIdentityArchiveReadEntry, { archive: 'stored' }>,
-  input: AssessRuntimeIdentityArchivesInput,
-): RuntimeRunIdentity | RuntimeRunIdentityArchiveFailure {
-  const side = input.sides[entry.side]
-  if (!revisionBound(side)) return failedVersionBinding(entry)
+/** Stable, unambiguous tuple key; the snapshot index distinguishes duplicate source/id records. */
+export function runtimeIdentityRecordKey(record: RuntimeIdentityRecord, index: number): string {
+  return JSON.stringify([record.sourceRef, record.runtimeInstanceId ?? null, index])
+}
 
+function sourceDigestsFor(records: readonly RuntimeIdentityRecord[], side: RuntimeIdentitySideSource): Record<string, string> {
+  const files = [...new Set(records.map(record => sourceFileFromRef(record.sourceRef)).filter((file): file is string => !!file))].sort()
+  const sourceDigests: Record<string, string> = {}
+  for (const file of files) {
+    try { sourceDigests[file] = servedSourceDigest(side.root, file) }
+    catch { /* Missing or unsafe source files become source-version-unavailable per record. */ }
+  }
+  return Object.fromEntries(Object.entries(sourceDigests).sort(([left], [right]) => left.localeCompare(right, 'en')))
+}
+
+function assessRecords(
+  entry: Extract<RuntimeIdentityArchiveReadEntry, { archive: 'stored' }>,
+  side: RuntimeIdentitySideSource,
+  sourceDigests: Record<string, string>,
+  expectedPage: ReturnType<typeof parseSameOriginPagePath>,
+  versionBound: boolean,
+) {
   const records = entry.snapshot.records
   const idCounts = new Map<string, number>()
   const sourceCounts = new Map<string, number>()
@@ -84,26 +104,39 @@ function assessStoredEntry(
     sourceCounts.set(record.sourceRef, (sourceCounts.get(record.sourceRef) ?? 0) + 1)
   }
   const duplicateIds = new Set([...idCounts].filter(([, count]) => count > 1).map(([id]) => id))
-  const files = [...new Set(records.map(record => sourceFileFromRef(record.sourceRef)).filter((file): file is string => !!file))].sort()
-  const sourceDigests: Record<string, string> = {}
-  for (const file of files) {
-    try { sourceDigests[file] = servedSourceDigest(side.root, file) }
-    catch { /* Missing or unsafe source files become source-version-unavailable per record. */ }
-  }
 
-  const expectedPage = expectedPageFor(entry.route, input.verificationContract)
-  const assessments = records.map((record, index) => {
+  return records.map((record, index) => {
     const hostRecord = hostRecordForAssessment(record, duplicateIds, sourceCounts)
     const sourceFile = sourceFileFromRef(record.sourceRef)
     const assessment = assessRuntimeIdentity(side.graph, entry.snapshot, hostRecord, {
-      fileDigest: file => sourceFile && file === sourceFile ? sourceDigests[sourceFile] : undefined,
+      // A graph/root binding failure withholds source digests even when files can be read.
+      fileDigest: file => versionBound && sourceFile && file === sourceFile ? sourceDigests[sourceFile] : undefined,
       ...(expectedPage ? { expectedPage } : {}),
     })
-    const recordKey = `${record.sourceRef}#${record.runtimeInstanceId ?? `@${index}`}`
-    return { recordKey, assessment, assessmentSha256: sha256(canonicalRuntimeIdentityJson(assessment)) }
+    const failClosedAssessment = versionBound ? assessment : {
+      ...assessment,
+      locatable: false,
+      instanceIdentityProven: false,
+      reasons: [...new Set([...assessment.reasons, 'source-version-unavailable' as const])],
+    }
+    return {
+      recordKey: runtimeIdentityRecordKey(record, index),
+      assessment: failClosedAssessment,
+      assessmentSha256: sha256(canonicalRuntimeIdentityJson(failClosedAssessment)),
+    }
   })
+}
 
-  return {
+function assessStoredEntry(
+  entry: Extract<RuntimeIdentityArchiveReadEntry, { archive: 'stored' }>,
+  input: AssessRuntimeIdentityArchivesInput,
+): RuntimeRunIdentity | RuntimeRunIdentityVersionFailure {
+  const side = input.sides[entry.side]
+  const versionBound = revisionBound(side)
+  const sourceDigests = sourceDigestsFor(entry.snapshot.records, side)
+  const expectedPage = expectedPageFor(entry.route, input.verificationContract)
+  const verifiedArchive = {
+    archive: 'stored' as const,
     checkId: entry.checkId,
     route: entry.route,
     viewport: { ...entry.viewport },
@@ -111,15 +144,22 @@ function assessStoredEntry(
     side: entry.side,
     snapshot: entry.snapshot,
     snapshotSha256: entry.snapshotSha256,
-    assessments,
-    sourceDigests: Object.fromEntries(Object.entries(sourceDigests).sort(([left], [right]) => left.localeCompare(right, 'en'))),
+    assessments: assessRecords(entry, side, sourceDigests, expectedPage, versionBound),
+    sourceDigests,
     boundDigest: side.boundDigest,
     artifacts: { snapshot: { ...entry.artifact.snapshot } },
   }
+  if (!versionBound) return {
+    ...verifiedArchive,
+    assessmentStatus: 'version-unverifiable',
+    reason: 'version-unverifiable',
+    detail: `${entry.side} source tree or graph revision does not match its trusted bound digest.`,
+  }
+  return { ...verifiedArchive, assessmentStatus: 'complete' }
 }
 
 /** Host-only assessment of already host-verified A① snapshots. */
-export function assessRuntimeIdentityArchives(input: AssessRuntimeIdentityArchivesInput): Array<RuntimeRunIdentity | RuntimeRunIdentityArchiveFailure> {
+export function assessRuntimeIdentityArchives(input: AssessRuntimeIdentityArchivesInput): Array<RuntimeRunIdentity | RuntimeRunIdentityVersionFailure | RuntimeRunIdentityArchiveFailure> {
   return input.archiveEntries.map(entry => entry.archive === 'stored'
     ? assessStoredEntry(entry, input)
     : { ...entry, viewport: { ...entry.viewport } })

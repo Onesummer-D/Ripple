@@ -218,6 +218,7 @@ describe('host runtime identity archive verification', () => {
     fs.appendFileSync(artifactFile(root, baselinePlan), ' ')
     const result = read(root, [baseline, storedEntry(root, candidatePlan)])
     expect(result.entries[0]).toMatchObject({ archive: 'failed', reason: 'artifact-hash-mismatch', declaredSnapshotSha256: baseline.snapshotSha256 })
+    expect('snapshot' in result.entries[0]).toBe(false)
     expect(result.entries[1].archive).toBe('stored')
   })
 
