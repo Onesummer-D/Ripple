@@ -795,6 +795,7 @@ async function main() {
       routeCensusRows: report.routeCensus.length,
       screenshots: screenshotFiles.length,
       traces: report.runtimeEnvironment.traceFiles.length,
+      failedChecks: report.checks.filter(check => check.status === 'fail').map(check => ({ name: check.name, detail: check.detail })),
       targetApplicability: report.targetApplicability,
     }, null, 2))
     const blocking = checks.some(check => check.status === 'fail' || check.status === 'unknown' || check.status === 'risk') || routeCensusSummary.fail > 0
