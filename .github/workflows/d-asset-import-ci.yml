@@ -1,0 +1,45 @@
+name: D Asset Import CI
+
+# 聚焦工作流：独立复现 asset-import-record 的 8 项必需断言（CI-1..CI-8），
+# 不依赖 Docker / Playwright / 公网 egress，不触发 Bolt。
+# 完整 typecheck / build / 浏览器验收由继承的 ci.yml（push 到 feat/** 时）覆盖。
+on:
+  push:
+    branches: [feat/d-asset-import-record-20261024]
+    paths:
+      - 'src/core/asset-import-record.ts'
+      - 'src/core/asset-import-record.test.ts'
+      - 'test/fixtures/asset-import/**'
+      - 'docs/media/**'
+      - '.github/workflows/d-asset-import-ci.yml'
+      - 'src/core/media-asset-staging.ts'
+      - 'src/core/media-asset-swap.ts'
+      - 'src/core/candidate.ts'
+      - 'src/core/project.ts'
+      - 'src/core/model.ts'
+  pull_request:
+    paths:
+      - 'src/core/asset-import-record.ts'
+      - 'src/core/asset-import-record.test.ts'
+      - 'test/fixtures/asset-import/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  asset-import-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Typecheck new module against app config
+        run: npx tsc -p tsconfig.app.json --noEmit
+      - name: Run asset-import unit tests (CI-1..CI-8, real assertions, no hand-written PASS)
+        run: npx vitest run src/core/asset-import-record.test.ts --no-file-parallelism
