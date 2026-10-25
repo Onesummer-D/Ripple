@@ -78,6 +78,8 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
     if (process.env.CI) throw new Error('CI 必须具备 Docker 隔离预演：真实点选链路不可跳过')
     test.skip(true, '本机无 Docker：隔离项目预演不可用，真实链路在 CI（ubuntu + Docker）执行')
   }
+  const initialPreviewUrl = await frame.getAttribute('src')
+  expect(initialPreviewUrl, '初始项目预演必须来自服务端会话').toBeTruthy()
 
   // 1-2. 进入画布点选 → 在 iframe 内实际点击标题文字
   await expect(page.getByTestId('picker-toggle')).toBeEnabled()
@@ -190,7 +192,6 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
 
   // 6c. 异步切换路径（Docker E2E 覆盖要求）：刷新重建预演。
   // A 语义：重新分析使活跃候选退役（fail-closed）——F 必须清掉本地候选与旧验证，绝不展示幽灵候选。
-  const previousPreviewUrl = await page.getByTestId('real-preview-frame').getAttribute('src')
   const refreshedPreviewResponse = page.waitForResponse(response => {
     const responseUrl = new URL(response.url())
     return responseUrl.pathname === '/__ripple/api/project/preview' && response.request().method() === 'POST'
@@ -202,7 +203,7 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   const refreshedPreview = JSON.parse(refreshedPreviewBody) as { previewId: string; url: string }
   expect(refreshedPreview.previewId).toBeTruthy()
   expect(refreshedPreview.url).toBeTruthy()
-  expect(refreshedPreview.url).not.toBe(previousPreviewUrl)
+  expect(refreshedPreview.url).not.toBe(initialPreviewUrl)
   await expect(page.getByTestId('real-preview-frame')).toHaveAttribute('src', refreshedPreview.url, { timeout: 150_000 })
   await expect.poll(() => page.frames().some(candidate => candidate !== page.mainFrame() && candidate.url() === refreshedPreview.url), { timeout: 150_000 })
     .toBe(true)
