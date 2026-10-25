@@ -15,6 +15,9 @@ import type { RuntimeElementObservation, RuntimeIdentityReason, RuntimePageConte
 
 export type RuntimeIdentityCertainty = RuntimeElementObservation['certainty']
 export const RUNTIME_IDENTITY_PROTOCOL = 'ripple-runtime-identity/v1'
+/** Full pathname/search/hash namespace protocol introduced by Runtime Identity v1.2. */
+export const RUNTIME_IDENTITY_PROTOCOL_V2 = 'ripple-runtime-identity/v2'
+export type RuntimeIdentityProtocol = typeof RUNTIME_IDENTITY_PROTOCOL | typeof RUNTIME_IDENTITY_PROTOCOL_V2
 
 export interface RuntimeIdentityRecord {
   sourceRef: string
@@ -38,7 +41,7 @@ export interface RuntimeIdentityRecord {
 }
 
 export interface RuntimeIdentitySnapshot {
-  protocol: typeof RUNTIME_IDENTITY_PROTOCOL
+  protocol: RuntimeIdentityProtocol
   page: RuntimePageContext
   records: RuntimeIdentityRecord[]
 }

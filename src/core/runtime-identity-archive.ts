@@ -7,7 +7,7 @@ import type {
   RuntimeRunIdentityArchiveFailure,
   RuntimePageContext,
 } from './model'
-import { RUNTIME_IDENTITY_PROTOCOL, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
+import { RUNTIME_IDENTITY_PROTOCOL, RUNTIME_IDENTITY_PROTOCOL_V2, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from './runtime-identity'
 // @ts-expect-error Plain ESM is shared with the isolated Chromium executor.
 import { planVisualCaptures, visualViewportDir, VISUAL_CAPTURE_STATE } from './visual-capture-executor.mjs'
 
@@ -125,7 +125,7 @@ function isRuntimeIdentityRecord(value: unknown): value is RuntimeIdentityRecord
 
 function isRuntimeIdentitySnapshot(value: unknown): value is RuntimeIdentitySnapshot {
   return isObject(value) && hasOnlyKeys(value, ['protocol', 'page', 'records']) &&
-    value.protocol === RUNTIME_IDENTITY_PROTOCOL && isRuntimePageContext(value.page) &&
+    (value.protocol === RUNTIME_IDENTITY_PROTOCOL || value.protocol === RUNTIME_IDENTITY_PROTOCOL_V2) && isRuntimePageContext(value.page) &&
     Array.isArray(value.records) && value.records.every(isRuntimeIdentityRecord)
 }
 
@@ -360,7 +360,7 @@ function verifyOneCapture(entryValue: unknown, plan: RuntimeIdentityCapturePlan,
   try { snapshotValue = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) }
   catch { return failure(plan, 'snapshot-unavailable', 'Runtime identity artifact is not valid UTF-8 JSON.', declaredSha256) }
   if (!isRuntimeIdentitySnapshot(snapshotValue)) {
-    return failure(plan, 'snapshot-unavailable', 'Runtime identity snapshot does not match ripple-runtime-identity/v1.', declaredSha256)
+    return failure(plan, 'snapshot-unavailable', 'Runtime identity snapshot does not match the v1.2 protocol schema.', declaredSha256)
   }
   let canonicalBytes: Buffer
   try { canonicalBytes = Buffer.from(`${stableSerialize(snapshotValue)}\n`, 'utf8') }

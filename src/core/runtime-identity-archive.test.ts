@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import type { BrowserVerificationContract } from './model'
-import { RUNTIME_IDENTITY_PROTOCOL, type RuntimeIdentitySnapshot } from './runtime-identity'
+import { RUNTIME_IDENTITY_PROTOCOL, RUNTIME_IDENTITY_PROTOCOL_V2, type RuntimeIdentitySnapshot } from './runtime-identity'
 import {
   planRuntimeIdentityCaptures,
   readRuntimeIdentityArchives,
@@ -143,6 +143,14 @@ describe('host runtime identity archive verification', () => {
       expect(entry.artifact.snapshot.sha256).toBe(digest(actual))
       expect(entry.snapshot.protocol).toBe(RUNTIME_IDENTITY_PROTOCOL)
     }
+  })
+
+  it('accepts a v2 snapshot as an archived protocol while leaving namespace proof to the host assessor', () => {
+    const root = createRunRoot()
+    const v2 = { ...snapshot(), protocol: RUNTIME_IDENTITY_PROTOCOL_V2 }
+    const bytes = Buffer.from(`${canonicalJson(v2)}\n`, 'utf8')
+    const result = read(root, [storedEntry(root, baselinePlan, bytes), storedEntry(root, candidatePlan)])
+    expect(result.entries[0]).toMatchObject({ archive: 'stored', snapshot: { protocol: RUNTIME_IDENTITY_PROTOCOL_V2 } })
   })
 
   it('accepts a legal empty records list', () => {

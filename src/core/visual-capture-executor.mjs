@@ -23,6 +23,7 @@ const CAPTURE_TIMEOUT_MS = 15_000
 const GEOMETRY_FILE_LIMIT_BYTES = 16 * 1024 * 1024
 const RUNTIME_IDENTITY_FILE_LIMIT_BYTES = 16 * 1024 * 1024
 const RUNTIME_IDENTITY_PROTOCOL = 'ripple-runtime-identity/v1'
+const RUNTIME_IDENTITY_PROTOCOL_V2 = 'ripple-runtime-identity/v2'
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 
@@ -158,7 +159,7 @@ function safeIdentityBase(evidenceRoot, dir) {
 
 function isRuntimeIdentitySnapshot(snapshot) {
   return !!snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) &&
-    snapshot.protocol === RUNTIME_IDENTITY_PROTOCOL &&
+    (snapshot.protocol === RUNTIME_IDENTITY_PROTOCOL || snapshot.protocol === RUNTIME_IDENTITY_PROTOCOL_V2) &&
     snapshot.page && typeof snapshot.page === 'object' && !Array.isArray(snapshot.page) &&
     typeof snapshot.page.pathname === 'string' && typeof snapshot.page.search === 'string' &&
     typeof snapshot.page.hash === 'string' && Array.isArray(snapshot.records)
