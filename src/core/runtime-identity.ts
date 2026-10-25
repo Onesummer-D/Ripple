@@ -60,9 +60,28 @@ export function collectRuntimeIdentitySnapshot(options: { root?: string; label?:
   const versions = registry && registry.sourceVersions instanceof Map ? registry.sourceVersions as Map<string, string> : undefined
   const history = registry && (registry as { sourceVersionHistory?: unknown }).sourceVersionHistory instanceof Map ? (registry as { sourceVersionHistory: Map<string, Set<string>> }).sourceVersionHistory : undefined
   const stateKey = Symbol.for('ripple.runtime-identity.collector')
-  if (!host[stateKey]) Object.defineProperty(host, stateKey, { value: { nodes: new WeakMap<Element, number>(), next: 1 }, configurable: true })
-  const state = host[stateKey] as { nodes: WeakMap<Element, number>; next: number }
+  if (!host[stateKey]) Object.defineProperty(host, stateKey, {
+    value: { nodes: new WeakMap<Element, number>(), next: 1, ambiguousPathnames: new Set<string>() },
+    configurable: true,
+  })
+  const state = host[stateKey] as {
+    nodes: WeakMap<Element, number>
+    next: number
+    lastPage?: { pathname: string; search: string; hash: string }
+    ambiguousPathnames?: Set<string>
+  }
+  if (!(state.ambiguousPathnames instanceof Set)) state.ambiguousPathnames = new Set<string>()
   const page = { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash }
+  // v1 ids do not carry search/hash. If collection observed two URL tuples with the
+  // same pathname, a later return to an earlier tuple must not revive retained DOM.
+  // Keep this ambiguity sticky for the document lifetime; v2 render-time tuple ids
+  // will replace this conservative history guard.
+  if (state.lastPage?.pathname === page.pathname &&
+    (state.lastPage.search !== page.search || state.lastPage.hash !== page.hash)) {
+    state.ambiguousPathnames.add(page.pathname)
+  }
+  state.lastPage = page
+  const pageNamespaceAmbiguous = state.ambiguousPathnames.has(page.pathname)
 
   // React's fiber for a DOM node (read-only; React 17+ `__reactFiber$*`, 16 `__reactInternalInstance$*`).
   // Its `key` is the string React already derived from the element's key: reading it runs no
@@ -129,12 +148,17 @@ export function collectRuntimeIdentitySnapshot(options: { root?: string; label?:
       runtimeInstanceId = undefined
       reasons.push('unmapped-owner')
     } else if (!runtimeInstanceId) reasons.push('instance-unavailable')
-    // The id embeds the pathname at render time. A component that did not re-render
-    // after a client-side navigation (React.memo, unchanged props) still shows the
-    // previous route's namespace and must not be attributed to the current page. The
-    // owner part after the namespace is a boundary path (`jsx:`) or a React useId, which
-    // keeps `/a:b:...` from passing as `/a`.
-    else if (!runtimeInstanceId.startsWith(`${page.pathname}:`) || !/^(?:jsx:|[_:\u00ab])/.test(runtimeInstanceId.slice(page.pathname.length + 1))) reasons.push('route-namespace-stale')
+    // v1 ids embed only pathname at render time. A component that did not re-render
+    // after a pathname navigation (React.memo, unchanged props) still shows the old
+    // namespace. Search/hash routes are also unverifiable in v1: even a fresh-looking
+    // pathname prefix cannot distinguish the current page tuple from a retained DOM
+    // instance created under a different query or HashRouter route. Keep v1 locatable,
+    // but never treat it as instance proof while either part is present. The owner part
+    // after the namespace is a boundary path (`jsx:`) or a React useId, which keeps
+    // `/a:b:...` from passing as `/a`.
+    else if (page.search !== '' || page.hash !== '' || pageNamespaceAmbiguous ||
+      !runtimeInstanceId.startsWith(`${page.pathname}:`) ||
+      !/^(?:jsx:|[_:\u00ab])/.test(runtimeInstanceId.slice(page.pathname.length + 1))) reasons.push('route-namespace-stale')
     if (instance.keysUnavailable) reasons.push('react-keys-unavailable')
     if (runtimeInstanceId && (byInstance.get(runtimeInstanceId) ?? 0) > 1) reasons.push('duplicate-runtime-instance')
     let domNode = state.nodes.get(element)
