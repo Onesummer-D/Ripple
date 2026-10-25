@@ -187,10 +187,18 @@ describe('host runtime identity archive verification', () => {
     expect(result.entries[1].archive).toBe('stored')
   })
 
-  it('uses only the five v1.1 archive reasons and fails unknown container reasons closed', () => {
+  it('uses only v1.2 archive failure reasons and fails unknown container reasons closed', () => {
     const root = createRunRoot()
     const result = read(root, [failedEntry(baselinePlan, 'container-invented-state'), storedEntry(root, candidatePlan)])
     expect(result.entries[0]).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
+    expect(result.entries[1].archive).toBe('stored')
+  })
+
+  it('does not accept container-declared version-unverifiable as an archive failure state', () => {
+    const root = createRunRoot()
+    const result = read(root, [failedEntry(baselinePlan, 'version-unverifiable'), storedEntry(root, candidatePlan)])
+    expect(result.entries[0]).toMatchObject({ archive: 'failed', reason: 'snapshot-unavailable' })
+    expect('snapshot' in result.entries[0]).toBe(false)
     expect(result.entries[1].archive).toBe('stored')
   })
 

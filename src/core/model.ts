@@ -256,11 +256,13 @@ export type RuntimeIdentityArchiveFailureReason =
   | 'collector-error'
   | 'snapshot-unavailable'
   | 'side-missing'
-  | 'version-unverifiable'
   | 'artifact-hash-mismatch'
 
-/** Capture/integrity failures cannot carry a trusted Snapshot. Version failures are a separate host result below. */
-export type RuntimeIdentityArtifactFailureReason = Exclude<RuntimeIdentityArchiveFailureReason, 'version-unverifiable'>
+/** Version failure is a stored, integrity-verified Snapshot state, never an archive failure. */
+export type RuntimeIdentityVersionFailureReason = 'version-unverifiable'
+
+/** Capture/integrity failures cannot carry a trusted Snapshot. */
+export type RuntimeIdentityArtifactFailureReason = RuntimeIdentityArchiveFailureReason
 
 export interface RuntimeRunIdentityAssessmentEntry {
   recordKey: string
@@ -294,7 +296,7 @@ export interface RuntimeRunIdentity {
 export interface RuntimeRunIdentityVersionFailure extends Omit<RuntimeRunIdentity, 'assessmentStatus' | 'sourceDigests' | 'boundDigest'> {
   archive: 'stored'
   assessmentStatus: 'version-unverifiable'
-  reason: 'version-unverifiable'
+  reason: RuntimeIdentityVersionFailureReason
   detail: string
   /** Host-observed file digests; diagnostic only because the side revision did not bind. */
   observedSourceDigests: Record<string, string>
@@ -314,6 +316,21 @@ export interface RuntimeRunIdentityArchiveFailure {
   /** The container's claim only. Its presence is not proof of artifact integrity. */
   declaredSnapshotSha256?: string
   detail?: string
+}
+
+/** Host-validated directional mapping; its digest is a content checksum, not a signature. */
+export interface RuntimeIdentitySourceRefMappingReceipt {
+  protocol: 'ripple-source-ref-mapping/v1'
+  verificationRunId: Id
+  candidateId: Id
+  patchHash: string
+  baselineSourceDigest: string
+  candidateSourceDigest: string
+  baselineGraphId: Id
+  candidateGraphId: Id
+  parserSchemaVersion: string
+  mappingSha256: string
+  mappings: Array<{ baselineSourceRef: Id; candidateSourceRef: Id }>
 }
 
 export interface VerificationRun {
@@ -343,6 +360,8 @@ export interface VerificationRun {
   visualEvidences?: VisualRunEvidence[]
   /** Host-verified runtime identity data; supplementary and outside the seven assertion gate. */
   runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityVersionFailure | RuntimeRunIdentityArchiveFailure>
+  /** Only host-validated receipts bound to this run/candidate may enable unequal sourceRef pairing. */
+  runtimeIdentitySourceRefMappings?: RuntimeIdentitySourceRefMappingReceipt[]
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }

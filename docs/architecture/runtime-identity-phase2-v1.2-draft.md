@@ -37,15 +37,14 @@ type RuntimeIdentityCaptureTuple = {
 
 ### 2.1 采集或工件完整性失败
 
-类型为 `RuntimeRunIdentityArchiveFailure`，`archive: 'failed'`，不含 Snapshot、Snapshot hash 或逐 record Assessment。原因继续使用 v1.1 登记的五个字符串：
+类型为 `RuntimeRunIdentityArchiveFailure`，`archive: 'failed'`，不含 Snapshot、Snapshot hash 或逐 record Assessment。v1.1 的归档失败原因词表有五个字符串；v1.2 将版本原因移入 2.2 的独立 stored 状态，因此 v1.2 `archive: 'failed'` 只接受以下四项：
 
 - `collector-error`
 - `snapshot-unavailable`
 - `side-missing`
-- `version-unverifiable`
 - `artifact-hash-mismatch`
 
-在 v1.2 中，`version-unverifiable` 不再表示 Snapshot 归档失败；归档器收到容器自报该值时不得据此认定来源版本失败。来源版本状态由 2.2 的宿主结果表达。路径、JSON、schema、协议、字节大小、哈希、运行点绑定失败均不得附带可信 Snapshot。
+`version-unverifiable` 只允许作为 `RuntimeIdentityVersionFailureReason`，用于 Snapshot 已通过宿主完整性核验、但源码版本无法证明的结果。归档器收到容器自报的 `version-unverifiable` 时，不能据此创建版本失败结果，应按不受支持的容器声明归一为 `snapshot-unavailable`。路径、JSON、schema、协议、字节大小、哈希、运行点绑定失败均不得附带可信 Snapshot。
 
 ### 2.2 Snapshot 已可信归档，但来源版本不可证明
 
@@ -112,7 +111,16 @@ JSON.stringify([sourceRef, runtimeInstanceId ?? null, zeroBasedSnapshotIndex])
 
 `cross-side-assessment-mismatch` 是独立的 `RuntimeIdentityPairReason`，不是第 14 个 `RuntimeIdentityReason`，不得写入或回写单侧 record 的 `reasons`，也不得更改单侧 Assessment 哈希。
 
-只有在两侧各自的宿主 Assessment 已完成、运行点可唯一对应、record 配对唯一且双方身份输入均通过后，E③ 才能对合同列出的 proof-relevant 字段作成对一致性检查。检测到不一致时，pair 结果增加 `cross-side-assessment-mismatch` 并 fail-closed。该 pair 结果只能降级；不能弥补任一侧缺失、版本失败或单侧未证明。
+E③ 的 pair 候选必须先满足：捕获运行点除 side 外完全相同；每侧 `runtimeInstanceId` 非空、在该侧唯一且两侧完全相等；`sourceRef` 完全相等，或存在第 6 节定义的唯一、经宿主核验的定向映射；每侧为 `archive: 'stored'` 且 `assessmentStatus: 'complete'`；两侧 Assessment 均 `locatable: true`、`instanceIdentityProven: true`、`reasons: []`。找不到唯一候选、缺映射或任一侧未证明时，结果是未配对/未证明，不生成 pair mismatch。
+
+候选唯一且两侧证明有效后，pair 一致性投影固定比较：
+
+- `runtimeInstanceId` 精确相等；
+- `certainty` 精确相等；
+- `assessment.page.pathname/search/hash` 三字段精确相等；
+- `sourceRef` 精确相等，或与当前唯一映射 receipt 的 baselineRef→candidateRef 关系精确相等。
+
+sourceRef 映射关系与实例 ID 是配对键。无法满足时不能以 recordKey、snapshotIndex、数组/DOM 顺序或近似关系补配。`sourceVersion`、两侧源码 digest、`recordKey`/index、`assessmentSha256`、Snapshot hash、capture `side`、`domNode`、`sameSourceCount`、`listKey` 和 `label` 不做跨侧相等比较：源码版本与工件摘要按侧独立核验，其余字段不是跨版本实例匹配键。只有有效唯一 pair 的上述一致性字段不一致时，E 在 pair 结果增加 `cross-side-assessment-mismatch` 并 fail-closed。该结果只能降级，不能弥补任一侧缺失、版本失败或单侧未证明；单侧失败只保留单侧失败，不伪造 pair mismatch。
 
 ## 5. 页面身份与 namespace
 
@@ -140,8 +148,10 @@ v2 collector 必须在每次实际 render/evaluation 读取完整 location 三�
 
 - baseline 的源码 digest 绑定到可信 `baseSourceDigest` 及对应 baseline SourceGraph；candidate 绑定到可信 `candidateTreeDigest` 及对应 candidate SourceGraph。两侧分别读取，禁止互换或使用容器自报版本字符串代替宿主 digest。
 - 单独的 sourceRef 精确相等是直接来源定位条件，不等同实例身份相等。仍需两侧 runtimeInstanceId 非空且唯一相等、双方 Assessment 完成并已证明、页面 tuple 与 namespace 可证明。
-- sourceRef 不同时，只能使用正式 Candidate 生命周期产生的唯一、定向 baselineRef→candidateRef 映射。映射须由宿主登记，并绑定 candidateId、patchHash、baseline/candidate graphId、两侧 source digest 和解析器/schema 版本；A 宿主核验映射仍对当前 VerificationRun 有效。容器声明、行号近似、数组顺序、DOM 顺序、几何相似均不是映射。
+- sourceRef 不同时，只能使用正式 Candidate 生命周期产生的唯一、定向 baselineRef→candidateRef 映射。其最小消费位置是 `VerificationRun.runtimeIdentitySourceRefMappings?: RuntimeIdentitySourceRefMappingReceipt[]`。每个 receipt 必须含 `protocol: 'ripple-source-ref-mapping/v1'`、`verificationRunId`、`candidateId`、`patchHash`、`baselineSourceDigest`、`candidateSourceDigest`、`baselineGraphId`、`candidateGraphId`、`parserSchemaVersion`、规范内容 `mappingSha256` 与映射项。每个 baselineRef 和 candidateRef 在同一 receipt 内均须唯一，映射方向固定为 baseline→candidate。`mappingSha256` 是对移除该字段后的其余 receipt 字段规范 JSON（`mappings` 按 baselineSourceRef、candidateSourceRef 排序）UTF-8 字节求 SHA-256；它是内容校验值而非签名。A 只附加已从正式 Candidate 生命周期来源读取、绑定当前 VerificationRun 与 Candidate、并由宿主复核唯一性的 receipt；须核对 run/candidate/patch、两侧 digest、graphId、解析器/schema 版本。E 只能消费挂在当前 run 上的 receipt，并核对所有 binding 字段。容器声明、行号近似、数组顺序、DOM 顺序、几何相似均不是映射。
 - SourceGraph 解析规则或 schema 版本变化会使旧映射失效，必须重新生成和复核。缺失、重复、方向错误、revision 不匹配或过期映射均 fail-closed。
+
+当前 A②-3 不接入 Candidate sourceRef mapping registry；没有 `runtimeIdentitySourceRefMappings` receipt 时，E 对 sourceRef 不相等的 records 一律不配对。receipt 字段是未来启用跨版本位置映射的最小正式接口，不能由 E 从普通 SourceGraph 或容器 Snapshot 自行拼装。
 
 ## 7. Verified Snapshot 与实例证明
 
@@ -161,7 +171,7 @@ A 不因 runtime identity 改写既有七项 Verification 断言，也不修改 
 
 ### E③：消费回执并呈现 pair/view 结果
 
-E 只消费附着在正式 VerificationRun 上的 A 宿主回执。E 不读取容器原始声明来建立信任，不自行重算来源 digest、namespace 或单侧 Assessment，也不将 hash 当作签名。E③ 可按本合同做严格唯一跨侧配对并进行 pair-level 一致性检查；`cross-side-assessment-mismatch` 只出现在 pair 结果中。任何不完整、歧义或失败回执都只能显示为 UNKNOWN/RISK/STALE 等非通过状态。
+E 只消费附着在正式 VerificationRun 上的 A 宿主回执及 A 已核验的 sourceRef mapping receipts。E 不读取容器原始声明来建立信任，不自行重算来源 digest、namespace 或单侧 Assessment，也不将 hash 当作签名。E③ 按本合同做严格唯一跨侧配对和 pair-level 一致性检查；`cross-side-assessment-mismatch` 只出现在 pair 结果中。任何不完整、歧义或失败回执都只能显示为 UNKNOWN/RISK/STALE 等非通过状态。
 
 C+D 负责 v2 namespace 的生成、collector 内 tuple 校验及 13 项单侧 reason 的采集语义；A 负责宿主归档、宿主 Assessment 与正式运行回执；E 负责消费单侧回执、按正式配对条件形成只可降级的 pair/View 展示。角色变更须三方重新会签。
 
