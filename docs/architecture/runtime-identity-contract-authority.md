@@ -6,7 +6,7 @@ Runtime Identity 阶段二的唯一权威合同为 v1.2，正文位置：
 
 `docs/architecture/runtime-identity-phase2-v1.2-draft.md`
 
-已会签冻结提交：`0ba5c70ac9dfb3c3cc1a7606af38e37df7d758d7`  
+已会签冻结提交：`0ba5c70ac9dfb3c3cc1a7606af38e37df7d758d7`
 该提交中的正文 Git blob：`8bbecf6e3f64db2b68506eedaa8eea709d1167de`
 
 C+D 与 E 均对该确切提交完成正式会签：
