@@ -44,27 +44,63 @@ export function normalizeRoutePath(raw) {
   return value || '/'
 }
 
+// Route identity authority and fallback priority: routePath > path > page > label > id.
+// Every path-shaped field is still inspected: a lower-priority contradiction makes
+// the node unresolved instead of allowing a fallback to hide the authoritative path.
+const ROUTE_IDENTITY_FIELDS = Object.freeze(['routePath', 'path', 'page', 'label', 'id'])
+
 function nodeRoutePaths(node) {
-  return [...new Set([node.routePath, node.path, node.page, node.label, node.id]
-    .map(normalizeRoutePath).filter(Boolean))]
+  return ROUTE_IDENTITY_FIELDS.flatMap(field => {
+    const value = node?.[field]
+    const normalizedRoute = normalizeRoutePath(value)
+    return normalizedRoute ? [{ field, value, normalizedRoute }] : []
+  })
+}
+
+function nodeRouteIdentity(node) {
+  const identities = nodeRoutePaths(node)
+  const distinctRoutes = new Set(identities.map(identity => identity.normalizedRoute))
+  const preferred = identities[0] ?? null
+  return {
+    route: distinctRoutes.size > 1 ? null : preferred?.normalizedRoute ?? null,
+    field: distinctRoutes.size > 1 ? null : preferred?.field ?? null,
+    identities,
+    conflict: distinctRoutes.size > 1,
+  }
 }
 
 export function matchExactRoutes(expectedRoutes, routeNodes) {
   const normalized = expectedRoutes.map(route => ({ route, identity: normalizeRoutePath(route) }))
   const validExpected = normalized.every(item => item.identity) &&
     new Set(normalized.map(item => item.identity)).size === normalized.length
+  const assessedNodes = routeNodes.map(node => ({ node, ...nodeRouteIdentity(node) }))
+  const conflictingNodes = assessedNodes.filter(item => item.conflict)
+  const routeIdentityConflicts = conflictingNodes.map(item => ({
+    graphNodeId: item.node.id ?? null,
+    identities: item.identities,
+  }))
   const matches = normalized.map(item => {
-    const candidates = routeNodes.filter(node => nodeRoutePaths(node).includes(item.identity))
+    const candidates = assessedNodes.filter(candidate => !candidate.conflict && candidate.route === item.identity)
+    const conflictNodeIds = conflictingNodes
+      .filter(candidate => candidate.identities.some(identity => identity.normalizedRoute === item.identity))
+      .map(candidate => candidate.node.id ?? null)
     return {
       route: item.route,
       normalizedRoute: item.identity,
-      graphNodeIds: candidates.map(node => node.id),
-      matched: Boolean(item.identity) && candidates.length === 1,
+      graphNodeIds: candidates.map(candidate => candidate.node.id),
+      identityFields: candidates.map(candidate => candidate.field),
+      conflictNodeIds,
+      matched: Boolean(item.identity) && candidates.length === 1 && conflictNodeIds.length === 0,
     }
   })
   const assignedIds = matches.flatMap(item => item.matched ? item.graphNodeIds : [])
   const uniqueAssignments = new Set(assignedIds).size === assignedIds.length
-  return { matches, pass: validExpected && matches.length > 0 && matches.every(item => item.matched) && uniqueAssignments }
+  return {
+    matches,
+    routeIdentityConflicts,
+    pass: validExpected && matches.length > 0 && matches.every(item => item.matched) &&
+      uniqueAssignments && routeIdentityConflicts.length === 0,
+  }
 }
 
 export function selectorClassTokens(selector) {

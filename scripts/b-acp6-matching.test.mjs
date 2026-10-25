@@ -6,6 +6,7 @@ import {
   evaluateAc64,
   exactDefinitionNodes,
   matchExactRoutes,
+  normalizeRoutePath as normalizeRoutePathForTest,
   selectorClassTokens,
   strictTokenConsumerEdge,
 } from './b-acp6-matching.mjs'
@@ -117,4 +118,46 @@ test('AC6.4 rejects an omitted real consumer even when another consumer edge exi
   assert.equal(report.pass, false)
   assert.equal(report.uncoveredConsumerPairs.length, 1)
   assert.equal(report.uncoveredConsumerPairs[0].elementOffset, 200)
+})
+
+test('AC6.3 keeps conflicting routePath, label, and id identities pending', () => {
+  const conflicting = {
+    id: 'route:/about',
+    kind: 'route',
+    routePath: '/about-us',
+    path: '/about-us',
+    label: '/about',
+  }
+  const legacyWouldAccept = [conflicting.routePath, conflicting.path, conflicting.label, conflicting.id]
+    .some(value => normalizeRoutePathForTest(value) === '/about')
+  const result = matchExactRoutes(['/about'], [
+    conflicting,
+    { id: 'route:about-valid', kind: 'route', routePath: '/about' },
+  ])
+  assert.equal(legacyWouldAccept, true)
+  assert.equal(result.pass, false)
+  assert.equal(result.matches[0].matched, false)
+  assert.deepEqual(result.matches[0].conflictNodeIds, ['route:/about'])
+  assert.deepEqual(result.routeIdentityConflicts[0].identities.map(({ field, normalizedRoute }) => [field, normalizedRoute]), [
+    ['routePath', '/about-us'],
+    ['path', '/about-us'],
+    ['label', '/about'],
+    ['id', '/about'],
+  ])
+})
+
+test('AC6.3 maps all seven fixed HashRouter paths to distinct exact nodes', () => {
+  const paths = ['/', '/about', '/experience', '/projects', '/certifications', '/education', '/interests']
+  const nodes = paths.map((routePath, index) => ({
+    id: `route:${index}`,
+    kind: 'page',
+    routePath,
+    path: routePath,
+    label: `Page ${index}`,
+  }))
+  const result = matchExactRoutes(paths, nodes)
+  assert.equal(result.pass, true)
+  assert.deepEqual(result.matches.map(match => match.normalizedRoute), paths)
+  assert.deepEqual(result.matches.map(match => match.identityFields), paths.map(() => ['routePath']))
+  assert.equal(result.routeIdentityConflicts.length, 0)
 })

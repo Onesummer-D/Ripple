@@ -410,8 +410,9 @@ function main() {
     detail: {
       expectedRoutes,
       matchedRoutes,
+      routeIdentityConflicts: routeMatch.routeIdentityConflicts,
       pageNodes: pages.map(p => ({ id: p.id, kind: p.kind, label: p.label, routePath: p.routePath, path: p.path, page: p.page })),
-      matchingContract: 'normalize hash/route prefix, duplicate and trailing slashes; exact path equality only; one distinct node per expected route',
+      matchingContract: 'routePath > path > page > label > id; every path-shaped identity must agree after normalization; conflicts remain PENDING; one distinct node per expected route',
     },
   }
 

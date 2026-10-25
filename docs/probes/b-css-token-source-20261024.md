@@ -163,7 +163,7 @@ A file edge, unrelated consumer, wrong source offset, wrong scope, dynamic-only 
 
 ### AC6.3 — exact route identity
 
-Route identities are normalized for an optional #/, route:/page: prefix, repeated slashes, and trailing slash. Paths then compare by exact equality. Each of the seven fixture paths must map to exactly one distinct route node. For example, /about cannot match /about-us; duplicate identities and reusing one graph node for two paths fail the check.
+Route identity authority and fallback priority are routePath > path > page > label > id. Path-shaped values in all five fields are normalized and compared; every valid identity on one node must agree. A routePath conflict with path, page, label, or id leaves AC6.3 PENDING, and lower-priority label/id values cannot hide it. If the higher-priority field is absent or not path-shaped, the next path-shaped field is the fallback. Each of the seven fixture paths must map to exactly one distinct route node. For example, /about cannot match /about-us; duplicate identities and reusing one graph node for two paths fail the check.
 
 ### AC6.4 — exact class and element identity
 
