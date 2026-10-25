@@ -144,3 +144,43 @@ computed-style（见验收案例文档）。
   dist 产物过滤后翻转预期）。
 - 向 A 的最小合同建议：见 `a-interface-requirements-issue6.md` AC-P6。
 - 复跑：`node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <project> --assert`
+
+
+## AC-P6 handoff contract — strict matcher revision (2026-10-25)
+
+This revision hardens B's acceptance checker only; it does not change A's SourceGraph or introduce a CSS Token executor. The executable contract is in scripts/b-acp6-matching.mjs, with adversarial cases in scripts/b-acp6-matching.test.mjs. CI runs those tests independently of the historical boundary and current capability jobs.
+
+### AC6.2 — token use edge provenance
+
+A uses-token relation is accepted only when all of the following match the pinned source evidence:
+
+- One endpoint is the exact token declaration node: token label, source path, UTF-8 byte offset, and selector scope all match one parsed declaration.
+- The other endpoint is a real source-positioned element node (jsx-element, host-element, or element), at the exact JSX element source offset and source path for a static consumer candidate.
+- The relation carries a source-use reference matching the CSS file and exact var() source offset (sourceUse/use location or css-token-use:<path>:<offset> evidence reference).
+- Any scope carried by the edge agrees with the declaration node's scope.
+
+A file edge, unrelated consumer, wrong source offset, wrong scope, dynamic-only candidate, or missing consumer cannot cover a declaration or use. AC6.2 checks each source declaration and every source use with such strict evidence. Missing graph evidence remains PENDING; malformed checkout/graph/report input remains ERROR.
+
+### AC6.3 — exact route identity
+
+Route identities are normalized for an optional #/, route:/page: prefix, repeated slashes, and trailing slash. Paths then compare by exact equality. Each of the seven fixture paths must map to exactly one distinct route node. For example, /about cannot match /about-us; duplicate identities and reusing one graph node for two paths fail the check.
+
+### AC6.4 — exact class and element identity
+
+className values are compared as whitespace-separated class tokens, not substrings. The CSS selector parser ignores class-like text inside attribute selectors. A class pair is anchored only when the graph endpoint's source path and JSX element offset identify the exact parsed source element; explicit matchedClass, className, classes, or selector class hints must agree exactly. Repeated classes do not create ambiguous partial matches. Dynamic className candidates remain unresolved without exact static evidence and keep the check PENDING. A file-only component edge or an absent element node is insufficient.
+
+### Adversarial CI cases
+
+The AC6.2–AC6.4 adversarial matcher tests job compares the strict matcher against the prior permissive conditions and covers:
+
+| Check | Rejected counterexample |
+| --- | --- |
+| AC6.2 | An unrelated edge that merely touches a token node |
+| AC6.2 | A wrong consumer endpoint, missing source-use position, or mismatched declaration scope |
+| AC6.2/6.4 | A missing real consumer even if another consumer is linked |
+| AC6.3 | /about incorrectly matching /about-us |
+| AC6.3 | Duplicate route identity or one node reused for multiple route paths |
+| AC6.4 | btn incorrectly matching btn-primary; only exact class tokens match |
+| AC6.4 | Dynamic or absent element consumers with no source-position proof |
+
+These tests validate B's matcher contract. They do not alter the fixed project's existing A result: the current public A baseline remains 0/5 PASS, 5 PENDING, 0 ERROR until its graph supplies the required evidence.

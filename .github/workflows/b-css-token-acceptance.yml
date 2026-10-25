@@ -7,6 +7,8 @@ on:
     paths:
       - .github/workflows/b-css-token-acceptance.yml
       - scripts/b-css-token-probe.mjs
+      - scripts/b-acp6-matching.mjs
+      - scripts/b-acp6-matching.test.mjs
       - scripts/b-css-token-browser-baseline.mjs
       - docs/probes/**
   push:
@@ -23,6 +25,18 @@ env:
   CURRENT_A_CORE_REF: feat/project-first-core-20261018
 
 jobs:
+  checker-negative-tests:
+    name: AC6.2–AC6.4 adversarial matcher tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run strict relation, route, and class matching counterexamples
+        run: node --test scripts/b-acp6-matching.test.mjs
+
   historical-boundary-regression:
     name: Historical unsupported-boundary regression (A 2f2e5a7)
     runs-on: ubuntu-latest
@@ -54,6 +68,7 @@ jobs:
         run: |
           mkdir -p test-results
           cp ../scripts/b-css-token-probe.mjs scripts/b-css-token-probe.mjs
+          cp ../scripts/b-acp6-matching.mjs scripts/b-acp6-matching.mjs
           set +e
           node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --assert --expect-core-sha "$HISTORICAL_A_CORE_SHA" --json test-results/css-token-history.json
           code=$?
@@ -117,6 +132,7 @@ jobs:
         run: |
           mkdir -p test-results
           cp ../scripts/b-css-token-probe.mjs scripts/b-css-token-probe.mjs
+          cp ../scripts/b-acp6-matching.mjs scripts/b-acp6-matching.mjs
           set +e
           node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --acceptance --expect-core-sha "$CURRENT_A_CORE_SHA" --json test-results/css-token-acceptance.json
           code=$?
@@ -191,6 +207,7 @@ jobs:
           if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
       - name: Validate browser matrix, unknown rows, screenshots, and exit code
         run: |
+          # The UNKNOWN count is frozen for CSS_PROJECT_SHA only; it is not a quota for future projects.
           node --input-type=module - <<'NODE'
           import fs from 'node:fs'
           import path from 'node:path'

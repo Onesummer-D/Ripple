@@ -1,4 +1,4 @@
-/** Ripple B — CSS Custom Properties source-evidence probe (Issue #6 P1, v4).
+/** Ripple B — CSS Custom Properties source-evidence probe (Issue #6 P1, v5).
  *
  *  Runs A-core analyzeProject against a REAL third-party React/Vite project
  *  that consumes pure CSS Custom Properties, and measures the gap between
@@ -55,6 +55,7 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { analyzeProject } from '../src/core/project.ts'
+import { evaluateAc62, evaluateAc64, exactDefinitionNodes, matchExactRoutes, selectorClassTokens, sourceByteOffset as graphByteOffset } from './b-acp6-matching.mjs'
 
 const STANDARD_NODE_FIELDS = new Set(['id', 'kind', 'label', 'value', 'location'])
 const TARGET_SHA = 'b244f857457d2a07f118155602eef9097fd322bd'
@@ -96,7 +97,7 @@ function sourcePosition(node) {
 }
 
 function sourceScope(node) {
-  const value = node?.selectorScope ?? node?.scope?.selector ?? node?.scope ?? node?.tokenScope?.selectorScope ?? null
+  const value = node?.selectorScope ?? node?.location?.selectorScope ?? node?.scope?.selector ?? node?.scope ?? node?.tokenScope?.selectorScope ?? node?.selector ?? null
   return typeof value === 'string' ? value : value?.selector ?? value?.selectorScope ?? null
 }
 
@@ -209,14 +210,29 @@ function main() {
       const abs = path.join(rootDir, f)
       if (!fs.existsSync(abs)) throw new Error(`tracked source file is missing from fixed checkout: ${f}`)
       const src = fs.readFileSync(abs, 'utf8')
-      for (const m of src.matchAll(/className\s*=\s*["'`]([^"'`]+)["'`]/g)) {
-        for (const cls of m[1].split(/\s+/)) {
-          if (!cls) continue
-          if (!index.has(cls)) index.set(cls, new Set())
-          index.get(cls).add(f)
+      const add = (cls, candidate) => {
+        if (!cls) return
+        if (!index.has(cls)) index.set(cls, [])
+        index.get(cls).push(candidate)
+      }
+      const component = path.basename(f).replace(/\.[^.]+$/, '')
+      const staticElements = /<([A-Za-z][\w.:-]*)\b[^>]*?\bclassName\s*=\s*(["'])(.*?)\2[^>]*>/gs
+      for (const m of src.matchAll(staticElements)) {
+        const className = m[3]
+        for (const cls of className.trim().split(/\s+/)) {
+          add(cls, { file: f, component, matchedClass: cls, className, elementOffset: m.index, dynamic: false, certainty: 'source-positioned-static-classname' })
         }
       }
-      if (/className\s*=\s*\{/.test(src)) dynamicClassFiles.push(f)
+      const dynamicElements = /<([A-Za-z][\w.:-]*)\b[^>]*?\bclassName\s*=\s*\{([^}]*?)\}/gs
+      for (const m of src.matchAll(dynamicElements)) {
+        dynamicClassFiles.push(f)
+        const expressionStrings = [...m[2].matchAll(/["'\x60]([^"'\x60]+)["'\x60]/g)]
+        for (const literal of expressionStrings) {
+          for (const cls of literal[1].trim().split(/\s+/)) {
+            add(cls, { file: f, component, matchedClass: cls, className: null, elementOffset: m.index, dynamic: true, certainty: 'dynamic-classname-unresolved' })
+          }
+        }
+      }
     }
     return { index, dynamicClassFiles, files }
   }
@@ -240,6 +256,7 @@ function main() {
       definitionsRaw.push({
         file: f, srcLevel: !f.startsWith('dist/'), token: m[1], value: m[2].trim(),
         offset: m.index,
+        byteOffset: Buffer.byteLength(css.slice(0, m.index), 'utf8'),
         selector: frame && !frame.prelude.startsWith('@') ? frame.prelude : (frame ? frame.prelude : '<top-level>'),
         media: frame ? frame.media : [],
       })
@@ -247,20 +264,14 @@ function main() {
     for (const m of stripped.matchAll(/var\(\s*(--[\w-]+)/g)) {
       const frame = enclosingFrame(frames, m.index)
       const selector = frame && !frame.prelude.startsWith('@') ? frame.prelude : (frame ? frame.prelude : '<top-level>')
-      const classes = [...selector.matchAll(/\.([\w-]+)/g)].map(c => c[1])
+      const classes = selectorClassTokens(selector)
       const consumerElements = []
       for (const cls of classes) {
-        for (const file of classIndex.get(cls) ?? []) {
-          consumerElements.push({
-            file,
-            component: path.basename(file).replace(/\.[^.]+$/, ''),
-            matchedClass: cls,
-            certainty: 'semantic-candidate-static-classname',
-          })
-        }
+        consumerElements.push(...(classIndex.get(cls) ?? []))
       }
       rawVarUses.push({
         file: f, srcLevel: !f.startsWith('dist/'), token: m[1], index: m.index,
+        byteOffset: Buffer.byteLength(css.slice(0, m.index), 'utf8'),
         selector, media: frame ? frame.media : [],
         pseudoClasses: selector.includes(':') ? [...selector.matchAll(/::?[a-z-]+(?:\([^)]*\))?/gi)].map(p => p[0]) : [],
         consumerElements,
@@ -312,7 +323,7 @@ function main() {
     const g = consumerGroupsMap.get(groupKey(u))
     g.occurrenceCount++
     for (const el of u.consumerElements) {
-      const k = `${el.file}|${el.component}|${el.matchedClass}`
+      const k = [g.token, el.file, el.elementOffset, el.matchedClass, el.dynamic].join('|')
       if (!g.consumerElements.has(k)) g.consumerElements.set(k, { ...el })
     }
   }
@@ -335,12 +346,7 @@ function main() {
     throw new Error(`fixed fixture route contract drift: expected seven unique HashRouter paths, got ${describe(expectedRoutes)}`)
   }
 
-  const definitionNodeMatches = declaration => tokens.filter(node =>
-    node.label === declaration.token &&
-    sourcePath(node) === declaration.file &&
-    sourceOffset(node) === declaration.offset &&
-    sourceScope(node) === declaration.selector,
-  )
+  const definitionNodeMatches = declaration => exactDefinitionNodes(declaration, tokens)
   const scopedDefinitions = sourceDeclarations.filter(d => repeatedSourceTokens.includes(d.token))
   const scopedDefinitionEvidence = scopedDefinitions.map(declaration => {
     const matches = definitionNodeMatches(declaration)
@@ -348,6 +354,7 @@ function main() {
       token: declaration.token,
       file: declaration.file,
       offset: declaration.offset,
+      byteOffset: declaration.byteOffset,
       selectorScope: declaration.selector,
       graphNodeIds: matches.map(node => node.id),
       graphFields: matches.map(scopeFieldsOf),
@@ -362,96 +369,97 @@ function main() {
     })
   const ac61 = {
     id: 'AC6.1',
-    name: 'scoped token identity ({file,offset,selectorScope}); same-name scoped definitions are distinct nodes',
+    name: 'scoped token identity ({file,byteOffset,selectorScope}); same-name scoped definitions are distinct nodes',
     pass: scopedIdentityPass,
     detail: {
       repeatedSourceTokens,
       scopedDefinitionEvidence,
-      groundTruth: 'source declarations are independently parsed from the fixed CSS files; graph nodes must match path, byte offset, selector scope, and unique node identity',
+      groundTruth: 'source declarations are independently parsed from the fixed CSS files; graph nodes must match path, UTF-8 byte offset, selector scope, and unique node identity',
     },
   }
 
   const srcUsedTokens = [...new Set(rawVarUses.filter(u => u.srcLevel).map(u => u.token))]
     .filter(token => sourceDeclarations.some(d => d.token === token))
-  const declarationSetCoverage = srcUsedTokens.map(token => {
-    const declarations = sourceDeclarations.filter(d => d.token === token)
-    const links = declarations.map(declaration => {
-      const matches = definitionNodeMatches(declaration)
-      const node = matches.length === 1 ? matches[0] : null
-      const edges = node ? usesTokenEdges.filter(edge => edge.from === node.id || edge.to === node.id) : []
-      return {
-        file: declaration.file,
-        offset: declaration.offset,
-        selectorScope: declaration.selector,
-        graphNodeIds: matches.map(item => item.id),
-        linkedUsesTokenEdges: edges.length,
-        edgeIds: edges.map(edge => ({ from: edge.from, to: edge.to })),
-        covered: Boolean(node && edges.length > 0),
-      }
-    })
-    return { token, declarationCount: declarations.length, connectedDeclarationCount: links.filter(link => link.covered).length, links, covered: links.length > 0 && links.every(link => link.covered) }
+  const ac62Coverage = evaluateAc62({
+    declarations: sourceDeclarations.filter(declaration => srcUsedTokens.includes(declaration.token)),
+    uses: rawVarUses.filter(use => use.srcLevel && srcUsedTokens.includes(use.token)),
+    nodes: graph.nodes,
+    edges: usesTokenEdges,
   })
-  const coveredSrcTokens = declarationSetCoverage.filter(item => item.covered).map(item => item.token)
+  const declarationSetCoverage = ac62Coverage.declarationSetCoverage
   const ac62 = {
     id: 'AC6.2',
-    name: 'var() consumption edges connect the full source declaration set, including scoped overrides',
-    pass: srcUsedTokens.length > 0 && declarationSetCoverage.every(item => item.covered),
+    name: 'uses-token edges bind the scoped declaration, exact var() source, and exact consumer element',
+    pass: ac62Coverage.pass,
     detail: {
       srcUsedTokens,
-      coveredTokens: coveredSrcTokens,
-      uncoveredTokens: srcUsedTokens.filter(token => !coveredSrcTokens.includes(token)),
+      coveredTokens: ac62Coverage.coveredTokens,
+      uncoveredTokens: ac62Coverage.uncoveredTokens,
       declarationSetCoverage,
       sourceUsesTokenEdges: srcLevelEdges.length,
+      matchingContract: 'token node path+UTF-8 byte offset+selector scope; consumer endpoint kind/path+JSX element offset+exact class token; edge sourceUse/evidenceRef must match the var() path+offset',
     },
   }
 
-  const routeNodes = pages.map(node => ({ node, identity: `${node.label ?? ''} ${node.id ?? ''}`.toLowerCase() }))
-  const matchedRoutes = expectedRoutes.map(route => {
-    const normalized = route.replace(/^\//, '').toLowerCase()
-    const matches = routeNodes.filter(({ identity }) => route === '/'
-      ? /(?:page|route):?\s*\//.test(identity)
-      : identity.includes(normalized))
-    return { route, graphNodeIds: matches.map(({ node }) => node.id), matched: matches.length === 1 }
-  })
+  const routeMatch = matchExactRoutes(expectedRoutes, pages)
+  const matchedRoutes = routeMatch.matches
   const ac63 = {
     id: 'AC6.3',
-    name: 'HashRouter <Route element> paths represented by distinct page identities in SourceGraph',
-    pass: matchedRoutes.every(item => item.matched),
-    detail: { expectedRoutes, matchedRoutes, pageNodes: pages.map(p => ({ id: p.id, kind: p.kind, label: p.label })) },
+    name: 'HashRouter paths map one-to-one to normalized exact route identities in SourceGraph',
+    pass: routeMatch.pass,
+    detail: {
+      expectedRoutes,
+      matchedRoutes,
+      pageNodes: pages.map(p => ({ id: p.id, kind: p.kind, label: p.label, routePath: p.routePath, path: p.path, page: p.page })),
+      matchingContract: 'normalize hash/route prefix, duplicate and trailing slashes; exact path equality only; one distinct node per expected route',
+    },
   }
 
-  const elementKinds = new Set(['component', 'jsx-element', 'host-element', 'element'])
+  const elementKinds = new Set(['jsx-element', 'host-element', 'element'])
   const elementAnchoredEdges = usesTokenEdges.filter(edge => {
     const endpoints = [nodeById.get(edge.from), nodeById.get(edge.to)].filter(Boolean)
-    const elements = endpoints.filter(node => elementKinds.has(node.kind) && String(sourcePath(node) ?? '').startsWith('src/'))
-    const tokenNodes = endpoints.filter(node => node.kind === 'token')
-    return elements.length > 0 && tokenNodes.length > 0 && elements.every(node => sourceOffset(node) !== null || Number.isInteger(node.location?.line))
+    return endpoints.some(node => node.kind === 'token') && endpoints.some(node => elementKinds.has(node.kind))
   })
-  const expectedConsumerPairs = [...new Map(consumerGroups.flatMap(group => group.consumerElements.map(element => [
-    `${group.token}|${element.file}|${element.matchedClass}`,
-    { token: group.token, file: element.file, matchedClass: element.matchedClass },
-  ]))).values()]
-  const anchoredConsumerPairs = expectedConsumerPairs.map(pair => {
-    const matches = elementAnchoredEdges.filter(edge => {
-      const endpoints = [nodeById.get(edge.from), nodeById.get(edge.to)].filter(Boolean)
-      const tokenNode = endpoints.find(node => node.kind === 'token' && node.label === pair.token)
-      const elementNode = endpoints.find(node => elementKinds.has(node.kind) && sourcePath(node) === pair.file)
-      if (!tokenNode || !elementNode) return false
-      const classHint = elementNode.matchedClass ?? elementNode.className ?? elementNode.selector
-      return typeof classHint === 'string' && classHint.includes(pair.matchedClass)
-    })
-    return { ...pair, edgeCount: matches.length, edgeIds: matches.map(edge => ({ from: edge.from, to: edge.to })), anchored: matches.length > 0 }
+  const consumerPairs = new Map()
+  for (const use of rawVarUses.filter(item => item.srcLevel && srcUsedTokens.includes(item.token))) {
+    for (const element of use.consumerElements) {
+      const key = [use.token, element.file, element.elementOffset, element.matchedClass, element.dynamic].join('|')
+      if (!consumerPairs.has(key)) consumerPairs.set(key, {
+        token: use.token,
+        file: element.file,
+        component: element.component,
+        elementOffset: element.elementOffset,
+        matchedClass: element.matchedClass,
+        className: element.className,
+        dynamic: element.dynamic,
+        certainty: element.certainty,
+        sourceUses: [],
+      })
+      consumerPairs.get(key).sourceUses.push({ file: use.file, index: use.index, byteOffset: use.byteOffset, selector: use.selector })
+    }
+  }
+  const expectedConsumerPairs = [...consumerPairs.values()]
+  const ac64Coverage = evaluateAc64({
+    pairs: expectedConsumerPairs,
+    declarations: sourceDeclarations,
+    uses: rawVarUses.filter(use => use.srcLevel),
+    nodes: graph.nodes,
+    edges: usesTokenEdges,
   })
+  const anchoredConsumerPairs = ac64Coverage.anchoredConsumerPairs
   const ac64 = {
     id: 'AC6.4',
-    name: 'every statically mapped token consumer has a source-positioned component/element uses-token anchor',
-    pass: expectedConsumerPairs.length > 0 && anchoredConsumerPairs.every(pair => pair.anchored),
+    name: 'each token consumer has an exact source-positioned element edge; unresolved dynamic classes remain pending',
+    pass: ac64Coverage.pass && dynamicClassFiles.length === 0,
     detail: {
-      expectedStaticConsumerPairs: expectedConsumerPairs.length,
+      expectedStaticAndDynamicConsumerPairs: expectedConsumerPairs.length,
       anchoredConsumerPairs,
-      uncoveredConsumerPairs: anchoredConsumerPairs.filter(pair => !pair.anchored),
+      uncoveredConsumerPairs: ac64Coverage.uncoveredConsumerPairs,
       elementAnchoredEdges: elementAnchoredEdges.map(edge => ({ from: edge.from, to: edge.to, provenance: edge.provenance ?? edge.certainty ?? null })),
       componentLevelEdgesTotal: componentEdges.length,
+      dynamicClassNameFiles: dynamicClassFiles,
+      unresolvedDynamicClassGate: dynamicClassFiles.length === 0 ? 'none' : 'PENDING: dynamic className expressions may produce additional consumers without exact static source evidence',
+      matchingContract: 'className is a whitespace-token set; matchedClass and selector class tokens are exact; node path and JSX element source offset must identify the same source element',
     },
   }
 
@@ -586,7 +594,7 @@ function main() {
 
   const report = {
     schemaVersion: 2,
-    generatedBy: 'scripts/b-css-token-probe.mjs (v4)',
+    generatedBy: 'scripts/b-css-token-probe.mjs (v5)',
     runMode: assertMode ? 'historical-boundary-regression' : acceptanceMode ? 'current-capability-acceptance' : 'observation',
     status: assertMode ? regression.status : acceptanceMode ? acceptance.status : 'OBSERVED',
     project: { sha: projectIdentity.sha, targetFile: 'src/css/style.css', targetFileSha256: projectIdentity.targetFileSha256, fixtureGroundTruth: fixtureFacts },
@@ -602,7 +610,7 @@ function main() {
     tokenDefinitions: [...tokenByLabel.entries()].map(([label, defs]) => ({
       label,
       definitionCount: defs.length,
-      definitions: defs.map(d => ({ file: sourcePath(d), value: d.value, id: d.id, offset: sourceOffset(d), selectorScope: sourceScope(d) })),
+      definitions: defs.map(d => ({ file: sourcePath(d), value: d.value, id: d.id, offset: sourceOffset(d), byteOffset: graphByteOffset(d), selectorScope: sourceScope(d) })),
     })),
     rawVarUseCount: rawVarUses.length,
     rawVarUsesByToken: Object.fromEntries([...new Set(rawVarUses.map(u => u.token))].map(t => [t, rawVarUses.filter(u => u.token === t).length])),
@@ -663,7 +671,7 @@ try {
       fs.mkdirSync(path.dirname(path.resolve(jsonOut)), { recursive: true })
       fs.writeFileSync(jsonOut, JSON.stringify({
         schemaVersion: 2,
-        generatedBy: 'scripts/b-css-token-probe.mjs (v4)',
+        generatedBy: 'scripts/b-css-token-probe.mjs (v5)',
         runMode: process.argv.includes('--assert') ? 'historical-boundary-regression' : process.argv.includes('--acceptance') ? 'current-capability-acceptance' : 'observation',
         status: 'ERROR',
         error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack ?? null } : { message: String(error) },

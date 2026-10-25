@@ -57,3 +57,8 @@ node scripts/b-css-token-browser-baseline.mjs <固定 SHA 的 webportflio 检出
 ```
 
 脚本默认写入上述证据目录。接受性严格保留任何失败和未知状态，返回 `0` 表示全部通过、`2` 表示运行完成但存在 UNKNOWN/失败、`1` 表示执行异常。该对照独立于 Ripple Candidate、Approval 与 Apply，不代表正式 AC-P6 产品闭环。
+
+
+## Frozen-fixture boundary
+
+The 148 PASS / 0 FAIL / 16 UNKNOWN / 0 RISK count and the two missing .section-title targets are frozen regression expectations for only allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd. The CI matrix verifies that exact project SHA before applying those counts. They are not a required UNKNOWN count for later projects; future fixtures need their own evidence and expectations.
