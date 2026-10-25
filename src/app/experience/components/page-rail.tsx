@@ -27,7 +27,7 @@ const RELATION_SHORT: Record<PageXp['relation'], string> = {
 /**
  * 左侧：页面导航 + 来源概览。
  * 参考视觉：图标菜单式导航——当前项为浅色圆角条 + 左侧墨绿短竖线；
- * 组标题右侧带页面计数；细分隔线后是与全局状态语言一致的概览统计（真实数据），
+ * 组标题不带计数；细分隔线后是与全局状态语言一致的概览统计（真实数据），
  * 统计行可点开：展开显示该分类下的具体页面与关系，数字不永远是黑盒。
  * 每个页面的关联关系与确定性在右侧「影响范围」逐页呈现，导航项不再堆叠小字。
  * 真实模式第一阶段：iframe 预演尚不支持页面切换，导航明确停用并标注未接入，
@@ -49,7 +49,7 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
   const toggleOverview = (certainty: SourceCertainty) =>
     setOpenCertainty(prev => (prev === certainty ? null : certainty))
   return <nav className="ripple-xp-page-rail reveal" aria-label="页面导航" data-testid="page-rail">
-    <h3><span>页面</span><span className="ripple-xp-rail-count">{pages.length}</span></h3>
+    <h3><span>页面</span></h3>
     {navigationDisabled && (
       <p className="ripple-xp-nav-pending" role="note" data-testid="page-nav-pending">
         真实页面导航尚未接入（第二阶段接入）：当前画布为整站预演，切换页面不影响画布。
