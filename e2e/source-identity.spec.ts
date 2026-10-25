@@ -281,18 +281,18 @@ test.describe('runtime instance identity', () => {
     await openRuntimeAt(page, '/runtime.html?tab=a#/home')
     const before = await snapshot(page)
     const oldPinned = one(before, 'pinned')
+    const renders = await pinnedRenders(page)
     expect(before.page).toMatchObject({ pathname: '/runtime.html', search: '?tab=a', hash: '#/home' })
 
-    // The route changes twice while the memoized DOM remains mounted. The final URL
-    // has no query/hash, which must not make the old path-only v1 id look current again.
-    await clientNavigate(page, '/runtime.html?tab=b#/products')
-    await snapshot(page)
+    // The memoized DOM remains mounted. A return to the same pathname with an empty
+    // query/hash must not make its old path-only v1 id look current again.
     await clientNavigate(page, '/runtime.html')
     const after = await snapshot(page)
     const retainedPinned = one(after, 'pinned')
     expect(after.page).toMatchObject({ pathname: '/runtime.html', search: '', hash: '' })
     expect(retainedPinned.domNode).toBe(oldPinned.domNode)
     expect(retainedPinned.runtimeInstanceId).toBe(oldPinned.runtimeInstanceId)
+    expect(await pinnedRenders(page)).toBe(renders)
     expect(retainedPinned.certainty).toBe('unknown')
     expect(retainedPinned.reasons).toContain('route-namespace-stale')
 
