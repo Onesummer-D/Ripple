@@ -115,6 +115,17 @@ test.describe('runtime instance identity', () => {
     await page.goto(`${baseUrl}/runtime.html`)
     await expect(page.getByTestId('static-title')).toBeVisible()
   }
+  const openRuntimeAt = async (page: Page, location: string) => {
+    // Load the actual annotated fixture document, then set its browser URL before the
+    // module script renders. This lets the same production transform run at SPA routes.
+    await page.addInitScript((nextLocation: string) => history.replaceState(null, '', nextLocation), location)
+    await openRuntime(page)
+  }
+  const clientNavigate = (page: Page, location: string) => page.evaluate((nextLocation: string) => {
+    history.pushState(null, '', nextLocation)
+    window.dispatchEvent(new Event('popstate'))
+    window.dispatchEvent(new Event('ripple-fixture:navigate'))
+  }, location)
   const pinnedRenders = (page: Page) => page.evaluate(() => (window as unknown as { __pinnedRenders: number }).__pinnedRenders)
 
   test.beforeAll(() => {
@@ -241,6 +252,80 @@ test.describe('runtime instance identity', () => {
     expect(pinned.reasons).toContain('route-namespace-stale')
     expect(selectableRuntimeObservations(featured).some(observation => observation.runtimeInstanceId === pinned.runtimeInstanceId)).toBe(false)
   })
+
+  test('keeps /home to /products source location while rejecting a memoized old instance', async ({ page }) => {
+    await openRuntimeAt(page, '/home')
+    const before = await snapshot(page)
+    const oldPinned = one(before, 'pinned')
+    const oldBanner = one(before, 'banner-shell')
+    expect(before.page.pathname).toBe('/home')
+
+    await clientNavigate(page, '/products')
+    await expect.poll(async () => (await page.getByTestId('banner-shell').getAttribute('data-ripple-instance')) ?? '').toMatch(/^\/products:/)
+    const after = await snapshot(page)
+    const retainedPinned = one(after, 'pinned')
+    const rerenderedBanner = one(after, 'banner-shell')
+    expect(after.page.pathname).toBe('/products')
+    expect(retainedPinned.domNode).toBe(oldPinned.domNode)
+    expect(retainedPinned.runtimeInstanceId).toBe(oldPinned.runtimeInstanceId)
+    expect(rerenderedBanner.runtimeInstanceId).not.toBe(oldBanner.runtimeInstanceId)
+    expect(retainedPinned).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
+
+    const retainedAssessment = assessRuntimeIdentity(graph, after, retainedPinned, { fileDigest: digest, expectedPage: after.page })
+    const rerenderedAssessment = assessRuntimeIdentity(graph, after, rerenderedBanner, { fileDigest: digest, expectedPage: after.page })
+    expect(retainedAssessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
+    expect(rerenderedAssessment).toMatchObject({ locatable: true, instanceIdentityProven: true, reasons: [] })
+  })
+
+  for (const routeCase of [
+    { name: 'root query route', before: '/?tab=a', after: '/?tab=b' },
+    { name: 'same non-root pathname with a different query', before: '/runtime.html?tab=a', after: '/runtime.html?tab=b', legacyPathnameMatch: true },
+    { name: 'root HashRouter route', before: '/#/home', after: '/#/products' },
+    { name: 'same non-root pathname with a different HashRouter route', before: '/runtime.html#/home', after: '/runtime.html#/products', legacyPathnameMatch: true },
+    { name: 'root query and hash routes', before: '/?tab=a#/home', after: '/?tab=b#/products' },
+    { name: 'same non-root pathname with query and hash changes', before: '/runtime.html?tab=a#/home', after: '/runtime.html?tab=b#/products', legacyPathnameMatch: true },
+  ]) {
+    test(`does not prove a memoized old-DOM instance after ${routeCase.name}`, async ({ page }) => {
+      await openRuntimeAt(page, routeCase.before)
+      const before = await snapshot(page)
+      const oldPinned = one(before, 'pinned')
+      expect(before.page).toMatchObject({
+        pathname: new URL(routeCase.before, baseUrl).pathname,
+        search: new URL(routeCase.before, baseUrl).search,
+        hash: new URL(routeCase.before, baseUrl).hash,
+      })
+      const renders = await pinnedRenders(page)
+      if ('legacyPathnameMatch' in routeCase && routeCase.legacyPathnameMatch) {
+        const id = oldPinned.runtimeInstanceId!
+        const ownerSuffix = id.slice(before.page.pathname.length + 1)
+        // These controls prove that v1's old pathname prefix and owner-boundary checks
+        // would have accepted this annotation; only the missing search/hash check is new.
+        expect(id.startsWith(`${before.page.pathname}:`)).toBe(true)
+        expect(ownerSuffix).toMatch(/^(?:jsx:|[_:\u00ab])/)
+      }
+
+      await clientNavigate(page, routeCase.after)
+      const after = await snapshot(page)
+      const retainedPinned = one(after, 'pinned')
+      expect(after.page).toMatchObject({
+        pathname: new URL(routeCase.after, baseUrl).pathname,
+        search: new URL(routeCase.after, baseUrl).search,
+        hash: new URL(routeCase.after, baseUrl).hash,
+      })
+      expect(retainedPinned.domNode).toBe(oldPinned.domNode)
+      expect(retainedPinned.runtimeInstanceId).toBe(oldPinned.runtimeInstanceId)
+      expect(await pinnedRenders(page)).toBe(renders)
+
+      const assessment = assessRuntimeIdentity(graph, after, retainedPinned, {
+        fileDigest: digest,
+        expectedPage: after.page,
+      })
+      expect(retainedPinned.certainty).toBe('unknown')
+      expect(retainedPinned.reasons).toContain('route-namespace-stale')
+      expect(assessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
+      expect(selectableRuntimeObservations(after).some(observation => observation.runtimeInstanceId === retainedPinned.runtimeInstanceId)).toBe(false)
+    })
+  }
 
   test('state updates keep identities and do not re-render memoized components', async ({ page }) => {
     await openRuntime(page)
