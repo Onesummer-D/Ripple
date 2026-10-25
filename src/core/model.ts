@@ -360,7 +360,7 @@ export interface VerificationRun {
   visualEvidences?: VisualRunEvidence[]
   /** Host-verified runtime identity data; supplementary and outside the seven assertion gate. */
   runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityVersionFailure | RuntimeRunIdentityArchiveFailure>
-  /** Only host-validated receipts bound to this run/candidate may enable unequal sourceRef pairing. */
+  /** Host-validated source-location receipts; v1.2 does not allow them to override runtimeInstanceId equality. */
   runtimeIdentitySourceRefMappings?: RuntimeIdentitySourceRefMappingReceipt[]
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'

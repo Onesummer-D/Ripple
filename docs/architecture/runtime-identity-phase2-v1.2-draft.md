@@ -111,7 +111,9 @@ JSON.stringify([sourceRef, runtimeInstanceId ?? null, zeroBasedSnapshotIndex])
 
 `cross-side-assessment-mismatch` 是独立的 `RuntimeIdentityPairReason`，不是第 14 个 `RuntimeIdentityReason`，不得写入或回写单侧 record 的 `reasons`，也不得更改单侧 Assessment 哈希。
 
-E③ 的 pair 候选必须先满足：捕获运行点除 side 外完全相同；每侧 `runtimeInstanceId` 非空、在该侧唯一且两侧完全相等；`sourceRef` 完全相等，或存在第 6 节定义的唯一、经宿主核验的定向映射；每侧为 `archive: 'stored'` 且 `assessmentStatus: 'complete'`；两侧 Assessment 均 `locatable: true`、`instanceIdentityProven: true`、`reasons: []`。找不到唯一候选、缺映射或任一侧未证明时，结果是未配对/未证明，不生成 pair mismatch。
+E③ 的 pair 候选必须先满足：捕获运行点除 side 外完全相同；每侧 `runtimeInstanceId` 非空、在该侧唯一且两侧完全相等；`sourceRef` 完全相等，或存在第 6 节定义的唯一、经宿主核验的定向来源映射；每侧为 `archive: 'stored'` 且 `assessmentStatus: 'complete'`；两侧 Assessment 均 `locatable: true`、`instanceIdentityProven: true`、`reasons: []`。找不到唯一候选或任一侧未证明时，结果是未配对/未证明，不生成 pair mismatch。
+
+上述 runtimeInstanceId 相等与 sourceRef 相等/映射是两个独立必要条件，来源映射不得代替实例 ID 相等。当前 v1/v2 identity suffix 都锚定 record 的精确 sourceRef，因此 `baselineRef !== candidateRef` 时，即使存在有效来源映射 receipt，若两侧 runtimeInstanceId 不相等仍必须不配对。对当前 C+D ID 格式，sourceRef 不同的记录一律保持未配对；v1.2 的来源映射 receipt 只证明来源位置关系，不证明两个运行时实例相同，也不能改变此结果。若要跨不同 sourceRef 配对，必须另行定义版本化、可审计的实例级映射协议，由 A、C+D、E 会签；不属于本合同或 A②-3/E③ 当前实现。
 
 候选唯一且两侧证明有效后，pair 一致性投影固定比较：
 
@@ -120,7 +122,7 @@ E③ 的 pair 候选必须先满足：捕获运行点除 side 外完全相同；
 - `assessment.page.pathname/search/hash` 三字段精确相等；
 - `sourceRef` 精确相等，或与当前唯一映射 receipt 的 baselineRef→candidateRef 关系精确相等。
 
-sourceRef 映射关系与实例 ID 是配对键。无法满足时不能以 recordKey、snapshotIndex、数组/DOM 顺序或近似关系补配。`sourceVersion`、两侧源码 digest、`recordKey`/index、`assessmentSha256`、Snapshot hash、capture `side`、`domNode`、`sameSourceCount`、`listKey` 和 `label` 不做跨侧相等比较：源码版本与工件摘要按侧独立核验，其余字段不是跨版本实例匹配键。只有有效唯一 pair 的上述一致性字段不一致时，E 在 pair 结果增加 `cross-side-assessment-mismatch` 并 fail-closed。该结果只能降级，不能弥补任一侧缺失、版本失败或单侧未证明；单侧失败只保留单侧失败，不伪造 pair mismatch。
+sourceRef 相等/映射关系和实例 ID 是独立配对条件。映射只能说明来源位置对应，不能推导实例相等；当前 v1/v2 sourceRef 锚定 ID 下，不同 ref 即使有 receipt 也不配对，跨 ref 配对延后到另行会签的实例级映射协议。无法满足时不能以 recordKey、snapshotIndex、数组/DOM 顺序或近似关系补配。`sourceVersion`、两侧源码 digest、`recordKey`/index、`assessmentSha256`、Snapshot hash、capture `side`、`domNode`、`sameSourceCount`、`listKey` 和 `label` 不做跨侧相等比较：源码版本与工件摘要按侧独立核验，其余字段不是跨版本实例匹配键。只有有效唯一 pair 的上述一致性字段不一致时，E 在 pair 结果增加 `cross-side-assessment-mismatch` 并 fail-closed。该结果只能降级，不能弥补任一侧缺失、版本失败或单侧未证明；单侧失败只保留单侧失败，不伪造 pair mismatch。
 
 ## 5. 页面身份与 namespace
 
@@ -150,10 +152,10 @@ v2 collector 必须在每次实际 render/evaluation 读取完整 location 三�
 
 - baseline 的源码 digest 绑定到可信 `baseSourceDigest` 及对应 baseline SourceGraph；candidate 绑定到可信 `candidateTreeDigest` 及对应 candidate SourceGraph。两侧分别读取，禁止互换或使用容器自报版本字符串代替宿主 digest。
 - 单独的 sourceRef 精确相等是直接来源定位条件，不等同实例身份相等。仍需两侧 runtimeInstanceId 非空且唯一相等、双方 Assessment 完成并已证明、页面 tuple 与 namespace 可证明。
-- sourceRef 不同时，只能使用正式 Candidate 生命周期产生的唯一、定向 baselineRef→candidateRef 映射。其最小消费位置是 `VerificationRun.runtimeIdentitySourceRefMappings?: RuntimeIdentitySourceRefMappingReceipt[]`。每个 receipt 必须含 `protocol: 'ripple-source-ref-mapping/v1'`、`verificationRunId`、`candidateId`、`patchHash`、`baselineSourceDigest`、`candidateSourceDigest`、`baselineGraphId`、`candidateGraphId`、`parserSchemaVersion`、规范内容 `mappingSha256` 与映射项。每个 baselineRef 和 candidateRef 在同一 receipt 内均须唯一，映射方向固定为 baseline→candidate。`mappingSha256` 是对移除该字段后的其余 receipt 字段规范 JSON（`mappings` 按 baselineSourceRef、candidateSourceRef 排序）UTF-8 字节求 SHA-256；它是内容校验值而非签名。A 只附加已从正式 Candidate 生命周期来源读取、绑定当前 VerificationRun 与 Candidate、并由宿主复核唯一性的 receipt；须核对 run/candidate/patch、两侧 digest、graphId、解析器/schema 版本。E 只能消费挂在当前 run 上的 receipt，并核对所有 binding 字段。容器声明、行号近似、数组顺序、DOM 顺序、几何相似均不是映射。
+- sourceRef 不同时，只有正式 Candidate 生命周期产生的唯一、定向 baselineRef→candidateRef 映射才可证明来源位置关系。其最小消费位置是 `VerificationRun.runtimeIdentitySourceRefMappings?: RuntimeIdentitySourceRefMappingReceipt[]`。每个 receipt 必须含 `protocol: 'ripple-source-ref-mapping/v1'`、`verificationRunId`、`candidateId`、`patchHash`、`baselineSourceDigest`、`candidateSourceDigest`、`baselineGraphId`、`candidateGraphId`、`parserSchemaVersion`、规范内容 `mappingSha256` 与映射项。每个 baselineRef 和 candidateRef 在同一 receipt 内均须唯一，映射方向固定为 baseline→candidate。`mappingSha256` 是对移除该字段后的其余 receipt 字段规范 JSON（`mappings` 按 baselineSourceRef、candidateSourceRef 排序）UTF-8 字节求 SHA-256；它是内容校验值而非签名。A 只附加已从正式 Candidate 生命周期来源读取、绑定当前 VerificationRun 与 Candidate、并由宿主复核唯一性的 receipt；须核对 run/candidate/patch、两侧 digest、graphId、解析器/schema 版本。E 只能消费挂在当前 run 上的 receipt，并核对所有 binding 字段。容器声明、行号近似、数组顺序、DOM 顺序、几何相似均不是映射。此 receipt 仅声明 sourceRef 来源位置对应，不声明实例身份等价；因当前 C+D v1/v2 identity suffix 锚定精确 sourceRef，receipt 不会使不同 sourceRef 的 records 成为 pair candidate。
 - SourceGraph 解析规则或 schema 版本变化会使旧映射失效，必须重新生成和复核。缺失、重复、方向错误、revision 不匹配或过期映射均 fail-closed。
 
-当前 A②-3 不接入 Candidate sourceRef mapping registry；没有 `runtimeIdentitySourceRefMappings` receipt 时，E 对 sourceRef 不相等的 records 一律不配对。receipt 字段是未来启用跨版本位置映射的最小正式接口，不能由 E 从普通 SourceGraph 或容器 Snapshot 自行拼装。
+当前 A②-3 不接入 Candidate sourceRef mapping registry，也不生产来源映射 receipt。E 对 sourceRef 不相等的 records 一律不配对，即使未来本字段存在有效 receipt，也不能绕过当前 identity ID 相等要求。receipt 字段只为来源位置关系提供可审计的绑定位置；跨 ref 实例配对须在未来另行制定实例级映射合同，不能由 E 从普通 SourceGraph 或容器 Snapshot 自行拼装。
 
 ## 7. Verified Snapshot 与实例证明
 
