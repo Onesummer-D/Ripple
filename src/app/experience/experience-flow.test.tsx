@@ -6,12 +6,38 @@ import { createStubRealAdapter } from './stub-real-adapter'
 import type { ExperienceAdapter } from './adapter'
 import type { ExperienceViewModel } from './view-model'
 import { createRealAdapter } from './real-adapter'
+import { createDemoAdapter } from './demo-adapter'
+import { CompareStrip } from './components/compare-strip'
 
 const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 
 /** 青野连续演示流（任务书第五节）：打开→选中标题→输入→关联页面→范围→对照→证据→历史。 */
 describe('F 体验工作台 · 青野演示流', () => {
   afterEach(cleanup)
+
+  it('真实 Compare 的截图加载失败保持可见且不宣称可比较', async () => {
+    const demoModel = await createDemoAdapter().load()
+    const realModel: ExperienceViewModel = {
+      ...demoModel,
+      dataProvenance: 'real',
+      compare: {
+        ...demoModel.compare,
+        baseline: { ...demoModel.compare.baseline, state: 'ready', imageUrl: '/evidence/baseline.png' },
+        candidate: { ...demoModel.compare.candidate, state: 'ready', imageUrl: '/evidence/candidate.png' },
+        compareState: 'partial',
+      },
+    }
+    render(<CompareStrip model={realModel} />)
+
+    expect(screen.getByTestId('compare-strip')).toBeTruthy()
+    expect(text('viewport-match-note')).toContain('真实截图尚不齐全，对照结果不完整')
+    const screenshots = screen.getAllByTestId('compare-real-img')
+    expect(screenshots).toHaveLength(2)
+    screenshots.forEach(image => fireEvent.error(image))
+    expect(text('compare-baseline')).toContain('截图不可用')
+    expect(text('compare-candidate')).toContain('截图不可用')
+    expect(text('viewport-match-note')).not.toContain('可比较')
+  })
 
   async function selectAndType() {
     fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))

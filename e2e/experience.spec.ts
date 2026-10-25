@@ -141,14 +141,26 @@ test('历史切换：胶片展示生命周期，点击定位页面', async ({ pa
   await expect(page.getByTestId('page-item-page:products')).toHaveAttribute('aria-current', 'page')
 })
 
-test('桌面与窄窗口布局都可操作', async ({ page }) => {
+test('1440px 桌面与 390px 窄屏工作台都可操作', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
   await openExperience(page)
   await expect(page.getByTestId('scope-panel')).toBeVisible()
-  await page.setViewportSize({ width: 700, height: 900 })
-  await expect(page.getByTestId('scope-panel')).toBeVisible()
-  await expect(page.getByTestId('canvas-el-el:hero-title')).toBeVisible()
   await page.getByTestId('canvas-el-el:hero-title').click()
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+  await page.getByTestId('draft-text-input').fill('桌面验收标题')
+  await expect(page.getByTestId('compare-candidate')).toContainText('桌面验收标题')
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc0-workbench-1440.png'), fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => window.innerWidth)).toBe(390)
+  await expect(page.getByTestId('scope-panel')).toBeVisible()
+  await expect(page.getByTestId('canvas-el-el:hero-title')).toBeVisible()
+  await page.getByTestId('draft-text-input').fill('窄屏验收标题')
+  await expect(page.getByTestId('compare-candidate')).toContainText('窄屏验收标题')
+  await page.getByTestId('scope-exclude-page:contact').click()
+  await expect(page.getByTestId('scope-exclude-page:contact')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc0-workbench-390.png'), fullPage: true })
 })
 
 test('任务一：切换编辑目标重建页面关系与默认范围（标题→副标题→标题）', async ({ page }) => {
