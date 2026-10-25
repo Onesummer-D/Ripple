@@ -19,8 +19,8 @@
 ## 阶段二接口提案（待 A 会签）
 
 - 页面身份使用精确三元组 `[pathname, search, hash]`；不进行 URL 解码、参数排序或 hash 剥离等语义变换。
-- `source-annotation` 在每次实际 render/evaluation 时读取三元组。提议用 `ripple-page-v2:` 加 URI 编码后的 JSON tuple 和无歧义分隔边界，再接原 owner/source/key 身份尾部。URI 编码仅负责表示 tuple，不对路由值做规范化。
-- 新采集快照协议提议为 `ripple-runtime-identity/v2`。collector 解码并与采样三元组逐字段比对；旧 DOM 中的旧 tuple、缺失、格式歧义或版本不匹配均 fail-closed。
+- `source-annotation` 在每次实际 render/evaluation 时读取三元组。建议的 ID wire format 为 `ripple-page-v2:<encodeURIComponent(JSON.stringify([pathname, search, hash]))>:<原 identity suffix>`；编码 tuple 后的冒号是唯一边界，尾部保留原 owner/source/key 身份。URI 编码只表示 tuple，不规范化路由值。
+- 新采集快照协议提议为 `ripple-runtime-identity/v2`。host 校验唯一边界、合法解码和重新编码的规范性，逐字段核对 namespace tuple、Snapshot.page 与 expectedPage，并验证 suffix 含 record 的精确 `sourceRef` anchor；缺失、格式歧义、旧 namespace 或版本不匹配均 fail-closed。
 - v1 仍可用于源码导航/历史读取；任何非空 `search` 或 `hash` 下均不能用 v1 出具实例身份证明。只要 collector 在同一 pathname 观察到不同 search/hash，文档生命周期内该 pathname 的 v1 实例证明持续 fail-closed，包括回到先前 URL tuple 的情况。
 - React key-chain 编码、多实例唯一性和既有稳定 key 语义保持不变。此协议只证明 URL 三元组，不证明应用内部、非 URL 路由状态。
 
