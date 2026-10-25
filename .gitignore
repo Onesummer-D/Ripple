@@ -1,8 +1,14 @@
 node_modules/
 dist/
+dist-demo/
 .vite/
 test-results/
 .tmp/
+*.tsbuildinfo
+
+# 视觉冒烟脚本产出的截图（不作为源码交付物，另有交付目录集中保存）
+scripts/smoke-out/
+scripts/*.png
 
 .env
 .env.*

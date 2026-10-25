@@ -1,0 +1,47 @@
+# Ripple workbench — local Docker orchestration
+#
+# Two services share one image:
+#   app  : interactive dev server, port 8082, DEMO adapter (no Docker needed to
+#          click through the four-step flow UI). Open:
+#          http://localhost:8082/experience.html?adapter=demo
+#   e2e  : runs the REAL-link browser suite (experience-real-flow.spec.ts) inside
+#          a Linux container with host networking, talking to the host Docker
+#          daemon over TCP. This is the "尚未完成 / 用 Docker 跑一遍" item.
+#
+# REQUIRED (one-time, on the Windows host):
+#   Docker Desktop → Settings → General → enable
+#   "Expose daemon on tcp://localhost:2375 without TLS"
+#   (the e2e container reaches the daemon via DOCKER_HOST=host.docker.internal:2375)
+#
+# Build & run:
+#   docker compose build
+#   docker compose up app          # preview UI at http://localhost:8082
+#   docker compose run --rm e2e    # run the REAL-link e2e (CI=1 → no skip)
+
+services:
+  app:
+    build: .
+    image: ripple-workbench:local
+    ports:
+      - "8082:4173"
+    environment:
+      - RIPPLE_WORKBENCH_STATE_DIR=/app/.ripple-state
+    volumes:
+      - ripple-state:/app/.ripple-state
+
+  e2e:
+    build: .
+    image: ripple-workbench:local
+    network_mode: host
+    environment:
+      - CI=1
+      - DOCKER_HOST=tcp://host.docker.internal:2375
+      - RIPPLE_WORKBENCH_STATE_DIR=/app/.ripple-state
+      - RIPPLE_BROWSER_ARTIFACT_DIR=/app/test-results/evidence-real-flow
+    volumes:
+      - ripple-state:/app/.ripple-state
+      - ./test-results:/app/test-results
+    command: npx playwright test e2e/experience-real-flow.spec.ts
+
+volumes:
+  ripple-state:
