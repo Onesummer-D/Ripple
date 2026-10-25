@@ -218,7 +218,6 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   const secondTextTarget = projectFrame.getByText('真实首页文案内容。')
   const secondSourceRef = await secondTextTarget.getAttribute('data-ripple-source')
   expect(secondSourceRef, '刷新后的正文段落必须带有真实 JSX sourceRef').toMatch(/^jsx:src\/pages\/HomePage\.jsx#\d+$/)
-  expect(secondSourceRef).toBe(paragraphTarget!.id)
   const secondSelectionResponse = page.waitForResponse(response => {
     const responseUrl = new URL(response.url())
     return responseUrl.pathname === '/__ripple/api/project/source-selection' && response.request().method() === 'POST'
@@ -227,8 +226,9 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   const secondSelectionHttp = await secondSelectionResponse
   const secondSelectionBody = await secondSelectionHttp.text()
   expect(secondSelectionHttp.ok(), `第二次 source-selection 失败：${secondSelectionBody}`).toBe(true)
-  const secondSelection = JSON.parse(secondSelectionBody) as { element: { id: string } }
+  const secondSelection = JSON.parse(secondSelectionBody) as { element: { id: string }; editableText: Array<{ id: string }> }
   expect(secondSelection.element.id).toBe(secondSourceRef)
+  expect(secondSelection.editableText.some(node => node.id === paragraphTarget!.id)).toBe(true)
   await expect(page.getByTestId('selection-summary')).toContainText(paragraphTarget!.label)
   await page.getByTestId('picker-toggle').click() // 退出点选模式
   await page.getByTestId('draft-text-input').fill('Acme 旗舰店文案。')
