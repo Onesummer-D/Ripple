@@ -1,6 +1,6 @@
 # Runtime Identity 页面 Namespace v1.2 提案
 
-状态：C+D 提案，等待 A 会签。本文记录阶段一防线和阶段二接口边界，不代表 v1.2 已实现。
+状态：阶段一防线与 v1.2 namespace 接口方向已由 A 在 PR #48 完成架构会签；v2 emitter/collector 尚未实现。本文记录阶段一边界和阶段二接口建议，不替代正式 v1.2 合同。
 
 ## 已确认的问题
 
@@ -32,3 +32,4 @@
 - `RuntimeIdentityReason` 保持 13 项单 record 原因。`cross-side-assessment-mismatch` 是 pair-level mismatch，不能进入 record 的 `reasons`，也不能由 C+D collector 作为单侧采集原因产生。
 
 待 A 决定是否接受 namespace 格式、协议标识、v1/v2 兼容策略，以及 A②-3 的集成前置条件。未经会签，不实施阶段二或修改 A 宿主记录 schema。
+
