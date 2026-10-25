@@ -156,6 +156,7 @@ async function startVite(root, expectedLightAccent) {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
+    detached: process.platform !== 'win32',
   })
   const collect = chunk => {
     logs.push(String(chunk))
@@ -204,11 +205,23 @@ async function startVite(root, expectedLightAccent) {
 }
 
 function stopVite(child) {
-  if (child.exitCode !== null) return
   if (process.platform === 'win32') {
+    if (child.exitCode !== null) return
     spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { windowsHide: true })
   } else {
-    child.kill('SIGTERM')
+    try {
+      // npm run dev starts a shell and the Vite child. Kill their detached
+      // process group so descendants cannot retain Node's piped stdio and
+      // keep the browser job alive after its report has been written.
+      process.kill(-child.pid, 'SIGTERM')
+      const processGroupId = child.pid
+      const hardStop = setTimeout(() => {
+        try { process.kill(-processGroupId, 'SIGKILL') } catch {}
+      }, 1_500)
+      hardStop.unref()
+    } catch {
+      if (child.exitCode === null) child.kill('SIGTERM')
+    }
   }
 }
 
