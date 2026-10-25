@@ -1,13 +1,438 @@
-ÁªçŠx"Ø^ÂŠäŠx¢œ¨}íıìiz¸Ç«y©_–Œ,¥ç-°±pŠY[z·©•§u¼‚D±m…éŞÆÛb™á¢¶Ú.r¬ŠÖ–×÷'B²W‡V7BÂFW7BÒg&öÒtÆ—w&–v‡B÷FW7Bp¦–×÷'B²W†V4f–ÆU7–æ2Òg&öÒvæöFS¦6†–ÆE÷&ö6W72p¦–×÷'B¢2g2g&öÒvæöFS¦g2p¦–×÷'B¢2F‚g&öÒvæöFS§F‚p ¢òòbzÊÎK¨Î™‹një^zÊÎKˆh›yÉşZéî™;î‹zşkXşŠxYšš¨ÎiKnûÈxºÎz¸¾Zêiú^zÊÎY¹¾šûÈ8 ¢òòK‹¾kXzˆ¾ûÉ®yÉşZéîh™>[È[z^zˆ²(i"–g&ÖRXh^Zéî™˜^x+˜ih~ZÙr(i"÷&ö¦V7B÷6÷W&6R×6VÆV7F–öîûÈyÉşZéâ6÷W&6U&VnûÈ¢òò(i"KúîiK’²i‹î[Èò66÷RXk>zÙb(i"ö6æF–FFRyÉşZéîyIşh‰6æF–FFU&V6÷&B(i"ö6æF–FFR÷&Wf–WryÉşZéîš(NkÉ@¢òò(i"Š^KˆşX	˜’”Bşk©ih~K»niÊ®iKXª‚şKÉ®ŠùŞkˆ^ynjZû8.‹IşKè¾ûÉ®iÚ^k©KˆŞZèÎi[N8‹ø~iÉşKÉ®ŠùŞ8{Ë®šR66÷^8¢òò6†&VB66÷Ri®[ŠbÆö6ÅvU&VnûÈ…YYÎY¹î[Ù.ûÈ8.XZ˜:‹[yÉşZéâYîzºşûÈÎizK»¾KÙRÖö6¾8  ¦6öç7B6æF&÷‚Òg2æÖ¶GFV×7–æ2‡F‚æ¦ö–â‡&ö6W72æ7vB‚’ÂvæöFUöÖöGVÆW2rÂrçF×rÂw&—ÆR×‡ÖfÆ÷rÒr’¦6öç7B&ö¦V7E&ö÷BÒF‚æ¦ö–â‡6æF&÷‚Âw6—FRr¦6öç7BWf–FVæ6U&ö÷BÒF‚ç&W6öÇfR‡&ö6W72æVçbå$•ÄUô%$õu4U%ô%D”d5EôD•"óòwFW7B×&W7VÇG2öWf–FVæ6R×&VÂÖfÆ÷rr¦6öç7B’Òv‡GG¢òó#rããã£Cs2õõ÷&—ÆRö’p¦g2æÖ¶F—%7–æ2†Wf–FVæ6U&ö÷BÂ²&V7W'6—fS¢G'VRÒ §FW7Bæ&Vf÷&TÆÂ‚‚’Óâ°¢g2æÖ¶F—%7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂwvW2r’Â²&V7W'6—fS¢G'VRÒ¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂræv—F–væ÷&Rr’ÂvæöFUöÖöGVÆW2õÆâr¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw6¶vRæ§6öâr’Â¥4ôâç7G&–æv–g’‡²æÖS¢w&—ÆR×‡ÖfÆ÷rÖf—‡GW&RrÂ&—fFS¢G'VRÂG—S¢vÖöGVÆRrÒ’¢òò[ø^š¾iŠşYk9R…DÔÂih~j>ûÉ¤j[ø>y¨Nx+˜j^ˆI®iÊÎ{¸òG&ç6f÷&Ô–æFW„‡FÖÂi»şhÚ"Âö&öG“âk:XZ^ûÈÀ¢òò{Ë®[	&öG’j~zÛîy¨Nx˜~jë^KÉ®ZûÎˆ{Nj^{Ë®ZKûÈj~k:K¸ŞYÊ8x+˜húh˜¾kKˆŞkøkK¾ûÈ8 ¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂv–æFW‚æ‡FÖÂr’ÂsÂFö7G—R‡FÖÃãÆ‡FÖÃãÆ†VCãÆÖWF6†'6WCÒ'WFbÓ‚#ãÇF—FÆSå&—ÆR…fÆ÷rf—‡GW&SÂ÷F—FÆSãÂö†VCãÆ&öG“ãÆF—b–CÒ'&ö÷B#ãÂöF—cãÇ67&—BG—SÒ&ÖöGVÆR"7&3Ò"÷7&2öÖ–âæ§7‚#ãÂ÷67&—CãÂö&öG“ãÂö‡FÖÃâr¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂvÖ–âæ§7‚r’Â&–×÷'B²7&VFU&ö÷BÒg&öÒw&V7BÖFöÒö6Æ–VçBs²–×÷'B²Òg&öÒrâôæ§7‚s²7&VFU&ö÷B†Fö7VÖVçBævWDVÆVÖVçD'”–B‚w&ö÷Br’’ç&VæFW"ƒÄóâ•Æâ"¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂtæ§7‚r’Â&–×÷'B²W6U7FFRÒg&öÒw&V7Bs²–×÷'B²†öÖUvRÒg&öÒrâ÷vW2ô†öÖUvRæ§7‚s²–×÷'B²&÷WEvRÒg&öÒrâ÷vW2ô&÷WEvRæ§7‚s²W‡÷'BgVæ7F–öâ‚—¶6öç7B·vRÇ6WEvUÓ×W6U7FFR‚v†öÖRr“²&WGW&âÃãÆæcãÆ'WGFöâöä6Æ–6³×²‚“Óç6WEvR‚v†öÖRr—Óä†öÖSÂö'WGFöããÆ'WGFöâöä6Æ–6³×²‚“Óç6WEvR‚v&÷WBr—Óä&÷WCÂö'WGFöããÂöæcç·vSÓÓÒv†öÖRròÄ†öÖUvRóâ¢Ä&÷WEvRóçÓÂóçÕÆâ"¢òòY»®Zé®iÚ^k©ûÉ¤¥5‚ih~iÊÎˆ¨.x+ûÈÎ™ÙhXˆniéXúşZèÎXZŠøiˆîš^™Ú.[ÛY8Ğ¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂwvW2rÂt†öÖUvRæ§7‚r’Â&W‡÷'BgVæ7F–öâ†öÖUvR‚—·&WGW&âÆÖ–ããÆƒä6ÖRyÉşZéîšinš^j~š)ƒÂöƒãÇîyÉşZéîšinš^ih~jXh^Zë8#Â÷ãÂöÖ–ãçÕÆâ"¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂwvW2rÂt&÷WEvRæ§7‚r’Â&W‡÷'BgVæ7F–öâ&÷WEvR‚—·&WGW&âÆÖ–ããÆƒîX[>K¨îh‰KºÎyÉşZéîih~jƒÂöƒãÂöÖ–ãçÕÆâ"¢g2ç7–ÖÆ–æµ7–æ2‡F‚æ¦ö–â‡&ö6W72æ7vB‚’ÂvæöFUöÖöGVÆW2r’ÂF‚æ¦ö–â‡&ö¦V7E&ö÷BÂvæöFUöÖöGVÆW2r’Â&ö6W72çÆFf÷&ÒÓÓÒwv–ã3"ròv§Væ7F–öâr¢vF—"r¢6öç7Bv—BÒ‚ââæ&w3¢7G&–æuµÒ’ÓâW†V4f–ÆU7–æ2‚vv—BrÂ²rÔ2rÂ&ö¦V7E&ö÷BÂââæ&w5ÒÂ²7FF–ó¢w—RrÒ¢v—B‚v–æ—BrÂr×r“²v—B‚v6öæf–rrÂwW6W"æVÖ–ÂrÂw‡ÖfÆ÷tW†×ÆRæ–çfÆ–Br“²v—B‚v6öæf–rrÂwW6W"ææÖRrÂu…fÆ÷rFW7Br“²v—B‚vFBrÂrâr“²v—B‚v6öÖÖ—BrÂr×ÒrÂv&6VÆ–æRr§Ò §FW7BægFW$ÆÂ†7–æ2‚’Óâ°¢òò[ŞX©¾kˆ^ynûÉ®KŠ.[È>kK¾XªX	˜[›nXÎjÚ.š(NkÉNûÈ[˜.zØûÈ¢G'’°¢6öç7B†—7F÷'’Òv—B†v—BfWF6‚†G´—Òö†—7F÷'–’’æ§6öâ‚’2²†—7F÷'“ó¢'&“Ç²6æF–FFT–C¢7G&–æs²Æ–fV7–6ÆS¢7G&–ærÓâĞ¢f÷"†6öç7B—FVÒöb†—7F÷'’æ†—7F÷'’óòµÒ’°¢–b†—FVÒæÆ–fV7–6ÆRÓÓÒv7F—fRr’v—BfWF6‚†G´—ÒöF—66&FÂ²ÖWF†öC¢uõ5BrÂ†VFW'3¢²v6öçFVçB×G—Rs¢vÆ–6F–öâö§6öârÒÂ&öG“¢¥4ôâç7G&–æv–g’‡²6æF–FFT–C¢—FVÒæ6æF–FFT–BÒ’Ò’æ6F6‚‚‚’ÓâVæFVf–æVB¢Ğ¢Ò6F6‚²ò¢[ŞX©¾kˆ^yb¢òĞ¢òòv–æF÷w2KŠŞih~[z^KÙÎXË®Kˆ¾K‹Ni{nyºî[Ù^XŠ™šNXnXùUU$ŞûÈ[{.yú^iÊÎiË®xêşZ(>™™X‹nûÈûÉ¾[ŞX©¾kˆ^y`¢f÷"†ÆWBGFV×BÒ²GFV×BÂ3²GFV×B³Ò’°¢G'’²g2ç&Õ7–æ2‡6æF&÷‚Â²&V7W'6—fS¢G'VRÂf÷&6S¢G'VRÒ“²'&V²Ò6F6‚²ò¢˜xŞŠùR¢òĞ¢Ğ§Ò ¦7–æ2gVæ7F–öâæÇ—¦Tf—‡GW&R‚’°¢6öç7B&W7öç6RÒv—BfWF6‚†G´—ÒöæÇ—¦VÂ²ÖWF†öC¢uõ5BrÂ†VFW'3¢²v6öçFVçB×G—Rs¢vÆ–6F–öâö§6öârÒÂ&öG“¢¥4ôâç7G&–æv–g’‡²&ö¦V7E&ö÷BÒ’Ò¢òòk:hHşûÉ®Y8Ş[©NKÙ>Xú®ˆ;ŞŠû¾KˆjÊ(	N(	NZK‹J^i{nŠû¾ih~iÊÎûÈÎh‰X©şi{nŠû²¥4ôà¢–b‚&W7öç6Ræö²’F‡&÷ræWrW'&÷"†æÇ—¦RZK‹J^ûÉ¢G¶v—B&W7öç6RçFW‡B‚—Ö¢&WGW&â†v—B&W7öç6Ræ§6öâ‚’’2°¢&Wf—6–öã¢²&ö¦V7D–C¢7G&–æs²6÷W&6TF–vW7C¢7G&–ærĞ¢&÷WFW3¢'&“Ç²–C¢7G&–ærÓà¢F&vWG3¢'&“Ç²–C¢7G&–æs²Æ&VÃ¢7G&–æs²–×7C¢²vU&Vg3¢7G&–æuµÓ²6W'F–çG“¢7G&–ærÒÓà¢Ğ§Ğ §FW7B‚~yÉşZéî™;î‹zşûÉ¦–g&ÖRx+˜’(i"6÷W&6R×6VÆV7F–öâ(i"66÷RXk>zÙb(i"X	˜X‰¾[»¢(i"X	˜š(NkÉB(i"KÉ®ŠùŞkˆ^ybrÂ7–æ2‡²vRÒ’Óâ°¢FW7Bç6WEF–ÖV÷WBƒC#ó¢v—BvRç6WEf–Ww÷'E6—¦R‡²v–GFƒ¢CCÂ†V–v‡C¢Ò¢6öç7BæÇ—6—2Òv—BæÇ—¦Tf—‡GW&R‚¢6öç7BF—FÆUF&vWBÒæÇ—6—2çF&vWG2æf–æB†—FVÒÓâ—FVÒæÆ&VÂæ–æ6ÇVFW2‚t6ÖRyÉşZéîšinš^j~š)‚r’¢6öç7B&w&…F&vWBÒæÇ—6—2çF&vWG2æf–æB†—FVÒÓâ—FVÒæÆ&VÂæ–æ6ÇVFW2‚~yÉşZéîšinš^ih~jXh^Zë8"r’¢W‡V7B‡F—FÆUF&vWBÂ~šinš^j~š)[ø^š¾iŠş[{.Xˆniéyºîjrr’çFô&UG'WF‡’‚¢W‡V7B‡&w&…F&vWBÂ~šinš^jÚ>ih~[ø^š¾iŠş[{.Xˆniéyºîjrr’çFô&UG'WF‡’‚¢W‡V7B‡F—FÆUF&vWBæ–×7Bæ6W'F–çG’’çFô&R‚w6÷W&6R×&÷fVâr ¢v—BvRæv÷Fò†öW‡W&–Væ6Ræ‡FÖÃöFFW#×&VÂg&ö¦V7CÒG¶Væ6öFUU$”6ö×öæVçB‡&ö¦V7E&ö÷B—ÖÂ²v—EVçF–Ã¢væWGv÷&¶–FÆRrÒ¢v—BW‡V7B‡vRævWD'•FW7D–B‚w&VÂÖ&FvRr’’çFô6öçF–åFW‡B‚~yÉşZéî[z^zˆ²r ¢òòš(NkÉNKŠNhûÉ®iÊÎiË®izFö6¶W"i{nZh.Zéî‹{>‹ø~K‹¾™;î‹zşûÈ„4’X[~ZHrFö6¶W.ûÈÎ[ø^š¾XZ™;î‹zşhš~ŠÎûÈ¢6öç7Bg&ÖRÒvRævWD'•FW7D–B‚w&VÂ×&Wf–WrÖg&ÖRr¢6öç7BVæF–ærÒvRævWD'•FW7D–B‚w&VÂ×&Wf–Wr×VæF–ærr¢v—BW‡V7B†g&ÖRæ÷"‡VæF–ær’æf—'7B‚’’çFô&Uf—6–&ÆR‡²F–ÖV÷WC¢SóÒ¢–b‚†v—Bg&ÖRæ—5f—6–&ÆR‚’æ6F6‚‚‚’ÓâfÇ6R’’’°¢–b‡&ö6W72æVçbä4’’F‡&÷ræWrW'&÷"‚t4’[ø^š¾X[~ZHrFö6¶W"™©Nzk¾š(NkÉNûÉ®yÉşZéîx+˜™;î‹zşKˆŞXúş‹{>‹ørr¢FW7Bç6¶—‡G'VRÂ~iÊÎiË®izFö6¶W.ûÉ®™©Nzk¾šyºîš(NkÉNKˆŞXúşyJûÈÎyÉşZéî™;î‹zşYÊ‚4ûÈ‡V'VçGR²Fö6¶W.ûÈhš~ŠÂr¢Ğ ¢òòÓ"â‹ù¾XZ^yK¾[ˆ>x+˜’(i"YÊ‚–g&ÖRXh^Zéî™˜^x+X{¾j~š)ih~ZÙp¢v—BW‡V7B‡vRævWD'•FW7D–B‚w–6¶W"×FövvÆRr’’çFô&TVæ&ÆVB‚¢v—BvRævWD'•FW7D–B‚w–6¶W"×FövvÆRr’æ6Æ–6²‚¢v—BW‡V7B‡vRævWD'•FW7D–B‚w–6¶W"Ö†–çBr’’çFô&Uf—6–&ÆR‚¢6öç7B&ö¦V7Dg&ÖRÒvRæg&ÖTÆö6F÷"‚u¶FF×FW7F–CÒ'&VÂ×&Wf–WrÖg&ÖR%Òr¢v—BW‡V7B‡&ö¦V7Dg&ÖRævWD'•&öÆR‚v†VF–ærrÂ²æÖS¢t6ÖRyÉşZéîšinš^j~š)‚rÒ’’çFô&Uf—6–&ÆR‡²F–ÖV÷WC¢“óÒ ¢òò&"âš(NkÉNj~k:Kˆîx+˜jŠ[Èşhúh˜¾jiú^ûÈ„Bj^k:XZR²&—ÆS§6VÆV7F–öâÖÖöFR˜‹ëîûÈûÉ ¢òòƒ[ø^š¾[ŠbFF×&—ÆR×6÷W&6^ûÉ¾j^køkK¾i{bFö7VÖVçDVÆVÖVçBXXj~XùK‹¢7&÷76†—.8 ¢6öç7B&Wf–Wtg&ÖRÒvRæg&ÖW2‚’æf–æB†6æF–FFRÓâ6æF–FFRÓÒvRæÖ–äg&ÖR‚’’¢6öç7B6÷W&6U&VbÒv—B&Wf–Wtg&ÖRæÆö6F÷"‚vƒr’ævWDGG&–'WFR‚vFF×&—ÆR×6÷W&6Rr¢W‡V7B‡6÷W&6U&VbÂ~š(NkÉN[ø^š¾h¨¢ƒj~k:X‹¥5‚k©zr’çFôÖF6‚‚õæ§7ƒ§7&5Â÷vW5Âô†öÖUvUÂæ§7‚5ÆB²Bò¢òò˜‹ëîhê.™(ûÉ®Šë[Ù^š(NkÉNih~j>iKnX‹y¨NXZ˜:‚÷7DÖW76v^ûÈXË®XˆbbKê~iÊ®XùX{¢òj^iÊ®køkK¾ûÈ¢v—B&Wf–Wtg&ÖRæWfÇVFR‚‚’Óâ°¢6öç7BrÒv–æF÷r2Væ¶æ÷vâ2²õ÷&—ÆU&ö&S¢Væ¶æ÷våµÒĞ¢råõ÷&—ÆU&ö&RÒµĞ¢v–æF÷ræFDWfVçDÆ—7FVæW"‚vÖW76vRrÂWfVçBÓâ°¢6öç7BFFÒWfVçBæFF2²G—Só¢7G&–æs²Væ&ÆVCó¢&ööÆVâÒÂçVÆÀ¢råõ÷&—ÆU&ö&RçW6‚‡²G—S¢FFòçG—RóòçVÆÂÂVæ&ÆVC¢FFòæVæ&ÆVBóòçVÆÂÂg&öÕ&VçC¢WfVçBç6÷W&6RÓÓÒv–æF÷rç&VçBÒ¢Ò¢Ò¢6öç7B&VE&ö&RÒ‚’Óâ&Wf–Wtg&ÖRæWfÇVFR‚‚’Óâ¥4ôâç7G&–æv–g’‚‡v–æF÷r2Væ¶æ÷vâ2²õ÷&—ÆU&ö&S¢Væ¶æ÷våµÒÒ’åõ÷&—ÆU&ö&R’¢òò˜X{®XhŞ˜xŞ‹ù¾ûÉ®š¨ÎŠøVæ&ÆVC¦fÇ6R˜‹ëîûÈKˆŞjè¾yYiz~x+˜jŠ[ÈşûÈ’²æöæ6R‹ÚîhÚ ¢v—BvRævWD'•FW7D–B‚w–6¶W"×FövvÆRr’æ6Æ–6²‚’òòX[>™zŞûÈzÊÂƒŠÎ[{.[ÈY
-şûÈ¢v—BW‡V7B‡vRævWD'•FW7D–B‚w–6¶W"Ö†–çBr’’çFô†fT6÷VçBƒ¢v—BvRævWD'•FW7D–B‚w–6¶W"×FövvÆRr’æ6Æ–6²‚’òò˜xŞik‹ù¾XZP¢v—BW‡V7B‡vRævWD'•FW7D–B‚w–6¶W"Ö†–çBr’’çFô&Uf—6–&ÆR‚¢ÆWB&ö&TÆörÒuµÒp¢v—BW‡V7@¢çöÆÂ†7–æ2‚’Óâ²&ö&TÆörÒv—B&VE&ö&R‚“²&WGW&â&ö&TÆörÒÂ²F–ÖV÷WC¢óÂÖW76vS¢~š(NkÉB–g&ÖRiÊ®iKnX‹&—ÆS§6VÆV7F–öâÖÖöF^ûÈ„bKêr÷7DÖW76vRiÊ®˜‹ëîûÈ’rÒ¢çFô6öçF–â‚r'G—R#¢'&—ÆS§6VÆV7F–öâÖÖöFR"r¢òòkhhş[ø^š¾iÚ^ˆz®x‹nš^ûÈ„Bj^YÎj~j
-š¨ÂWfVçBç6÷W&6RÓÓÒv–æF÷rç&VçNûÈ¢W‡V7B‡&ö&TÆörÂw6VÆV7F–öâÖÖöFR[ø^š¾iÚ^ˆz®x‹nš^z©~Xú2r’çFô6öçF–â‚r&g&öÕ&VçB#§G'VRr¢v—BW‡V7@¢çöÆÂ‚‚’Óâ&Wf–Wtg&ÖRæWfÇVFR‚‚’ÓâFö7VÖVçBæFö7VÖVçDVÆVÖVçBç7G–ÆRæ7W'6÷"’Â²F–ÖV÷WC¢óÒ¢çFô&R‚v7&÷76†—"r¢æ6F6‚‚†W'&÷#¢Væ¶æ÷vâ’Óâ°¢F‡&÷ræWrW'&÷"†Bj^iÊ®‹ù¾XZ^x+˜jŠ[ÈşûÈj^ˆI®iÊÎiÊ®k:XZ^h‰nKú[Š*¾h¹.ûÈ8.hê.™(ƒÒG·&ö&TÆöwÖÂ²6W6S¢W'&÷"Ò¢Ò¢6öç7B7W'6÷$gFW$†æG6†¶RÒv—B&Wf–Wtg&ÖRæWfÇVFR‚‚’ÓâFö7VÖVçBæFö7VÖVçDVÆVÖVçBç7G–ÆRæ7W'6÷"¢–b†7W'6÷$gFW$†æG6†¶RÓÒv7&÷76†—"r’°¢F‡&÷ræWrW'&÷"†Bj^iÊ®‹ù¾XZ^x+˜jŠ[Èş8.hê.™(ƒÒG¶v—B&VE&ö&R‚—Ò7W'6÷#ÒG¶7W'6÷$gFW$†æG6†¶WÖ¢Ğ ¢òò2âyÉşZéâ6÷W&6U&VnûÉ¤Bj^Kú[(i"iÈŞXªzºò÷&ö¦V7B÷6÷W&6R×6VÆV7F–öâhèiØ0¢òòXXzØK»¾hHşx«nhy¨NY8Ş[©NûÈƒG‡‚K™şKÉ®Š*¾hÙ^ˆë~[›n[ŠnjÚ>ih~hª^™IûÈÎ˜şXXŞi[NKÙ>‹h^i{nizŠø®ijŞûÈ¢6öç7B6VÆV7F–öå&W7öç6RÒvRçv—Df÷%&W7öç6R‡&W7öç6RÓâ&W7öç6RçW&Â‚’æ–æ6ÇVFW2‚rõõ÷&—ÆRö’÷&ö¦V7B÷6÷W&6R×6VÆV7F–öâr’Â²F–ÖV÷WC¢cóÒ¢v—B&ö¦V7Dg&ÖRævWD'•&öÆR‚v†VF–ærrÂ²æÖS¢t6ÖRyÉşZéîšinš^j~š)‚rÒ’æ6Æ–6²‚¢6öç7B6VÆV7F–öä‡GGÒv—B6VÆV7F–öå&W7öç6P¢W‡V7B‡6VÆV7F–öä‡GGæö²‚’Â6÷W&6R×6VÆV7F–öâiÊ®h‰X©şûÉ¢G¶v—B6VÆV7F–öä‡GGçFW‡B‚—Ö’çFô&R‡G'VR¢6öç7B6VÆV7F–öâÒv—B6VÆV7F–öä‡GGæ§6öâ‚’2²VÆVÖVçC¢²–C¢7G&–ærÒĞ¢W‡V7B‡6VÆV7F–öâæVÆVÖVçBæ–B’çFô&R‡6÷W&6U&Vb¢v—BW‡V7B‡vRævWD'•FW7D–B‚w6VÆV7F–öâ×7VÖÖ'’r’’çFô&Uf—6–&ÆR‚¢v—BW‡V7B‡vRævWD'•FW7D–B‚w'VçF–ÖRÖ–FVçF—G’r’’çFô&Uf—6–&ÆR‚¢v—BvRç67&VVç6†÷B‡²Fƒ¢F‚æ¦ö–â†Wf–FVæ6U&ö÷BÂw‡ÖfÆ÷r×–6¶VBÓCCçærr’ÂgVÆÅvS¢G'VRÒ ¢òòBâKúîiKih~ZÙr²i‹î[Èò66÷RXk>zÙnûÉ®™Ùî™HZé®š^™Ú.XZ˜:i‹î[Èşhé.™šNûÈKˆŞˆxn˜
-XÈ^Y
-¾ûÈ¢v—BvRævWD'•FW7D–B‚vG&gB×FW‡BÖ–çWBr’æf–ÆÂ‚t6ÖRiy~ˆ‹[©~j~š)‚r¢6öç7BW†6ÇVFT'WGFöç2ÒvRæÆö6F÷"‚v'WGFöå¶FF×FW7F–EãÒ'66÷RÖW†6ÇVFRÒ%Ó¦æ÷B…¶F—6&ÆVEÒ’r¢f÷"†ÆWB–æFW‚Ò²–æFW‚Âv—BW†6ÇVFT'WGFöç2æ6÷VçB‚“²–æFW‚³Ò’v—BW†6ÇVFT'WGFöç2æçF‚†–æFW‚’æ6Æ–6²‚¢v—BW‡V7B‡vRævWD'•FW7D–B‚w66÷R×7VÖÖ'’r’’çFô6öçF–åFW‡B‚~iÊ®Xk>Zé¢r ¢òòRâõ5Bö6æF–FF^ûÉ®yÉşZéîyIşh‰6æF–FFU&V6÷&NûÈY8Ş[©NXÛ>iÈŞXªzºşhÈK˜^XÉn{¹>iéÎûÈ¢6öç7B6æF–FFU&W7öç6RÒvRçv—Df÷%&W7öç6R‡&W7öç6RÓâ&W7öç6RçW&Â‚’æ–æ6ÇVFW2‚rõõ÷&—ÆRö’ö6æF–FFRr’bb&W7öç6Rç7FGW2‚’ÓÓÒ#¢v—BvRævWD'•FW7D–B‚v7&VFRÖ6æF–FFRr’æ6Æ–6²‚¢6öç7B6æF–FFU–ÆöBÒv—B†v—B6æF–FFU&W7öç6R’æ§6öâ‚’2°¢6W76–öä–C¢7G&–æp¢6æF–FFS¢²–C¢7G&–æs²F6„†6ƒó¢7G&–ærĞ¢v÷&¶fÆ÷s¢²Æ–fV7–6ÆS¢7G&–ærĞ¢Ğ¢v—BW‡V7B‡vRævWD'•FW7D–B‚v6æF–FFRÖ&÷‚r’’çFô&Uf—6–&ÆR‚¢W‡V7B†6æF–FFU–ÆöBçv÷&¶fÆ÷ræÆ–fV7–6ÆR’çFô&R‚v7F—fRr ¢òòšyºîš(NkÉN[{.YÊX	˜X‰¾[»®i{nXÎjÚ.ûÉ®yK¾[ˆ>Zh.ZéîYxëûÈÎx+˜[{.˜X{ ¢v—BW‡V7B‡vRævWD'•FW7D–B‚w&VÂ×&Wf–Wr×VæF–ærr’’çFô6öçF–åFW‡B‚~šyºîš(NkÉN[{.YÊX	˜X‰¾[»®i{nXÎjÚ"r ¢òòbâõ5Bö6æF–FFR÷&Wf–W~ûÉ®yK¾[ˆ>i‹îzK®yÉşZéîX	˜ûÈŠ^KˆYîy¨Nih~ZÙ~ûÈ¢v—BvRævWD'•FW7D–B‚v6æF–FFR×&Wf–Wr×FövvÆRr’æ6Æ–6²‚¢6öç7B6æF–FFTg&ÖRÒvRæg&ÖTÆö6F÷"‚u¶FF×FW7F–CÒ&6æF–FFR×&Wf–WrÖg&ÖR%Òr¢v—BW‡V7B†6æF–FFTg&ÖRævWD'•&öÆR‚v†VF–ærrÂ²æÖS¢t6ÖRiy~ˆ‹[©~j~š)‚rÒ’’çFô&Uf—6–&ÆR‡²F–ÖV÷WC¢#óÒ¢v—BvRç67&VVç6†÷B‡²Fƒ¢F‚æ¦ö–â†Wf–FVæ6U&ö÷BÂw‡ÖfÆ÷rÖ6æF–FFRÓCCçærr’ÂgVÆÅvS¢G'VRÒ ¢òòf"âõ5Bö6æF–FFR÷fW&–gûÉ®yÉşZéîY¹¾ŠxnXú>š¨ÎŠøûÈkh‹KiÈŞXªzºòfW&–f–6F–öå'VîûÈÄbKˆŞˆz®ŠÎyIşh‰{¹>Šë®ûÈ¢6öç7BfW&–g•&W7öç6RÒvRçv—Df÷%&W7öç6R‡&W7öç6RÓâ&W7öç6RçW&Â‚’æ–æ6ÇVFW2‚rõõ÷&—ÆRö’ö6æF–FFR÷fW&–g’r’bb&W7öç6Rç7FGW2‚’ÓÓÒ#Â²F–ÖV÷WC¢ƒóÒ¢v—BvRævWD'•FW7D–B‚w'Vâ×fW&–f–6F–öâr’æ6Æ–6²‚¢6öç7BfW&–g•–ÆöBÒv—B†v—BfW&–g•&W7öç6R’æ§6öâ‚’2°¢6æF–FFT–C¢7G&–æp¢fW&–f–6F–öã¢²7FFS¢7G&–æs²'Vä–Có¢7G&–æs²&V6÷&D†6ƒó¢7G&–æs²Wf–FVæ6Só¢'&“Ç²'F–f7EW&Ãó¢7G&–ærÓâĞ¢Ğ¢W‡V7B‡fW&–g•–ÆöBæ6æF–FFT–B’çFô&R†6æF–FFU–ÆöBæ6æF–FFRæ–B¢W‡V7B‡fW&–g•–ÆöBçfW&–f–6F–öâç'Vä–BÂ~jÚ>[Èşš¨ÎŠø‹ùŠÎŠë[Ù^[ø^š¾ZÙYÊ‚r’çFô&UG'WF‡’‚¢W‡V7B…²w76VBrÂw&—6·2rÂv–æ6ö×ÆWFRrÂw7FÆRuÒ’çFô6öçF–â‡fW&–g•–ÆöBçfW&–f–6F–öâç7FFR¢òòyXÎ™Ú.Zh.Zéî[^zK®š¨ÎŠø‹ùŠÎûÉ®x«nh8‹ùŠÂ”N8Y¹¾ŠxnXú>hŠ®Y»à¢6öç7BfW&–f–6F–öå7FGW2ÒvRævWD'•FW7D–B‚wfW&–f–6F–öâ×7FGW2r¢v—BW‡V7B‡fW&–f–6F–öå7FGW2’çFô&Uf—6–&ÆR‚¢v—BW‡V7B‡fW&–f–6F–öå7FGW2’çFô6öçF–åFW‡B‡fW&–g•–ÆöBçfW&–f–6F–öâç'Vä–Bç6Æ–6RƒÂ"’¢v—BW‡V7B‡vRævWD'•FW7D–B‚wfW&–f–6F–öâ×6†÷G2r’’çFô&Uf—6–&ÆR‚¢6öç7B6†÷D6÷VçBÒv—BvRævWD'•FW7D–B‚wfW&–f–6F–öâ×6†÷G2r’æÆö6F÷"‚v–Örr’æ6÷VçB‚¢W‡V7B‡6†÷D6÷VçBÂ~Y¹¾ŠxnXú>š¨ÎŠø[©NKª~X{®yÉşZéîhŠ®Y»âr’çFô&Tw&VFW%F†ä÷$WVÂƒ¢òòzÊÎKˆh›ûÉ®Kˆ>šijŞŠˆ˜	iÚ[^zK®ûÉ¾™Ùâ76VBi{nZêh›hÈ™*îzhyJ[›n{¹X{®XxnzîXéşYºûÈ‡76VBi{n[ÈiKîûÈ¢v—BW‡V7B‡vRævWD'•FW7D–B‚wfW&–f–6F–öâÖ76W'F–öç2r’’çFô&Uf—6–&ÆR‚¢–b‡fW&–g•–ÆöBçfW&–f–6F–öâç7FFRÓÓÒw76VBr’°¢v—BW‡V7B‡vRævWD'•FW7D–B‚v&÷fRÖ6æF–FFRr’’çFô&TVæ&ÆVB‚¢ÒVÇ6R°¢v—BW‡V7B‡vRævWD'•FW7D–B‚v&÷fRÖ6æF–FFRr’’çFô&TF—6&ÆVB‚¢v—BW‡V7B‡vRævWD'•FW7D–B‚v&÷fRÖ&Æö6¶VB×&V6öâr’’çFô6öçF–åFW‡B‚~Zêh›iÊ®[ÈiKâr¢Ğ¢v—BvRç67&VVç6†÷B‡²Fƒ¢F‚æ¦ö–â†Wf–FVæ6U&ö÷BÂw‡ÖfÆ÷r×fW&–f–VBÓCCçærr’ÂgVÆÅvS¢G'VRÒ ¢òòf2â[È.jÚ^Xˆ~hÚ.‹zş[èNûÈ„Fö6¶W"S$RŠhny¹nŠhk.ûÈûÉ®X‹~ik˜xŞ[»®š(NkÉN8 ¢òòŠúŞK˜ûÉ®˜xŞikXˆniéKÛşkK¾‹x>X	˜˜[ÛûÈ†f–ÂÖ6Æ÷6VNûÈ(	N(	Db[ø^š¾kˆ^hèiÊÎYËX	˜Kˆîiz~š¨ÎŠøûÈÎ{¹ŞKˆŞ[^zK®[›Şx^X	˜8 ¢6öç7B&Wf–÷W5&Wf–WuW&ÂÒv—BvRævWD'•FW7D–B‚w&VÂ×&Wf–WrÖg&ÖRr’ævWDGG&–'WFR‚w7&2r¢6öç7B&Vg&W6†VE&Wf–Wu&W7öç6RÒvRçv—Df÷%&W7öç6R‡&W7öç6RÓâ°¢6öç7B&W7öç6UW&ÂÒæWrU$Â‡&W7öç6RçW&Â‚’¢&WGW&â&W7öç6UW&ÂçF†æÖRÓÓÒrõõ÷&—ÆRö’÷&ö¦V7B÷&Wf–Wrrbb&W7öç6Rç&WVW7B‚’æÖWF†öB‚’ÓÓÒuõ5Bp¢ÒÂ²F–ÖV÷WC¢SóÒ¢v—BvRævWD'•FW7D–B‚w&Vg&W6‚×&ö¦V7Br’æ6Æ–6²‚¢6öç7B&Vg&W6†VE&Wf–Wt‡GGÒv—B&Vg&W6†VE&Wf–Wu&W7öç6P¢6öç7B&Vg&W6†VE&Wf–Wt&öG’Òv—B&Vg&W6†VE&Wf–Wt‡GGçFW‡B‚¢W‡V7B‡&Vg&W6†VE&Wf–Wt‡GGæö²‚’ÂX‹~ikYîX‰¾[»®šyºîš(NkÉNZK‹J^ûÉ¢G·&Vg&W6†VE&Wf–Wt&öG—Ö’çFô&R‡G'VR¢6öç7B&Vg&W6†VE&Wf–WrÒ¥4ôâç'6R‡&Vg&W6†VE&Wf–Wt&öG’’2²&Wf–Wt–C¢7G&–æs²W&Ã¢7G&–ærĞ¢W‡V7B‡&Vg&W6†VE&Wf–Wrç&Wf–Wt–B’çFô&UG'WF‡’‚¢W‡V7B‡&Vg&W6†VE&Wf–WrçW&Â’çFô&UG'WF‡’‚¢W‡V7B‡&Vg&W6†VE&Wf–WrçW&Â’ææ÷BçFô&R‡&Wf–÷W5&Wf–WuW&Â¢v—BW‡V7B‡vRævWD'•FW7D–B‚w&VÂ×&Wf–WrÖg&ÖRr’’çFô†fTGG&–'WFR‚w7&2rÂ&Vg&W6†VE&Wf–WrçW&ÂÂ²F–ÖV÷WC¢SóÒ¢v—BW‡V7BçöÆÂ‚‚’ÓâvRæg&ÖW2‚’ç6öÖR†6æF–FFRÓâ6æF–FFRÓÒvRæÖ–äg&ÖR‚’bb6æF–FFRçW&Â‚’ÓÓÒ&Vg&W6†VE&Wf–WrçW&Â’Â²F–ÖV÷WC¢SóÒ¢çFô&R‡G'VR¢v—BW‡V7B‡&ö¦V7Dg&ÖRævWD'•FW‡B‚~yÉşZéîšinš^ih~jXh^Zë8"r’’çFô&Uf—6–&ÆR‡²F–ÖV÷WC¢“óÒ¢òòX‹~ikZèÎh‰YîûÉ®X	˜y¹.Kˆîš¨ÎŠøx«nhKˆ[›nkhZKûÈiÈŞXªzºş[{.˜[ÛX	˜’ÓûÈûÈÎx«nhˆªşx˜~Zh.Zéîi‹îzK ¢v—BW‡V7B‡vRævWD'•FW7D–B‚v6æF–FFRÖ&÷‚r’’çFô†fT6÷VçBƒ¢v—BW‡V7B‡vRævWD'•FW7D–B‚wfW&–f–6F–öâ×7FGW2r’’çFô†fT6÷VçBƒ¢v—BW‡V7B‡vRævWD'•FW7D–B‚v6æF–FFR×7FGW2r’’çFô6öçF–åFW‡B‚~[	®izX	˜’r¢òòx+˜zÊÎK¨Îyºîj~ûÈjÚ>ih~jë^‰ŞûÈ¢v—BvRævWD'•FW7D–B‚w–6¶W"×FövvÆRr’æ6Æ–6²‚¢v—BW‡V7B‡vRævWD'•FW7D–B‚w–6¶W"Ö†–çBr’’çFô&Uf—6–&ÆR‚¢6öç7B6V6öæEFW‡EF&vWBÒ&ö¦V7Dg&ÖRævWD'•FW‡B‚~yÉşZéîšinš^ih~jXh^Zë8"r¢6öç7B6V6öæE6÷W&6U&VbÒv—B6V6öæEFW‡EF&vWBævWDGG&–'WFR‚vFF×&—ÆR×6÷W&6Rr¢W‡V7B‡6V6öæE6÷W&6U&VbÂ~X‹~ikYîy¨NjÚ>ih~jë^‰Ş[ø^š¾[ŠniÈyÉşZéâ¥5‚6÷W&6U&Vbr’çFôÖF6‚‚õæ§7ƒ§7&5Â÷vW5Âô†öÖUvUÂæ§7‚5ÆB²Bò¢W‡V7B‡6V6öæE6÷W&6U&Vb’çFô&R‡&w&…F&vWBæ–B¢6öç7B6V6öæE6VÆV7F–öå&W7öç6RÒvRçv—Df÷%&W7öç6R‡&W7öç6RÓâ°¢6öç7B&W7öç6UW&ÂÒæWrU$Â‡&W7öç6RçW&Â‚’¢&WGW&â&W7öç6UW&ÂçF†æÖRÓÓÒrõõ÷&—ÆRö’÷&ö¦V7B÷6÷W&6R×6VÆV7F–öârbb&W7öç6Rç&WVW7B‚’æÖWF†öB‚’ÓÓÒuõ5Bp¢ÒÂ²F–ÖV÷WC¢cóÒ¢v—B6V6öæEFW‡EF&vWBæ6Æ–6²‚¢6öç7B6V6öæE6VÆV7F–öä‡GGÒv—B6V6öæE6VÆV7F–öå&W7öç6P¢6öç7B6V6öæE6VÆV7F–öä&öG’Òv—B6V6öæE6VÆV7F–öä‡GGçFW‡B‚¢W‡V7B‡6V6öæE6VÆV7F–öä‡GGæö²‚’ÂzÊÎK¨ÎjÊ6÷W&6R×6VÆV7F–öâZK‹J^ûÉ¢G·6V6öæE6VÆV7F–öä&öG—Ö’çFô&R‡G'VR¢6öç7B6V6öæE6VÆV7F–öâÒ¥4ôâç'6R‡6V6öæE6VÆV7F–öä&öG’’2²VÆVÖVçC¢²–C¢7G&–ærÒĞ¢W‡V7B‡6V6öæE6VÆV7F–öâæVÆVÖVçBæ–B’çFô&R‡6V6öæE6÷W&6U&Vb¢v—BW‡V7B‡vRævWD'•FW7D–B‚w6VÆV7F–öâ×7VÖÖ'’r’’çFô6öçF–åFW‡B‡&w&…F&vWBæÆ&VÂ¢v—BvRævWD'•FW7D–B‚w–6¶W"×FövvÆRr’æ6Æ–6²‚’òò˜X{®x+˜jŠ[Èğ¢v—BvRævWD'•FW7D–B‚vG&gB×FW‡BÖ–çWBr’æf–ÆÂ‚t6ÖRiy~ˆ‹[©~ih~j8"r¢6öç7BW†6ÇVFT'WGFöç3"ÒvRæÆö6F÷"‚v'WGFöå¶FF×FW7F–EãÒ'66÷RÖW†6ÇVFRÒ%Ó¦æ÷B…¶F—6&ÆVEÒ’r¢f÷"†ÆWB–æFW‚Ò²–æFW‚Âv—BW†6ÇVFT'WGFöç3"æ6÷VçB‚“²–æFW‚³Ò’v—BW†6ÇVFT'WGFöç3"æçF‚†–æFW‚’æ6Æ–6²‚¢v—BW‡V7B‡vRævWD'•FW7D–B‚w66÷R×7VÖÖ'’r’’çFô6öçF–åFW‡B‚~iÊ®Xk>Zé¢r¢6öç7B6æF–FFS%&WVW7BÒvRçv—Df÷%&WVW7B‡&WVW7BÓâ°¢6öç7B&WVW7EW&ÂÒæWrU$Â‡&WVW7BçW&Â‚’¢&WGW&â&WVW7EW&ÂçF†æÖRÓÓÒrõõ÷&—ÆRö’ö6æF–FFRrbb&WVW7BæÖWF†öB‚’ÓÓÒuõ5Bp¢ÒÂ²F–ÖV÷WC¢3óÒ¢v—BvRævWD'•FW7D–B‚v7&VFRÖ6æF–FFRr’æ6Æ–6²‚¢6öç7B6æF–FFS%&W7öç6RÒv—B†v—B6æF–FFS%&WVW7B’ç&W7öç6R‚¢W‡V7B†6æF–FFS%&W7öç6RÂ~zÊÎK¨ÎKŠ®X	˜’õ5B[ø^š¾iKnX‹…EEY8Ş[©Br’çFô&UG'WF‡’‚¢6öç7B6æF–FFS$&öG’Òv—B6æF–FFS%&W7öç6RçFW‡B‚¢W‡V7B†6æF–FFS%&W7öç6Rç7FGW2‚’ÂzÊÎK¨ÎKŠ®X	˜’õ5BZK‹J^ûÉ¢G¶6æF–FFS$&öG—Ö’çFô&Rƒ#¢6öç7B6æF–FFS%–ÆöBÒ¥4ôâç'6R†6æF–FFS$&öG’’2²6æF–FFS¢²–C¢7G&–ærÒĞ¢W‡V7B†6æF–FFS%–ÆöBæ6æF–FFRæ–B’ææ÷BçFô&R†6æF–FFU–ÆöBæ6æF–FFRæ–B¢òòZHŞjx+’ûÈyÉşZéîkXşŠxYšûÈûÉ®ikX	˜KˆŞ[é~[^zK®Kˆ®KˆKŠ®X	˜y¨Nš¨ÎŠø‹ùŠÀ¢v—BW‡V7B‡vRævWD'•FW7D–B‚wfW&–f–6F–öâ×7FGW2r’’çFô†fT6÷VçBƒ¢òòikX	˜XhŞjÊ‹ùŠÎš¨ÎŠøûÉ®yÉşZéâfW&–f–6F–öå'Và¢6öç7BfW&–g“%&W7öç6RÒvRçv—Df÷%&W7öç6R‡&W7öç6RÓâ&W7öç6RçW&Â‚’æ–æ6ÇVFW2‚rõõ÷&—ÆRö’ö6æF–FFR÷fW&–g’r’bb&W7öç6Rç7FGW2‚’ÓÓÒ#Â²F–ÖV÷WC¢ƒóÒ¢v—BvRævWD'•FW7D–B‚w'Vâ×fW&–f–6F–öâr’æ6Æ–6²‚¢6öç7BfW&–g“%–ÆöBÒv—B†v—BfW&–g“%&W7öç6R’æ§6öâ‚’2²fW&–f–6F–öã¢²7FFS¢7G&–æs²'Vä–Có¢7G&–ærÒĞ¢W‡V7B‡fW&–g“%–ÆöBçfW&–f–6F–öâç'Vä–BÂ~zÊÎK¨ÎKŠ®X	˜y¨Nš¨ÎŠø‹ùŠÎŠë[Ù^[ø^š¾ZÙYÊ‚r’çFô&UG'WF‡’‚¢W‡V7B…²w76VBrÂw&—6·2rÂv–æ6ö×ÆWFRrÂw7FÆRuÒ’çFô6öçF–â‡fW&–g“%–ÆöBçfW&–f–6F–öâç7FFR¢v—BW‡V7B‡vRævWD'•FW7D–B‚wfW&–f–6F–öâ×7FGW2r’’çFô6öçF–åFW‡B‡fW&–g“%–ÆöBçfW&–f–6F–öâç'Vä–Bç6Æ–6RƒÂ"’¢v—BvRç67&VVç6†÷B‡²Fƒ¢F‚æ¦ö–â†Wf–FVæ6U&ö÷BÂw‡ÖfÆ÷r×7v—F6†VBÓCCçærr’ÂgVÆÅvS¢G'VRÒ ¢òòvâX	˜’”BKˆîŠ^KˆKº^iÈŞXªzºşXènXû.K‹®iØ>ZˆûÈX	˜’Ó[{.Š*¾X	˜’Ó"XùnKº>˜[ÛûÈ¢6öç7B†—7F÷'’Òv—B†v—BfWF6‚†G´—Òö†—7F÷'“÷&ö¦V7D–CÒG¶æÇ—6—2ç&Wf—6–öâç&ö¦V7D–GÖ’’æ§6öâ‚’2°¢†—7F÷'“¢'&“Ç²6æF–FFT–C¢7G&–æs²Æ–fV7–6ÆS¢7G&–æs²F6„†6ƒó¢7G&–æs²&6U6÷W&6TF–vW7C¢7G&–ærÓà¢Ğ¢6öç7B7F÷&VBÒ†—7F÷'’æ†—7F÷'’æf–æB†—FVÒÓâ—FVÒæ6æF–FFT–BÓÓÒ6æF–FFU–ÆöBæ6æF–FFRæ–B¢W‡V7B‡7F÷&VBÂ~X	˜[ø^š¾[{.hÈK˜^XÉnX‹iÈŞXªzºşXènXû"r’çFô&UG'WF‡’‚¢W‡V7B‡7F÷&VBæÆ–fV7–6ÆR’çFô&R‚vF—66&FVBr¢W‡V7B‡7F÷&VBçF6„†6‚’çFô&R†6æF–FFU–ÆöBæ6æF–FFRçF6„†6‚¢W‡V7B‡7F÷&VBæ&6U6÷W&6TF–vW7B’çFô&R†æÇ—6—2ç&Wf—6–öâç6÷W&6TF–vW7B¢6öç7B7F÷&VC"Ò†—7F÷'’æ†—7F÷'’æf–æB†—FVÒÓâ—FVÒæ6æF–FFT–BÓÓÒ6æF–FFS%–ÆöBæ6æF–FFRæ–B¢W‡V7B‡7F÷&VC#òæÆ–fV7–6ÆR’çFô&R‚v7F—fRr ¢òòv"âk©ih~K»niÊ®Š*¾iKXªûÉ®X	˜iŠş™©Nzk²v÷&·G&VRKˆ®y¨NŠ^KˆûÈÎXéş[z^zˆ¾KùŞhÈ[›.Xx ¢6öç7B6÷W&6TöäF—6²Òg2ç&VDf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂwvW2rÂt†öÖUvRæ§7‚r’ÂwWFc‚r¢W‡V7B‡6÷W&6TöäF—6²’çFô6öçF–â‚t6ÖRyÉşZéîšinš^j~š)‚r¢W‡V7B†W†V4f–ÆU7–æ2‚vv—BrÂ²rÔ2rÂ&ö¦V7E&ö÷BÂw7FGW2rÂrÒ×÷&6VÆ–âuÒÂ²Væ6öF–æs¢wWFc‚rÒ’’çFô&R‚rr ¢òòv2âKÉ®ŠùŞkˆ^ynûÉ®h™>[ÈX	˜’Ó"š(NkÉNYîX[>™zŞûÈiÈŞXªzºşyÉşZéîXÎjÚ.ûÈ¢v—BvRævWD'•FW7D–B‚v6æF–FFR×&Wf–Wr×FövvÆRr’æ6Æ–6²‚¢v—BW‡V7B‡vRæg&ÖTÆö6F÷"‚u¶FF×FW7F–CÒ&6æF–FFR×&Wf–WrÖg&ÖR%Òr’ævWD'•FW‡B‚t6ÖRiy~ˆ‹[©~ih~j8"r’’çFô&Uf—6–&ÆR‡²F–ÖV÷WC¢#óÒ¢6öç7B7F÷&W7öç6RÒvRçv—Df÷%&W7öç6R‡&W7öç6RÓâ&W7öç6RçW&Â‚’æ–æ6ÇVFW2‚rõõ÷&—ÆRö’ö6æF–FFR÷&Wf–Wr÷7F÷r’bb&W7öç6Rç7FGW2‚’ÓÓÒ#¢v—BvRævWD'•FW7D–B‚v6æF–FFR×&Wf–Wr×FövvÆRr’æ6Æ–6²‚¢v—B7F÷&W7öç6P¢v—BW‡V7B‡vRævWD'•FW7D–B‚v6æF–FFRÖ&÷‚r’’çFô&Uf—6–&ÆR‚§Ò §FW7BæFW67&–&R‚tj[ø>YYÎ‹IşKè¾ûÈyÉşZéîYîzºşûÈÎizFö6¶W"KéŞ‹YnûÈ’rÂ‚’Óâ°¢FW7B‚~‹ø~iÉòşKÊ®˜
-š(NkÉNKÉ®ŠùŞy¨B6÷W&6R×6VÆV7F–öâKˆ[è¾h¹.{¹ÒrÂ7–æ2‡²&WVW7BÒ’Óâ°¢6öç7BæÇ—6—2Òv—BæÇ—¦Tf—‡GW&R‚¢6öç7B&W7öç6RÒv—B&WVW7Bç÷7B†G´—Ò÷&ö¦V7B÷6÷W&6R×6VÆV7F–öæÂ²FF¢°¢&ö¦V7D–C¢æÇ—6—2ç&Wf—6–öâç&ö¦V7D–BÀ¢&Wf–Wt–C¢w&Wf–WrÖæ÷BÖW†—7G2rÀ¢6÷W&6TF–vW7C¢æÇ—6—2ç&Wf—6–öâç6÷W&6TF–vW7BÀ¢6÷W&6U&Vc¢v§7ƒ§7&2÷vW2ô†öÖUvRæ§7‚3rÀ¢ÒÒ¢W‡V7B‡&W7öç6Rç7FGW2‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢W‡V7B†v—B&W7öç6RçFW‡B‚’’çFô6öçF–â‚~[{.X[>™zŞh‰n[{.i»şhÚ.y¨Nšyºîš(NŠx‚r¢Ò ¢FW7B‚~iÚ^k©KˆŞZèÎi[NûÉ¥66÷R[É^yJY»îKŠŞKˆŞZÙYÊy¨NZû‹Š*¾h¹.{¹ÒrÂ7–æ2‡²&WVW7BÒ’Óâ°¢6öç7BæÇ—6—2Òv—BæÇ—¦Tf—‡GW&R‚¢6öç7B&W7öç6RÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFVÂ²FF¢°¢&ö¦V7D–C¢æÇ—6—2ç&Wf—6–öâç&ö¦V7D–BÀ¢&t–çFVçC¢~‹IşKè¾ûÉ®KˆŞZÙYÊy¨NyºîjrrÀ¢÷W&F–öç3¢·²–C¢v÷ÖæVrÓrÂ¶–æC¢uDU…BrÂF&vWE&Vc¢v§7ƒ§7&2÷vW2ôæ÷Ræ§7‚3rÂ&Vf÷&S¢vrÂgFW#¢v"rÕÒÀ¢66÷S¢°¢–C¢w66÷RÖæVrÓrÂfW'6–öã¢Â7G&FVw“¢w6†&VBrÀ¢–æ6ÇVFVE&Vg3¢²v§7ƒ§7&2÷vW2ôæ÷Ræ§7‚3uÒÂW†6ÇVFVE&Vg3¢µÒÂ&÷FV7FVE&Vg3¢µÒÀ¢FV6–FVD'“¢vÆö6Â×W6W"rÂFV6–FVDC¢æWrFFR‚’çFô•4õ7G&–ær‚’À¢ÒÀ¢ÒÒ¢W‡V7B‡&W7öç6Rç7FGW2‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢W‡V7B†v—B&W7öç6RçFW‡B‚’’çFô6öçF–â‚~KˆŞZÙYÊy¨NZû‹r¢Ò ¢FW7B‚~{Ë®šR66÷^ûÉ®yºîj~Šøiˆîš^Š*¾hé.™šBş{Ë®ZKi{nX	˜Š*¾h¹.{¹ÒrÂ7–æ2‡²&WVW7BÒ’Óâ°¢6öç7BæÇ—6—2Òv—BæÇ—¦Tf—‡GW&R‚¢6öç7BF—FÆUF&vWBÒæÇ—6—2çF&vWG2æf–æB†—FVÒÓâ—FVÒæÆ&VÂæ–æ6ÇVFW2‚t6ÖRyÉşZéîšinš^j~š)‚r’’¢òò–æ6ÇVFVE&Vg2Xú®Y
-¾yºîj~8KˆŞY
-¾X[nŠøiˆîšR(i"WfÇVFT÷W&F–öåvU66÷RXk.z¨¢6öç7B&W7öç6RÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFVÂ²FF¢°¢&ö¦V7D–C¢æÇ—6—2ç&Wf—6–öâç&ö¦V7D–BÀ¢&t–çFVçC¢~‹IşKè¾ûÉ®{Ë®šR66÷RrÀ¢÷W&F–öç3¢·²–C¢v÷ÖæVrÓ"rÂ¶–æC¢uDU…BrÂF&vWE&Vc¢F—FÆUF&vWBæ–BÂ&Vf÷&S¢t6ÖRyÉşZéîšinš^j~š)‚rÂgFW#¢t6ÖR{Ë®š^j~š)‚rÕÒÀ¢66÷S¢°¢–C¢w66÷RÖæVrÓ"rÂfW'6–öã¢Â7G&FVw“¢w6†&VBrÀ¢–æ6ÇVFVE&Vg3¢·F—FÆUF&vWBæ–EÒÂW†6ÇVFVE&Vg3¢µÒÂ&÷FV7FVE&Vg3¢µÒÀ¢FV6–FVD'“¢vÆö6Â×W6W"rÂFV6–FVDC¢æWrFFR‚’çFô•4õ7G&–ær‚’À¢ÒÀ¢ÒÒ¢W‡V7B‡&W7öç6Rç7FGW2‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢Ò ¢FW7B‚uYYÎY¹î[Ù.ûÉ§6†&VB66÷Ri®[ŠbÆö6ÅvU&VbŠ*²j[ø>h¹.{¹ŞûÉ¶–æ6ÇVFVE&Vg2{Ë¢F&vWE&VbYÎj~h¹.{¹ÒrÂ7–æ2‡²&WVW7BÒ’Óâ°¢6öç7BæÇ—6—2Òv—BæÇ—¦Tf—‡GW&R‚¢6öç7BF—FÆUF&vWBÒæÇ—6—2çF&vWG2æf–æB†—FVÒÓâ—FVÒæÆ&VÂæ–æ6ÇVFW2‚t6ÖRyÉşZéîšinš^j~š)‚r’’¢6öç7BvU&VbÒF—FÆUF&vWBæ–×7BçvU&Vg5³Ğ¢W‡V7B‡vU&VbÂ~j~š)[ø^š¾iÈ[{.Šøiˆîš^™Ú"r’çFô&UG'WF‡’‚¢6öç7B&6RÒ°¢&ö¦V7D–C¢æÇ—6—2ç&Wf—6–öâç&ö¦V7D–BÀ¢&t–çFVçC¢uYYÎ‹IşKè²rÀ¢÷W&F–öç3¢·²–C¢v÷×ÓrÂ¶–æC¢uDU…BrÂF&vWE&Vc¢F—FÆUF&vWBæ–BÂ&Vf÷&S¢t6ÖRyÉşZéîšinš^j~š)‚rÂgFW#¢t6ÖRj~š)‚rÕÒÀ¢Ğ¢òò™zîš)‚ûÉ§6†&VB²Æö6ÅvU&V`¢6öç7B6†&VEv—F„Æö6ÂÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFVÂ²FF¢°¢ââæ&6RÀ¢66÷S¢°¢–C¢w66÷R×ÖrÂfW'6–öã¢Â7G&FVw“¢w6†&VBrÂÆö6ÅvU&Vc¢vU&VbÀ¢–æ6ÇVFVE&Vg3¢·F—FÆUF&vWBæ–BÂvU&VeÒÂW†6ÇVFVE&Vg3¢µÒÂ&÷FV7FVE&Vg3¢µÒÀ¢FV6–FVD'“¢vÆö6Â×W6W"rÂFV6–FVDC¢æWrFFR‚’çFô•4õ7G&–ær‚’À¢ÒÀ¢ÒÒ¢W‡V7B‡6†&VEv—F„Æö6Âç7FGW2‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢W‡V7B†v—B6†&VEv—F„Æö6ÂçFW‡B‚’’çFô6öçF–â‚~KˆŞˆ;Şi®[Šn[˜:š^™Ú.[É^yJ‚r¢òò™zîš)‚.ûÉ¦–æ6ÇVFVE&Vg2{Ë¢F&vWE&V`¢6öç7BÖ—76–æuF&vWBÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFVÂ²FF¢°¢ââæ&6RÀ¢66÷S¢°¢–C¢w66÷R×Ö"rÂfW'6–öã¢Â7G&FVw“¢w6†&VBrÀ¢–æ6ÇVFVE&Vg3¢·vU&VeÒÂW†6ÇVFVE&Vg3¢µÒÂ&÷FV7FVE&Vg3¢µÒÀ¢FV6–FVD'“¢vÆö6Â×W6W"rÂFV6–FVDC¢æWrFFR‚’çFô•4õ7G&–ær‚’À¢ÒÀ¢ÒÒ¢W‡V7B†Ö—76–æuF&vWBç7FGW2‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢òòyÉşZéâj[ø>YÊ‚7FvT÷W&F–öç2™‹një^XÛ>KºR–çf&–çBh¹.{¹ŞûÈiÊ®Š*²66÷RhèiØ>y¨Nyºîj~ûÈ¢W‡V7B†v—BÖ—76–æuF&vWBçFW‡B‚’’çFô6öçF–â‚wVç66÷VBF&vWBr¢Ò ¢FW7B‚~š¨ÎŠøZK‹J^‹zş[èNûÉ®[z^KÙÎj	Š*¾iKXªYâfW&–g’Zh.Zéîh¹.{¹ŞûÈÎX	˜˜[ÛK‹¢7FÆ^ûÈyÉşZéîYîzºşûÈ’rÂ7–æ2‡²&WVW7BÒ’Óâ°¢6öç7BæÇ—6—2Òv—BæÇ—¦Tf—‡GW&R‚¢6öç7BF—FÆUF&vWBÒæÇ—6—2çF&vWG2æf–æB†—FVÒÓâ—FVÒæÆ&VÂæ–æ6ÇVFW2‚t6ÖRyÉşZéîšinš^j~š)‚r’’¢6öç7BvU&VbÒF—FÆUF&vWBæ–×7BçvU&Vg5³Ğ¢6öç7B7&VFVBÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFVÂ²FF¢°¢&ö¦V7D–C¢æÇ—6—2ç&Wf—6–öâç&ö¦V7D–BÀ¢&t–çFVçC¢~š¨ÎŠøZK‹J^‹zş[èN‹IşKè²rÀ¢÷W&F–öç3¢·²–C¢v÷Öf–ÂÓrÂ¶–æC¢uDU…BrÂF&vWE&Vc¢F—FÆUF&vWBæ–BÂ&Vf÷&S¢t6ÖRyÉşZéîšinš^j~š)‚rÂgFW#¢t6ÖRZK‹J^‹zş[èNj~š)‚rÕÒÀ¢66÷S¢°¢–C¢w66÷RÖf–ÂÓrÂfW'6–öã¢Â7G&FVw“¢w6†&VBrÀ¢–æ6ÇVFVE&Vg3¢·F—FÆUF&vWBæ–BÂvU&VeÒÂW†6ÇVFVE&Vg3¢µÒÂ&÷FV7FVE&Vg3¢µÒÀ¢FV6–FVD'“¢vÆö6Â×W6W"rÂFV6–FVDC¢æWrFFR‚’çFô•4õ7G&–ær‚’À¢ÒÀ¢ÒÒ¢W‡V7B†7&VFVBç7FGW2‚’Âv—B7&VFVBçFW‡B‚’’çFô&Rƒ#¢6öç7B²6æF–FFRÒÒv—B7&VFVBæ§6öâ‚’2²6æF–FFS¢²–C¢7G&–ærÒĞ¢òòX	˜X‰¾[»®YîiKXª[z^KÙÎj	ûÉ®X	˜Yû®{«ş‹ø~iÉşûÈ†76W'D7W'&VçD÷%&WF—&RYÊY
-şXªš¨ÎŠø8	K˜¾X˜Ş8	hºnhŠ®ûÈ¢6öç7B÷&–v–æÄ'—FW2Òg2ç&VDf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂwvW2rÂt†öÖUvRæ§7‚r’¢g2æVæDf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂwvW2rÂt†öÖUvRæ§7‚r’ÂuÆâòòF—'G’×G&VS¢fW&–g’f–ÇW&RF…Æâr¢G'’°¢6öç7BfW&–g’Òv—B&WVW7Bç÷7B†G´—Òö6æF–FFR÷fW&–g–Â²FF¢²6æF–FFT–C¢6æF–FFRæ–BÒÒ¢W‡V7B‡fW&–g’ç7FGW2‚’Âv—BfW&–g’çFW‡B‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢òòiÈŞXªzºşh¨®X	˜˜[ÛK‹¢7FÆ^ûÉ®XènXû.Zh.ZéîXøŞiŠûÈ„bZK‹J^‹zş[èNY¹îŠû¾XènXû.YîZh.Zéî[^zK®ûÈ¢6öç7B†—7F÷'’Òv—B†v—B&WVW7BævWB†G´—Òö†—7F÷'“÷&ö¦V7D–CÒG¶æÇ—6—2ç&Wf—6–öâç&ö¦V7D–GÖ’’æ§6öâ‚’2°¢†—7F÷'“¢'&“Ç²6æF–FFT–C¢7G&–æs²Æ–fV7–6ÆS¢7G&–ærÓà¢Ğ¢6öç7B7F÷&VBÒ†—7F÷'’æ†—7F÷'’æf–æB†—FVÒÓâ—FVÒæ6æF–FFT–BÓÓÒ6æF–FFRæ–B¢W‡V7B‡7F÷&VCòæÆ–fV7–6ÆR’çFô&R‚w7FÆRr¢Òf–æÆÇ’°¢òòhÈXéşZx¾ZÙ~ˆ¨.‹ùXéş[z^KÙÎj	ûÉ®Yî{ºŞX	˜—7Fv–æ~j
-š¨ÎZÙ~ˆ¨.Kˆˆ{Nh
-~ûÈÆv—B6†V6¶÷WBy¨NŠÎ[à¢òò[Ù.KˆXÉnKÉ®iKXùZÙ~ˆ¨.ZûÎˆ{NYî{ºŞkX¾Šù^ŠúşhªRC¢g2çw&—FTf–ÆU7–æ2‡F‚æ¦ö–â‡&ö¦V7E&ö÷BÂw7&2rÂwvW2rÂt†öÖUvRæ§7‚r’Â÷&–v–æÄ'—FW2¢Ğ¢Ò ¢FW7B‚~zÊÎKˆh›yIşYŞYiÉş™zhê~‹IşKè¾ûÈyÉşZéîYîzºşûÈÎizFö6¶W"KéŞ‹YnûÈûÉ®KÊ®˜
-'Vä–BZêh›’şiÊ®Zêh›[©NyJ‚şiÊ®[©NyJY¹îk¹®Kˆ[è¾h¹.{¹ÒrÂ7–æ2‡²&WVW7BÒ’Óâ°¢6öç7BæÇ—6—2Òv—BæÇ—¦Tf—‡GW&R‚¢6öç7BF—FÆUF&vWBÒæÇ—6—2çF&vWG2æf–æB†—FVÒÓâ—FVÒæÆ&VÂæ–æ6ÇVFW2‚t6ÖRyÉşZéîšinš^j~š)‚r’’¢6öç7BvU&VbÒF—FÆUF&vWBæ–×7BçvU&Vg5³Ğ¢6öç7B7&VFVBÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFVÂ²FF¢°¢&ö¦V7D–C¢æÇ—6—2ç&Wf—6–öâç&ö¦V7D–BÀ¢&t–çFVçC¢~zÊÎKˆh›™zhê~‹IşKè²rÀ¢÷W&F–öç3¢·²–C¢v÷ÖÆ2ÓrÂ¶–æC¢uDU…BrÂF&vWE&Vc¢F—FÆUF&vWBæ–BÂ&Vf÷&S¢t6ÖRyÉşZéîšinš^j~š)‚rÂgFW#¢t6ÖR™zhê~j~š)‚rÕÒÀ¢66÷S¢°¢–C¢w66÷RÖÆ2ÓrÂfW'6–öã¢Â7G&FVw“¢w6†&VBrÀ¢–æ6ÇVFVE&Vg3¢·F—FÆUF&vWBæ–BÂvU&VeÒÂW†6ÇVFVE&Vg3¢µÒÂ&÷FV7FVE&Vg3¢µÒÀ¢FV6–FVD'“¢vÆö6Â×W6W"rÂFV6–FVDC¢æWrFFR‚’çFô•4õ7G&–ær‚’À¢ÒÀ¢ÒÒ¢W‡V7B†7&VFVBç7FGW2‚’Âv—B7&VFVBçFW‡B‚’’çFô&Rƒ#¢6öç7B²6æF–FFRÒÒv—B7&VFVBæ§6öâ‚’2²6æF–FFS¢²–C¢7G&–ærÒĞ¢òòizr'Vä–BòKÊ®˜
-'Vä–BKˆ[è¾h¹.{¹ŞûÈiÈŞXªzºşK‹®iÈ{¸iØ>ZˆûÈÄbXú®˜şKÊûÈ¢6öç7B&÷fRÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFRö&÷fVÂ²FF¢²6æF–FFT–C¢6æF–FFRæ–BÂ'Vä–C¢w'VâÖf÷&vVBÖ÷"×7FÆRrÒÒ¢W‡V7B†&÷fRç7FGW2‚’Âv—B&÷fRçFW‡B‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢òòiÊ®Zêh›X	˜zhjÚ.[©NyJ€¢6öç7BÇ’Òv—B&WVW7Bç÷7B†G´—Òö6æF–FFRöÇ–Â²FF¢²6æF–FFT–C¢6æF–FFRæ–BÒÒ¢W‡V7B†Ç’ç7FGW2‚’Âv—BÇ’çFW‡B‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢òòiÊ®[©NyJX	˜zhjÚ.Y¹îk¹ ¢6öç7B&öÆÆ&6²Òv—B&WVW7Bç÷7B†G´—Òö6æF–FFR÷&öÆÆ&6¶Â²FF¢²6æF–FFT–C¢6æF–FFRæ–BÒÒ¢W‡V7B‡&öÆÆ&6²ç7FGW2‚’Âv—B&öÆÆ&6²çFW‡B‚’’çFô&Tw&VFW%F†ä÷$WVÂƒC¢òòKˆŞZÙYÊy¨NX	˜ûÉ£CB‹ª¾K»ŞKˆŞZÙYÊ€¢6öç7Bv†÷7BÒv—B&WVW7Bç÷7B†G´—Òö6æF–FFRö&÷fVÂ²FF¢²6æF–FFT–C¢v6æF–FFRÖæ÷BÖW†—7G2rÂ'Vä–C¢w'Vâ×‚rÒÒ¢W‡V7B†v†÷7Bç7FGW2‚’’çFô&RƒCB¢òò‹IşKè¾XZzˆ¾KˆŞ[é~Kª~yIşK»¾KÙ^Zêh›’ş[©NyJ‚şY¹îk¹®x«nhûÉ®XènXû.K¸ŞiŠşkK¾XªX	˜¢6öç7B†—7F÷'’Òv—B†v—B&WVW7BævWB†G´—Òö†—7F÷'“÷&ö¦V7D–CÒG¶æÇ—6—2ç&Wf—6–öâç&ö¦V7D–GÖ’’æ§6öâ‚’2°¢†—7F÷'“¢'&“Ç²6æF–FFT–C¢7G&–æs²Æ–fV7–6ÆS¢7G&–æs²&÷fÃó¢Væ¶æ÷vâÓà¢Ğ¢6öç7B7F÷&VBÒ†—7F÷'’æ†—7F÷'’æf–æB†—FVÒÓâ—FVÒæ6æF–FFT–BÓÓÒ6æF–FFRæ–B¢W‡V7B‡7F÷&VCòæÆ–fV7–6ÆR’çFô&R‚v7F—fRr¢W‡V7B‡7F÷&VCòæ&÷fÂ’çFô&UVæFVf–æVB‚¢Ò§Ò 
+import { expect, test } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+
+// F ç¬¬äºŒé˜¶æ®µç¬¬ä¸€æ‰¹çœŸå®é“¾è·¯æµè§ˆå™¨éªŒæ”¶ï¼ˆç‹¬ç«‹å®¡æŸ¥ç¬¬å››é¡¹ï¼‰ã€‚
+// ä¸»æµç¨‹ï¼šçœŸå®æ‰“å¼€å·¥ç¨‹ â†’ iframe å†…å®é™…ç‚¹é€‰æ–‡å­— â†’ /project/source-selectionï¼ˆçœŸå® sourceRefï¼‰
+// â†’ ä¿®æ”¹ + æ˜¾å¼ Scope å†³ç­– â†’ /candidate çœŸå®ç”Ÿæˆ CandidateRecord â†’ /candidate/preview çœŸå®é¢„æ¼”
+// â†’ è¡¥ä¸/å€™é€‰ ID/æºæ–‡ä»¶æœªæ”¹åŠ¨/ä¼šè¯æ¸…ç†æ ¸å¯¹ã€‚è´Ÿä¾‹ï¼šæ¥æºä¸å®Œæ•´ã€è¿‡æœŸä¼šè¯ã€ç¼ºé¡µ Scopeã€
+// shared Scope æºå¸¦ localPageRefï¼ˆP0 åˆåŒå›å½’ï¼‰ã€‚å…¨éƒ¨èµ°çœŸå® A åç«¯ï¼Œæ— ä»»ä½• mockã€‚
+
+const sandbox = fs.mkdtempSync(path.join(process.cwd(), 'node_modules', '.tmp', 'ripple-xp-flow-'))
+const projectRoot = path.join(sandbox, 'site')
+const evidenceRoot = path.resolve(process.env.RIPPLE_BROWSER_ARTIFACT_DIR ?? 'test-results/evidence-real-flow')
+const API = 'http://127.0.0.1:4173/__ripple/api'
+fs.mkdirSync(evidenceRoot, { recursive: true })
+
+test.beforeAll(() => {
+  fs.mkdirSync(path.join(projectRoot, 'src', 'pages'), { recursive: true })
+  fs.writeFileSync(path.join(projectRoot, '.gitignore'), 'node_modules/\n')
+  fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'ripple-xp-flow-fixture', private: true, type: 'module' }))
+  // å¿…é¡»æ˜¯åˆæ³• HTML æ–‡æ¡£ï¼šA æ ¸å¿ƒçš„ç‚¹é€‰æ¡¥è„šæœ¬ç» transformIndexHtml æ›¿æ¢ </body> æ³¨å…¥ï¼Œ
+  // ç¼ºå°‘ body æ ‡ç­¾çš„ç‰‡æ®µä¼šå¯¼è‡´æ¡¥ç¼ºå¤±ï¼ˆæ ‡æ³¨ä»åœ¨ã€ç‚¹é€‰æ¡æ‰‹æ°¸ä¸æ¿€æ´»ï¼‰ã€‚
+  fs.writeFileSync(path.join(projectRoot, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"><title>Ripple XP Flow Fixture</title></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>')
+  fs.writeFileSync(path.join(projectRoot, 'src', 'main.jsx'), "import { createRoot } from 'react-dom/client'; import { App } from './App.jsx'; createRoot(document.getElementById('root')).render(<App />)\n")
+  fs.writeFileSync(path.join(projectRoot, 'src', 'App.jsx'), "import { useState } from 'react'; import { HomePage } from './pages/HomePage.jsx'; import { AboutPage } from './pages/AboutPage.jsx'; export function App(){const [page,setPage]=useState('home'); return <><nav><button onClick={()=>setPage('home')}>Home</button><button onClick={()=>setPage('about')}>About</button></nav>{page==='home' ? <HomePage/> : <AboutPage/>}</>}\n")
+  // å›ºå®šæ¥æºï¼šJSX æ–‡æœ¬èŠ‚ç‚¹ï¼Œé™æ€åˆ†æå¯å®Œå…¨è¯æ˜é¡µé¢å½±å“
+  fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), "export function HomePage(){return <main><h1>Acme çœŸå®é¦–é¡µæ ‡é¢˜</h1><p>çœŸå®é¦–é¡µæ–‡æ¡ˆå†…å®¹ã€‚</p></main>}\n")
+  fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'AboutPage.jsx'), "export function AboutPage(){return <main><h1>å…³äºæˆ‘ä»¬çœŸå®æ–‡æ¡ˆ</h1></main>}\n")
+  fs.symlinkSync(path.join(process.cwd(), 'node_modules'), path.join(projectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
+  const git = (...args: string[]) => execFileSync('git', ['-C', projectRoot, ...args], { stdio: 'pipe' })
+  git('init', '-q'); git('config', 'user.email', 'xp-flow@example.invalid'); git('config', 'user.name', 'XP flow test'); git('add', '.'); git('commit', '-qm', 'baseline')
+})
+
+test.afterAll(async () => {
+  // å°½åŠ›æ¸…ç†ï¼šä¸¢å¼ƒæ´»åŠ¨å€™é€‰å¹¶åœæ­¢é¢„æ¼”ï¼ˆå¹‚ç­‰ï¼‰
+  try {
+    const history = await (await fetch(`${API}/history`)).json() as { history?: Array<{ candidateId: string; lifecycle: string }> }
+    for (const item of history.history ?? []) {
+      if (item.lifecycle === 'active') await fetch(`${API}/discard`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ candidateId: item.candidateId }) }).catch(() => undefined)
+    }
+  } catch { /* å°½åŠ›æ¸…ç† */ }
+  // Windows ä¸­æ–‡å·¥ä½œåŒºä¸‹ä¸´æ—¶ç›®å½•åˆ é™¤å¶å‘ EPERMï¼ˆå·²çŸ¥æœ¬æœºç¯å¢ƒé™åˆ¶ï¼‰ï¼›å°½åŠ›æ¸…ç†
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try { fs.rmSync(sandbox, { recursive: true, force: true }); break } catch { /* é‡è¯• */ }
+  }
+})
+
+async function analyzeFixture() {
+  const response = await fetch(`${API}/analyze`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projectRoot }) })
+  // æ³¨æ„ï¼šå“åº”ä½“åªèƒ½è¯»ä¸€æ¬¡â€”â€”å¤±è´¥æ—¶è¯»æ–‡æœ¬ï¼ŒæˆåŠŸæ—¶è¯» JSON
+  if (!response.ok) throw new Error(`analyze å¤±è´¥ï¼š${await response.text()}`)
+  return (await response.json()) as {
+    revision: { projectId: string; sourceDigest: string }
+    routes: Array<{ id: string }>
+    targets: Array<{ id: string; label: string; impact: { pageRefs: string[]; certainty: string } }>
+  }
+}
+
+test('çœŸå®é“¾è·¯ï¼šiframe ç‚¹é€‰ â†’ source-selection â†’ Scope å†³ç­– â†’ å€™é€‰åˆ›å»º â†’ å€™é€‰é¢„æ¼” â†’ ä¼šè¯æ¸…ç†', async ({ page }) => {
+  test.setTimeout(420_000)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  const analysis = await analyzeFixture()
+  const titleTarget = analysis.targets.find(item => item.label.includes('Acme çœŸå®é¦–é¡µæ ‡é¢˜'))
+  const paragraphTarget = analysis.targets.find(item => item.label.includes('çœŸå®é¦–é¡µæ–‡æ¡ˆå†…å®¹ã€‚'))
+  expect(titleTarget, 'é¦–é¡µæ ‡é¢˜å¿…é¡»æ˜¯å·²åˆ†æç›®æ ‡').toBeTruthy()
+  expect(paragraphTarget, 'é¦–é¡µæ­£æ–‡å¿…é¡»æ˜¯å·²åˆ†æç›®æ ‡').toBeTruthy()
+  expect(titleTarget!.impact.certainty).toBe('source-proven')
+
+  await page.goto(`/experience.html?adapter=real&project=${encodeURIComponent(projectRoot)}`, { waitUntil: 'networkidle' })
+  await expect(page.getByTestId('real-badge')).toContainText('çœŸå®å·¥ç¨‹')
+
+  // é¢„æ¼”ä¸¤æ€ï¼šæœ¬æœºæ—  Docker æ—¶å¦‚å®è·³è¿‡ä¸»é“¾è·¯ï¼ˆCI å…·å¤‡ Dockerï¼Œå¿…é¡»å…¨é“¾è·¯æ‰§è¡Œï¼‰
+  const frame = page.getByTestId('real-preview-frame')
+  const pending = page.getByTestId('real-preview-pending')
+  await expect(frame.or(pending).first()).toBeVisible({ timeout: 150_000 })
+  if (!(await frame.isVisible().catch(() => false))) {
+    if (process.env.CI) throw new Error('CI å¿…é¡»å…·å¤‡ Docker éš”ç¦»é¢„æ¼”ï¼šçœŸå®ç‚¹é€‰é“¾è·¯ä¸å¯è·³è¿‡')
+    test.skip(true, 'æœ¬æœºæ—  Dockerï¼šéš”ç¦»é¡¹ç›®é¢„æ¼”ä¸å¯ç”¨ï¼ŒçœŸå®é“¾è·¯åœ¨ CIï¼ˆubuntu + Dockerï¼‰æ‰§è¡Œ')
+  }
+
+  // 1-2. è¿›å…¥ç”»å¸ƒç‚¹é€‰ â†’ åœ¨ iframe å†…å®é™…ç‚¹å‡»æ ‡é¢˜æ–‡å­—
+  await expect(page.getByTestId('picker-toggle')).toBeEnabled()
+  await page.getByTestId('picker-toggle').click()
+  await expect(page.getByTestId('picker-hint')).toBeVisible()
+  const projectFrame = page.frameLocator('[data-testid="real-preview-frame"]')
+  await expect(projectFrame.getByRole('heading', { name: 'Acme çœŸå®é¦–é¡µæ ‡é¢˜' })).toBeVisible({ timeout: 90_000 })
+
+  // 2b. é¢„æ¼”æ ‡æ³¨ä¸ç‚¹é€‰æ¨¡å¼æ¡æ‰‹æ ¸æŸ¥ï¼ˆD æ¡¥æ³¨å…¥ + ripple:selection-mode é€è¾¾ï¼‰ï¼š
+  // h1 å¿…é¡»å¸¦ data-ripple-sourceï¼›æ¡¥æ¿€æ´»æ—¶ documentElement å…‰æ ‡å˜ä¸º crosshairã€‚
+  const previewFrame = page.frames().find(candidate => candidate !== page.mainFrame())!
+  const sourceRef = await previewFrame.locator('h1').getAttribute('data-ripple-source')
+  expect(sourceRef, 'é¢„æ¼”å¿…é¡»æŠŠ h1 æ ‡æ³¨åˆ° JSX æºç ').toMatch(/^jsx:src\/pages\/HomePage\.jsx#\d+$/)
+  // é€è¾¾æ¢é’ˆï¼šè®°å½•é¢„æ¼”æ–‡æ¡£æ”¶åˆ°çš„å…¨éƒ¨ postMessageï¼ˆåŒºåˆ† F ä¾§æœªå‘å‡º / æ¡¥æœªæ¿€æ´»ï¼‰
+  await previewFrame.evaluate(() => {
+    const w = window as unknown as { __rippleProbe: unknown[] }
+    w.__rippleProbe = []
+    window.addEventListener('message', event => {
+      const data = event.data as { type?: string; enabled?: boolean } | null
+      w.__rippleProbe.push({ type: data?.type ?? null, enabled: data?.enabled ?? null, fromParent: event.source === window.parent })
+    })
+  })
+  const readProbe = () => previewFrame.evaluate(() => JSON.stringify((window as unknown as { __rippleProbe: unknown[] }).__rippleProbe))
+  // é€€å‡ºå†é‡è¿›ï¼šéªŒè¯ enabled:false é€è¾¾ï¼ˆä¸æ®‹ç•™æ—§ç‚¹é€‰æ¨¡å¼ï¼‰+ nonce è½®æ¢
+  await page.getByTestId('picker-toggle').click() // å…³é—­ï¼ˆç¬¬ 80 è¡Œå·²å¼€å¯ï¼‰
+  await expect(page.getByTestId('picker-hint')).toHaveCount(0)
+  await page.getByTestId('picker-toggle').click() // é‡æ–°è¿›å…¥
+  await expect(page.getByTestId('picker-hint')).toBeVisible()
+  let probeLog = '[]'
+  await expect
+    .poll(async () => { probeLog = await readProbe(); return probeLog }, { timeout: 10_000, message: 'é¢„æ¼” iframe æœªæ”¶åˆ° ripple:selection-modeï¼ˆF ä¾§ postMessage æœªé€è¾¾ï¼‰' })
+    .toContain('"type":"ripple:selection-mode"')
+  // æ¶ˆæ¯å¿…é¡»æ¥è‡ªçˆ¶é¡µï¼ˆD æ¡¥åŒæ ·æ ¡éªŒ event.source === window.parentï¼‰
+  expect(probeLog, 'selection-mode å¿…é¡»æ¥è‡ªçˆ¶é¡µçª—å£').toContain('"fromParent":true')
+  await expect
+    .poll(() => previewFrame.evaluate(() => document.documentElement.style.cursor), { timeout: 10_000 })
+    .toBe('crosshair')
+    .catch((error: unknown) => {
+      throw new Error(`D æ¡¥æœªè¿›å…¥ç‚¹é€‰æ¨¡å¼ï¼ˆæ¡¥è„šæœ¬æœªæ³¨å…¥æˆ–ä¿¡å°è¢«æ‹’ï¼‰ã€‚æ¢é’ˆ=${probeLog}`, { cause: error })
+    })
+  const cursorAfterHandshake = await previewFrame.evaluate(() => document.documentElement.style.cursor)
+  if (cursorAfterHandshake !== 'crosshair') {
+    throw new Error(`D æ¡¥æœªè¿›å…¥ç‚¹é€‰æ¨¡å¼ã€‚æ¢é’ˆ=${await readProbe()} cursor=${cursorAfterHandshake}`)
+  }
+
+  // 3. çœŸå® sourceRefï¼šD æ¡¥ä¿¡å° â†’ æœåŠ¡ç«¯ /project/source-selection æˆæƒ
+  // å…ˆç­‰ä»»æ„çŠ¶æ€çš„å“åº”ï¼ˆ4xx ä¹Ÿä¼šè¢«æ•è·å¹¶å¸¦æ­£æ–‡æŠ¥é”™ï¼Œé¿å…æ•´ä½“è¶…æ—¶æ— è¯Šæ–­ï¼‰
+  const selectionResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/project/source-selection'), { timeout: 60_000 })
+  await projectFrame.getByRole('heading', { name: 'Acme çœŸå®é¦–é¡µæ ‡é¢˜' }).click()
+  const selectionHttp = await selectionResponse
+  expect(selectionHttp.ok(), `source-selection æœªæˆåŠŸï¼š${await selectionHttp.text()}`).toBe(true)
+  const selection = await selectionHttp.json() as { element: { id: string } }
+  expect(selection.element.id).toBe(sourceRef)
+  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  await expect(page.getByTestId('runtime-identity')).toBeVisible()
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-picked-1440.png'), fullPage: true })
+
+  // 4. ä¿®æ”¹æ–‡å­— + æ˜¾å¼ Scope å†³ç­–ï¼šéé”å®šé¡µé¢å…¨éƒ¨æ˜¾å¼æ’é™¤ï¼ˆä¸è‡†é€ åŒ…å«ï¼‰
+  await page.getByTestId('draft-text-input').fill('Acme æ——èˆ°åº—æ ‡é¢˜')
+  const excludeButtons = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
+  for (let index = 0; index < await excludeButtons.count(); index += 1) await excludeButtons.nth(index).click()
+  await expect(page.getByTestId('scope-summary')).toContainText('æœªå†³å®š 0')
+
+  // 5. POST /candidateï¼šçœŸå®ç”Ÿæˆ CandidateRecordï¼ˆå“åº”å³æœåŠ¡ç«¯æŒä¹…åŒ–ç»“æœï¼‰
+  const candidateResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
+  await page.getByTestId('create-candidate').click()
+  const candidatePayload = await (await candidateResponse).json() as {
+    sessionId: string
+    candidate: { id: string; patchHash?: string }
+    workflow: { lifecycle: string }
+  }
+  await expect(page.getByTestId('candidate-box')).toBeVisible()
+  expect(candidatePayload.workflow.lifecycle).toBe('active')
+
+  // é¡¹ç›®é¢„æ¼”å·²åœ¨å€™é€‰åˆ›å»ºæ—¶åœæ­¢ï¼šç”»å¸ƒå¦‚å®å‘ˆç°ï¼Œç‚¹é€‰å·²é€€å‡º
+  await expect(page.getByTestId('real-preview-pending')).toContainText('é¡¹ç›®é¢„æ¼”å·²åœ¨å€™é€‰åˆ›å»ºæ—¶åœæ­¢')
+
+  // 6. POST /candidate/previewï¼šç”»å¸ƒæ˜¾ç¤ºçœŸå®å€™é€‰ï¼ˆè¡¥ä¸åçš„æ–‡å­—ï¼‰
+  await page.getByTestId('candidate-preview-toggle').click()
+  const candidateFrame = page.frameLocator('[data-testid="candidate-preview-frame"]')
+  await expect(candidateFrame.getByRole('heading', { name: 'Acme æ——èˆ°åº—æ ‡é¢˜' })).toBeVisible({ timeout: 120_000 })
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-candidate-1440.png'), fullPage: true })
+
+  // 6b. POST /candidate/verifyï¼šçœŸå®å››è§†å£éªŒè¯ï¼ˆæ¶ˆè´¹æœåŠ¡ç«¯ VerificationRunï¼ŒF ä¸è‡ªè¡Œç”Ÿæˆç»“è®ºï¼‰
+  const verifyResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/verify') && response.status() === 200, { timeout: 180_000 })
+  await page.getByTestId('run-verification').click()
+  const verifyPayload = await (await verifyResponse).json() as {
+    candidateId: string
+    verification: { state: string; runId?: string; recordHash?: string; evidence?: Array<{ artifactUrl?: string }> }
+  }
+  expect(verifyPayload.candidateId).toBe(candidatePayload.candidate.id)
+  expect(verifyPayload.verification.runId, 'æ­£å¼éªŒè¯è¿è¡Œè®°å½•å¿…é¡»å­˜åœ¨').toBeTruthy()
+  expect(['passed', 'risks', 'incomplete', 'stale']).toContain(verifyPayload.verification.state)
+  // ç•Œé¢å¦‚å®å±•ç¤ºéªŒè¯è¿è¡Œï¼šçŠ¶æ€ã€è¿è¡Œ IDã€å››è§†å£æˆªå›¾
+  const verificationStatus = page.getByTestId('verification-status')
+  await expect(verificationStatus).toBeVisible()
+  await expect(verificationStatus).toContainText(verifyPayload.verification.runId!.slice(0, 12))
+  await expect(page.getByTestId('verification-shots')).toBeVisible()
+  const shotCount = await page.getByTestId('verification-shots').locator('img').count()
+  expect(shotCount, 'å››è§†å£éªŒè¯åº”äº§å‡ºçœŸå®æˆªå›¾').toBeGreaterThanOrEqual(1)
+  // ç¬¬ä¸‰æ‰¹ï¼šä¸ƒé¡¹æ–­è¨€é€æ¡å±•ç¤ºï¼›é passed æ—¶å®¡æ‰¹æŒ‰é’®ç¦ç”¨å¹¶ç»™å‡ºå‡†ç¡®åŸå› ï¼ˆpassed æ—¶å¼€æ”¾ï¼‰
+  await expect(page.getByTestId('verification-assertions')).toBeVisible()
+  if (verifyPayload.verification.state === 'passed') {
+    await expect(page.getByTestId('approve-candidate')).toBeEnabled()
+  } else {
+    await expect(page.getByTestId('approve-candidate')).toBeDisabled()
+    await expect(page.getByTestId('approve-blocked-reason')).toContainText('å®¡æ‰¹æœªå¼€æ”¾')
+  }
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-verified-1440.png'), fullPage: true })
+
+  // 6c. å¼‚æ­¥åˆ‡æ¢è·¯å¾„ï¼ˆDocker E2E è¦†ç›–è¦æ±‚ï¼‰ï¼šåˆ·æ–°é‡å»ºé¢„æ¼”ã€‚
+  // A è¯­ä¹‰ï¼šé‡æ–°åˆ†æä½¿æ´»è·ƒå€™é€‰é€€å½¹ï¼ˆfail-closedï¼‰â€”â€”F å¿…é¡»æ¸…æ‰æœ¬åœ°å€™é€‰ä¸æ—§éªŒè¯ï¼Œç»ä¸å±•ç¤ºå¹½çµå€™é€‰ã€‚
+  const previousPreviewUrl = await page.getByTestId('real-preview-frame').getAttribute('src')
+  const refreshedPreviewResponse = page.waitForResponse(response => {
+    const responseUrl = new URL(response.url())
+    return responseUrl.pathname === '/__ripple/api/project/preview' && response.request().method() === 'POST'
+  }, { timeout: 150_000 })
+  await page.getByTestId('refresh-project').click()
+  const refreshedPreviewHttp = await refreshedPreviewResponse
+  const refreshedPreviewBody = await refreshedPreviewHttp.text()
+  expect(refreshedPreviewHttp.ok(), `åˆ·æ–°ååˆ›å»ºé¡¹ç›®é¢„æ¼”å¤±è´¥ï¼š${refreshedPreviewBody}`).toBe(true)
+  const refreshedPreview = JSON.parse(refreshedPreviewBody) as { previewId: string; url: string }
+  expect(refreshedPreview.previewId).toBeTruthy()
+  expect(refreshedPreview.url).toBeTruthy()
+  expect(refreshedPreview.url).not.toBe(previousPreviewUrl)
+  await expect(page.getByTestId('real-preview-frame')).toHaveAttribute('src', refreshedPreview.url, { timeout: 150_000 })
+  await expect.poll(() => page.frames().some(candidate => candidate !== page.mainFrame() && candidate.url() === refreshedPreview.url), { timeout: 150_000 })
+    .toBe(true)
+  await expect(projectFrame.getByText('çœŸå®é¦–é¡µæ–‡æ¡ˆå†…å®¹ã€‚')).toBeVisible({ timeout: 90_000 })
+  // åˆ·æ–°å®Œæˆåï¼šå€™é€‰ç›’ä¸éªŒè¯çŠ¶æ€ä¸€å¹¶æ¶ˆå¤±ï¼ˆæœåŠ¡ç«¯å·²é€€å½¹å€™é€‰-1ï¼‰ï¼ŒçŠ¶æ€èŠ¯ç‰‡å¦‚å®æ˜¾ç¤º
+  await expect(page.getByTestId('candidate-box')).toHaveCount(0)
+  await expect(page.getByTestId('verification-status')).toHaveCount(0)
+  await expect(page.getByTestId('candidate-status')).toContainText('å°šæ— å€™é€‰')
+  // ç‚¹é€‰ç¬¬äºŒç›®æ ‡ï¼ˆæ­£æ–‡æ®µè½ï¼‰
+  await page.getByTestId('picker-toggle').click()
+  await expect(page.getByTestId('picker-hint')).toBeVisible()
+  const secondTextTarget = projectFrame.getByText('çœŸå®é¦–é¡µæ–‡æ¡ˆå†…å®¹ã€‚')
+  const secondSourceRef = await secondTextTarget.getAttribute('data-ripple-source')
+  expect(secondSourceRef, 'åˆ·æ–°åçš„æ­£æ–‡æ®µè½å¿…é¡»å¸¦æœ‰çœŸå® JSX sourceRef').toMatch(/^jsx:src\/pages\/HomePage\.jsx#\d+$/)
+  expect(secondSourceRef).toBe(paragraphTarget!.id)
+  const secondSelectionResponse = page.waitForResponse(response => {
+    const responseUrl = new URL(response.url())
+    return responseUrl.pathname === '/__ripple/api/project/source-selection' && response.request().method() === 'POST'
+  }, { timeout: 60_000 })
+  await secondTextTarget.click()
+  const secondSelectionHttp = await secondSelectionResponse
+  const secondSelectionBody = await secondSelectionHttp.text()
+  expect(secondSelectionHttp.ok(), `ç¬¬äºŒæ¬¡ source-selection å¤±è´¥ï¼š${secondSelectionBody}`).toBe(true)
+  const secondSelection = JSON.parse(secondSelectionBody) as { element: { id: string } }
+  expect(secondSelection.element.id).toBe(secondSourceRef)
+  await expect(page.getByTestId('selection-summary')).toContainText(paragraphTarget!.label)
+  await page.getByTestId('picker-toggle').click() // é€€å‡ºç‚¹é€‰æ¨¡å¼
+  await page.getByTestId('draft-text-input').fill('Acme æ——èˆ°åº—æ–‡æ¡ˆã€‚')
+  const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
+  for (let index = 0; index < await excludeButtons2.count(); index += 1) await excludeButtons2.nth(index).click()
+  await expect(page.getByTestId('scope-summary')).toContainText('æœªå†³å®š 0')
+  const candidate2Request = page.waitForRequest(request => {
+    const requestUrl = new URL(request.url())
+    return requestUrl.pathname === '/__ripple/api/candidate' && request.method() === 'POST'
+  }, { timeout: 30_000 })
+  await page.getByTestId('create-candidate').click()
+  const candidate2Response = await (await candidate2Request).response()
+  expect(candidate2Response, 'ç¬¬äºŒä¸ªå€™é€‰ POST å¿…é¡»æ”¶åˆ° HTTP å“åº”').toBeTruthy()
+  const candidate2Body = await candidate2Response!.text()
+  expect(candidate2Response!.status(), `ç¬¬äºŒä¸ªå€™é€‰ POST å¤±è´¥ï¼š${candidate2Body}`).toBe(200)
+  const candidate2Payload = JSON.parse(candidate2Body) as { candidate: { id: string } }
+  expect(candidate2Payload.candidate.id).not.toBe(candidatePayload.candidate.id)
+  // å¤æ ¸ç‚¹ 1ï¼ˆçœŸå®æµè§ˆå™¨ï¼‰ï¼šæ–°å€™é€‰ä¸å¾—å±•ç¤ºä¸Šä¸€ä¸ªå€™é€‰çš„éªŒè¯è¿è¡Œ
+  await expect(page.getByTestId('verification-status')).toHaveCount(0)
+  // æ–°å€™é€‰å†æ¬¡è¿è¡ŒéªŒè¯ï¼šçœŸå® VerificationRun
+  const verify2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/verify') && response.status() === 200, { timeout: 180_000 })
+  await page.getByTestId('run-verification').click()
+  const verify2Payload = await (await verify2Response).json() as { verification: { state: string; runId?: string } }
+  expect(verify2Payload.verification.runId, 'ç¬¬äºŒä¸ªå€™é€‰çš„éªŒè¯è¿è¡Œè®°å½•å¿…é¡»å­˜åœ¨').toBeTruthy()
+  expect(['passed', 'risks', 'incomplete', 'stale']).toContain(verify2Payload.verification.state)
+  await expect(page.getByTestId('verification-status')).toContainText(verify2Payload.verification.runId!.slice(0, 12))
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-switched-1440.png'), fullPage: true })
+
+  // 7a. å€™é€‰ ID ä¸è¡¥ä¸ä»¥æœåŠ¡ç«¯å†å²ä¸ºæƒå¨ï¼ˆå€™é€‰-1 å·²è¢«å€™é€‰-2 å–ä»£é€€å½¹ï¼‰
+  const history = await (await fetch(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
+    history: Array<{ candidateId: string; lifecycle: string; patchHash?: string; baseSourceDigest: string }>
+  }
+  const stored = history.history.find(item => item.candidateId === candidatePayload.candidate.id)
+  expect(stored, 'å€™é€‰å¿…é¡»å·²æŒä¹…åŒ–åˆ°æœåŠ¡ç«¯å†å²').toBeTruthy()
+  expect(stored!.lifecycle).toBe('discarded')
+  expect(stored!.patchHash).toBe(candidatePayload.candidate.patchHash)
+  expect(stored!.baseSourceDigest).toBe(analysis.revision.sourceDigest)
+  const stored2 = history.history.find(item => item.candidateId === candidate2Payload.candidate.id)
+  expect(stored2?.lifecycle).toBe('active')
+
+  // 7b. æºæ–‡ä»¶æœªè¢«æ”¹åŠ¨ï¼šå€™é€‰æ˜¯éš”ç¦» worktree ä¸Šçš„è¡¥ä¸ï¼ŒåŸå·¥ç¨‹ä¿æŒå¹²å‡€
+  const sourceOnDisk = fs.readFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), 'utf8')
+  expect(sourceOnDisk).toContain('Acme çœŸå®é¦–é¡µæ ‡é¢˜')
+  expect(execFileSync('git', ['-C', projectRoot, 'status', '--porcelain'], { encoding: 'utf8' })).toBe('')
+
+  // 7c. ä¼šè¯æ¸…ç†ï¼šæ‰“å¼€å€™é€‰-2 é¢„æ¼”åå…³é—­ï¼ˆæœåŠ¡ç«¯çœŸå®åœæ­¢ï¼‰
+  await page.getByTestId('candidate-preview-toggle').click()
+  await expect(page.frameLocator('[data-testid="candidate-preview-frame"]').getByText('Acme æ——èˆ°åº—æ–‡æ¡ˆã€‚')).toBeVisible({ timeout: 120_000 })
+  const stopResponse = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/preview/stop') && response.status() === 200)
+  await page.getByTestId('candidate-preview-toggle').click()
+  await stopResponse
+  await expect(page.getByTestId('candidate-box')).toBeVisible()
+})
+
+test.describe('A æ ¸å¿ƒåˆåŒè´Ÿä¾‹ï¼ˆçœŸå®åç«¯ï¼Œæ—  Docker ä¾èµ–ï¼‰', () => {
+  test('è¿‡æœŸ/ä¼ªé€ é¢„æ¼”ä¼šè¯çš„ source-selection ä¸€å¾‹æ‹’ç»', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const response = await request.post(`${API}/project/source-selection`, { data: {
+      projectId: analysis.revision.projectId,
+      previewId: 'preview-not-exists',
+      sourceDigest: analysis.revision.sourceDigest,
+      sourceRef: 'jsx:src/pages/HomePage.jsx#1',
+    } })
+    expect(response.status()).toBeGreaterThanOrEqual(400)
+    expect(await response.text()).toContain('å·²å…³é—­æˆ–å·²æ›¿æ¢çš„é¡¹ç›®é¢„è§ˆ')
+  })
+
+  test('æ¥æºä¸å®Œæ•´ï¼šScope å¼•ç”¨å›¾ä¸­ä¸å­˜åœ¨çš„å¯¹è±¡è¢«æ‹’ç»', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const response = await request.post(`${API}/candidate`, { data: {
+      projectId: analysis.revision.projectId,
+      rawIntent: 'è´Ÿä¾‹ï¼šä¸å­˜åœ¨çš„ç›®æ ‡',
+      operations: [{ id: 'op-neg-1', kind: 'TEXT', targetRef: 'jsx:src/pages/Nope.jsx#1', before: 'a', after: 'b' }],
+      scope: {
+        id: 'scope-neg-1', version: 1, strategy: 'shared',
+        includedRefs: ['jsx:src/pages/Nope.jsx#1'], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(response.status()).toBeGreaterThanOrEqual(400)
+    expect(await response.text()).toContain('ä¸å­˜åœ¨çš„å¯¹è±¡')
+  })
+
+  test('ç¼ºé¡µ Scopeï¼šç›®æ ‡è¯æ˜é¡µè¢«æ’é™¤/ç¼ºå¤±æ—¶å€™é€‰è¢«æ‹’ç»', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const titleTarget = analysis.targets.find(item => item.label.includes('Acme çœŸå®é¦–é¡µæ ‡é¢˜'))!
+    // includedRefs åªå«ç›®æ ‡ã€ä¸å«å…¶è¯æ˜é¡µ â†’ evaluateOperationPageScope å†²çª
+    const response = await request.post(`${API}/candidate`, { data: {
+      projectId: analysis.revision.projectId,
+      rawIntent: 'è´Ÿä¾‹ï¼šç¼ºé¡µ Scope',
+      operations: [{ id: 'op-neg-2', kind: 'TEXT', targetRef: titleTarget.id, before: 'Acme çœŸå®é¦–é¡µæ ‡é¢˜', after: 'Acme ç¼ºé¡µæ ‡é¢˜' }],
+      scope: {
+        id: 'scope-neg-2', version: 1, strategy: 'shared',
+        includedRefs: [titleTarget.id], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(response.status()).toBeGreaterThanOrEqual(400)
+  })
+
+  test('P0 åˆåŒå›å½’ï¼šshared Scope æºå¸¦ localPageRef è¢« A æ ¸å¿ƒæ‹’ç»ï¼›includedRefs ç¼º targetRef åŒæ ·æ‹’ç»', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const titleTarget = analysis.targets.find(item => item.label.includes('Acme çœŸå®é¦–é¡µæ ‡é¢˜'))!
+    const pageRef = titleTarget.impact.pageRefs[0]
+    expect(pageRef, 'æ ‡é¢˜å¿…é¡»æœ‰å·²è¯æ˜é¡µé¢').toBeTruthy()
+    const base = {
+      projectId: analysis.revision.projectId,
+      rawIntent: 'P0 åˆåŒè´Ÿä¾‹',
+      operations: [{ id: 'op-p0-1', kind: 'TEXT', targetRef: titleTarget.id, before: 'Acme çœŸå®é¦–é¡µæ ‡é¢˜', after: 'Acme P0 æ ‡é¢˜' }],
+    }
+    // é—®é¢˜ Aï¼šshared + localPageRef
+    const sharedWithLocal = await request.post(`${API}/candidate`, { data: {
+      ...base,
+      scope: {
+        id: 'scope-p0-a', version: 1, strategy: 'shared', localPageRef: pageRef,
+        includedRefs: [titleTarget.id, pageRef], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(sharedWithLocal.status()).toBeGreaterThanOrEqual(400)
+    expect(await sharedWithLocal.text()).toContain('ä¸èƒ½æºå¸¦å±€éƒ¨é¡µé¢å¼•ç”¨')
+    // é—®é¢˜ Bï¼šincludedRefs ç¼º targetRef
+    const missingTarget = await request.post(`${API}/candidate`, { data: {
+      ...base,
+      scope: {
+        id: 'scope-p0-b', version: 1, strategy: 'shared',
+        includedRefs: [pageRef], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(missingTarget.status()).toBeGreaterThanOrEqual(400)
+    // çœŸå® A æ ¸å¿ƒåœ¨ stageOperations é˜¶æ®µå³ä»¥ invariant æ‹’ç»ï¼ˆæœªè¢« Scope æˆæƒçš„ç›®æ ‡ï¼‰
+    expect(await missingTarget.text()).toContain('unscoped target')
+  })
+
+  test('éªŒè¯å¤±è´¥è·¯å¾„ï¼šå·¥ä½œæ ‘è¢«æ”¹åŠ¨å verify å¦‚å®æ‹’ç»ï¼Œå€™é€‰é€€å½¹ä¸º staleï¼ˆçœŸå®åç«¯ï¼‰', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const titleTarget = analysis.targets.find(item => item.label.includes('Acme çœŸå®é¦–é¡µæ ‡é¢˜'))!
+    const pageRef = titleTarget.impact.pageRefs[0]
+    const created = await request.post(`${API}/candidate`, { data: {
+      projectId: analysis.revision.projectId,
+      rawIntent: 'éªŒè¯å¤±è´¥è·¯å¾„è´Ÿä¾‹',
+      operations: [{ id: 'op-fail-1', kind: 'TEXT', targetRef: titleTarget.id, before: 'Acme çœŸå®é¦–é¡µæ ‡é¢˜', after: 'Acme å¤±è´¥è·¯å¾„æ ‡é¢˜' }],
+      scope: {
+        id: 'scope-fail-1', version: 1, strategy: 'shared',
+        includedRefs: [titleTarget.id, pageRef], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(created.status(), await created.text()).toBe(200)
+    const { candidate } = await created.json() as { candidate: { id: string } }
+    // å€™é€‰åˆ›å»ºåæ”¹åŠ¨å·¥ä½œæ ‘ï¼šå€™é€‰åŸºçº¿è¿‡æœŸï¼ˆassertCurrentOrRetire åœ¨å¯åŠ¨éªŒè¯ã€ä¹‹å‰ã€‘æ‹¦æˆªï¼‰
+    const originalBytes = fs.readFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'))
+    fs.appendFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), '\n// dirty-tree: verify failure path\n')
+    try {
+      const verify = await request.post(`${API}/candidate/verify`, { data: { candidateId: candidate.id } })
+      expect(verify.status(), await verify.text()).toBeGreaterThanOrEqual(400)
+      // æœåŠ¡ç«¯æŠŠå€™é€‰é€€å½¹ä¸º staleï¼šå†å²å¦‚å®åæ˜ ï¼ˆF å¤±è´¥è·¯å¾„å›è¯»å†å²åå¦‚å®å±•ç¤ºï¼‰
+      const history = await (await request.get(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
+        history: Array<{ candidateId: string; lifecycle: string }>
+      }
+      const stored = history.history.find(item => item.candidateId === candidate.id)
+      expect(stored?.lifecycle).toBe('stale')
+    } finally {
+      // æŒ‰åŸå§‹å­—èŠ‚è¿˜åŸå·¥ä½œæ ‘ï¼šåç»­å€™é€‰stagingæ ¡éªŒå­—èŠ‚ä¸€è‡´æ€§ï¼Œgit checkout çš„è¡Œå°¾
+      // å½’ä¸€åŒ–ä¼šæ”¹å˜å­—èŠ‚å¯¼è‡´åç»­æµ‹è¯•è¯¯æŠ¥ 409
+      fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.jsx'), originalBytes)
+    }
+  })
+
+  test('ç¬¬ä¸‰æ‰¹ç”Ÿå‘½å‘¨æœŸé—¨æ§è´Ÿä¾‹ï¼ˆçœŸå®åç«¯ï¼Œæ—  Docker ä¾èµ–ï¼‰ï¼šä¼ªé€  runId å®¡æ‰¹/æœªå®¡æ‰¹åº”ç”¨/æœªåº”ç”¨å›æ»šä¸€å¾‹æ‹’ç»', async ({ request }) => {
+    const analysis = await analyzeFixture()
+    const titleTarget = analysis.targets.find(item => item.label.includes('Acme çœŸå®é¦–é¡µæ ‡é¢˜'))!
+    const pageRef = titleTarget.impact.pageRefs[0]
+    const created = await request.post(`${API}/candidate`, { data: {
+      projectId: analysis.revision.projectId,
+      rawIntent: 'ç¬¬ä¸‰æ‰¹é—¨æ§è´Ÿä¾‹',
+      operations: [{ id: 'op-lc-1', kind: 'TEXT', targetRef: titleTarget.id, before: 'Acme çœŸå®é¦–é¡µæ ‡é¢˜', after: 'Acme é—¨æ§æ ‡é¢˜' }],
+      scope: {
+        id: 'scope-lc-1', version: 1, strategy: 'shared',
+        includedRefs: [titleTarget.id, pageRef], excludedRefs: [], protectedRefs: [],
+        decidedBy: 'local-user', decidedAt: new Date().toISOString(),
+      },
+    } })
+    expect(created.status(), await created.text()).toBe(200)
+    const { candidate } = await created.json() as { candidate: { id: string } }
+    // æ—§ runId / ä¼ªé€  runId ä¸€å¾‹æ‹’ç»ï¼ˆæœåŠ¡ç«¯ä¸ºæœ€ç»ˆæƒå¨ï¼ŒF åªé€ä¼ ï¼‰
+    const approve = await request.post(`${API}/candidate/approve`, { data: { candidateId: candidate.id, runId: 'run-forged-or-stale' } })
+    expect(approve.status(), await approve.text()).toBeGreaterThanOrEqual(400)
+    // æœªå®¡æ‰¹å€™é€‰ç¦æ­¢åº”ç”¨
+    const apply = await request.post(`${API}/candidate/apply`, { data: { candidateId: candidate.id } })
+    expect(apply.status(), await apply.text()).toBeGreaterThanOrEqual(400)
+    // æœªåº”ç”¨å€™é€‰ç¦æ­¢å›æ»š
+    const rollback = await request.post(`${API}/candidate/rollback`, { data: { candidateId: candidate.id } })
+    expect(rollback.status(), await rollback.text()).toBeGreaterThanOrEqual(400)
+    // ä¸å­˜åœ¨çš„å€™é€‰ï¼š404 èº«ä»½ä¸å­˜åœ¨
+    const ghost = await request.post(`${API}/candidate/approve`, { data: { candidateId: 'candidate-not-exists', runId: 'run-x' } })
+    expect(ghost.status()).toBe(404)
+    // è´Ÿä¾‹å…¨ç¨‹ä¸å¾—äº§ç”Ÿä»»ä½•å®¡æ‰¹/åº”ç”¨/å›æ»šçŠ¶æ€ï¼šå†å²ä»æ˜¯æ´»åŠ¨å€™é€‰
+    const history = await (await request.get(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
+      history: Array<{ candidateId: string; lifecycle: string; approval?: unknown }>
+    }
+    const stored = history.history.find(item => item.candidateId === candidate.id)
+    expect(stored?.lifecycle).toBe('active')
+    expect(stored?.approval).toBeUndefined()
+  })
+})
+
