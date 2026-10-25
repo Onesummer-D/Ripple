@@ -1015,6 +1015,43 @@ describe('runtime identity assessment', () => {
     },
   )
 
+  it('keeps a same-path v1 namespace ambiguous after observed query/hash navigation returns to empty URL', () => {
+    const previousLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const registryKey = Symbol.for('ripple.runtime-identity')
+    const collectorKey = Symbol.for('ripple.runtime-identity.collector')
+    const previousRegistryDescriptor = Object.getOwnPropertyDescriptor(globalThis, registryKey)
+    const previousCollectorDescriptor = Object.getOwnPropertyDescriptor(globalThis, collectorKey)
+    try {
+      Reflect.deleteProperty(globalThis, collectorKey)
+      window.history.replaceState(null, '', '/runtime.html?tab=a#/home')
+      Object.defineProperty(globalThis, registryKey, {
+        value: { sourceVersions: new Map([['src/App.jsx', 'v1']]), sourceVersionHistory: new Map() },
+        configurable: true,
+        writable: true,
+      })
+      document.body.innerHTML = '<div data-ripple-source="jsx:src/App.jsx#10" data-ripple-instance="/runtime.html:jsx:src/App.jsx#10" data-ripple-identity-certainty="stable-react-instance"></div>'
+
+      const before = collectRuntimeIdentitySnapshot()
+      expect(before.records[0].reasons).toContain('route-namespace-stale')
+      window.history.replaceState(null, '', '/runtime.html')
+      const after = collectRuntimeIdentitySnapshot()
+      const collected = after.records[0]
+      const assessment = assessRuntimeIdentity(graph, after, collected, { fileDigest, expectedPage: after.page })
+
+      expect(after.page).toMatchObject({ pathname: '/runtime.html', search: '', hash: '' })
+      expect(collected).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
+      expect(assessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
+      expect(selectableRuntimeObservations(after)).toEqual([])
+    } finally {
+      document.body.replaceChildren()
+      window.history.replaceState(null, '', previousLocation || '/')
+      if (previousRegistryDescriptor) Object.defineProperty(globalThis, registryKey, previousRegistryDescriptor)
+      else Reflect.deleteProperty(globalThis, registryKey)
+      if (previousCollectorDescriptor) Object.defineProperty(globalThis, collectorKey, previousCollectorDescriptor)
+      else Reflect.deleteProperty(globalThis, collectorKey)
+    }
+  })
+
   it('keeps only identities that survived collection for source navigation', () => {
     const records = [
       record({ runtimeInstanceId: 'a' }),

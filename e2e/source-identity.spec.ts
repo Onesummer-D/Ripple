@@ -5,7 +5,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { createServer, type ViteDevServer } from 'vite'
 import type { SourceGraph } from '../src/core/model'
-import { analyzeProject, createRuntimeSourceMap, resolveRuntimeElement, sourceFileDigest } from '../src/core/project'
+import { analyzeProject, createRuntimeSourceMap, resolveJsxSourceElement, resolveRuntimeElement, sourceFileDigest } from '../src/core/project'
 import { assessRuntimeIdentity, collectRuntimeIdentitySnapshot, compareRuntimeSnapshots, selectableRuntimeObservations, type RuntimeIdentityRecord, type RuntimeIdentitySnapshot } from '../src/core/runtime-identity'
 import { sourceAnnotationPlugin } from '../src/core/source-annotation'
 import { makeFixtureRoot, removeTree } from '../src/core/test-fixture-dir'
@@ -275,6 +275,39 @@ test.describe('runtime instance identity', () => {
     const rerenderedAssessment = assessRuntimeIdentity(graph, after, rerenderedBanner, { fileDigest: digest, expectedPage: after.page })
     expect(retainedAssessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
     expect(rerenderedAssessment).toMatchObject({ locatable: true, instanceIdentityProven: true, reasons: [] })
+  })
+
+  test('does not revive a query and HashRouter memoized instance after returning to an empty URL', async ({ page }) => {
+    await openRuntimeAt(page, '/runtime.html?tab=a#/home')
+    const before = await snapshot(page)
+    const oldPinned = one(before, 'pinned')
+    expect(before.page).toMatchObject({ pathname: '/runtime.html', search: '?tab=a', hash: '#/home' })
+
+    // The route changes twice while the memoized DOM remains mounted. The final URL
+    // has no query/hash, which must not make the old path-only v1 id look current again.
+    await clientNavigate(page, '/runtime.html?tab=b#/products')
+    await snapshot(page)
+    await clientNavigate(page, '/runtime.html')
+    const after = await snapshot(page)
+    const retainedPinned = one(after, 'pinned')
+    expect(after.page).toMatchObject({ pathname: '/runtime.html', search: '', hash: '' })
+    expect(retainedPinned.domNode).toBe(oldPinned.domNode)
+    expect(retainedPinned.runtimeInstanceId).toBe(oldPinned.runtimeInstanceId)
+    expect(retainedPinned.certainty).toBe('unknown')
+    expect(retainedPinned.reasons).toContain('route-namespace-stale')
+
+    const assessment = assessRuntimeIdentity(graph, after, retainedPinned, { fileDigest: digest, expectedPage: after.page })
+    expect(assessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
+    expect(retainedPinned.sourceRef).toBe(oldPinned.sourceRef)
+    expect(resolveJsxSourceElement(graph, retainedPinned.sourceRef).element.id).toBe(retainedPinned.sourceRef)
+
+    const observations = selectableRuntimeObservations(after)
+    expect(observations.some(item => item.runtimeInstanceId === retainedPinned.runtimeInstanceId)).toBe(false)
+    const map = createRuntimeSourceMap(graph, observations)
+    expect(() => resolveRuntimeElement(graph, {
+      sourceRef: retainedPinned.sourceRef,
+      runtimeInstanceId: retainedPinned.runtimeInstanceId!,
+    }, map, { fileDigest: digest, page: after.page })).toThrow(/双向映射/)
   })
 
   for (const routeCase of [
