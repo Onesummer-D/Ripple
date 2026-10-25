@@ -125,9 +125,18 @@ test('data-router: two Link navigations and three picks → sourceRef → Source
   expect(homeAgainFooter.sourceRef).toBe(homeFooter.sourceRef)
   expect(aboutFooter.runtimeInstanceId).not.toBe(homeFooter.runtimeInstanceId)
   expect(homeAgainFooter.runtimeInstanceId).not.toBe(homeFooter.runtimeInstanceId)
-  // 实例 id 携带渲染时的路由命名空间，与所在页面一致。
-  expect(homeFooter.runtimeInstanceId).toMatch(/^\/:/)
-  expect(aboutFooter.runtimeInstanceId).toMatch(/^\/about:/)
+  // v2 实例 ID 携带真实 render 时的完整页面 tuple。
+  const namespaceTuple = (id: string | undefined) => {
+    expect(id?.startsWith('ripple-page-v2:')).toBe(true)
+    const start = 'ripple-page-v2:'.length
+    const boundary = id!.indexOf(':', start)
+    const encoded = id!.slice(start, boundary)
+    const decoded = decodeURIComponent(encoded)
+    expect(encodeURIComponent(decoded)).toBe(encoded)
+    return JSON.parse(decoded)
+  }
+  expect(namespaceTuple(homeFooter.runtimeInstanceId)).toEqual(['/', '', ''])
+  expect(namespaceTuple(aboutFooter.runtimeInstanceId)).toEqual(['/about', '', ''])
 
   // --- sourceRef → SourceGraph 节点 ---
   const element = graph.nodes.find(node => node.id === homeFooter.sourceRef)

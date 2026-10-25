@@ -3,6 +3,8 @@ import { assessPickerDisplayIdentity, isCurrentPickerEnvelope, type PickerEnvelo
 
 const version = 'a'.repeat(64)
 const iframe = {}
+const v2Id = (page: { pathname: string; search: string; hash: string }, sourceRef: string) =>
+  `ripple-page-v2:${encodeURIComponent(JSON.stringify([page.pathname, page.search, page.hash]))}:_:${sourceRef}:key-a`
 const message: PickerEnvelope = {
   type: 'ripple:element-selected', protocol: 'ripple-runtime-identity/v1',
   previewId: 'candidate-1', token: 'nonce-1', sourceRef: 'jsx:src/pages/HomePage.tsx#177',
@@ -45,6 +47,14 @@ describe('candidate runtime picker refusal boundary', () => {
   it('downgrades wrong page context', () => {
     expect(assessPickerDisplayIdentity({ ...message, pageContext: { pathname: '/old', search: '', hash: '' } }, trusted))
       .toMatchObject({ certainty: 'unknown' })
+  })
+  it('accepts a canonical v2 render namespace only for its exact full page tuple and source anchor', () => {
+    const pageContext = { pathname: '/home', search: '?tab=a', hash: '#/products' }
+    const v2 = { ...message, runtimeInstanceId: v2Id(pageContext, message.sourceRef), pageContext }
+    const trustedV2 = { ...trusted, expectedPathname: pageContext.pathname }
+    expect(assessPickerDisplayIdentity(v2, trustedV2)).toMatchObject({ certainty: 'stable-react-instance', reasons: [], runtimeInstanceId: v2.runtimeInstanceId })
+    expect(assessPickerDisplayIdentity({ ...v2, pageContext: { ...pageContext, hash: '#/other' } }, trustedV2)).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
+    expect(assessPickerDisplayIdentity({ ...v2, runtimeInstanceId: v2Id(pageContext, 'jsx:elsewhere#9') }, trustedV2)).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
   })
   it('downgrades duplicate identities without promoting declared certainty', () => {
     expect(assessPickerDisplayIdentity({ ...message, reasons: ['duplicate-runtime-instance'] }, trusted))
