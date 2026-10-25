@@ -442,6 +442,7 @@ async function captureCopy(root, label, baseUrl, sourceServing, routePaths) {
         await context.tracing.stop({ path: tracePath })
         traceSaved = true
         traceFiles.push(path.basename(tracePath))
+        console.log(`browser viewport complete: revision=${label} viewport=${viewportKey(viewport)} routeSamples=${routeCensus.filter(row => row.viewport.width === viewport.width && row.viewport.height === viewport.height).length} trace=${path.basename(tracePath)}`)
       } catch (error) {
         try {
           await context.tracing.stop({ path: tracePath })
@@ -765,11 +766,24 @@ async function main() {
       },
       routeCensusSummary,
     }
-    console.log(JSON.stringify(report, null, 2))
     if (jsonPath) {
       fs.mkdirSync(path.dirname(jsonPath), { recursive: true })
       fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2))
     }
+    console.log(JSON.stringify({
+      event: 'b-css-token-browser-baseline-summary',
+      status: report.status,
+      projectSha: source.head,
+      sourceFileHash: source.sourceFileHash,
+      runtimeEnvironment: report.runtimeEnvironment.environment,
+      summary: report.summary,
+      matrixRows: report.matrix.length,
+      revisionRows: report.revisionMatrix.length,
+      routeCensusRows: report.routeCensus.length,
+      screenshots: screenshotFiles.length,
+      traces: report.runtimeEnvironment.traceFiles.length,
+      targetApplicability: report.targetApplicability,
+    }, null, 2))
     const blocking = checks.some(check => check.status === 'fail' || check.status === 'unknown' || check.status === 'risk') || routeCensusSummary.fail > 0
     process.exitCode = blocking ? 2 : 0
   } finally {
