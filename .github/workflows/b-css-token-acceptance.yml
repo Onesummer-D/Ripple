@@ -1,0 +1,252 @@
+name: B CSS Token Acceptance
+
+on:
+  pull_request:
+    branches:
+      - feat/project-first-core-20261018
+    paths:
+      - .github/workflows/b-css-token-acceptance.yml
+      - scripts/b-css-token-probe.mjs
+      - scripts/b-acp6-matching.mjs
+      - scripts/b-acp6-matching.test.mjs
+      - scripts/b-css-token-browser-baseline.mjs
+      - docs/probes/**
+  push:
+    branches:
+      - feat/b-acp6-delivery-20261025
+      - feat/validation-b39-rc0-20261025
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CSS_PROJECT_SHA: b244f857457d2a07f118155602eef9097fd322bd
+  HISTORICAL_A_CORE_SHA: 2f2e5a708bff554775bea539fb659974203e67b8
+  CURRENT_A_CORE_REF: feat/a-v05-rc0-20261025
+
+jobs:
+  checker-negative-tests:
+    name: AC6.2–AC6.4 adversarial matcher tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run strict relation, route, and class matching counterexamples
+        run: node --test scripts/b-acp6-matching.test.mjs
+
+  historical-boundary-regression:
+    name: Historical unsupported-boundary regression (A 2f2e5a7)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check out frozen historical A core
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HISTORICAL_A_CORE_SHA }}
+          path: a-core
+      - name: Verify historical core SHA and install dependencies
+        working-directory: a-core
+        run: |
+          test "$(git rev-parse HEAD)" = "$HISTORICAL_A_CORE_SHA"
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Fetch and install fixed CSS custom-properties project
+        run: |
+          git clone --quiet https://github.com/allanhue/webportflio.git "$RUNNER_TEMP/css-proj"
+          git -C "$RUNNER_TEMP/css-proj" checkout --detach "$CSS_PROJECT_SHA"
+          test "$(git -C "$RUNNER_TEMP/css-proj" rev-parse HEAD)" = "$CSS_PROJECT_SHA"
+          cd "$RUNNER_TEMP/css-proj"
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Transplant B source probe and run frozen regression
+        working-directory: a-core
+        run: |
+          mkdir -p test-results
+          cp ../scripts/b-css-token-probe.mjs scripts/b-css-token-probe.mjs
+          cp ../scripts/b-acp6-matching.mjs scripts/b-acp6-matching.mjs
+          set +e
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --assert --expect-core-sha "$HISTORICAL_A_CORE_SHA" --json test-results/css-token-history.json
+          code=$?
+          set -e
+          printf '%s\n' "$code" > test-results/css-token-history-exit.txt
+          if [ "$code" -ne 0 ]; then exit "$code"; fi
+      - name: Validate historical report and exit code
+        working-directory: a-core
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs'
+          const report = JSON.parse(fs.readFileSync('test-results/css-token-history.json', 'utf8'))
+          const code = Number(fs.readFileSync('test-results/css-token-history-exit.txt', 'utf8'))
+          if (code !== 0 || report.status !== 'PASS' || report.runMode !== 'historical-boundary-regression') throw new Error(`historical status/exit mismatch: ${report.status}/${code}`)
+          if (report.aCore?.sha !== process.env.HISTORICAL_A_CORE_SHA || report.aCore?.expectedSha !== process.env.HISTORICAL_A_CORE_SHA) throw new Error('historical core SHA is missing or mismatched')
+          if (report.project?.sha !== process.env.CSS_PROJECT_SHA) throw new Error('fixed CSS project SHA is missing or mismatched')
+          if (report.regression?.total !== 9 || report.regression?.passed !== 9 || report.regression?.items?.length !== 9 || report.regression?.items?.some(item => item.status !== 'PASS' || item.pass !== true)) throw new Error('historical regression checks are incomplete or failed')
+          console.log(`validated historical boundary at A=${report.aCore.sha}, ${report.regression.passed}/${report.regression.total}`)
+          NODE
+      - name: Retain historical regression report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b-css-token-historical-regression-${{ github.run_id }}
+          path: |
+            a-core/test-results/css-token-history.json
+            a-core/test-results/css-token-history-exit.txt
+          retention-days: 30
+          if-no-files-found: warn
+
+  current-capability-acceptance:
+    name: Current public A capability acceptance (latest branch SHA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check out the current public A core branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CURRENT_A_CORE_REF }}
+          path: a-core
+      - name: Record current A SHA and install dependencies
+        working-directory: a-core
+        run: |
+          CURRENT_A_CORE_SHA="$(git rev-parse HEAD)"
+          test "$CURRENT_A_CORE_SHA" != "$HISTORICAL_A_CORE_SHA"
+          printf 'CURRENT_A_CORE_SHA=%s\n' "$CURRENT_A_CORE_SHA" >> "$GITHUB_ENV"
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Fetch and install fixed CSS custom-properties project
+        run: |
+          git clone --quiet https://github.com/allanhue/webportflio.git "$RUNNER_TEMP/css-proj"
+          git -C "$RUNNER_TEMP/css-proj" checkout --detach "$CSS_PROJECT_SHA"
+          test "$(git -C "$RUNNER_TEMP/css-proj" rev-parse HEAD)" = "$CSS_PROJECT_SHA"
+          cd "$RUNNER_TEMP/css-proj"
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Transplant B probe and evaluate current A capability
+        working-directory: a-core
+        run: |
+          mkdir -p test-results
+          cp ../scripts/b-css-token-probe.mjs scripts/b-css-token-probe.mjs
+          cp ../scripts/b-acp6-matching.mjs scripts/b-acp6-matching.mjs
+          set +e
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --acceptance --expect-core-sha "$CURRENT_A_CORE_SHA" --json test-results/css-token-acceptance.json
+          code=$?
+          set -e
+          printf '%s\n' "$code" > test-results/css-token-acceptance-exit.txt
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+      - name: Validate current acceptance report, core SHA, and exit code
+        working-directory: a-core
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs'
+          const report = JSON.parse(fs.readFileSync('test-results/css-token-acceptance.json', 'utf8'))
+          const code = Number(fs.readFileSync('test-results/css-token-acceptance-exit.txt', 'utf8'))
+          if (report.runMode !== 'current-capability-acceptance') throw new Error('wrong current capability run mode')
+          if (report.aCore?.sha !== process.env.CURRENT_A_CORE_SHA || report.aCore?.expectedSha !== process.env.CURRENT_A_CORE_SHA) throw new Error('current A core SHA is missing or mismatched')
+          if (report.aCore.sha === process.env.HISTORICAL_A_CORE_SHA) throw new Error('stale historical A SHA used for current capability acceptance')
+          if (report.project?.sha !== process.env.CSS_PROJECT_SHA) throw new Error('fixed CSS project SHA is missing or mismatched')
+          const acceptance = report.acceptance
+          if (!acceptance || acceptance.total !== 5 || acceptance.items?.length !== 5 || !Number.isInteger(acceptance.passed) || !Number.isInteger(acceptance.pending)) throw new Error('invalid AC-P6 acceptance report shape')
+          for (const item of acceptance.items) {
+            if (typeof item.id !== 'string' || typeof item.name !== 'string' || typeof item.pass !== 'boolean' || !['PASS', 'PENDING'].includes(item.status)) throw new Error('invalid AC-P6 item status')
+            if ((item.pass && item.status !== 'PASS') || (!item.pass && item.status !== 'PENDING')) throw new Error(`item ${item.id} status/pass mismatch`)
+          }
+          const passCount = acceptance.items.filter(item => item.pass).length
+          const pendingCount = acceptance.items.filter(item => !item.pass).length
+          if (acceptance.passed !== passCount || acceptance.pending !== pendingCount || acceptance.error !== 0) throw new Error('AC-P6 summary does not match per-item statuses')
+          const expectedStatus = code === 0 ? 'PASS' : 'PENDING'
+          if (report.status !== expectedStatus || acceptance.status !== expectedStatus) throw new Error(`report/exit mismatch: ${report.status}/${acceptance.status}/${code}`)
+          if (code === 0 && (acceptance.passed !== 5 || acceptance.pending !== 0)) throw new Error('exit 0 requires all five AC-P6 checks to pass')
+          if (code === 2 && (acceptance.pending === 0 || acceptance.error !== 0)) throw new Error('exit 2 requires pending capability items and zero execution errors')
+          if (code !== 0 && code !== 2) throw new Error(`invalid acceptance process exit code ${code}`)
+          console.log(`validated current capability at A=${report.aCore.sha}: ${acceptance.passed}/${acceptance.total} PASS, ${acceptance.pending} PENDING, exit ${code}`)
+          NODE
+      - name: Retain current acceptance report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b-css-token-current-acceptance-${{ github.run_id }}
+          path: |
+            a-core/test-results/css-token-acceptance.json
+            a-core/test-results/css-token-acceptance-exit.txt
+          retention-days: 30
+          if-no-files-found: warn
+
+  independent-browser-baseline:
+    name: Independent Playwright computed-style matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Ripple Playwright dependency and Chromium
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Fetch and install fixed CSS custom-properties project
+        run: |
+          git clone --quiet https://github.com/allanhue/webportflio.git "$RUNNER_TEMP/css-proj"
+          git -C "$RUNNER_TEMP/css-proj" checkout --detach "$CSS_PROJECT_SHA"
+          test "$(git -C "$RUNNER_TEMP/css-proj" rev-parse HEAD)" = "$CSS_PROJECT_SHA"
+          cd "$RUNNER_TEMP/css-proj"
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run original/manual-candidate browser matrix
+        run: |
+          set +e
+          node scripts/b-css-token-browser-baseline.mjs "$RUNNER_TEMP/css-proj"
+          code=$?
+          set -e
+          printf '%s\n' "$code" > docs/probes/evidence/b-css-token-browser-baseline-20261025-review/exit-code.txt
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+      - name: Validate browser matrix, unknown rows, screenshots, and exit code
+        run: |
+          # The UNKNOWN count is frozen for CSS_PROJECT_SHA only; it is not a quota for future projects.
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs'
+          import path from 'node:path'
+          const root = 'docs/probes/evidence/b-css-token-browser-baseline-20261025-review'
+          const report = JSON.parse(fs.readFileSync(path.join(root, 'report.json'), 'utf8'))
+          const code = Number(fs.readFileSync(path.join(root, 'exit-code.txt'), 'utf8'))
+          if (report.project?.sha !== process.env.CSS_PROJECT_SHA) throw new Error('wrong fixed project SHA')
+          if (!report.runtimeEnvironment?.originalSourceUnchanged || report.runtimeEnvironment.candidateChangedFiles?.join(',') !== 'src/css/style.css') throw new Error('source isolation or single-file candidate constraint failed')
+          if (report.candidate?.beforeValue !== '#e63946' || report.candidate?.afterValue !== '#7c3aed') throw new Error('wrong scoped --accent candidate values')
+          if (report.baselineRuns?.length !== 4 || report.candidateRuns?.length !== 4 || report.routes?.length !== 7) throw new Error('browser run matrix is incomplete')
+          if (report.matrix?.length !== 72 || report.matrix.some(row => !row.viewport?.width || !row.viewport?.height || !row.theme || !row.route || !row.selector || !row.property || !row.expected || !row.actual || !row.status)) throw new Error('computed-style matrix fields are incomplete')
+          const unknown = report.matrix.filter(row => row.status === 'unknown')
+          if (unknown.length !== 16 || unknown.some(row => !['.section-title', '.section-title::after'].includes(row.selector) || row.route !== '#/' || row.actual.original !== null || row.actual.manualCandidate !== null)) throw new Error('the 16 UNKNOWN selector rows are missing or were weakened')
+          if (report.revisionMatrix?.length !== 144 || report.revisionMatrix.some(row => !['original', 'manual-candidate'].includes(row.revision) || !row.viewport?.width || !row.viewport?.height || !row.theme || !row.route || !row.selector || !row.property || !row.expected || !['pass', 'fail', 'unknown'].includes(row.status))) throw new Error('per-revision computed-style samples are incomplete')
+          if (report.revisionMatrix.filter(row => row.status === 'unknown').length !== 32 || unknown.some(pair => pair.revisionSamples?.length !== 2 || pair.revisionSamples.some(sample => sample.status !== 'unknown'))) throw new Error('the 16 paired UNKNOWN rows must retain both revision samples')
+          if (report.summary?.unknown !== 16 || report.summary?.fail !== 0 || report.summary?.risk !== 0) throw new Error('browser summary/exit contract mismatch')
+          const checkCounts = Object.fromEntries(['pass', 'fail', 'unknown', 'risk'].map(status => [status, report.checks?.filter(check => check.status === status).length ?? 0]))
+          if (report.checks?.length !== 164 || checkCounts.pass !== 148 || checkCounts.fail !== 0 || checkCounts.unknown !== 16 || checkCounts.risk !== 0) throw new Error(`legacy browser assertion contract changed: ${JSON.stringify(checkCounts)}`)
+          if (['pass', 'fail', 'unknown', 'risk'].some(status => report.summary[status] !== checkCounts[status])) throw new Error('browser summary does not match individual assertion statuses')
+          if (report.routeCensusSummary?.fail !== 0 || report.routeCensus?.length !== 224 || report.routeCensus.some(row => row.routeVerification?.verified !== true)) throw new Error('real route census is incomplete or failing')
+          if (report.targetApplicability?.length !== 2 || report.targetApplicability.some(row => row.status !== 'UNKNOWN_RETAINED' || row.routeSamples !== 112)) throw new Error('section-title applicability result is incomplete')
+          if (report.runtimeEnvironment?.baselineSourceServing?.styleSourceHttpStatus !== 200 || report.runtimeEnvironment?.candidateSourceServing?.styleSourceHttpStatus !== 200) throw new Error('Vite source stylesheet was not served successfully')
+          const themeMethods = [...report.baselineRuns, ...report.candidateRuns].flatMap(run => [run.dark.themeMethod, run.light.themeMethod])
+          if (themeMethods.some(method => !['initial-state', 'ui-toggle', 'script-fallback'].includes(method))) throw new Error('unrecorded theme-control path')
+          const pngs = fs.readdirSync(path.join(root, 'screenshots')).filter(name => name.endsWith('.png'))
+          if (pngs.length !== 16 || report.runtimeEnvironment.screenshots.length !== 16) throw new Error(`expected 16 real screenshots, got ${pngs.length}`)
+          const traces = fs.readdirSync(path.join(root, 'screenshots')).filter(name => name.endsWith('-playwright-trace.zip'))
+          if (traces.length !== 8 || report.runtimeEnvironment.traceFiles.length !== 8) throw new Error(`expected 8 original/candidate Playwright traces, got ${traces.length}`)
+          if ((code === 2) !== (report.status === 'PENDING' && report.summary.unknown > 0)) throw new Error(`browser exit/status mismatch: ${code}/${report.status}`)
+          if (code === 0 && report.status !== 'PASS') throw new Error('exit 0 requires a fully passing report')
+          console.log(`validated browser matrix: ${report.summary.pass} PASS, ${report.summary.fail} FAIL, ${report.summary.unknown} UNKNOWN, ${report.summary.risk} RISK; 7 HashRouter routes, 16 screenshots, exit ${code}`)
+          NODE
+      - name: Retain browser report, screenshots, traces, and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b-css-token-browser-baseline-${{ github.run_id }}
+          path: |
+            docs/probes/evidence/b-css-token-browser-baseline-20261025-review/**
+          retention-days: 30
+          if-no-files-found: warn
