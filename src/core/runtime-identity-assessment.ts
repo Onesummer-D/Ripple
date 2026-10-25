@@ -60,9 +60,17 @@ function revisionBound(side: RuntimeIdentitySideSource): boolean {
 
 function validOwnerTail(value: string, sourceRef: string): boolean {
   if (!/^(?:jsx:|[_:\u00ab])/.test(value) || !nonEmpty(sourceRef)) return false
-  const sourceOffset = value.lastIndexOf(sourceRef)
-  if (sourceOffset < 0) return false
-  const suffix = value.slice(sourceOffset + sourceRef.length)
+  // Historical direct-source identities have no owner prefix. Keep those
+  // valid while requiring all nested identities to anchor the current JSX
+  // source at a colon boundary.
+  if (value === sourceRef) return true
+  const anchor = `:${sourceRef}`
+  const sourceOffset = value.indexOf(anchor)
+  if (sourceOffset <= 0 || sourceOffset !== value.lastIndexOf(anchor)) return false
+  const suffix = value.slice(sourceOffset + anchor.length)
+  // The collector appends only list/key suffixes after the current source.
+  // A later JSX source marker means the match was an owner/ancestor anchor.
+  if (/(?:^|[:/])jsx:/.test(suffix)) return false
   return suffix === '' || suffix.startsWith(':')
 }
 
