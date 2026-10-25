@@ -438,7 +438,7 @@ function main() {
       const elementNode = endpoints.find(node => elementKinds.has(node.kind) && sourcePath(node) === pair.file)
       if (!tokenNode || !elementNode) return false
       const classHint = elementNode.matchedClass ?? elementNode.className ?? elementNode.selector
-      return typeof classHint !== 'string' || classHint.includes(pair.matchedClass)
+      return typeof classHint === 'string' && classHint.includes(pair.matchedClass)
     })
     return { ...pair, edgeCount: matches.length, edgeIds: matches.map(edge => ({ from: edge.from, to: edge.to })), anchored: matches.length > 0 }
   })
