@@ -32,7 +32,20 @@
  * runSampler's source so the function stays self-contained under
  * page.evaluate serialization (no module-scope reference survives).
  */
-export const sampleDomGeometryInPage = new Function('options', `return (${runSampler.toString()})(options, null);`)
+function markSamplerCollectorStatus(sampler, status) {
+  try {
+    Object.defineProperty(sampler, '__rippleCollectorStatus', { value: status, configurable: false, enumerable: false })
+  } catch {
+    // The marker is host-only metadata. A page-evaluate failure still degrades
+    // to the sampler's normal unavailable identity result.
+  }
+  return sampler
+}
+
+export const sampleDomGeometryInPage = markSamplerCollectorStatus(
+  new Function('options', `return (${runSampler.toString()})(options, null);`),
+  'missing',
+)
 
 /**
  * Builds a self-contained page function with C+D's
@@ -46,9 +59,15 @@ export function buildDomGeometrySampler(collectorSource) {
     // Sanity: the source must parse as a function expression.
     new Function(`return (${collectorSource});`)
   } catch {
-    return sampleDomGeometryInPage
+    return markSamplerCollectorStatus(
+      new Function('options', `return (${runSampler.toString()})(options, null);`),
+      'serialization-error',
+    )
   }
-  return new Function('options', `return (${runSampler.toString()})(options, (${collectorSource}));`)
+  return markSamplerCollectorStatus(
+    new Function('options', `return (${runSampler.toString()})(options, (${collectorSource}));`),
+    'ready',
+  )
 }
 
 // Self-contained by contract: serialized whole by buildDomGeometrySampler and
@@ -83,6 +102,9 @@ function runSampler(options, collectRuntimeIdentitySnapshot) {
   let sourceFileVersions = null
   let pageContext = null
   let reasonByIndex = null
+  let runtimeIdentitySnapshot = null
+  let runtimeIdentityCollection = 'unavailable'
+  let runtimeIdentityError = null
   try {
     const registry = globalThis[Symbol.for('ripple.runtime-identity')]
     const versions = registry && registry.sourceVersions instanceof Map ? registry.sourceVersions : null
@@ -103,17 +125,21 @@ function runSampler(options, collectRuntimeIdentitySnapshot) {
       // value of the named attribute into record.label.
       const marker = 'data-ripple-visual-corr'
       nodes.forEach((node, index) => { node.setAttribute(marker, `v${index}`) })
-      let snapshot = null
       try {
-        snapshot = collectRuntimeIdentitySnapshot({ label: marker })
-      } catch {
-        snapshot = null
+        runtimeIdentitySnapshot = collectRuntimeIdentitySnapshot({ label: marker })
+        runtimeIdentityCollection = runtimeIdentitySnapshot && Array.isArray(runtimeIdentitySnapshot.records)
+          ? 'collected'
+          : 'unavailable'
+        if (runtimeIdentityCollection !== 'collected') runtimeIdentityError = 'collector returned no usable records'
+      } catch (error) {
+        runtimeIdentityCollection = 'failed'
+        runtimeIdentityError = String(error?.message ?? error).slice(0, 300)
       } finally {
         nodes.forEach(node => { node.removeAttribute(marker) })
       }
-      if (snapshot && Array.isArray(snapshot.records)) {
+      if (runtimeIdentitySnapshot && Array.isArray(runtimeIdentitySnapshot.records)) {
         reasonByIndex = new Map()
-        for (const record of snapshot.records) {
+        for (const record of runtimeIdentitySnapshot.records) {
           const label = record && typeof record.label === 'string' ? record.label : ''
           const match = /^v(\d+)$/.exec(label)
           if (!match) continue
@@ -130,6 +156,9 @@ function runSampler(options, collectRuntimeIdentitySnapshot) {
     sourceFileVersions = null
     pageContext = null
     reasonByIndex = null
+    runtimeIdentitySnapshot = null
+    runtimeIdentityCollection = 'failed'
+    runtimeIdentityError = 'runtime identity sampler failed'
   }
   // Legacy single-file field: filled ONLY when the page actually references
   // exactly one source file AND that file's version resolved. Multi-file
@@ -221,6 +250,12 @@ function runSampler(options, collectRuntimeIdentitySnapshot) {
     sourceFileVersions,
     // C+D RuntimePageContext for this sample ({pathname, search, hash}).
     pageContext,
+    // The exact collector result used to annotate this geometry sample. The
+    // container archives this value once per side; the host later verifies
+    // its hash and performs the formal assessment.
+    runtimeIdentitySnapshot,
+    runtimeIdentityCollection,
+    ...(runtimeIdentityError ? { runtimeIdentityError } : {}),
     elements,
   }
 }

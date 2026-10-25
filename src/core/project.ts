@@ -809,9 +809,58 @@ export function resolveJsxSourceElement(graph: SourceGraph, sourceRef: string): 
   return { element, editableText }
 }
 
-/** sha256 of one tracked project file, comparable with the runtime `sourceVersion` of its JSX. */
+/**
+ * Hashes the UTF-8 source text the annotation plugin registers as sourceVersion.
+ * The path is host-derived from a SourceGraph sourceRef; reject traversal,
+ * symlink components, non-files, and a file that changes while it is read.
+ */
+export function servedSourceDigest(root: string, file: string): string {
+  if (typeof root !== 'string' || !root.trim() || typeof file !== 'string' || !file.trim() ||
+    path.isAbsolute(file) || path.posix.isAbsolute(file) || path.win32.isAbsolute(file) || file.includes('\\')) {
+    throw new ProjectReadError('服务源码路径无效')
+  }
+  const segments = file.split('/')
+  if (segments.some(segment => !segment || segment === '.' || segment === '..')) throw new ProjectReadError('服务源码路径越界')
+  let realRoot: string
+  try { realRoot = fs.realpathSync(root) }
+  catch { throw new ProjectReadError('服务源码根目录不可读取') }
+  const absolute = path.resolve(realRoot, ...segments)
+  const relative = path.relative(realRoot, absolute)
+  if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new ProjectReadError('服务源码路径越界')
+  }
+
+  let parent = realRoot
+  try {
+    for (const segment of segments.slice(0, -1)) {
+      parent = path.join(parent, segment)
+      const stat = fs.lstatSync(parent)
+      if (stat.isSymbolicLink() || !stat.isDirectory()) throw new ProjectReadError('服务源码路径包含符号链接或非目录')
+    }
+    const beforePath = fs.lstatSync(absolute)
+    if (beforePath.isSymbolicLink() || !beforePath.isFile()) throw new ProjectReadError('服务源码不是普通文件')
+    const fd = fs.openSync(absolute, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0))
+    try {
+      const before = fs.fstatSync(fd)
+      if (!before.isFile() || before.dev !== beforePath.dev || before.ino !== beforePath.ino) throw new ProjectReadError('服务源码在读取时已被替换')
+      const source = fs.readFileSync(fd, 'utf8')
+      const after = fs.fstatSync(fd)
+      const afterPath = fs.lstatSync(absolute)
+      if (afterPath.isSymbolicLink() || !afterPath.isFile() || afterPath.dev !== before.dev || afterPath.ino !== before.ino ||
+        after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs) {
+        throw new ProjectReadError('服务源码在读取过程中发生变化')
+      }
+      return sha256(source)
+    } finally { fs.closeSync(fd) }
+  } catch (error) {
+    if (error instanceof ProjectReadError) throw error
+    throw new ProjectReadError('服务源码不可读取')
+  }
+}
+
+/** Backwards-compatible name used by runtime source navigation. */
 export function sourceFileDigest(root: string, relative: string): string {
-  return sha256(fileBytes(gitRoot(root), relative))
+  return servedSourceDigest(gitRoot(root), relative)
 }
 
 // Only "the page did not report a version" is tolerated (navigation still works); every other

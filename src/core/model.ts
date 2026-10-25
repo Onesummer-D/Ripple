@@ -1,4 +1,6 @@
 /** Project-first contract. Pure TypeScript, no React or predefined CaseId. */
+import type { RuntimeIdentityAssessment, RuntimeIdentitySnapshot } from './runtime-identity'
+
 export type Id = string
 export type EditKind = 'TEXT' | 'MEDIA' | 'TOKEN' | 'CODE'
 export type EvidenceResult = 'pass' | 'risk' | 'unknown' | 'not-run' | 'failed-to-run' | 'stale'
@@ -246,6 +248,66 @@ export interface VisualRunEvidence {
     evidenceJson: { path: string; sha256: string } | null
   }
 }
+
+/** A host-verified failure to archive or validate one side's runtime snapshot. */
+export type RuntimeIdentityArchiveFailureReason =
+  | 'collector-error'
+  | 'snapshot-unavailable'
+  | 'side-missing'
+  | 'version-unverifiable'
+  | 'artifact-hash-mismatch'
+
+/** Capture/integrity failures cannot carry a trusted Snapshot. Version failures are a separate host result below. */
+export type RuntimeIdentityArtifactFailureReason = Exclude<RuntimeIdentityArchiveFailureReason, 'version-unverifiable'>
+
+export interface RuntimeRunIdentityAssessmentEntry {
+  recordKey: string
+  assessment: RuntimeIdentityAssessment
+  assessmentSha256: string
+}
+
+export interface RuntimeRunIdentity {
+  /** The host verified the archived Snapshot and the bound source revision. */
+  archive: 'stored'
+  assessmentStatus: 'complete'
+  checkId: Id
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  side: 'baseline' | 'candidate'
+  snapshot: RuntimeIdentitySnapshot
+  snapshotSha256: string
+  assessments: RuntimeRunIdentityAssessmentEntry[]
+  sourceDigests: Record<string, string>
+  boundDigest: string
+  artifacts: { snapshot: { path: string; sha256: string } }
+}
+
+/**
+ * The Snapshot bytes passed host archive verification, but the side's source tree/graph could not be bound.
+ * Per-record assessments are retained for traceability and must all remain non-proving.
+ */
+export interface RuntimeRunIdentityVersionFailure extends Omit<RuntimeRunIdentity, 'assessmentStatus'> {
+  archive: 'stored'
+  assessmentStatus: 'version-unverifiable'
+  reason: 'version-unverifiable'
+  detail: string
+}
+
+/** Collection or artifact integrity failed. No Snapshot is trusted or attached. */
+export interface RuntimeRunIdentityArchiveFailure {
+  checkId: Id
+  route: string
+  viewport: { width: number; height: number }
+  state: string
+  side: 'baseline' | 'candidate'
+  archive: 'failed'
+  reason: RuntimeIdentityArtifactFailureReason
+  /** The container's claim only. Its presence is not proof of artifact integrity. */
+  declaredSnapshotSha256?: string
+  detail?: string
+}
+
 export interface VerificationRun {
   id: Id
   candidateId: Id
@@ -271,6 +333,8 @@ export interface VerificationRun {
    * of assertions, status or the approval gate; results can never be 'pass'.
    */
   visualEvidences?: VisualRunEvidence[]
+  /** Host-verified runtime identity data; supplementary and outside the seven assertion gate. */
+  runtimeIdentities?: Array<RuntimeRunIdentity | RuntimeRunIdentityVersionFailure | RuntimeRunIdentityArchiveFailure>
   execution?: { executor: 'playwright'; recordPath: string; recordHash: string }
   status: 'passed' | 'risks' | 'incomplete' | 'stale'
 }
