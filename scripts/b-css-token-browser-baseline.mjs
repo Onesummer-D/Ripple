@@ -509,7 +509,9 @@ async function captureCopy(root, label, baseUrl, sourceServing, routePaths) {
   return { runs, routeCensus, traceFiles }
 }
 
-function result(status, name, detail) { return { status, name, detail } }
+function result(status, name, detail) {
+  return { status: status === true ? 'pass' : status === false ? 'fail' : status, name, detail }
+}
 function value(run, key) { return run?.layout?.[key] ?? null }
 function same(a, b) { return normalizeStyle(a) === normalizeStyle(b) }
 function rectsSame(a, b) {
