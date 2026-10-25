@@ -988,8 +988,9 @@ describe('runtime identity assessment', () => {
 
     const wrongTuple = record({ runtimeInstanceId: v2Id({ ...expectedPage, search: '?tab=other' }) })
     const wrongAnchor = record({ runtimeInstanceId: v2Id(expectedPage, 'jsx:src/Other.jsx#10') })
+    const missingAnchorDelimiter = record({ runtimeInstanceId: v2Id(expectedPage, recordSourceRef, `jsx:root${recordSourceRef}:p1`) })
     const malformed = record({ runtimeInstanceId: `ripple-page-v2:%E0%A4%A:jsx:root:${recordSourceRef}:p1` })
-    for (const item of [wrongTuple, wrongAnchor, malformed]) {
+    for (const item of [wrongTuple, wrongAnchor, missingAnchorDelimiter, malformed]) {
       const assessment = assessRuntimeIdentity(graph, snap([item], expectedPage), item, { fileDigest, expectedPage })
       expect(assessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
       expect(assessment.reasons).toContain('route-namespace-stale')

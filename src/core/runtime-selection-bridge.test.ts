@@ -55,6 +55,8 @@ describe('candidate runtime picker refusal boundary', () => {
     expect(assessPickerDisplayIdentity(v2, trustedV2)).toMatchObject({ certainty: 'stable-react-instance', reasons: [], runtimeInstanceId: v2.runtimeInstanceId })
     expect(assessPickerDisplayIdentity({ ...v2, pageContext: { ...pageContext, hash: '#/other' } }, trustedV2)).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
     expect(assessPickerDisplayIdentity({ ...v2, runtimeInstanceId: v2Id(pageContext, 'jsx:elsewhere#9') }, trustedV2)).toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
+    expect(assessPickerDisplayIdentity({ ...v2, runtimeInstanceId: v2.runtimeInstanceId!.replace(`:${message.sourceRef}:`, `root${message.sourceRef}:`) }, trustedV2))
+      .toMatchObject({ certainty: 'unknown', reasons: expect.arrayContaining(['route-namespace-stale']) })
   })
   it('downgrades duplicate identities without promoting declared certainty', () => {
     expect(assessPickerDisplayIdentity({ ...message, reasons: ['duplicate-runtime-instance'] }, trusted))
