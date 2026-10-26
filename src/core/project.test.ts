@@ -807,7 +807,7 @@ export function AutumnPage() {
     const transformed = await Reflect.apply(plugin.transform, undefined, [source, file]) as { code?: string } | string | null
     const transformedCode = typeof transformed === 'object' && transformed && 'code' in transformed ? transformed.code : transformed
     expect(transformedCode).toContain(`data-ripple-source="jsx:src/pages/HomePage.tsx#${source.indexOf('<main>')}`)
-    expect(transformedCode).toContain('data-ripple-instance={window.location.pathname +')
+    expect(transformedCode).toContain('data-ripple-instance={"ripple-page-v2:" + encodeURIComponent(JSON.stringify([window.location.pathname, window.location.search, window.location.hash])) + ":" +')
     expect(transformedCode).toContain('useId as __rippleUseId')
     expect(transformedCode).not.toContain('__rippleInstanceCounters')
     const graph = analyzeProject(root)
