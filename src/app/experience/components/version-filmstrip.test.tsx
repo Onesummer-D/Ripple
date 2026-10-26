@@ -80,4 +80,19 @@ describe('VersionFilmstrip · Real 无截图诚实占位（P1-2）', () => {
     expect(card.querySelectorAll('img').length).toBe(0)
     expect(screen.getByTestId('film-shot-none-candidate-1')).not.toBeNull()
   })
+
+  it('演示模式下即使 thumbnail.source=real-artifact 被误注入也不得渲染"真实截图"（负例）', () => {
+    const demoModel = { ...modelWith([base]), dataProvenance: 'demo' } as ExperienceViewModel
+    const polluted: VersionItemXp = {
+      ...base,
+      evidenceState: 'archived',
+      thumbnail: { url: '/__ripple/api/candidate/candidate-1/evidence/ev-1', source: 'real-artifact' },
+    }
+    render(<VersionFilmstrip model={{ ...demoModel, versions: [polluted] }} activeVersionId="candidate-1" onSelect={() => {}} />)
+    const card = screen.getByTestId('version-card-candidate-1')
+    expect(card.querySelectorAll('img').length).toBe(0)
+    // 渲染演示模式的无图占位，且不得出现「真实截图」来源角标
+    expect(screen.getByTestId('film-shot-none-candidate-1').textContent).toBe('无演示素材图')
+    expect(screen.queryByTestId('film-src-real-candidate-1')).toBeNull()
+  })
 })

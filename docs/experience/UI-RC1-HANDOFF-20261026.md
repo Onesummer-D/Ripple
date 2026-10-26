@@ -38,13 +38,21 @@
 ### C 类：不进入 UI-RC1 视觉迁移
 | 文件 | 说明 |
 | --- | --- |
-| `Dockerfile` / `docker-compose.yml` / `.dockerignore` | 仅供原生 Linux Docker 宿主跑 REAL 链路 e2e。**安全风险见 §3** |
+| `Dockerfile` / `docker-compose.yml` / `.dockerignore` | **遗留工具，未整改，不得执行，不得进入 UI-RC1 视觉迁移**。当前文件仍要求无 TLS 的 2375 TCP（见 §3） |
 | `scripts/deploy_tar.py` / `ssh_exec.py` / `sftp_upload.py` / `debug_ssh.py` | SSH 部署工具。**安全风险见 §3；不得用其自行再次部署公网** |
 | `scripts/smoke-*.mjs` / `verify-demo-*.mjs` / `capture-handoff-shots.mjs` | 演示验收/截图脚本，可参考断言写法，不属于视觉资产 |
 | `docs/experience/UI-VISUAL-HANDOFF-20261025.md` / 本文档 | 交接文档本身 |
 
 ### ⚠️ 安全风险单独标注（审查强制项）
-1. **不得要求启用无 TLS 的 Docker 2375 TCP**。Dockerfile/docker-compose 只用本地 socket；此前本机 Windows 上尝试过的 2375 暴露方案已废弃，禁止写入任何部署文档或环境要求。
+1. **Dockerfile / docker-compose 是遗留工具，尚未整改，不得执行，不得进入 RC1 迁移**。
+   事实声明（以仓库当前文件为准，SHA `dc8e2a7`）：
+   - `Dockerfile:36` 硬编码 `ENV DOCKER_HOST=tcp://host.docker.internal:2375`；
+   - `docker-compose.yml:11-14` 明确要求开启 Docker Desktop 的
+     **"Expose daemon on tcp://localhost:2375 without TLS"**，e2e 服务以
+     `network_mode: host` + 该无 TLS TCP 通道操控宿主 Docker 守护进程。
+   - 此前 RC1 文档声称"只用本地 socket、2375 方案已废弃"**是错误的**，现予以更正。
+   - 处置：本轮不修改这些文件（避免在视觉分支混入工具整改）；它们不随 UI-RC1 迁移，
+     由工程侧决定整改或删除。任何环境下**不得按这些文件的说明执行**。
 2. **SSH 部署脚本以 `SSH_PASS` 环境变量传密码**（paramiko），不落盘、不入库；脚本仅用于经授权的云端演示环境维护，**不得用于生产部署**，不得在其中硬编码任何凭据。
 3. 本分支不包含、也不应新增任何公网部署动作；云端演示环境已有的部署与备份由负责人在授权下管理。
 
@@ -116,6 +124,8 @@ $ node scripts/verify-rc1-local.mjs http://127.0.0.1:4310 scripts/smoke-out/rc1
 
 > 因审查要求「不再次部署公网」，本轮验证在本地 `vite preview` 上执行；云端 81.70.40.146:8082 当前仍为 v2 版本（`experience-BiAABMMG.js`），云端更新待负责人授权后进行。
 
+（注：上表 SHA 为上一轮补正 `9473ac4` 的验证截图；本轮最终轮补正的新 SHA 与复验结果见下方「最终轮补正（审查后最后一轮）」。）
+
 ## 6. 新增按钮/面板/交互 ↔ 功能映射（供 F 恢复真实功能）
 | 视觉元素 | 对应功能 | F 需实现 |
 | --- | --- | --- |
@@ -130,5 +140,24 @@ $ node scripts/verify-rc1-local.mjs http://127.0.0.1:4310 scripts/smoke-out/rc1
 ## 7. 交付物
 - 补正提交：`9473ac4`（本分支，已推送）
 - 文件清单：见 `git show --stat 9473ac4`
-- Draft PR：供审查创建，**注明不是针对 RC0 的可合并结果**
+- Draft PR：**https://github.com/Onesummer-D/Ripple/pull/53**（base `main`，326 文件差异——
+  分支基于早期视觉基线，**只供视觉审查与移植取材，不可直接合并**；无需为缩小 diff 重写分支）
 - 未执行：合并公共分支 / 再次部署公网 / 触发 Bolt（遵守授权边界）
+
+## 8. 最终轮补正（审查后最后一轮，2026-10-26 晚）
+
+处理审查四个问题：
+1. `version-filmstrip.tsx`：`realShot` 增加 `!isDemo` 来源限制——演示模式即使被误注入
+   `real-artifact` 缩略图也不得渲染"真实截图"；负例单测 1 项。
+2. 更正本文档与 PR #53 描述中"Dockerfile/docker-compose 只用本地 socket"的**错误声明**：
+   仓库当前文件（SHA `dc8e2a7`）确实仍使用 `tcp://host.docker.internal:2375` 并在
+   compose 注释中要求开启无 TLS 2375。这些遗留工具**未整改、不得执行、不得进入 RC1 迁移**（§3）。
+   PR 描述对应段落已由同样的更正文本替换。
+3. `verify-rc1-local.mjs`：Tab 断言改为真实 Tab 键遍历，断言焦点顺序为
+   「选中按钮 → 证据按钮」（不再用 `.focus()` + 真值检查代替）。
+4. 复验结果（本地 `vite preview`，未部署公网）：
+   - `tsc --noEmit -p tsconfig.app.json` → 0 错误
+   - `vitest run src/app/experience` → 6 文件 **102/102 通过，0 失败**
+   - `vite build --mode demo-static` → 成功
+   - `node scripts/verify-rc1-local.mjs` → **23/23 PASS，0 console 错误**（含新 Tab 顺序断言 2 项）
+   - 最终 SHA 与资产哈希见本节提交记录。

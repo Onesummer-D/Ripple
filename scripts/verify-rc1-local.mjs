@@ -44,8 +44,19 @@ const nested = await card.evaluate(el => el.querySelectorAll('button [role="butt
 check('桌面：无 role=button 嵌套 / button 套 button', nested === 0, `嵌套数=${nested}`)
 
 const toggle = desktop.getByTestId('evidence-toggle-v:3')
-await toggle.focus()
-check('桌面：证据按钮可 Tab 聚焦', await desktop.evaluate(() => document.activeElement?.getAttribute('data-testid')))
+// 真实 Tab 键遍历：从卡片前一个可聚焦元素起逐次按 Tab，记录焦点序列，
+// 断言「选中按钮 → 证据按钮」按 DOM 顺序获得焦点（不用 .focus() 代替）。
+const focusOrder = []
+for (let i = 0; i < 40; i++) {
+  await desktop.keyboard.press('Tab')
+  const id = await desktop.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? document.activeElement?.tagName)
+  focusOrder.push(id)
+  if (id === 'evidence-toggle-v:3' && focusOrder.includes('version-v:3')) break
+}
+const vi = focusOrder.indexOf('version-v:3')
+const ti = focusOrder.indexOf('evidence-toggle-v:3')
+check('桌面：Tab 可聚焦到证据按钮（真实 Tab 序列）', ti >= 0, `序列片段=${focusOrder.slice(Math.max(0, ti - 3), ti + 1).join(' → ')}`)
+check('桌面：Tab 顺序为「选中按钮 → 证据按钮」', vi >= 0 && ti === vi + 1, `version@${vi}, toggle@${ti}`)
 await desktop.keyboard.press('Enter')
 check('桌面：Enter 展开证据明细', (await toggle.getAttribute('aria-expanded')) === 'true')
 await desktop.keyboard.press('Space')

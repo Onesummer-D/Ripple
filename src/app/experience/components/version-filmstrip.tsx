@@ -45,8 +45,10 @@ export function VersionFilmstrip({ model, activeVersionId, onSelect }: {
         const open = evOpen[version.id] ?? false
         const listId = `evidence-list-${version.id}`
         // 演示模式允许素材图；真实模式只允许 real-artifact。来源不符一律不展示图片。
+        // realShot 额外要求 !isDemo：演示模式绝不允许渲染"真实截图"——即使数据被误注入
+        // real-artifact 来源，也只属于真实模式的可信渲染路径。
         const art = version.thumbnail?.source === 'demo-art' && isDemo ? version.thumbnail.url : undefined
-        const realShot = version.thumbnail?.source === 'real-artifact' ? version.thumbnail.url : undefined
+        const realShot = !isDemo && version.thumbnail?.source === 'real-artifact' ? version.thumbnail.url : undefined
         return (
           <li key={version.id}>
             <article
