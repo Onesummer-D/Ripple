@@ -254,7 +254,8 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   await expect(historyCard).toBeVisible()
   const historyImage = page.getByTestId(`film-shot-real-${candidateId}`)
   await expect(historyImage).toBeVisible()
-  expect(await historyImage.getAttribute('src')).toBe(historyImageUrl)
+  expect(await historyImage.getAttribute('src')).toBe(archivedEvidence!.artifactUrl)
+  expect(await historyImage.evaluate(image => (image as HTMLImageElement).currentSrc)).toBe(historyImageUrl)
   const loadedArtifact = await historyImageResponse
   expect(loadedArtifact.status(), `归档截图 GET 失败：${loadedArtifact.status()} ${historyImageUrl}`).toBe(200)
   expect(loadedArtifact.headers()['content-type']).toMatch(/^image\//)
