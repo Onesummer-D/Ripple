@@ -94,7 +94,7 @@ export function parseCssTokenSource(file: string, css: string): CssTokenSource {
 
   root.walkDecls(declaration => {
     const sourceStart = declaration.source?.start?.offset
-    if (!Number.isInteger(sourceStart)) return
+    if (sourceStart === undefined || !Number.isInteger(sourceStart)) return
     const { selectorScope, atRuleContext } = ruleScope(declaration)
     const between = typeof declaration.raws.between === 'string' ? declaration.raws.between : ':'
     const rawValueStart = sourceStart + declaration.prop.length + between.length
