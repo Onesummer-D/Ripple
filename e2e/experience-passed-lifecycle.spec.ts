@@ -294,31 +294,29 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
 
   // 网络层负例：真实归档 URL 首次返回 404，浏览器须显示加载失败；同 URL 重试后放行真实 GET。
   let artifactGetCount = 0
-  let historyPanelOpen = false
+  let allowArtifactAfterRetry = false
   await page.route(historyImageUrl, async route => {
-    if (!historyPanelOpen) {
-      await route.continue()
-      return
-    }
     artifactGetCount += 1
-    if (artifactGetCount === 1) {
+    if (!allowArtifactAfterRetry) {
       await route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"artifact missing"}' })
       return
     }
     await route.continue()
   })
   await page.reload({ waitUntil: 'networkidle' })
-  historyPanelOpen = true
   await page.getByTestId('open-history').click()
   await page.getByTestId(`film-shot-real-${candidateId}`).scrollIntoViewIfNeeded()
   const failedThumbnail = page.getByTestId(`film-shot-failed-${candidateId}`)
   await expect(failedThumbnail).toBeVisible()
+  const failedArtifactRequests = artifactGetCount
+  expect(failedArtifactRequests).toBeGreaterThan(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await failedThumbnail.scrollIntoViewIfNeeded()
   const mobileCardBox = await page.getByTestId(`version-card-${candidateId}`).boundingBox()
   expect(mobileCardBox?.width).toBeLessThanOrEqual(358)
   expect(await page.getByTestId('version-filmstrip').locator('.ripple-xp-film-list').evaluate(element => getComputedStyle(element).overflowX)).toBe('auto')
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-history-390x844-failed.png') })
+  allowArtifactAfterRetry = true
   const retryImageResponse = page.waitForResponse(
     response => response.url() === historyImageUrl && response.status() === 200 && response.request().method() === 'GET',
     { timeout: 30_000 },
@@ -327,7 +325,7 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   const retryResponse = await retryImageResponse
   expect(retryResponse.status()).toBe(200)
   await expect.poll(() => page.getByTestId(`film-shot-real-${candidateId}`).evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
-  expect(artifactGetCount).toBe(2)
+  expect(artifactGetCount).toBe(failedArtifactRequests + 1)
   await page.unroute(historyImageUrl)
 
   console.log(JSON.stringify({ fixtureSha, candidateId, runId, historyImageUrl, historyImageStatus: loadedArtifact.status(), retryImageStatus: retryResponse.status(), artifactGetCount, patchHash: candidatePayload.candidate.patchHash, recordHash: verifyPayload.verification.recordHash }))
