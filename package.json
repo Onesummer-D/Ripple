@@ -37,6 +37,7 @@
     "jsdom": "^25.0.1",
     "pixelmatch": "^8.0.0",
     "pngjs": "^7.0.0",
+    "postcss": "^8.5.3",
     "react-router-dom": "^7.18.4",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
