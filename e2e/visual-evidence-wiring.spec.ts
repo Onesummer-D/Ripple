@@ -110,6 +110,32 @@ test('真实 VerificationRun 挂载视觉证据并以只读 View 输出，且不
   const verification = verified.verification
   expect(verification.runId, '正式运行记录必须存在').toBeTruthy()
 
+  // A②-3 positive path: the host's returned receipts must cover each trusted
+  // capture tuple on both sides, while proving records independently.
+  const runtimeIdentities = verification.runtimeIdentities as Array<{
+    checkId: string; route: string; viewport: { width: number; height: number }; state: string; side: 'baseline' | 'candidate'
+    archive: 'stored' | 'failed'; assessmentStatus?: 'complete' | 'version-unverifiable'
+    snapshot?: { records: unknown[] }; snapshotSha256?: string
+    assessments?: Array<{ recordKey: string; assessmentSha256: string; assessment: { instanceIdentityProven: boolean; reasons: string[] } }>
+  }>
+  expect(runtimeIdentities, '正式 VerificationRun 必须带宿主生成的身份回执数组').toBeTruthy()
+  expect(runtimeIdentities).toHaveLength(projectPreviewViewports.length * 2)
+  expect(new Set(runtimeIdentities.map(entry => entry.side))).toEqual(new Set(['baseline', 'candidate']))
+  expect(runtimeIdentities.every(entry => entry.archive === 'stored' && entry.assessmentStatus === 'complete' && entry.snapshot && entry.assessments)).toBe(true)
+  for (const entry of runtimeIdentities) {
+    expect(entry.snapshotSha256).toMatch(/^[a-f0-9]{64}$/)
+    expect(entry.assessments).toHaveLength(entry.snapshot!.records.length)
+    for (const assessment of entry.assessments!) {
+      expect(assessment.recordKey).toBeTruthy()
+      expect(assessment.assessmentSha256).toMatch(/^[a-f0-9]{64}$/)
+      expect(typeof assessment.assessment.instanceIdentityProven).toBe('boolean')
+      expect(Array.isArray(assessment.assessment.reasons)).toBe(true)
+    }
+  }
+  for (const side of ['baseline', 'candidate'] as const) {
+    expect(runtimeIdentities.filter(entry => entry.side === side).flatMap(entry => entry.assessments ?? []).some(record => record.assessment.instanceIdentityProven)).toBe(true)
+  }
+
   // 4. 正式审批门控不因视觉证据改变：状态仍由既有断言决定，且是合法状态之一
   expect(['passed', 'risks', 'incomplete', 'stale']).toContain(verification.state)
 
@@ -165,6 +191,9 @@ test('真实 VerificationRun 挂载视觉证据并以只读 View 输出，且不
   expect(hostRead.entries).toHaveLength(manifest.visualCaptures.length * 2)
   expect(hostRead.entries.every(entry => entry.archive === 'stored')).toBe(true)
   expect(hostRead.entries.every(entry => entry.archive === 'stored' && entry.snapshotSha256 === entry.artifact.snapshot.sha256)).toBe(true)
+  const captureTuple = (entry: { checkId: string; route: string; viewport: { width: number; height: number }; state: string; side: string }) =>
+    `${entry.checkId}\u0000${entry.route}\u0000${entry.viewport.width}x${entry.viewport.height}\u0000${entry.state}\u0000${entry.side}`
+  expect(runtimeIdentities.map(captureTuple).sort()).toEqual(manifest.runtimeIdentityCaptures.map(captureTuple).sort())
 
   const assertionIds = manifest.assertions.map((assertion: { id: string }) => assertion.id)
   expect(assertionIds).toHaveLength(REQUIRED_VERIFICATION_ASSERTION_IDS.length)
@@ -297,6 +326,24 @@ test('真实 VerificationRun 挂载视觉证据并以只读 View 输出，且不
   // 7. 保存真实交付工件
   fs.writeFileSync(path.join(evidenceRoot, 'visual-evidence-wiring-verification.json'), JSON.stringify(verified, null, 2))
   fs.writeFileSync(path.join(evidenceRoot, 'visual-evidence-wiring-views.json'), JSON.stringify(visualEvidences.map((entry: { view: unknown }) => entry.view), null, 2))
+  const receiptEvidence = path.join(evidenceRoot, 'a2-verification-runtime-identities.json')
+  fs.writeFileSync(receiptEvidence, JSON.stringify({
+    schema: 'ripple-a2-verification-runtime-identities-evidence/v1',
+    candidateId,
+    verificationRunId: verification.runId,
+    manifestSha256: sha256(manifestBytes),
+    runtimeIdentities,
+  }, null, 2))
+  fs.writeFileSync(`${receiptEvidence}.sha256`, `${sha256(fs.readFileSync(receiptEvidence))}  a2-verification-runtime-identities.json\n`)
+
+  // The API's persisted candidate history must return the same receipt after
+  // the verification transaction has completed.
+  const historyResponse = await page.request.get(`${api}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)
+  expect(historyResponse.ok()).toBe(true)
+  const history = await historyResponse.json() as { history: Array<{ candidateId: string; verification: { runId?: string; runtimeIdentities?: unknown[] } }> }
+  const saved = history.history.find(item => item.candidateId === candidateId)
+  expect(saved?.verification.runId).toBe(verification.runId)
+  expect(saved?.verification.runtimeIdentities).toEqual(runtimeIdentities)
 
   // 8. 清理候选
   const discarded = await page.request.post(`${api}/discard`, { data: { candidateId }, headers: { origin: 'http://127.0.0.1:4173' } })

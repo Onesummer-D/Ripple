@@ -252,25 +252,12 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   // 新候选再次运行验证：真实 VerificationRun
   const verify2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/verify') && response.status() === 200, { timeout: 180_000 })
   await page.getByTestId('run-verification').click()
-  const verify2Payload = await (await verify2Response).json() as { verification: { state: string; runId?: string; runtimeIdentities?: Array<{
-    checkId: string; route: string; viewport: { width: number; height: number }; state: string; side: 'baseline' | 'candidate';
-    archive: 'stored' | 'failed'; assessmentStatus?: 'complete' | 'version-unverifiable'; snapshot?: { records: unknown[] };
-    assessments?: Array<{ recordKey: string; assessmentSha256: string; assessment: { instanceIdentityProven: boolean; sourceRef: string; runtimeInstanceId?: string; reasons: string[] } }>;
-  }> } }
+  const verify2Payload = await (await verify2Response).json() as { verification: { state: string; runId?: string; runtimeIdentities?: unknown[] } }
   expect(verify2Payload.verification.runId, '第二个候选的验证运行记录必须存在').toBeTruthy()
   expect(['passed', 'risks', 'incomplete', 'stale']).toContain(verify2Payload.verification.state)
-  const runtimeIdentities = verify2Payload.verification.runtimeIdentities
-  expect(runtimeIdentities, 'VerificationRun 必须返回宿主生成的单侧 Runtime Identity 回执').toBeTruthy()
-  expect(runtimeIdentities!.length).toBeGreaterThanOrEqual(8)
-  expect(new Set(runtimeIdentities!.map(entry => entry.side))).toEqual(new Set(['baseline', 'candidate']))
-  expect(runtimeIdentities!.every(entry => entry.checkId && entry.route && entry.state && entry.viewport.width > 0 && entry.viewport.height > 0)).toBe(true)
-  expect(runtimeIdentities!.every(entry => entry.archive === 'stored' && entry.assessmentStatus === 'complete' && entry.snapshot && entry.assessments)).toBe(true)
-  for (const entry of runtimeIdentities!) expect(entry.assessments).toHaveLength(entry.snapshot!.records.length)
-  for (const side of ['baseline', 'candidate'] as const) {
-    const sideRecords = runtimeIdentities!.filter(entry => entry.side === side).flatMap(entry => entry.assessments ?? [])
-    expect(sideRecords.some(record => /^[a-f0-9]{64}$/.test(record.assessmentSha256))).toBe(true)
-    expect(sideRecords.some(record => record.assessment.instanceIdentityProven)).toBe(true)
-  }
+  // This UI flow has no trusted Verification Contract. With no planned capture tuple,
+  // the host must not synthesize or infer Runtime Identity receipts from the container.
+  expect(verify2Payload.verification.runtimeIdentities).toEqual([])
   await expect(page.getByTestId('verification-status')).toContainText(verify2Payload.verification.runId!.slice(0, 12))
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-switched-1440.png'), fullPage: true })
 
