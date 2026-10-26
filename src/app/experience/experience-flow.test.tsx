@@ -8,6 +8,7 @@ import type { ExperienceViewModel } from './view-model'
 import { createRealAdapter } from './real-adapter'
 import { createDemoAdapter } from './demo-adapter'
 import { CompareStrip } from './components/compare-strip'
+import { VersionFilmstrip } from './components/version-filmstrip'
 
 const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 
@@ -48,6 +49,68 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('demo-badge')
     expect(text('demo-badge')).toContain('演示数据')
+    expect(text('demo-note')).toContain('模拟数据')
+  })
+
+  it('历史卡片分开处理版本选择与证据展开，并隔离 Demo 素材图', async () => {
+    const demoModel = await createDemoAdapter().load()
+    const onSelect = vi.fn()
+    const onClose = vi.fn()
+    const { rerender } = render(<VersionFilmstrip model={demoModel} onSelect={onSelect} onClose={onClose} />)
+
+    expect(screen.getByTestId('version-card-v:3').tagName).toBe('ARTICLE')
+    expect(screen.getByTestId('film-shot-demo-v:3')).toBeTruthy()
+    expect(screen.queryByTestId('film-shot-real-v:3')).toBeNull()
+    const versionButton = screen.getByTestId('version-v:3') as HTMLButtonElement
+    const evidenceButton = screen.getByTestId('evidence-toggle-v:3') as HTMLButtonElement
+    expect(versionButton.tabIndex).toBe(0)
+    expect(evidenceButton.tabIndex).toBe(0)
+    expect(evidenceButton.getAttribute('aria-expanded')).toBe('false')
+    versionButton.focus()
+    expect(document.activeElement).toBe(versionButton)
+    evidenceButton.focus()
+    expect(document.activeElement).toBe(evidenceButton)
+    fireEvent.click(evidenceButton)
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(evidenceButton.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByTestId('evidence-list-v:3')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('version-v:3'))
+    expect(onSelect).toHaveBeenCalledWith(demoModel.versions[0])
+    fireEvent.click(screen.getByTestId('close-filmstrip'))
+    expect(onClose).toHaveBeenCalledOnce()
+
+    const realModel: ExperienceViewModel = {
+      ...demoModel,
+      dataProvenance: 'real',
+      versions: [
+        { ...demoModel.versions[0], evidenceState: 'archived', thumbnail: { url: '/__ripple/api/candidate/candidate-1/evidence/shot-1', source: 'real-artifact' } },
+        { ...demoModel.versions[1], evidenceState: 'metadata', thumbnail: { url: '/__ripple/api/candidate/candidate-2/evidence/shot-2', source: 'real-artifact' } },
+        { ...demoModel.versions[2], evidenceAvailable: true, evidenceState: 'none', thumbnail: undefined },
+      ],
+    }
+    rerender(<VersionFilmstrip model={realModel} onSelect={onSelect} onClose={onClose} />)
+    expect(screen.getByTestId('film-shot-real-v:3').getAttribute('src')).toBe('/__ripple/api/candidate/candidate-1/evidence/shot-1')
+    expect(screen.getByTestId('film-shot-none-v:1').textContent).toContain('未归档真实截图')
+    expect(screen.queryByTestId('film-shot-real-v:1')).toBeNull()
+    expect(screen.queryByTestId('film-shot-demo-v:3')).toBeNull()
+    fireEvent.error(screen.getByTestId('film-shot-real-v:3'))
+    expect(screen.getByTestId('film-shot-failed-v:3').textContent).toContain('真实截图加载失败')
+    const retryButton = screen.getByTestId('film-shot-retry-v:3')
+    fireEvent.click(retryButton)
+    const retriedImage = screen.getByTestId('film-shot-real-v:3')
+    expect(retriedImage.getAttribute('src')).toBe('/__ripple/api/candidate/candidate-1/evidence/shot-1')
+    fireEvent.load(retriedImage)
+    expect(screen.getByTestId('film-src-real-v:3').textContent).toBe('真实截图')
+
+    const refreshedModel: ExperienceViewModel = {
+      ...realModel,
+      versions: realModel.versions.map(version => version.id === 'v:3'
+        ? { ...version, thumbnail: { url: '/__ripple/api/candidate/candidate-1/evidence/shot-1-retry', source: 'real-artifact' } }
+        : version),
+    }
+    rerender(<VersionFilmstrip model={refreshedModel} onSelect={onSelect} onClose={onClose} />)
+    expect(screen.getByTestId('film-shot-loading-v:3')).toBeTruthy()
+    expect(screen.queryByTestId('film-shot-failed-v:3')).toBeNull()
   })
 
   it('DEMO 对照文案负例：绝不显示真实截图校验通过的结论', async () => {
@@ -268,9 +331,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('open-history'))
     expect(text('version-v:3')).toContain('已回滚')
-    expect(text('version-v:2')).toContain('证据可用')
-    expect(text('version-v:1')).toContain('已失效')
-    expect(text('version-v:1')).toContain('无证据')
+    expect(text('evidence-toggle-v:2')).toContain('证据可用')
+    expect(text('version-card-v:1')).toContain('已失效')
+    expect(text('version-card-v:1')).toContain('无证据')
     fireEvent.click(screen.getByTestId('version-v:3'))
     expect(screen.getByTestId('page-item-page:products').getAttribute('aria-current')).toBe('page')
   })

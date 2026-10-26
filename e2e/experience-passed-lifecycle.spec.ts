@@ -219,16 +219,114 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   await expect(page.getByTestId('candidate-status')).toContainText('已回滚', { timeout: 60_000 })
   await expect(page.getByTestId('lifecycle-status')).toContainText('已回滚')
   const history = await (await fetch(`${API}/history?projectId=${analysis.revision.projectId}`)).json() as {
-    history: Array<{ candidateId: string; lifecycle: string; patchHash?: string; approval?: { verificationRunId?: string } }>
+    history: Array<{
+      candidateId: string
+      lifecycle: string
+      patchHash?: string
+      approval?: { verificationRunId?: string }
+      verification: {
+        runId?: string
+        recordUrl?: string
+        evidence?: Array<{ id: string; artifactUrl?: string; viewport: { width: number; height: number } }>
+      }
+    }>
   }
   const stored = history.history.find(item => item.candidateId === candidateId)
   expect(stored, '候选必须已持久化到服务端历史').toBeTruthy()
   expect(stored!.lifecycle).toBe('rolled-back')
   expect(stored!.patchHash).toBe(candidatePayload.candidate.patchHash)
   expect(stored!.approval?.verificationRunId).toBe(runId)
+  expect(stored!.verification.runId).toBe(runId)
+  const expectedRecordUrl = `/__ripple/api/candidate/${encodeURIComponent(candidateId)}/runs/${encodeURIComponent(runId)}`
+  expect(stored!.verification.recordUrl).toBe(expectedRecordUrl)
+  const archivedEvidence = stored!.verification.evidence?.find(entry => entry.artifactUrl)
+  expect(archivedEvidence, '真实 VerificationRun 历史必须引用归档截图').toBeTruthy()
+  expect(archivedEvidence!.artifactUrl).toBe(`/__ripple/api/candidate/${encodeURIComponent(candidateId)}/evidence/${encodeURIComponent(archivedEvidence!.id)}`)
   // 回滚后工作树恢复干净（逐字节还原 → git 无差异）
   expect(execFileSync('git', ['-C', projectRoot, 'status', '--porcelain'], { encoding: 'utf8' })).toBe('')
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-passed-refreshed-1440.png'), fullPage: true })
 
-  console.log(JSON.stringify({ fixtureSha, candidateId, runId, patchHash: candidatePayload.candidate.patchHash, recordHash: verifyPayload.verification.recordHash }))
+  // 10. 历史胶片必须绑定真实 Candidate、VerificationRun 和截图 artifact，并在 Chromium 中成功解码。
+  const historyImageUrl = new URL(archivedEvidence!.artifactUrl!, 'http://127.0.0.1:4173').toString()
+  // The image is lazy-loaded below the fold. Route pass-through disables cache so the browser
+  // performs a real GET after the card is scrolled into view instead of waiting on a cached image.
+  await page.route(historyImageUrl, route => route.continue())
+  const historyImageResponse = page.waitForResponse(
+    response => response.url() === historyImageUrl && response.request().method() === 'GET',
+    { timeout: 30_000 },
+  )
+  await page.getByTestId('open-history').click()
+  const historyCard = page.getByTestId(`version-card-${candidateId}`)
+  const historySelection = page.getByTestId(`version-${candidateId}`)
+  await expect(historyCard).toBeVisible()
+  const historyImage = page.getByTestId(`film-shot-real-${candidateId}`)
+  await expect(historyImage).toBeVisible()
+  await historyImage.scrollIntoViewIfNeeded()
+  expect(await historyImage.getAttribute('src')).toBe(archivedEvidence!.artifactUrl)
+  expect(await historyImage.evaluate(image => (image as HTMLImageElement).currentSrc)).toBe(historyImageUrl)
+  const loadedArtifact = await historyImageResponse
+  expect(loadedArtifact.status(), `归档截图 GET 失败：${loadedArtifact.status()} ${historyImageUrl}`).toBe(200)
+  expect(loadedArtifact.headers()['content-type']).toMatch(/^image\//)
+  await expect.poll(() => historyImage.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+  await expect(page.getByTestId(`film-src-real-${candidateId}`)).toContainText('真实截图')
+  await page.unroute(historyImageUrl)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await historyCard.scrollIntoViewIfNeeded()
+  const desktopCardBox = await historyCard.boundingBox()
+  expect(desktopCardBox?.width).toBe(300)
+  expect(await historyCard.evaluate(element => getComputedStyle(element).scrollSnapAlign)).toBe('start')
+  const sourceBadgeBox = await page.getByTestId(`film-src-real-${candidateId}`).boundingBox()
+  const lifecycleBadgeBox = await historyCard.locator('.ripple-xp-film-flag').boundingBox()
+  expect(sourceBadgeBox && lifecycleBadgeBox && sourceBadgeBox.x + sourceBadgeBox.width < lifecycleBadgeBox.x).toBe(true)
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-history-1440x900.png') })
+
+  // 键盘顺序以真实 Tab 导航验证：版本选择 Enter 与证据展开 Space 互不串联。
+  await page.getByTestId('close-filmstrip').focus()
+  await page.keyboard.press('Tab')
+  await expect(historySelection).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(historySelection).toHaveAttribute('aria-current', 'true')
+  const evidenceToggle = page.getByTestId(`evidence-toggle-${candidateId}`)
+  await page.keyboard.press('Tab')
+  await expect(evidenceToggle).toBeFocused()
+  await page.keyboard.press('Space')
+  await expect(evidenceToggle).toHaveAttribute('aria-expanded', 'true')
+
+  // 网络层负例：真实归档 URL 首次返回 404，浏览器须显示加载失败；同 URL 重试后放行真实 GET。
+  let artifactGetCount = 0
+  let allowArtifactAfterRetry = false
+  await page.route(historyImageUrl, async route => {
+    artifactGetCount += 1
+    if (!allowArtifactAfterRetry) {
+      await route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"artifact missing"}' })
+      return
+    }
+    await route.continue()
+  })
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByTestId('open-history').click()
+  await page.getByTestId(`version-card-${candidateId}`).scrollIntoViewIfNeeded({ timeout: 15_000 })
+  const failedThumbnail = page.getByTestId(`film-shot-failed-${candidateId}`)
+  await expect(failedThumbnail).toBeVisible()
+  const failedArtifactRequests = artifactGetCount
+  expect(failedArtifactRequests).toBeGreaterThan(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await failedThumbnail.scrollIntoViewIfNeeded({ timeout: 15_000 })
+  const mobileCardBox = await page.getByTestId(`version-card-${candidateId}`).boundingBox()
+  expect(mobileCardBox?.width).toBeLessThanOrEqual(358)
+  expect(await page.getByTestId('version-filmstrip').locator('.ripple-xp-film-list').evaluate(element => getComputedStyle(element).overflowX)).toBe('auto')
+  await page.screenshot({ path: path.join(evidenceRoot, 'xp-history-390x844-failed.png') })
+  allowArtifactAfterRetry = true
+  const retryImageResponse = page.waitForResponse(
+    response => response.url() === historyImageUrl && response.status() === 200 && response.request().method() === 'GET',
+    { timeout: 30_000 },
+  )
+  await page.getByTestId(`film-shot-retry-${candidateId}`).click()
+  const retryResponse = await retryImageResponse
+  expect(retryResponse.status()).toBe(200)
+  await expect.poll(() => page.getByTestId(`film-shot-real-${candidateId}`).evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+  expect(artifactGetCount).toBe(failedArtifactRequests + 1)
+  await page.unroute(historyImageUrl)
+
+  console.log(JSON.stringify({ fixtureSha, candidateId, runId, historyImageUrl, historyImageStatus: loadedArtifact.status(), retryImageStatus: retryResponse.status(), artifactGetCount, patchHash: candidatePayload.candidate.patchHash, recordHash: verifyPayload.verification.recordHash }))
 })

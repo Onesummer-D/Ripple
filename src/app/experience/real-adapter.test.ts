@@ -80,7 +80,8 @@ const HISTORY_PASSED = {
         candidateId: 'candidate-2', projectId: 'proj-acme', lifecycle: 'active',
         patchHash: 'hash-fedcba0987654321', updatedAt: '2026-10-22T12:00:00Z',
         verification: {
-          state: 'passed', runId: 'run-9', patchHash: 'hash-fedcba0987654321', scopeVersion: 3,
+          state: 'passed', runId: 'run-9', recordUrl: '/__ripple/api/candidate/candidate-2/runs/run-9',
+          patchHash: 'hash-fedcba0987654321', scopeVersion: 3,
           assertions: [{ id: 'target-change', result: 'pass', detail: '目标文案已变更' }],
           evidence: [
             { id: 'ev-1440', result: 'pass', viewport: { width: 1440, height: 900 }, artifactUrl: '/__ripple/api/candidate/candidate-2/evidence/ev-1440' },
@@ -138,7 +139,11 @@ describe('Real Adapter · 真实数据映射', () => {
     expect(dynamic?.unresolvedReasons[0]).toContain('运行时接口')
     // 历史与候选身份
     expect(model.candidateStatus).toBe('verified')
-    expect(model.versions[0]).toMatchObject({ title: '候选 hash-fed', lifecycle: 'candidate', pageRef: '', evidenceAvailable: true })
+    expect(model.versions[0]).toMatchObject({
+      title: '候选 hash-fed', lifecycle: 'candidate', pageRef: '', evidenceAvailable: true,
+      evidenceState: 'archived',
+      thumbnail: { url: '/__ripple/api/candidate/candidate-2/evidence/ev-1440', source: 'real-artifact' },
+    })
     // 真实验证证据：来源 runtime-observation，身份字段齐全
     expect(evidence(model, 'ev:verification')).toMatchObject({ state: 'pass', sourceKind: 'runtime-observation' })
     expect(evidence(model, 'ev:verification').detail).toContain('run-9')
@@ -148,6 +153,92 @@ describe('Real Adapter · 真实数据映射', () => {
     // 对照：候选侧使用真实截图 artifactUrl，基线侧如实不可用
     expect(model.compare.candidate).toMatchObject({ state: 'ready', imageUrl: '/__ripple/api/candidate/candidate-2/evidence/ev-1440' })
     expect(model.compare.baseline.state).toBe('unavailable')
+  })
+
+  it('历史把真实截图归档、证据元数据和无证据区分开', async () => {
+    const history = {
+      status: 200,
+      body: {
+        history: [
+          {
+            candidateId: 'candidate-archived', projectId: 'proj-acme', lifecycle: 'applied',
+            patchHash: 'hash-archived', updatedAt: '2026-10-22T12:00:00Z',
+            verification: {
+              state: 'passed', runId: 'run-archived', recordUrl: '/__ripple/api/candidate/candidate-archived/runs/run-archived',
+              assertions: [{ id: 'target', result: 'pass', detail: '目标正确' }], evidence: [
+              { id: 'shot-1', result: 'pass', viewport: { width: 1440, height: 900 }, artifactUrl: '/__ripple/api/candidate/candidate-archived/evidence/shot-1' },
+              ],
+            },
+          },
+          {
+            candidateId: 'candidate-metadata', projectId: 'proj-acme', lifecycle: 'stale',
+            patchHash: 'hash-metadata', updatedAt: '2026-10-21T12:00:00Z',
+            verification: {
+              state: 'passed', runId: 'run-metadata', recordUrl: '/__ripple/api/candidate/candidate-metadata/runs/run-metadata',
+              assertions: [{ id: 'target', result: 'pass', detail: '目标正确' }], evidence: [
+              { id: 'record-1', result: 'pass', viewport: { width: 390, height: 844 } },
+              ],
+            },
+          },
+          {
+            candidateId: 'candidate-unbound-artifacts', projectId: 'proj-acme', lifecycle: 'stale',
+            patchHash: 'hash-unbound', updatedAt: '2026-10-20T12:00:00Z',
+            verification: {
+              state: 'passed', runId: 'run-current', recordUrl: '/__ripple/api/candidate/candidate-unbound-artifacts/runs/run-current',
+              evidence: [
+                { id: 'wrong-candidate', result: 'pass', viewport: { width: 1440, height: 900 }, artifactUrl: '/__ripple/api/candidate/candidate-other/evidence/wrong-candidate' },
+              ],
+            },
+          },
+          {
+            candidateId: 'candidate-wrong-run', projectId: 'proj-acme', lifecycle: 'stale',
+            patchHash: 'hash-wrong-run', updatedAt: '2026-10-19T12:00:00Z',
+            verification: {
+              state: 'passed', runId: 'run-current', recordUrl: '/__ripple/api/candidate/candidate-wrong-run/runs/run-other',
+              evidence: [
+                { id: 'shot-wrong-run', result: 'pass', viewport: { width: 390, height: 844 }, artifactUrl: '/__ripple/api/candidate/candidate-wrong-run/evidence/shot-wrong-run' },
+              ],
+            },
+          },
+          {
+            candidateId: 'candidate-runid-only', projectId: 'proj-acme', lifecycle: 'stale',
+            patchHash: 'hash-runid-only', updatedAt: '2026-10-18T12:00:00Z',
+            verification: { state: 'not-run', runId: 'run-without-artifact' },
+          },
+          {
+            candidateId: 'candidate-recordhash-only', projectId: 'proj-acme', lifecycle: 'stale',
+            patchHash: 'hash-recordhash-only', updatedAt: '2026-10-17T12:00:00Z',
+            verification: { state: 'not-run', recordHash: 'record-without-artifact' },
+          },
+          {
+            candidateId: 'candidate-none', projectId: 'proj-acme', lifecycle: 'discarded',
+            patchHash: 'hash-none', updatedAt: '2026-10-20T12:00:00Z',
+            verification: { state: 'not-run' },
+          },
+        ],
+      },
+    }
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history, 'project/preview': PREVIEW })
+    const model = await createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl }).load()
+
+    expect(model.versions.map(version => version.evidenceState)).toEqual([
+      'archived', 'metadata', 'metadata', 'metadata', 'metadata', 'metadata', 'none',
+    ])
+    expect(model.versions[0].thumbnail).toEqual({
+      url: '/__ripple/api/candidate/candidate-archived/evidence/shot-1', source: 'real-artifact',
+    })
+    expect(model.versions[1].thumbnail).toBeUndefined()
+    expect(model.versions[1].evidenceList).toContain('390px 视口记录（pass），未归档截图')
+    expect(model.versions[2].thumbnail).toBeUndefined()
+    expect(model.versions[2].evidenceList).toEqual(['1440px 视口记录（pass），未归档截图'])
+    expect(model.versions[3].thumbnail).toBeUndefined()
+    expect(model.versions[3].evidenceList).toEqual(['390px 视口记录（pass），未归档截图'])
+    expect(model.versions[4].evidenceAvailable).toBe(true)
+    expect(model.versions[4].thumbnail).toBeUndefined()
+    expect(model.versions[5].evidenceAvailable).toBe(true)
+    expect(model.versions[5].thumbnail).toBeUndefined()
+    expect(model.versions[6].evidenceAvailable).toBe(false)
+    expect(model.versions[6].thumbnail).toBeUndefined()
   })
 
   it('只有本工程的历史被映射；验证 not-run / failed-to-run / stale 原样透出', async () => {
