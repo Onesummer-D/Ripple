@@ -305,7 +305,7 @@ describe('real project graph and candidate executor', () => {
 
     expect(importedCssToken.tokenOrigin).toBe('css-custom-property')
     expect(importedCssToken.location?.path).toBe('src/styles/a-theme.css')
-    expect(importedCssToken.location?.offset).toBe(fs.readFileSync(path.join(root, 'src/styles/a-theme.css'), 'utf8').indexOf('--unused-accent'))
+    expect(importedCssToken.location?.offset).toBe(fs.readFileSync(path.join(root, 'src/styles/a-theme.css'), 'utf8').indexOf('--brand-accent'))
 
     expect(sourceProvenPageImpact(graph, unused.id)).toMatchObject({
       pageRefs: [], certainty: 'unknown',
@@ -356,6 +356,10 @@ describe('real project graph and candidate executor', () => {
     const { root } = sampleProject()
     const styles = path.join(root, 'src', 'styles')
     fs.mkdirSync(styles, { recursive: true })
+    const routerPackage = path.join(root, 'node_modules', 'react-router-dom')
+    fs.mkdirSync(routerPackage, { recursive: true })
+    fs.writeFileSync(path.join(routerPackage, 'package.json'), JSON.stringify({ name: 'react-router-dom', types: 'index.d.ts' }))
+    fs.writeFileSync(path.join(routerPackage, 'index.d.ts'), 'export declare const HashRouter: any; export declare const Route: any; export declare const Routes: any;')
     const appPath = path.join(root, 'src', 'App.tsx')
     fs.writeFileSync(appPath, `import { HashRouter, Route, Routes } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
@@ -406,7 +410,7 @@ export function App() { return <HashRouter><Routes><Route path="/" element={<Hom
     const graph = analyzeProject(root)
     const missingUse = graph.nodes.find(node => node.kind === 'token-use' && node.label === 'var(--missing)')!
     const unknown = graph.edges.find(edge => edge.certainty === 'unknown' && edge.sourceUse?.path === 'src/styles/tokens.css' && edge.sourceUse.charOffset === missingUse.location?.offset)
-    expect(missingUse.byteOffset).toBe(Buffer.byteLength(css.slice(0, css.indexOf('var(--missing)')), 'utf8'))
+    expect(missingUse.byteOffset).toBe(Buffer.byteLength(css.slice(0, css.indexOf('var(--missing,')), 'utf8'))
     expect(unknown).toMatchObject({ kind: 'uses-token', sourceUse: { path: 'src/styles/tokens.css' } })
     expect(graph.unresolved.some(item => item.includes('src/styles/tokens.css#') && item.includes('--missing'))).toBe(true)
     const brand = graph.nodes.find(node => node.kind === 'token' && node.label === '--brand')!
@@ -1157,3 +1161,4 @@ export function AutumnPage() {
     expect(fs.readFileSync(path.join(root, 'untracked.txt'), 'utf8')).toBe('preserve')
   }, 15_000)
 })
+
