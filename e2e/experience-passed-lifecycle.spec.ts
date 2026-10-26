@@ -256,7 +256,8 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
     { timeout: 30_000 },
   )
   await page.getByTestId('open-history').click()
-  const historyCard = page.getByTestId(`version-${candidateId}`)
+  const historyCard = page.getByTestId(`version-card-${candidateId}`)
+  const historySelection = page.getByTestId(`version-${candidateId}`)
   await expect(historyCard).toBeVisible()
   const historyImage = page.getByTestId(`film-shot-real-${candidateId}`)
   await expect(historyImage).toBeVisible()
@@ -282,9 +283,9 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   // 键盘顺序以真实 Tab 导航验证：版本选择 Enter 与证据展开 Space 互不串联。
   await page.getByTestId('close-filmstrip').focus()
   await page.keyboard.press('Tab')
-  await expect(historyCard).toBeFocused()
+  await expect(historySelection).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(historyCard).toHaveAttribute('aria-current', 'true')
+  await expect(historySelection).toHaveAttribute('aria-current', 'true')
   const evidenceToggle = page.getByTestId(`evidence-toggle-${candidateId}`)
   await page.keyboard.press('Tab')
   await expect(evidenceToggle).toBeFocused()
