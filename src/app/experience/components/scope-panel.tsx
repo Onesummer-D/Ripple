@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ExperienceViewModel, PageXp, VerificationContractInteractionXp } from '../view-model'
 import { approvalGate, scopeSummary } from '../view-model'
 import { CertaintyPill, SectionTitle } from './status-pill'
@@ -35,6 +35,8 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
 }) {
   // 应用/回滚的两步确认：第一次点击只进入确认态，第二次点击才真正提交
   const [confirmAction, setConfirmAction] = useState<'apply' | 'rollback' | ''>('')
+  const [activeStep, setActiveStep] = useState(1)
+  const stepRefs = useRef<Array<HTMLElement | null>>([])
   // 验证合同交互声明表单（本地草稿；提交时整体写入模型）
   const [interactionDraft, setInteractionDraft] = useState<{ pageRef: string; role: 'button' | 'link'; name: string; expectedText: string }>({ pageRef: '', role: 'button', name: '', expectedText: '' })
   const selected = model.elements.find(item => item.id === model.selectedElementId)
@@ -44,6 +46,25 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   const sameSourcePages = model.pages.filter(page => page.relation === 'same-source')
   const unrelatedPages = model.pages.filter(page => page.relation === 'unrelated')
   const unprovenPages = model.pages.filter(page => page.relation === 'unproven')
+  const stepChecks = [
+    { key: 'target', title: '选择元素', done: !!selected && selected.editable && selected.certainty === 'source-proven' },
+    { key: 'draft', title: '修改内容', done: !!model.draftAfterText.trim() },
+    { key: 'scope', title: '影响范围', done: !!selected && summary.undecided === 0 && summary.unprovenIncluded === 0 },
+    { key: 'generate', title: '检查并生成', done: gate.allowed },
+  ]
+  useEffect(() => {
+    const next = stepChecks.findIndex((step, index) => index < 3 && !step.done)
+    setActiveStep(next < 0 ? 4 : next + 1)
+  }, [selected?.id, selected?.editable, selected?.certainty, model.draftAfterText, summary.undecided, summary.unprovenIncluded])
+  const jumpToStep = (step: number) => {
+    setActiveStep(step)
+    stepRefs.current[step - 1]?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' })
+  }
+  const stepForReason = (reason: string) => reason.includes('选中位置') || reason.includes('尚未选中')
+    ? 1
+    : reason.includes('修改内容')
+      ? 2
+      : 3
 
   const scopeRow = (page: PageXp, reason: string, locked: boolean) => (
     <li key={page.id} className={`ripple-xp-scope-row ${locked ? 'is-locked' : ''}`} data-testid={`scope-row-${page.id}`}>
@@ -72,28 +93,53 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   )
 
   return <aside className="ripple-xp-scope reveal" data-testid="scope-panel">
-    <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>选中位置</SectionTitle>
+    <nav className="ripple-xp-steps" aria-label="修改流程" data-testid="scope-steps">
+      {stepChecks.map((step, index) => (
+        <button
+          key={step.key}
+          type="button"
+          className={`ripple-xp-step-tab ${activeStep === index + 1 ? 'is-active' : ''} ${step.done ? 'is-done' : 'is-incomplete'}`}
+          aria-current={activeStep === index + 1 ? 'step' : undefined}
+          aria-label={`${index + 1}. ${step.title}${step.done ? '，已完成' : '，未完成'}`}
+          data-testid={`step-tab-${index + 1}`}
+          onClick={() => jumpToStep(index + 1)}
+        >
+          <span className="ripple-xp-step-number">{index + 1}</span>
+          <span>{step.title}</span>
+        </button>
+      ))}
+    </nav>
+
+    <section className="ripple-xp-step" ref={element => { stepRefs.current[0] = element }} tabIndex={-1} data-testid="scope-step-target">
+    <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>1 · 选择元素</SectionTitle>
     {selected ? (
       <div className="ripple-xp-selection-block">
         <strong>{selected.label}</strong>
         <p>来源：{selected.sourcePath ? <code>{selected.sourcePath}</code> : '运行时内容，静态来源未定位'}</p>
         {selected.unresolvedReasons.map(reason => <p key={reason} className="ripple-xp-warn">· {reason}</p>)}
         {selected.impactPageRefs.length > 0 && <p>源码证明会影响：{selected.impactPageRefs.map(ref => model.pages.find(page => page.id === ref)?.label ?? ref).join('、')}</p>}
-        {selected.editable ? (
-          <label className="ripple-xp-intent">
-            改成
-            <input
-              data-testid="draft-text-input"
-              value={model.draftAfterText}
-              placeholder="输入修改后的文字"
-              onChange={event => onDraftText(event.target.value)}
-            />
-          </label>
-        ) : <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
+        {!selected.editable && <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
       </div>
     ) : <p>在左侧画布中悬停并点击想修改的位置。</p>}
+    </section>
 
-    <SectionTitle>范围决策</SectionTitle>
+    <section className="ripple-xp-step" ref={element => { stepRefs.current[1] = element }} tabIndex={-1} data-testid="scope-step-draft">
+    <SectionTitle>2 · 修改内容</SectionTitle>
+    {selected?.editable ? (
+      <label className="ripple-xp-intent">
+        改成
+        <input
+          data-testid="draft-text-input"
+          value={model.draftAfterText}
+          placeholder="输入修改后的文字"
+          onChange={event => onDraftText(event.target.value)}
+        />
+      </label>
+    ) : <p className="ripple-xp-step-hint">先选择一个来源可编辑的位置，再填写修改内容。</p>}
+    </section>
+
+    <section className="ripple-xp-step" ref={element => { stepRefs.current[2] = element }} tabIndex={-1} data-testid="scope-step-scope">
+    <SectionTitle>3 · 影响范围</SectionTitle>
     <ul className="ripple-xp-scope-list">
       {editingPage && scopeRow(editingPage, '本次修改的位置', true)}
       {sameSourcePages.map(page => scopeRow(page, '同源页面：修改会一并生效', false))}
@@ -103,7 +149,41 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
     <p className="ripple-xp-scope-summary" data-testid="scope-summary">
       包含 {summary.included} · 保护 {summary.protected} · 排除 {summary.excluded} · 未决定 {summary.undecided}
     </p>
+    </section>
 
+    <section className="ripple-xp-step" ref={element => { stepRefs.current[3] = element }} tabIndex={-1} data-testid="scope-step-check">
+    <SectionTitle>4 · 检查并生成</SectionTitle>
+    <ol className="ripple-xp-precheck" data-testid="pre-change-checklist">
+      {stepChecks.map((check, index) => (
+        <li key={check.key} className={check.done ? 'is-complete' : 'is-incomplete'}>
+          <span className="ripple-xp-precheck-number" aria-hidden>{index + 1}</span>
+          <span className="ripple-xp-precheck-copy">
+            <strong>{check.title}</strong>
+            <span data-testid={check.done ? `precheck-done-${check.key}` : `precheck-miss-${check.key}`}>
+              {check.done ? '已完成' : '待完成'}
+            </span>
+          </span>
+          <button
+            type="button"
+            className="ripple-xp-quiet"
+            data-testid={check.done ? `precheck-review-${check.key}` : `precheck-jump-${check.key}`}
+            onClick={() => jumpToStep(index + 1)}
+          >
+            {check.done ? '查看' : '前往处理'}
+          </button>
+        </li>
+      ))}
+    </ol>
+    {gate.reasons.length > 0 && (
+      <ul className="ripple-xp-gate-reasons" data-testid="gate-reasons">
+        {gate.reasons.map((reason, index) => (
+          <li key={reason}>
+            <span>{reason}</span>
+            <button type="button" className="ripple-xp-quiet" data-testid={`precheck-jump-reason-${index + 1}`} onClick={() => jumpToStep(stepForReason(reason))}>前往处理</button>
+          </li>
+        ))}
+      </ul>
+    )}
     <div className="ripple-xp-approval" data-testid="approval-area">
       {model.dataProvenance !== 'demo' ? (
         model.activeCandidate ? (
@@ -367,7 +447,6 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
               生成真实候选
             </button>
             {candidateError && <p className="ripple-xp-candidate-error" role="alert" data-testid="candidate-error">{candidateError}</p>}
-            {!gate.allowed && <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
             <p className="ripple-xp-real-approval-pending" data-testid="real-approval-pending">审批、应用与回滚均走服务端正式接口：创建候选并通过四视口验证后开放。</p>
           </>
         )
@@ -375,9 +454,8 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
         <button type="button" className="ripple-xp-primary" data-testid="demo-approve" onClick={onDemoApprove}>
           演示审批（不写入真实工程）
         </button>
-      ) : (
-        <ul className="ripple-xp-gate-reasons">{gate.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
-      )}
+      ) : null}
     </div>
+    </section>
   </aside>
 }
