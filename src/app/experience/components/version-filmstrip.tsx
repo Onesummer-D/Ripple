@@ -7,11 +7,21 @@ const FILM_LIFECYCLE_ICON: Record<CandidateLifecycleXp, string> = {
   candidate: '◐', applied: '✓', 'rolled-back': '↺', stale: '✕', discarded: '○',
 }
 
-function FilmThumbnail({ version, provenance }: { version: ExperienceViewModel['versions'][number]; provenance: ExperienceViewModel['dataProvenance'] }) {
-  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'failed'>('loading')
+type ThumbnailLoadState = 'loading' | 'ready' | 'failed'
+
+function FilmThumbnail({ version, provenance, loadState, retryCount, onLoad, onError }: {
+  version: ExperienceViewModel['versions'][number]
+  provenance: ExperienceViewModel['dataProvenance']
+  loadState: ThumbnailLoadState
+  retryCount: number
+  onLoad: () => void
+  onError: () => void
+}) {
   const thumbnail = version.thumbnail
   const isDemo = provenance === 'demo'
-  const allowed = thumbnail && (thumbnail.source === 'demo-art' ? isDemo : provenance === 'real')
+  const allowed = thumbnail && (isDemo
+    ? thumbnail.source === 'demo-art'
+    : provenance === 'real' && version.evidenceState === 'archived' && thumbnail.source === 'real-artifact')
   if (!allowed || !thumbnail) {
     return <span className="ripple-xp-film-noshot" data-testid={`film-shot-none-${version.id}`}>
       {isDemo ? '无演示素材图' : '未归档真实截图'}
@@ -27,13 +37,14 @@ function FilmThumbnail({ version, provenance }: { version: ExperienceViewModel['
       {thumbnail.source === 'real-artifact' ? '真实截图加载中…' : '演示素材图加载中…'}
     </span>}
     <img
+      key={retryCount}
       className={`ripple-xp-film-img ${loadState === 'loading' ? 'is-loading' : ''}`}
       src={thumbnail.url}
       alt={thumbnail.source === 'real-artifact' ? `${version.title} 真实验证截图` : ''}
       loading="lazy"
       data-testid={thumbnail.source === 'real-artifact' ? `film-shot-real-${version.id}` : `film-shot-demo-${version.id}`}
-      onLoad={() => setLoadState('ready')}
-      onError={() => setLoadState('failed')}
+      onLoad={onLoad}
+      onError={onError}
     />
     {loadState === 'ready' && <span
       className={`ripple-xp-film-srcbadge ${thumbnail.source === 'real-artifact' ? 'is-real' : ''}`}
@@ -53,6 +64,7 @@ export function VersionFilmstrip({ model, activeVersionId, onSelect, onClose }: 
   onClose: () => void
 }) {
   const [evOpen, setEvOpen] = useState<Record<string, boolean>>({})
+  const [thumbnailStates, setThumbnailStates] = useState<Record<string, { state: ThumbnailLoadState; retryCount: number }>>({})
   const isDemo = model.dataProvenance === 'demo'
 
   return <section className="ripple-xp-filmstrip" aria-label="版本历史" data-testid="version-filmstrip">
@@ -64,13 +76,30 @@ export function VersionFilmstrip({ model, activeVersionId, onSelect, onClose }: 
       {model.versions.map(version => {
         const open = evOpen[version.id] ?? false
         const listId = `evidence-list-${version.id}`
+        const thumbnail = version.thumbnail
+        const thumbnailSignature = `${version.id}:${thumbnail?.source ?? 'none'}:${thumbnail?.url ?? ''}:${model.dataProvenance}:${version.evidenceState}`
+        const thumbnailStatus = thumbnailStates[thumbnailSignature] ?? { state: 'loading' as const, retryCount: 0 }
+        const thumbnailAllowed = thumbnail && (isDemo
+          ? thumbnail.source === 'demo-art'
+          : model.dataProvenance === 'real' && version.evidenceState === 'archived' && thumbnail.source === 'real-artifact')
+        const updateThumbnailState = (state: ThumbnailLoadState, retryCount = thumbnailStatus.retryCount) => {
+          setThumbnailStates(previous => ({ ...previous, [thumbnailSignature]: { state, retryCount } }))
+        }
         return (
           <li key={version.id}>
             <article className={`ripple-xp-film-card ${activeVersionId === version.id ? 'is-active' : ''}`} data-testid={`version-card-${version.id}`}>
               <button type="button" className="ripple-xp-film-select" data-testid={`version-${version.id}`}
                 aria-current={activeVersionId === version.id} onClick={() => onSelect(version)}>
                 <span className="ripple-xp-film-fig">
-                  <FilmThumbnail key={`${version.id}:${version.thumbnail?.source ?? 'none'}:${version.thumbnail?.url ?? ''}:${model.dataProvenance}`} version={version} provenance={model.dataProvenance} />
+                  <FilmThumbnail
+                    key={thumbnailSignature}
+                    version={version}
+                    provenance={model.dataProvenance}
+                    loadState={thumbnailStatus.state}
+                    retryCount={thumbnailStatus.retryCount}
+                    onLoad={() => updateThumbnailState('ready')}
+                    onError={() => updateThumbnailState('failed')}
+                  />
                   <span className={`ripple-xp-film-flag ripple-xp-film-flag-${version.lifecycle}`}>
                     <i aria-hidden>{FILM_LIFECYCLE_ICON[version.lifecycle]}</i>{LIFECYCLE_LABEL[version.lifecycle]}
                   </span>
@@ -90,6 +119,14 @@ export function VersionFilmstrip({ model, activeVersionId, onSelect, onClose }: 
                   ) : <span className="ripple-xp-film-ev ripple-xp-film-ev-none">无证据</span>}
                   <time>{version.updatedAt}</time>
                 </div>
+                {thumbnailAllowed && thumbnailStatus.state === 'failed' && (
+                  <button
+                    type="button"
+                    className="ripple-xp-film-retry"
+                    data-testid={`film-shot-retry-${version.id}`}
+                    onClick={() => updateThumbnailState('loading', thumbnailStatus.retryCount + 1)}
+                  >重试截图</button>
+                )}
                 {version.evidenceState !== 'none' && open && (
                   <ul className="ripple-xp-film-evlist" id={listId} data-testid={`evidence-list-${version.id}`}>
                     {(version.evidenceList?.length ? version.evidenceList : ['证据明细未随历史接口返回，未补造内容']).map((line, index) => <li key={index}>{line}</li>)}

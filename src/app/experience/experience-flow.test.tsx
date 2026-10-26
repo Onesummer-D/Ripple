@@ -83,17 +83,24 @@ describe('F 体验工作台 · 青野演示流', () => {
       ...demoModel,
       dataProvenance: 'real',
       versions: [
-        { ...demoModel.versions[0], thumbnail: { url: '/__ripple/api/candidate/candidate-1/evidence/shot-1', source: 'real-artifact' } },
-        { ...demoModel.versions[1], thumbnail: { url: '/__ripple/api/candidate/candidate-2/evidence/shot-2', source: 'real-artifact' } },
-        { ...demoModel.versions[2], evidenceAvailable: true, evidenceState: 'metadata', thumbnail: undefined },
+        { ...demoModel.versions[0], evidenceState: 'archived', thumbnail: { url: '/__ripple/api/candidate/candidate-1/evidence/shot-1', source: 'real-artifact' } },
+        { ...demoModel.versions[1], evidenceState: 'metadata', thumbnail: { url: '/__ripple/api/candidate/candidate-2/evidence/shot-2', source: 'real-artifact' } },
+        { ...demoModel.versions[2], evidenceAvailable: true, evidenceState: 'none', thumbnail: undefined },
       ],
     }
     rerender(<VersionFilmstrip model={realModel} onSelect={onSelect} onClose={onClose} />)
     expect(screen.getByTestId('film-shot-real-v:3').getAttribute('src')).toBe('/__ripple/api/candidate/candidate-1/evidence/shot-1')
     expect(screen.getByTestId('film-shot-none-v:1').textContent).toContain('未归档真实截图')
+    expect(screen.queryByTestId('film-shot-real-v:1')).toBeNull()
     expect(screen.queryByTestId('film-shot-demo-v:3')).toBeNull()
     fireEvent.error(screen.getByTestId('film-shot-real-v:3'))
     expect(screen.getByTestId('film-shot-failed-v:3').textContent).toContain('真实截图加载失败')
+    const retryButton = screen.getByTestId('film-shot-retry-v:3')
+    fireEvent.click(retryButton)
+    const retriedImage = screen.getByTestId('film-shot-real-v:3')
+    expect(retriedImage.getAttribute('src')).toBe('/__ripple/api/candidate/candidate-1/evidence/shot-1')
+    fireEvent.load(retriedImage)
+    expect(screen.getByTestId('film-src-real-v:3').textContent).toBe('真实截图')
 
     const refreshedModel: ExperienceViewModel = {
       ...realModel,
