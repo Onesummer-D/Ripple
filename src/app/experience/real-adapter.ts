@@ -509,22 +509,36 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   }
 
   function versions(): VersionItemXp[] {
-    return history.map(item => ({
-      id: item.candidateId,
-      title: `候选 ${item.patchHash.slice(0, 8)}`,
-      lifecycle: item.lifecycle === 'active' ? 'candidate' : item.lifecycle,
-      updatedAt: formatTime(item.updatedAt),
-      summary: `验证${VERIFICATION_STATE_LABEL[item.verification.state]}${item.approval ? ' · 已审批' : ''}`,
-      // 历史 API 不提供候选所属页面，不臆造页面归属。
-      pageRef: '',
-      evidenceAvailable: item.verification.state === 'passed'
-        || item.verification.state === 'risks'
-        || (item.verification.evidence?.some(entry => entry.artifactUrl) ?? false),
-      // 折叠角标展开的明细：只列历史接口真实返回的证据条目，不臆造
-      evidenceList: (item.verification.evidence ?? [])
-        .filter(entry => entry.artifactUrl)
-        .map(entry => `${entry.viewport.width}px 视口验证截图（已归档）`),
-    }))
+    return history.map(item => {
+      const evidence = item.verification.evidence ?? []
+      // 只有服务端明确给出 artifactUrl 的条目才算"截图已归档"；
+      // 断言记录等元数据一律不得当作截图存在，避免把"有证据元数据"
+      // 展示成"真实截图已归档"。这里的咬文嚼字是安全边界：无图就是无图。
+      const archived = evidence.filter(entry => !!entry.artifactUrl)
+      const hasShot = archived.length > 0
+      const hasMetadata = evidence.length > 0 || (item.verification.assertions?.length ?? 0) > 0
+        || item.verification.state === 'passed' || item.verification.state === 'risks'
+      return {
+        id: item.candidateId,
+        title: `候选 ${item.patchHash.slice(0, 8)}`,
+        lifecycle: item.lifecycle === 'active' ? 'candidate' : item.lifecycle,
+        updatedAt: formatTime(item.updatedAt),
+        summary: `验证${VERIFICATION_STATE_LABEL[item.verification.state]}${item.approval ? ' · 已审批' : ''}`,
+        // 历史 API 不提供候选所属页面，不臆造页面归属。
+        pageRef: '',
+        evidenceAvailable: hasShot || hasMetadata,
+        evidenceState: hasShot ? 'archived' : hasMetadata ? 'metadata' : 'none',
+        // 缩略图唯一来源：服务端归档地址；缺失即 undefined，View 渲染诚实占位，
+        // 绝不回退到任何演示素材图。相对地址按同源补全，只接受本 API base。
+        thumbnail: hasShot
+          ? { url: `${apiBase}${archived[0].artifactUrl}`, source: 'real-artifact' as const }
+          : undefined,
+        // 折叠角标展开的明细：只列历史接口真实返回的证据条目，不臆造
+        evidenceList: evidence.map(entry => entry.artifactUrl
+          ? `${entry.viewport.width}px 视口验证截图（已归档）`
+          : `${entry.viewport.width}px 视口证据记录（${entry.result}）：未归档截图`),
+      }
+    })
   }
 
   function viewports(): ViewportXp[] {

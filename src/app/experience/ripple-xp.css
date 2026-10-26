@@ -136,6 +136,8 @@
 /* 顶栏「演示数据 DEMO」徽章已移除（demo-badge）；真实工程徽章保留 */
 .ripple-xp-chip-real { color: var(--xp-brand); font-weight: 600; }
 .ripple-xp-chip-real::before { background: var(--xp-brand); }
+/* 演示来源说明：一句简洁文字，不做胶囊徽章（不是强调元素，但必须明确说明是模拟数据） */
+.ripple-xp-provenance-note { font-size: 13px; color: var(--xp-stone); }
 
 .ripple-xp-open-project {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;
@@ -748,6 +750,13 @@
   border-radius: var(--xp-radius-lg); overflow: hidden;
 }
 .ripple-xp-film-item.is-active { box-shadow: 0 0 0 2px var(--xp-brand); }
+/* 选中按钮：卡片主体（配图+标题）可点；与「证据」按钮平级，不再嵌套 */
+.ripple-xp-film-select {
+  display: block; width: 100%; padding: 0; margin: 0;
+  background: none; border: none; text-align: left; cursor: pointer;
+}
+.ripple-xp-film-select:hover .ripple-xp-film-img { transform: scale(1.06); }
+.ripple-xp-film-select:focus-visible { outline: 2px solid var(--xp-brand); outline-offset: 2px; }
 .ripple-xp-film-fig { position: relative; overflow: hidden; border-radius: var(--xp-radius-lg); height: 158px; }
 /* 生命周期角标：压在图片左上角，图标+文字，每种状态一种颜色 */
 .ripple-xp-film-flag {
@@ -767,7 +776,21 @@
   width: 100%; height: 100%; object-fit: cover; display: block;
   transition: transform 0.5s ease;
 }
+.ripple-xp-film-select:hover .ripple-xp-film-img,
 .ripple-xp-film-item:hover .ripple-xp-film-img { transform: scale(1.06); }
+/* 无截图占位：不说谎的空态。真实模式缺图显示「未归档真实截图」，绝不回退演示素材图 */
+.ripple-xp-film-noshot {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  padding: 12px; text-align: center; font-size: 12px; line-height: 1.5;
+  color: var(--xp-stone); background: repeating-linear-gradient(135deg, var(--xp-surface) 0 8px, var(--xp-paper) 8px 16px);
+}
+/* 图片来源标注：演示素材图必须被明确标出，避免与真实截图混淆 */
+.ripple-xp-film-srcbadge {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  padding: 3px 8px; border-radius: 999px; font-size: 11px; line-height: 1;
+  color: #6b6353; background: rgba(253, 252, 249, 0.92); border: 1px solid var(--xp-line);
+}
+.ripple-xp-film-srcbadge.is-real { color: var(--xp-brand); border-color: var(--xp-brand); }
 .ripple-xp-film-cap {
   position: absolute; inset: auto 0 0 0; padding: 24px 14px 10px;
   background: linear-gradient(180deg, rgba(28, 27, 26, 0), rgba(28, 27, 26, 0.66));
@@ -795,6 +818,13 @@
 }
 .ripple-xp-film-ev-ready:hover { background: #c8dacb; }
 .ripple-xp-film-ev-ready:focus-visible { outline: 2px solid var(--xp-brand); outline-offset: 1px; }
+/* 只有元数据、没有归档截图：琥珀色提示，可展开但仍不等于有截图 */
+.ripple-xp-film-ev-meta {
+  color: var(--xp-amber); background: var(--xp-amber-tint);
+  border: none; cursor: pointer; user-select: none;
+}
+.ripple-xp-film-ev-meta:hover { filter: brightness(0.96); }
+.ripple-xp-film-ev-meta:focus-visible { outline: 2px solid var(--xp-amber); outline-offset: 1px; }
 .ripple-xp-film-ev-none { color: var(--xp-clay); background: var(--xp-clay-tint); }
 /* 折叠角标展开后的证据明细 */
 .ripple-xp-film-evlist {

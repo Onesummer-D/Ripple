@@ -11,8 +11,11 @@ export function TopBar({ model, onOpenHistory, onRefresh }: { model: ExperienceV
       </div>
     </div>
     <div className="ripple-xp-topbar-status">
-      {/* 「演示数据 DEMO」徽章已按设计移除：演示身份由对照区的「演示对照」文案等说明，
-       * 顶栏保持干净；真实工程徽章保留——它标记的是真实数据来源，必须常显 */}
+      {/* 演示身份用一句简洁文字说明（不恢复胶囊徽章）：告诉用户当前看到的是模拟数据，
+       * 而不是真实工程的验证结果。真实模式改为显示「真实工程」标识，两者互斥。 */}
+      {model.dataProvenance === 'demo' && (
+        <span className="ripple-xp-provenance-note" data-testid="demo-note">演示预览，内容为模拟数据</span>
+      )}
       {model.dataProvenance === 'real' && (
         <span className="ripple-xp-chip ripple-xp-chip-real" data-testid="real-badge">
           真实工程{model.projectIdentity ? ` · ${model.projectIdentity.projectId.slice(0, 8)}` : ''}

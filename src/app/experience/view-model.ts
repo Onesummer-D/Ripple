@@ -89,6 +89,19 @@ export interface VersionItemXp {
   pageRef: string
   evidenceAvailable: boolean
   /**
+   * 证据三态（UI 不得把「有证据元数据」等同于「真实截图已归档」）：
+   * - 'archived'：存在服务端归档的可展示产物（演示模式为明确标注的演示素材图）；
+   * - 'metadata'：只有元数据/断言记录，没有可展示截图；
+   * - 'none'：没有任何证据记录。
+   */
+  evidenceState: 'archived' | 'metadata' | 'none'
+  /**
+   * 缩略图：真实模式**只**接受服务端返回的验证截图地址（source: 'real-artifact'）；
+   * 演示模式才允许使用本地素材图（source: 'demo-art'），且必须在界面标注为演示素材。
+   * 缺失时为 undefined，UI 渲染「未归档真实截图」占位，绝不回退 Demo 素材图。
+   */
+  thumbnail?: { url: string; source: 'real-artifact' | 'demo-art' }
+  /**
    * 证据可用时的逐条人话明细（折叠角标展开后展示）。
    * 只陈述适配器真实拥有的数据；历史接口未返回明细时缺省，
    * UI 会如实说明「明细未随历史接口返回」，不臆造证据内容。

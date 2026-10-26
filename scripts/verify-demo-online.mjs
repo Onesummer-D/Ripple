@@ -29,7 +29,16 @@ try {
   let resp = await desktop.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 45_000 })
   check('桌面：公网 / 直达体验工作台', resp.status() === 200 && new URL(desktop.url()).pathname === '/')
   await desktop.getByTestId('xp-topbar').waitFor()
-  check('桌面：演示模式（DEMO 徽章已移除、无真实工程徽章）', (await desktop.getByTestId('real-badge').count()) === 0)
+  check('桌面：演示模式（无真实工程徽章）', (await desktop.getByTestId('real-badge').count()) === 0)
+  // 正向断言：演示来源说明必须可见且措辞明确（不再用已删除的 demo-badge 徽章）
+  const demoNoteCount = await desktop.getByTestId('demo-note').count()
+  const demoNoteText = demoNoteCount ? (await desktop.getByTestId('demo-note').textContent()).trim() : ''
+  check('桌面：演示来源说明可见且措辞明确', demoNoteCount === 1 && demoNoteText === '演示预览，内容为模拟数据', demoNoteText || '缺失')
+  // 反向断言：演示包里不得出现任何真实模式专属入口/标签
+  check('桌面：无真实模式专属元素（real-badge / 真实审批占位 / 打开工程入口）',
+    (await desktop.getByTestId('real-badge').count()) === 0
+    && (await desktop.getByTestId('real-approval-pending').count()) === 0
+    && (await desktop.getByTestId('open-project-form').count()) === 0)
 
   await desktop.getByTestId('canvas-el-el:hero-title').click()
   check('桌面：目标选择（画布点选）', (await desktop.getByTestId('canvas-el-el:hero-title').getAttribute('aria-pressed')) === 'true')
@@ -39,7 +48,15 @@ try {
   check('桌面：范围决策', (await desktop.getByTestId('scope-row-page:seasonal').textContent()).includes('排除'))
   check('桌面：前后对照同步', (await desktop.getByTestId('compare-candidate').textContent()).includes('冬日茶器市集'))
   await desktop.getByTestId('open-history').click()
-  check('桌面：版本历史（生命周期）', (await desktop.getByTestId('version-v:3').textContent()).includes('已回滚'))
+  check('桌面：版本历史（生命周期）', (await desktop.getByTestId('version-card-v:3').textContent()).includes('已回滚'))
+  // 演示缩略图必须被明确标注为演示素材图；不得出现「真实截图」标注
+  check('桌面：演示缩略图来源标注为「演示素材图」', (await desktop.getByTestId('film-src-demo-v:3').textContent()).includes('演示素材图'))
+  check('桌面：演示模式不得出现「真实截图」标注', (await desktop.getByTestId('film-src-real-v:3').count()) === 0)
+  check('桌面：演示模式不得出现「未归档真实截图」占位', (await desktop.getByTestId('film-shot-none-v:3').count()) === 0)
+  // 历史证据控件必须是独立 button（不得嵌套在外层按钮里）
+  check('桌面：证据控件为独立 button 且非嵌套',
+    (await desktop.getByTestId('evidence-toggle-v:3').evaluate(el => el.tagName)) === 'BUTTON'
+    && (await desktop.getByTestId('evidence-toggle-v:3').evaluate(el => el.closest('button') === el)))
   await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-history.png`) })
   // 离开历史面板改用底部标签栏切换（「收起」按钮已移除）
   await desktop.getByTestId('tab-compare').click()
@@ -52,6 +69,7 @@ try {
   check('桌面：演示审批（未执行真实应用）', (await desktop.getByTestId('approve-feedback').textContent()).includes('未执行真实应用'))
   await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-approved.png`) })
   check('桌面：无打开真实工程入口', (await desktop.getByTestId('open-project-form').count()) === 0)
+  // 演示包不得请求任何真实验证产物：无 /__ripple/api，也不得出现真实验证截图标签
   check('桌面：Console 无错误', dConsole.length === 0, dConsole.join(' | ') || 'clean')
   check('桌面：无 /__ripple/api 请求', dApi.length === 0, dApi.join(',') || 'none')
 
@@ -59,6 +77,9 @@ try {
   resp = await desktop.goto(`${BASE}/?adapter=real`, { waitUntil: 'networkidle', timeout: 45_000 })
   check('桌面：?adapter=real 仍强制演示（无真实工程徽章）', resp.status() === 200 && (await desktop.getByTestId('real-badge').count()) === 0)
   check('桌面：?adapter=real 无真实工程入口', (await desktop.getByTestId('open-project-form').count()) === 0)
+  check('桌面：?adapter=real 仍显式标注演示来源（不得伪装真实）',
+    (await desktop.getByTestId('demo-note').count()) === 1
+    && (await desktop.getByTestId('demo-note').textContent()).trim() === '演示预览，内容为模拟数据')
   await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-adapter-real-blocked.png`) })
 
   // ---------- 移动端 ----------
@@ -79,7 +100,8 @@ try {
   await mobile.getByTestId('draft-text-input').fill('冬日茶器市集')
   check('手机：前后对照同步', (await mobile.getByTestId('compare-candidate').textContent()).includes('冬日茶器市集'))
   await mobile.getByTestId('open-history').tap()
-  check('手机：版本历史可操作', (await mobile.getByTestId('version-v:3').textContent()).includes('已回滚'))
+  check('手机：版本历史可操作', (await mobile.getByTestId('version-card-v:3').textContent()).includes('已回滚'))
+  check('手机：演示来源说明可见', (await mobile.getByTestId('demo-note').count()) === 1)
   await mobile.screenshot({ path: path.join(outDir, `${TAG}-mobile-full.png`), fullPage: true })
   check('手机：无打开真实工程入口', (await mobile.getByTestId('open-project-form').count()) === 0)
   check('手机：Console 无错误', mConsole.length === 0, mConsole.join(' | ') || 'clean')

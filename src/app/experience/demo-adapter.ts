@@ -129,10 +129,37 @@ function evidenceForSelection(element: CanvasElementXp | undefined, draftText: s
   return items
 }
 
+// 演示素材图：只在演示模式使用，View 层强制标注「演示素材图」，
+// 真实模式永不引用这里（real-adapter 只接受服务端 artifactUrl）。
+const DEMO_FILM_ART: Record<string, string> = {
+  'v:1': 'demo-assets/workshop.jpg',
+  'v:2': 'demo-assets/vessels.jpg',
+  'v:3': 'demo-assets/seasonal.jpg',
+  'candidate-real-1': 'demo-assets/hero-market.jpg',
+}
+
 const initialVersions = (): ExperienceViewModel['versions'] => [
-  { id: 'v:3', title: '图片替换试验', lifecycle: 'rolled-back', updatedAt: '昨天 21:12', summary: '替换了商品主图，验证未通过后回滚', pageRef: 'page:products', evidenceAvailable: true, evidenceList: ['商品主图替换前后的对照截图', '四视口验证记录：对比未通过，触发回滚'] },
-  { id: 'v:2', title: '导航文案微调', lifecycle: 'applied', updatedAt: '昨天 18:40', summary: '「全部作品」改为「商品专题」，两个页面一致生效', pageRef: 'page:products', evidenceAvailable: true, evidenceList: ['首页与商品专题更新后的运行截图', '两处导航文案一致性核对记录'] },
-  { id: 'v:1', title: '旧版活动标题候选', lifecycle: 'stale', updatedAt: '10-18 15:03', summary: '源码已更新，候选与当前工程不一致', pageRef: HOME, evidenceAvailable: false },
+  {
+    id: 'v:3', title: '图片替换试验', lifecycle: 'rolled-back', updatedAt: '昨天 21:12',
+    summary: '替换了商品主图，验证未通过后回滚', pageRef: 'page:products',
+    evidenceAvailable: true, evidenceState: 'archived',
+    thumbnail: { url: DEMO_FILM_ART['v:3'], source: 'demo-art' },
+    evidenceList: ['商品主图替换前后的对照截图', '四视口验证记录：对比未通过，触发回滚'],
+  },
+  {
+    id: 'v:2', title: '导航文案微调', lifecycle: 'applied', updatedAt: '昨天 18:40',
+    summary: '「全部作品」改为「商品专题」，两个页面一致生效', pageRef: 'page:products',
+    evidenceAvailable: true, evidenceState: 'archived',
+    thumbnail: { url: DEMO_FILM_ART['v:2'], source: 'demo-art' },
+    evidenceList: ['首页与商品专题更新后的运行截图', '两处导航文案一致性核对记录'],
+  },
+  {
+    id: 'v:1', title: '旧版活动标题候选', lifecycle: 'stale', updatedAt: '10-18 15:03',
+    summary: '源码已更新，候选与当前工程不一致', pageRef: HOME,
+    evidenceAvailable: false, evidenceState: 'none',
+    // 演示素材图仍然给出，但絮材不是证据：此处既无截图归档也无证据记录
+    thumbnail: { url: DEMO_FILM_ART['v:1'], source: 'demo-art' },
+  },
 ]
 
 export function createDemoAdapter(): ExperienceAdapter {

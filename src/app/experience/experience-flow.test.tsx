@@ -292,11 +292,88 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('open-history'))
     expect(text('version-v:3')).toContain('已回滚')
-    expect(text('version-v:2')).toContain('证据可用')
     expect(text('version-v:1')).toContain('已失效')
-    expect(text('version-v:1')).toContain('无证据')
+    // 证据不再是外层按钮的内嵌 span：独立 button，与「选中版本」按钮平级
+    expect(text('version-card-v:2')).toContain('证据可用')
+    expect(text('version-card-v:1')).toContain('无证据')
+    const toggle = screen.getByTestId('evidence-toggle-v:2')
+    expect(toggle.tagName).toBe('BUTTON')
+    expect(toggle.closest('button')).toBe(toggle)
     fireEvent.click(screen.getByTestId('version-v:3'))
     expect(screen.getByTestId('page-item-page:products').getAttribute('aria-current')).toBe('page')
+  })
+
+  it('版本胶片：演示缩略图必须被标注为演示素材图，且不与真实截图混用', async () => {
+    render(<ExperienceWorkbench />)
+    fireEvent.click(await screen.findByTestId('open-history'))
+    // 演示模式：素材图存在，但必须显式标注来源
+    expect(screen.getByTestId('film-shot-demo-v:3')).not.toBeNull()
+    expect(text('film-src-demo-v:3')).toBe('演示素材图')
+    // 演示模式下不得出现「真实截图」标注（没有真实验证产物）
+    expect(screen.queryByTestId('film-src-real-v:3')).toBeNull()
+    expect(screen.queryAllByTestId(/^film-shot-none-/)).toHaveLength(0)
+  })
+
+/**
+ * jsdom 不实现「原生 button 上按 Enter/Space 会派发 click」这一浏览器默认行为。
+ * 这里显式承接该浏览器契约：只有真正的 <button> 才会被键盘激活键触发 click。
+ * 因此若有人把控件改回 span[role=button]，这两个用例会失败——正是要防的回归。
+ * （真实浏览器中的 Enter/Space 行为由 Playwright 用例另行验证。）
+ */
+function pressActivationKey(el: HTMLElement, key: 'Enter' | ' ') {
+  fireEvent.keyDown(el, { key })
+  fireEvent.keyUp(el, { key })
+  if (el instanceof HTMLButtonElement) fireEvent.click(el)
+}
+
+  it('版本胶片：证据展开控件支持鼠标、Enter、Space 与焦点，且不触发版本选中', async () => {
+    render(<ExperienceWorkbench />)
+    fireEvent.click(await screen.findByTestId('open-history'))
+    const toggle = screen.getByTestId('evidence-toggle-v:3')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.tagName).toBe('BUTTON')
+    // 1) 鼠标点击展开；同时不得触发版本选中（首页仍是当前页，未跳到 products）
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(text('evidence-list-v:3')).toContain('对照截图')
+    expect(screen.getByTestId('page-item-page:home').getAttribute('aria-current')).toBe('page')
+    // 2) Enter 收起 / Space 展开
+    pressActivationKey(toggle, 'Enter')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    pressActivationKey(toggle, ' ')
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    // 3) 焦点可达且 aria-controls 指向真实存在的明细列表
+    toggle.focus()
+    expect(document.activeElement).toBe(toggle)
+    expect(toggle.getAttribute('aria-controls')).toBe('evidence-list-v:3')
+    expect(screen.getByTestId('evidence-list-v:3').id).toBe('evidence-list-v:3')
+  })
+
+  it('版本胶片：无证据条目不提供展开控件（不制造无内容的死按钮）', async () => {
+    render(<ExperienceWorkbench />)
+    fireEvent.click(await screen.findByTestId('open-history'))
+    expect(screen.queryByTestId('evidence-toggle-v:1')).toBeNull()
+    expect(text('version-card-v:1')).toContain('无证据')
+  })
+
+  it('版本胶片：卡片外层不可聚焦，内层两个按钮各自可达', async () => {
+    render(<ExperienceWorkbench />)
+    fireEvent.click(await screen.findByTestId('open-history'))
+    const card = screen.getByTestId('version-card-v:2')
+    expect(card.tagName).toBe('ARTICLE')
+    expect(card.getAttribute('tabindex')).toBeNull()
+    // 卡片内部的按钮数量：选中按钮 + 证据按钮（确保没有 button 套 button 的嵌套）
+    const buttons = Array.from(card.querySelectorAll('button'))
+    expect(buttons.map(item => item.getAttribute('data-testid'))).toEqual(['version-v:2', 'evidence-toggle-v:2'])
+    for (const button of buttons) expect(button.parentElement?.tagName).not.toBe('BUTTON')
+  })
+
+  it('演示来源说明：简洁文字标明模拟数据，且不恢复 DEMO 徽章', async () => {
+    render(<ExperienceWorkbench />)
+    await screen.findByTestId('demo-note')
+    expect(text('demo-note')).toBe('演示预览，内容为模拟数据')
+    expect(screen.queryByTestId('demo-badge')).toBeNull()
+    expect(screen.queryByTestId('real-badge')).toBeNull()
   })
 
   it('网站概览统计行可点开：展开显示该分类下的页面与关系，互斥且可收起', async () => {
@@ -412,6 +489,53 @@ describe('F 体验工作台 · REAL 模式异步竞态', () => {
     fireEvent.click(screen.getByTestId('page-item-page:about'))
     expect(screen.getByTestId('page-item-page:home').getAttribute('aria-current')).toBe('page')
     expect((screen.getByTestId('real-preview-frame') as HTMLIFrameElement).src).toBe(model.preview!.url)
+  })
+
+  it('REAL 模式历史无归档截图：诚实占位「未归档真实截图」，绝不回退 Demo 素材图', async () => {
+    const model: ExperienceViewModel = {
+      projectName: 'acme-shop', projectStatus: 'ready', candidateStatus: 'verified', dataProvenance: 'real',
+      currentPageRef: 'page:home', draftAfterText: '', activeViewportId: 'desktop', canvasState: 'ready',
+      pages: [], elements: [], viewports: VIEWPORTS, evidence: [],
+      versions: [
+        {
+          // 验证通过但服务端没有归档任何截图：只有元数据
+          id: 'cand-1', title: '候选 abc12345', lifecycle: 'candidate', updatedAt: '10-25 21:00',
+          summary: '验证通过', pageRef: '', evidenceAvailable: true, evidenceState: 'metadata',
+          evidenceList: ['1440px 视口证据记录（pass）：未归档截图'],
+        },
+        {
+          id: 'cand-2', title: '候选 00112233', lifecycle: 'discarded', updatedAt: '10-25 20:00',
+          summary: '验证未运行', pageRef: '', evidenceAvailable: false, evidenceState: 'none',
+        },
+      ],
+      compare: { baseline: { state: 'unavailable' }, candidate: { state: 'unavailable' }, compareState: 'none' },
+      preview: { url: 'http://127.0.0.1:9999/preview/p1/', projectId: 'p', previewId: 'p1', sourceDigest: 'd' },
+    }
+    const adapter: ExperienceAdapter = {
+      provenance: 'real',
+      load: async () => model,
+      selectElement: m => m,
+      setDraftText: m => m,
+      setPageScope: m => m,
+      setViewport: m => m,
+      setPage: m => m,
+    }
+    render(<ExperienceWorkbench adapter={adapter} />)
+    await screen.findByTestId('xp-topbar')
+    // 真实模式不允许出现演示来源说明
+    expect(screen.queryByTestId('demo-note')).toBeNull()
+    fireEvent.click(screen.getByTestId('open-history'))
+    // 无图就是无图：占位 + 明确文案，且没有任何 <img>
+    expect(text('film-shot-none-cand-1')).toBe('未归档真实截图')
+    expect(screen.queryByTestId('film-shot-demo-cand-1')).toBeNull()
+    expect(screen.queryByTestId('film-shot-real-cand-1')).toBeNull()
+    expect(screen.getByTestId('version-card-cand-1').querySelectorAll('img')).toHaveLength(0)
+    // 仅有元数据不能被显示成「证据可用（截图已归档）」
+    expect(text('evidence-toggle-cand-1')).toContain('截图未归档')
+    expect(text('evidence-toggle-cand-1')).not.toContain('证据可用')
+    // 完全没有证据的条目不提供展开控件
+    expect(screen.queryByTestId('evidence-toggle-cand-2')).toBeNull()
+    expect(text('version-card-cand-2')).toContain('无证据')
   })
 
   it('候选创建成功后再次进入点选：旧点选会话不得把下一次点击误判为退出（6c 回归）', async () => {

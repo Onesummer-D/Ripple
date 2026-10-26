@@ -92,6 +92,38 @@ const HISTORY_PASSED = {
   },
 }
 
+const HISTORY_METADATA_ONLY = {
+  status: 200,
+  body: {
+    history: [
+      {
+        // 验证通过、有断言记录，但服务端没有归档任何截图：
+        // 界面必须显示「仅有证据元数据」，不得把它显示成「真实截图已归档」
+        candidateId: 'candidate-3', projectId: 'proj-acme', lifecycle: 'active',
+        patchHash: 'hash-0011223344556677', updatedAt: '2026-10-22T14:00:00Z',
+        verification: {
+          state: 'passed', runId: 'run-10', patchHash: 'hash-0011223344556677', scopeVersion: 4,
+          assertions: [{ id: 'target-change', result: 'pass', detail: '目标文案已变更' }],
+          evidence: [{ id: 'ev-1440', result: 'pass', viewport: { width: 1440, height: 900 } }],
+        },
+      },
+    ],
+  },
+}
+
+const HISTORY_NO_EVIDENCE = {
+  status: 200,
+  body: {
+    history: [
+      {
+        candidateId: 'candidate-4', projectId: 'proj-acme', lifecycle: 'discarded',
+        patchHash: 'hash-9988776655443322', updatedAt: '2026-10-22T15:00:00Z',
+        verification: { state: 'not-run', reason: '浏览器验证尚未运行。' },
+      },
+    ],
+  },
+}
+
 const PREVIEW = { status: 200, body: { projectId: 'proj-acme', previewId: 'preview-1', sourceDigest: 'digest-1', url: 'http://127.0.0.1:9999/preview/preview-1/' } }
 const PREVIEW_STOP = { status: 200, body: { stopped: true } }
 
@@ -534,5 +566,57 @@ describe('Real Adapter · 合并前修订（停止挂起竞态 / 清理失败诊
     const round3 = await adapter.refresh!(round2)
     expect(round3.projectStatus).toBe('ready')
     expect(round3.evidence.find(item => item.id === 'ev:cleanup')).toBeUndefined()
+  })
+})
+
+describe('Real Adapter · 历史缩略图的诚实边界（禁止 Demo 素材回退）', () => {
+  it('有归档截图：缩略图 source 必须是 real-artifact，且地址只来自服务端证据条目', async () => {
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_PASSED, 'project/preview': PREVIEW, 'project/preview/stop': PREVIEW_STOP })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const model = await adapter.load()
+    const version = model.versions[0]
+    expect(version.evidenceState).toBe('archived')
+    expect(version.thumbnail).toEqual({
+      url: '/__ripple/api/candidate/candidate-2/evidence/ev-1440',
+      source: 'real-artifact',
+    })
+    // 缩略图地址绝不允许包含任何演示素材路径
+    expect(version.thumbnail?.url).not.toContain('demo-assets')
+    expect(version.evidenceList?.length).toBe(2)
+  })
+
+  it('只有证据元数据、无归档截图：evidenceState=metadata 且 thumbnail 必须是 undefined', async () => {
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_METADATA_ONLY, 'project/preview': PREVIEW, 'project/preview/stop': PREVIEW_STOP })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const model = await adapter.load()
+    const version = model.versions[0]
+    // 关键：验证 passed + 有断言 ≠ 截图已归档
+    expect(version.evidenceAvailable).toBe(true)
+    expect(version.evidenceState).toBe('metadata')
+    expect(version.thumbnail).toBeUndefined()
+    expect(version.evidenceList?.[0]).toContain('未归档截图')
+  })
+
+  it('完全无证据：evidenceState=none、无缩略图、无明细', async () => {
+    const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history: HISTORY_NO_EVIDENCE, 'project/preview': PREVIEW, 'project/preview/stop': PREVIEW_STOP })
+    const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+    const model = await adapter.load()
+    const version = model.versions[0]
+    expect(version.evidenceState).toBe('none')
+    expect(version.evidenceAvailable).toBe(false)
+    expect(version.thumbnail).toBeUndefined()
+    expect(version.evidenceList).toEqual([])
+  })
+
+  it('真实模式的任何历史条目都不得携带 demo-art 来源的缩略图', async () => {
+    for (const history of [HISTORY_PASSED, HISTORY_METADATA_ONLY, HISTORY_NO_EVIDENCE, HISTORY_NOT_RUN]) {
+      const { fetchImpl } = mockFetch({ analyze: ANALYSIS, history, 'project/preview': PREVIEW, 'project/preview/stop': PREVIEW_STOP })
+      const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
+      const model = await adapter.load()
+      for (const version of model.versions) {
+        expect(version.thumbnail?.source).not.toBe('demo-art')
+        if (version.thumbnail) expect(version.thumbnail.source).toBe('real-artifact')
+      }
+    }
   })
 })
