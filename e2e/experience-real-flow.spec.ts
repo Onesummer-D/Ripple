@@ -62,7 +62,9 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   await page.setViewportSize({ width: 1440, height: 1000 })
   const analysis = await analyzeFixture()
   const titleTarget = analysis.targets.find(item => item.label.includes('Acme 真实首页标题'))
+  const paragraphTarget = analysis.targets.find(item => item.label.includes('真实首页文案内容。'))
   expect(titleTarget, '首页标题必须是已分析目标').toBeTruthy()
+  expect(paragraphTarget, '首页正文必须是已分析目标').toBeTruthy()
   expect(titleTarget!.impact.certainty).toBe('source-proven')
 
   await page.goto(`/experience.html?adapter=real&project=${encodeURIComponent(projectRoot)}`, { waitUntil: 'networkidle' })
@@ -76,6 +78,8 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
     if (process.env.CI) throw new Error('CI 必须具备 Docker 隔离预演：真实点选链路不可跳过')
     test.skip(true, '本机无 Docker：隔离项目预演不可用，真实链路在 CI（ubuntu + Docker）执行')
   }
+  const initialPreviewUrl = await frame.getAttribute('src')
+  expect(initialPreviewUrl, '初始项目预演必须来自服务端会话').toBeTruthy()
 
   // 1-2. 进入画布点选 → 在 iframe 内实际点击标题文字
   await expect(page.getByTestId('picker-toggle')).toBeEnabled()
@@ -188,8 +192,22 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
 
   // 6c. 异步切换路径（Docker E2E 覆盖要求）：刷新重建预演。
   // A 语义：重新分析使活跃候选退役（fail-closed）——F 必须清掉本地候选与旧验证，绝不展示幽灵候选。
+  const refreshedPreviewResponse = page.waitForResponse(response => {
+    const responseUrl = new URL(response.url())
+    return responseUrl.pathname === '/__ripple/api/project/preview' && response.request().method() === 'POST'
+  }, { timeout: 150_000 })
   await page.getByTestId('refresh-project').click()
-  await expect(page.getByTestId('real-preview-frame')).toBeVisible({ timeout: 150_000 })
+  const refreshedPreviewHttp = await refreshedPreviewResponse
+  const refreshedPreviewBody = await refreshedPreviewHttp.text()
+  expect(refreshedPreviewHttp.ok(), `刷新后创建项目预演失败：${refreshedPreviewBody}`).toBe(true)
+  const refreshedPreview = JSON.parse(refreshedPreviewBody) as { previewId: string; url: string }
+  expect(refreshedPreview.previewId).toBeTruthy()
+  expect(refreshedPreview.url).toBeTruthy()
+  expect(refreshedPreview.url).not.toBe(initialPreviewUrl)
+  await expect(page.getByTestId('real-preview-frame')).toHaveAttribute('src', refreshedPreview.url, { timeout: 150_000 })
+  await expect.poll(() => page.frames().some(candidate => candidate !== page.mainFrame() && candidate.url() === refreshedPreview.url), { timeout: 150_000 })
+    .toBe(true)
+  await expect(projectFrame.getByText('真实首页文案内容。')).toBeVisible({ timeout: 90_000 })
   // 刷新完成后：候选盒与验证状态一并消失（服务端已退役候选-1），状态芯片如实显示
   await expect(page.getByTestId('candidate-box')).toHaveCount(0)
   await expect(page.getByTestId('verification-status')).toHaveCount(0)
@@ -197,16 +215,36 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   // 点选第二目标（正文段落）
   await page.getByTestId('picker-toggle').click()
   await expect(page.getByTestId('picker-hint')).toBeVisible()
-  await projectFrame.getByText('真实首页文案内容。').click()
-  await expect(page.getByTestId('selection-summary')).toBeVisible()
+  const secondTextTarget = projectFrame.getByText('真实首页文案内容。')
+  const secondSourceRef = await secondTextTarget.getAttribute('data-ripple-source')
+  expect(secondSourceRef, '刷新后的正文段落必须带有真实 JSX sourceRef').toMatch(/^jsx:src\/pages\/HomePage\.jsx#\d+$/)
+  const secondSelectionResponse = page.waitForResponse(response => {
+    const responseUrl = new URL(response.url())
+    return responseUrl.pathname === '/__ripple/api/project/source-selection' && response.request().method() === 'POST'
+  }, { timeout: 60_000 })
+  await secondTextTarget.click()
+  const secondSelectionHttp = await secondSelectionResponse
+  const secondSelectionBody = await secondSelectionHttp.text()
+  expect(secondSelectionHttp.ok(), `第二次 source-selection 失败：${secondSelectionBody}`).toBe(true)
+  const secondSelection = JSON.parse(secondSelectionBody) as { element: { id: string }; editableText: Array<{ id: string }> }
+  expect(secondSelection.element.id).toBe(secondSourceRef)
+  expect(secondSelection.editableText.some(node => node.id === paragraphTarget!.id)).toBe(true)
+  await expect(page.getByTestId('selection-summary')).toContainText(paragraphTarget!.label)
   await page.getByTestId('picker-toggle').click() // 退出点选模式
   await page.getByTestId('draft-text-input').fill('Acme 旗舰店文案。')
   const excludeButtons2 = page.locator('button[data-testid^="scope-exclude-"]:not([disabled])')
   for (let index = 0; index < await excludeButtons2.count(); index += 1) await excludeButtons2.nth(index).click()
   await expect(page.getByTestId('scope-summary')).toContainText('未决定 0')
-  const candidate2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate') && response.status() === 200)
+  const candidate2Request = page.waitForRequest(request => {
+    const requestUrl = new URL(request.url())
+    return requestUrl.pathname === '/__ripple/api/candidate' && request.method() === 'POST'
+  }, { timeout: 30_000 })
   await page.getByTestId('create-candidate').click()
-  const candidate2Payload = await (await candidate2Response).json() as { candidate: { id: string } }
+  const candidate2Response = await (await candidate2Request).response()
+  expect(candidate2Response, '第二个候选 POST 必须收到 HTTP 响应').toBeTruthy()
+  const candidate2Body = await candidate2Response!.text()
+  expect(candidate2Response!.status(), `第二个候选 POST 失败：${candidate2Body}`).toBe(200)
+  const candidate2Payload = JSON.parse(candidate2Body) as { candidate: { id: string } }
   expect(candidate2Payload.candidate.id).not.toBe(candidatePayload.candidate.id)
   // 复核点 1（真实浏览器）：新候选不得展示上一个候选的验证运行
   await expect(page.getByTestId('verification-status')).toHaveCount(0)

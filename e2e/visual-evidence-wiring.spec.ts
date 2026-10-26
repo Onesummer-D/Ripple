@@ -203,7 +203,7 @@ test('真实 VerificationRun 挂载视觉证据并以只读 View 输出，且不
       expect(identityActualSha256).toBe(identityEntry.artifact.snapshot.sha256)
       expect(identityActualSha256).toBe(identityEntry.snapshotSha256)
       const snapshot = JSON.parse(identityBytes.toString('utf8'))
-      expect(snapshot.protocol).toBe('ripple-runtime-identity/v1')
+      expect(snapshot.protocol).toBe('ripple-runtime-identity/v2')
       expect(snapshot.page).toMatchObject({ pathname: capture.route, search: '', hash: '' })
       expect(snapshot.records.length, `${capture.checkId}/${side} collector records`).toBeGreaterThan(0)
       artifactCopies.push({ path: expectedIdentityPath, bytes: identityBytes })
