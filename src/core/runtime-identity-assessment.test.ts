@@ -371,6 +371,25 @@ describe('host runtime identity assessment', () => {
     expect('assessments' in result[1]).toBe(true)
   })
 
+  it('fails only the baseline binding when its host graph belongs to another project identity', () => {
+    const baselineRoot = rootWithSource(baseBytes)
+    const candidateRoot = rootWithSource(candidateBytes)
+    const baselineDigest = digestTrackedTree(baselineRoot)
+    const candidateDigest = digestTrackedTree(candidateRoot)
+    const result = assessRuntimeIdentityArchives({
+      archiveEntries: [stored('baseline'), stored('candidate', snapshot([record({ sourceVersion: hashText(candidateBytes) })]))],
+      verificationContract: { pages: [{ pageRef: 'page:home', path: '/', markerText: 'Home' }], interactions: [] },
+      sides: {
+        baseline: { root: baselineRoot, graph: graph(baselineDigest), boundDigest: baselineDigest, expectedProjectId: 'another-project' },
+        candidate: { root: candidateRoot, graph: graph(candidateDigest), boundDigest: candidateDigest },
+      },
+    })
+    expect(result[0]).toMatchObject({ archive: 'stored', assessmentStatus: 'version-unverifiable', side: 'baseline' })
+    expect(result[1]).toMatchObject({ archive: 'stored', assessmentStatus: 'complete', side: 'candidate' })
+    if ('assessments' in result[0]) expect(result[0].assessments.every(item => item.assessment.instanceIdentityProven === false)).toBe(true)
+    if ('assessments' in result[1]) expect(result[1].assessments.some(item => item.assessment.instanceIdentityProven)).toBe(true)
+  })
+
   it('returns version-unverifiable if the source root changes after the trusted graph was built', () => {
     const baselineRoot = rootWithSource(baseBytes)
     const candidateRoot = rootWithSource(candidateBytes)

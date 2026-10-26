@@ -1,3 +1,5 @@
+import type { VerificationRun } from '../../core/model'
+
 /**
  * F 体验层 ViewModel 契约（纯类型 + 纯派生函数，不依赖 React）。
  *
@@ -222,6 +224,8 @@ export interface CandidateVerificationXp {
   /** 执行记录哈希（审批必须绑定此运行，第三批接入）。 */
   recordHash?: string
   assertions: Array<{ id: string; result: string; detail: string }>
+  /** Host-assessed single-side receipts passed through for a future consumer; no pair inference occurs here. */
+  runtimeIdentities?: VerificationRun['runtimeIdentities']
   /** 四视口证据截图（imageUrl 已为绝对地址，可直接作 img src）。 */
   shots: Array<{
     viewportWidth: number

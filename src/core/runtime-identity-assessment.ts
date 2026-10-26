@@ -16,6 +16,8 @@ export interface RuntimeIdentitySideSource {
   graph: SourceGraph
   /** baseSourceDigest for baseline, candidateTreeDigest for candidate. */
   boundDigest: string
+  /** Optional run-side project identity guard (baseline binds to the opened project). */
+  expectedProjectId?: string
 }
 
 export interface AssessRuntimeIdentityArchivesInput {
@@ -53,6 +55,7 @@ function expectedPageFor(route: string, contract: BrowserVerificationContract | 
 }
 
 function revisionBound(side: RuntimeIdentitySideSource): boolean {
+  if (side.expectedProjectId !== undefined && side.graph.revision.projectId !== side.expectedProjectId) return false
   if (!/^[a-f0-9]{64}$/.test(side.boundDigest) || side.graph.revision.sourceDigest !== side.boundDigest) return false
   try { return digestTrackedTree(side.root) === side.boundDigest }
   catch { return false }

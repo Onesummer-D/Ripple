@@ -7,7 +7,7 @@ import type { CandidateRecord } from './candidate'
 import { assertCandidateCurrent } from './candidate'
 import { analyzeProject } from './project'
 import { collectRuntimeIdentitySnapshot } from './runtime-identity'
-import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type BrowserErrorDetails, type EditSession, type InteractionObservation, type RuntimeRunIdentityArchiveFailure, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
+import { REQUIRED_VERIFICATION_ASSERTION_IDS, type BaselineComparison, type BrowserErrorDetails, type EditSession, type InteractionObservation, type ScopePropagationObservation, type SourceGraph, type VerificationAssertion, type VerificationEvidence, type VerificationRun } from './model'
 import { resolveCandidatePreviewAddress, startCandidateBaseline, stopCandidateBaseline, type CandidatePreview } from './candidate-preview'
 import { attestBrowserExecution } from './verification-receipt'
 import { attachVisualEvidenceSafely } from './visual-verification-attach'
@@ -16,6 +16,7 @@ import { verificationContractHash } from './verification-contract'
 import { projectPreviewViewports } from './project-viewports'
 import { snapshotAuthorizedPreviewResources, type PreviewResourceSnapshot } from './preview-resource-snapshot'
 import { planRuntimeIdentityCaptures, readRuntimeIdentityArchives } from './runtime-identity-archive'
+import { assessRuntimeIdentityArchives } from './runtime-identity-assessment'
 
 export class VerificationRunnerError extends Error {
   constructor(message: string) { super(message); this.name = 'VerificationRunnerError' }
@@ -466,9 +467,23 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
   for (const diagnostic of runtimeIdentityArchive.diagnostics) {
     console.warn(`[runtime-identity-archive] ${diagnostic}`)
   }
-  const runtimeIdentityFailures = runtimeIdentityArchive.entries.filter(
-    (entry): entry is RuntimeRunIdentityArchiveFailure => entry.archive === 'failed',
-  )
+  const runtimeIdentities = assessRuntimeIdentityArchives({
+    archiveEntries: runtimeIdentityArchive.entries,
+    verificationContract: session.verificationContract,
+    sides: {
+      baseline: {
+        root: candidate.projectRoot,
+        graph: baseGraph,
+        boundDigest: candidate.baseSourceDigest,
+        expectedProjectId: session.projectRevision.projectId,
+      },
+      candidate: {
+        root: candidate.candidateRoot,
+        graph: candidateGraph,
+        boundDigest: candidate.candidateTreeDigest,
+      },
+    },
+  })
   const checks: VerificationRun['checks'] = manifest.checks.map(check => ({
     id: check.id, route: check.route, viewport: check.viewport, state: check.state,
     description: check.state, mandatory: true,
@@ -491,7 +506,7 @@ export async function runCandidateVerification(candidate: CandidateRecord, sessi
     startedAt: evidence.length ? evidence[0].capturedAt : new Date().toISOString(),
     completedAt: evidence.length ? evidence[evidence.length - 1].capturedAt : new Date().toISOString(),
     checks, assertions: manifest.assertions, evidence, baselineComparisons, scopeObservations, interactionObservations, status: 'incomplete',
-    ...(runtimeIdentityFailures.length ? { runtimeIdentities: runtimeIdentityFailures } : {}),
+    runtimeIdentities,
     ...(manifest.browserErrorDetails ? { browserErrorDetails: manifest.browserErrorDetails } : {}),
   }
   // Supplementary visual evidence: host-side analysis of the container's

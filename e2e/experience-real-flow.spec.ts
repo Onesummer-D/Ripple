@@ -252,9 +252,12 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   // 新候选再次运行验证：真实 VerificationRun
   const verify2Response = page.waitForResponse(response => response.url().includes('/__ripple/api/candidate/verify') && response.status() === 200, { timeout: 180_000 })
   await page.getByTestId('run-verification').click()
-  const verify2Payload = await (await verify2Response).json() as { verification: { state: string; runId?: string } }
+  const verify2Payload = await (await verify2Response).json() as { verification: { state: string; runId?: string; runtimeIdentities?: unknown[] } }
   expect(verify2Payload.verification.runId, '第二个候选的验证运行记录必须存在').toBeTruthy()
   expect(['passed', 'risks', 'incomplete', 'stale']).toContain(verify2Payload.verification.state)
+  // This UI flow has no trusted Verification Contract. With no planned capture tuple,
+  // the host must not synthesize or infer Runtime Identity receipts from the container.
+  expect(verify2Payload.verification.runtimeIdentities).toEqual([])
   await expect(page.getByTestId('verification-status')).toContainText(verify2Payload.verification.runId!.slice(0, 12))
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-flow-switched-1440.png'), fullPage: true })
 

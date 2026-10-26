@@ -21,7 +21,7 @@
  * 工程全部数据失效；dispose 停止预演会话并取消在途请求。
  */
 import type { ExperienceAdapter } from './adapter'
-import type { EditOperation, ScopeDecision } from '../../core/model'
+import type { EditOperation, ScopeDecision, VerificationRun } from '../../core/model'
 import {
   assessDisplayIdentity,
   isBoundProjectSelection,
@@ -74,6 +74,8 @@ interface VerificationView {
   startedAt?: string
   completedAt?: string
   assertions?: Array<{ id: string; result: string; detail: string }>
+  /** Host-produced v1.2 single-side receipts; this adapter passes them through without pairing or upgrading proof. */
+  runtimeIdentities?: VerificationRun['runtimeIdentities']
   evidence?: Array<{
     id: string
     checkId?: string
@@ -725,6 +727,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       completedAt: verification.completedAt,
       recordHash: verification.recordHash,
       assertions: verification.assertions ?? [],
+      runtimeIdentities: verification.runtimeIdentities,
       shots: (verification.evidence ?? []).map(entry => ({
         viewportWidth: entry.viewport.width,
         viewportHeight: entry.viewport.height,

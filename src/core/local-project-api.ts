@@ -121,6 +121,7 @@ function verificationView(run: VerificationRun | undefined, candidateId: string,
     startedAt: run.startedAt,
     completedAt: run.completedAt,
     assertions: run.assertions,
+    ...(run.runtimeIdentities !== undefined ? { runtimeIdentities: run.runtimeIdentities } : {}),
     evidence: run.evidence.map(evidence => ({
       id: evidence.id, checkId: evidence.checkId, result: evidence.result, pageUrl: evidence.pageUrl,
       viewport: evidence.viewport, runtimeState: evidence.runtimeState, elementRefs: evidence.elementRefs,
