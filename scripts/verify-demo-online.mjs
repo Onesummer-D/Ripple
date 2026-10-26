@@ -29,7 +29,7 @@ try {
   let resp = await desktop.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 45_000 })
   check('桌面：公网 / 直达体验工作台', resp.status() === 200 && new URL(desktop.url()).pathname === '/')
   await desktop.getByTestId('xp-topbar').waitFor()
-  check('桌面：DEMO 标识', await desktop.getByTestId('demo-badge').isVisible())
+  check('桌面：演示来源说明', await desktop.getByTestId('demo-note').isVisible())
 
   await desktop.getByTestId('canvas-el-el:hero-title').click()
   check('桌面：目标选择（画布点选）', (await desktop.getByTestId('canvas-el-el:hero-title').getAttribute('aria-pressed')) === 'true')
@@ -56,7 +56,7 @@ try {
 
   // ?adapter=real 屏蔽
   resp = await desktop.goto(`${BASE}/?adapter=real`, { waitUntil: 'networkidle', timeout: 45_000 })
-  check('桌面：?adapter=real 仍强制 DEMO', resp.status() === 200 && await desktop.getByTestId('demo-badge').isVisible())
+  check('桌面：?adapter=real 仍强制演示来源说明', resp.status() === 200 && await desktop.getByTestId('demo-note').isVisible())
   check('桌面：?adapter=real 无真实工程入口', (await desktop.getByTestId('open-project-form').count()) === 0)
   await desktop.screenshot({ path: path.join(outDir, `${TAG}-desktop-adapter-real-blocked.png`) })
 
@@ -71,7 +71,7 @@ try {
   resp = await mobile.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 45_000 })
   check('手机：公网 / 直达体验工作台', resp.status() === 200 && new URL(mobile.url()).pathname === '/')
   await mobile.getByTestId('xp-topbar').waitFor()
-  check('手机：DEMO 标识', await mobile.getByTestId('demo-badge').isVisible())
+  check('手机：演示来源说明', await mobile.getByTestId('demo-note').isVisible())
   await mobile.getByTestId('canvas-el-el:hero-title').tap()
   check('手机：目标选择（触摸点选）', (await mobile.getByTestId('canvas-el-el:hero-title').getAttribute('aria-pressed')) === 'true')
   check('手机：范围决策面板可见', await mobile.getByTestId('scope-panel').isVisible())

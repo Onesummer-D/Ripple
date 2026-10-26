@@ -60,7 +60,7 @@ export function CompareStrip({ model }: { model: ExperienceViewModel }) {
                 ) : (
                   <span className="ripple-xp-compare-note">尚未生成候选</span>
                 )}
-                {selected && <span className="ripple-xp-focus-ring" aria-hidden>⟶ {focusArea}</span>}
+                {selected && <span className="ripple-xp-focus-ring"><strong>修改位置</strong><span>{focusArea || selected.label}</span></span>}
               </>
             )
           ) : <span className="ripple-xp-compare-note">{SIDE_STATE_LABEL[sideState.state]}</span>
