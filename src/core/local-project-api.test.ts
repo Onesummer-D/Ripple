@@ -290,6 +290,10 @@ describe('loopback Project API', () => {
       runtimeFingerprint: stored.session.projectRevision.runtimeFingerprint, startedAt: '2026-10-18T00:00:00Z', completedAt: '2026-10-18T00:01:00Z',
       checks: [{ id: 'home-desktop', route: '/', viewport, state: 'loaded', description: 'home loaded', mandatory: true }], assertions,
       evidence: [{ id: 'evidence-restart', checkId: 'home-desktop', result: 'pass', capturedAt: '2026-10-18T00:00:30Z', pageUrl: 'http://127.0.0.1:4173/', viewport, runtimeState: 'loaded', elementRefs: [], artifactPath: screenshotPath, artifactHash }], status: 'incomplete',
+      runtimeIdentities: [{
+        checkId: 'home-desktop', route: '/', viewport, state: 'loaded', side: 'baseline',
+        archive: 'failed', reason: 'collector-error', detail: 'Collector failed.',
+      }],
     }
     const recordPath = path.join(verificationRoot, 'execution.json')
     fs.writeFileSync(recordPath, JSON.stringify({
@@ -309,10 +313,11 @@ describe('loopback Project API', () => {
     await startApi()
     const restoredResponse = await request('candidate/restore', { candidateId: created.candidate.id })
     expect(restoredResponse.status).toBe(200)
-    const restored = await restoredResponse.json() as { candidate: { id: string; patchHash: string; candidateTreeDigest: string; diff: string }; verification: { state: string; runId?: string }; workflow: { lifecycle: string } }
+    const restored = await restoredResponse.json() as { candidate: { id: string; patchHash: string; candidateTreeDigest: string; diff: string }; verification: { state: string; runId?: string; runtimeIdentities?: unknown[] }; workflow: { lifecycle: string } }
     expect(restored.candidate).toMatchObject({ ...created.candidate, operations: expect.any(Array), modifiedPaths: expect.any(Array) })
     expect(restored.workflow.lifecycle).toBe('active')
     expect(restored.verification).toMatchObject({ state: 'incomplete', runId: 'verification-restart' })
+    expect(restored.verification.runtimeIdentities).toEqual(run.runtimeIdentities)
     expect((await request('candidate/approve', { candidateId: created.candidate.id, runId: 'unverified-run' })).status).toBe(409)
     expect((await request('candidate/apply', { candidateId: created.candidate.id })).status).toBe(409)
 
