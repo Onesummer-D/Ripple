@@ -102,10 +102,33 @@ function evidenceForSelection(element: CanvasElementXp | undefined, draftText: s
   return items
 }
 
+const DEMO_FILM_ART: Record<string, string> = {
+  'v:1': 'demo-assets/workshop.jpg',
+  'v:2': 'demo-assets/vessels.jpg',
+  'v:3': 'demo-assets/seasonal.jpg',
+}
+
 const initialVersions = (): ExperienceViewModel['versions'] => [
-  { id: 'v:3', title: '图片替换试验', lifecycle: 'rolled-back', updatedAt: '昨天 21:12', summary: '替换了商品主图，验证未通过后回滚', pageRef: 'page:products', evidenceAvailable: true },
-  { id: 'v:2', title: '导航文案微调', lifecycle: 'applied', updatedAt: '昨天 18:40', summary: '「全部作品」改为「商品专题」，两个页面一致生效', pageRef: 'page:products', evidenceAvailable: true },
-  { id: 'v:1', title: '旧版活动标题候选', lifecycle: 'stale', updatedAt: '10-18 15:03', summary: '源码已更新，候选与当前工程不一致', pageRef: HOME, evidenceAvailable: false },
+  {
+    id: 'v:3', title: '图片替换试验', lifecycle: 'rolled-back', updatedAt: '昨天 21:12',
+    summary: '替换了商品主图，验证未通过后回滚', pageRef: 'page:products',
+    evidenceAvailable: true, evidenceState: 'archived',
+    thumbnail: { url: DEMO_FILM_ART['v:3'], source: 'demo-art' },
+    evidenceList: ['演示记录：商品主图替换前后的对照', '演示记录：四视口验证未通过并触发回滚'],
+  },
+  {
+    id: 'v:2', title: '导航文案微调', lifecycle: 'applied', updatedAt: '昨天 18:40',
+    summary: '「全部作品」改为「商品专题」，两个页面一致生效', pageRef: 'page:products',
+    evidenceAvailable: true, evidenceState: 'archived',
+    thumbnail: { url: DEMO_FILM_ART['v:2'], source: 'demo-art' },
+    evidenceList: ['演示记录：首页与商品专题的导航文案一致'],
+  },
+  {
+    id: 'v:1', title: '旧版活动标题候选', lifecycle: 'stale', updatedAt: '10-18 15:03',
+    summary: '源码已更新，候选与当前工程不一致', pageRef: HOME,
+    evidenceAvailable: false, evidenceState: 'none',
+    thumbnail: { url: DEMO_FILM_ART['v:1'], source: 'demo-art' },
+  },
 ]
 
 export function createDemoAdapter(): ExperienceAdapter {

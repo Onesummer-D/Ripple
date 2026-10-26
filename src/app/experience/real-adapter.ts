@@ -663,18 +663,43 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   }
 
   function versions(): VersionItemXp[] {
-    return history.map(item => ({
-      id: item.candidateId,
-      title: `候选 ${item.patchHash.slice(0, 8)}`,
-      lifecycle: item.lifecycle === 'active' ? 'candidate' : item.lifecycle,
-      updatedAt: formatTime(item.updatedAt),
-      summary: `验证${VERIFICATION_STATE_LABEL[item.verification.state]}${item.approval ? ' · 已审批' : ''}`,
-      // 历史 API 不提供候选所属页面，不臆造页面归属。
-      pageRef: '',
-      evidenceAvailable: item.verification.state === 'passed'
-        || item.verification.state === 'risks'
-        || (item.verification.evidence?.some(entry => entry.artifactUrl) ?? false),
-    }))
+    return history.map(item => {
+      const evidence = item.verification.evidence ?? []
+      const candidatePrefix = `/__ripple/api/candidate/${encodeURIComponent(item.candidateId)}`
+      const runId = item.verification.runId
+      const runBound = !!runId && item.verification.recordUrl === `${candidatePrefix}/runs/${encodeURIComponent(runId)}`
+      // Bind the image to this history candidate, its current VerificationRun, and the
+      // evidence id returned inside that run. A status/run hash alone is only metadata.
+      const archived = runBound ? evidence.filter(entry =>
+        entry.artifactUrl === `${candidatePrefix}/evidence/${encodeURIComponent(entry.id)}`
+      ) : []
+      const hasMetadata = evidence.length > 0
+        || (item.verification.assertions?.length ?? 0) > 0
+        || item.verification.state !== 'not-run'
+        || !!item.verification.runId
+        || !!item.verification.recordHash
+        || !!item.verification.recordUrl
+        || !!item.verification.startedAt
+        || !!item.verification.completedAt
+      const archivedEntries = new Set(archived)
+      return {
+        id: item.candidateId,
+        title: `候选 ${item.patchHash.slice(0, 8)}`,
+        lifecycle: item.lifecycle === 'active' ? 'candidate' : item.lifecycle,
+        updatedAt: formatTime(item.updatedAt),
+        summary: `验证${VERIFICATION_STATE_LABEL[item.verification.state]}${item.approval ? ' · 已审批' : ''}`,
+        // The history API has no page ownership field; do not guess a page.
+        pageRef: '',
+        evidenceAvailable: archived.length > 0 || hasMetadata,
+        evidenceState: archived.length > 0 ? 'archived' as const : hasMetadata ? 'metadata' as const : 'none' as const,
+        thumbnail: archived[0]?.artifactUrl
+          ? { url: `${apiBase}${archived[0].artifactUrl}`, source: 'real-artifact' as const }
+          : undefined,
+        evidenceList: evidence.map(entry => archivedEntries.has(entry)
+          ? `${entry.viewport.width}px 视口截图（已归档）`
+          : `${entry.viewport.width}px 视口记录（${entry.result}），未归档截图`),
+      }
+    })
   }
 
   function viewports(): ViewportXp[] {
