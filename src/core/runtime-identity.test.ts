@@ -314,7 +314,7 @@ for (const id of ['x', 'y']) createRoot(document.getElementById(id)).render(<Wid
     const digest = createHash('sha256').update(code, 'utf8').digest('hex')
     expect(output).toContain(`registerRippleSourceVersion as __rippleRegisterSource`)
     expect(output).toContain(`__rippleRegisterSource("src/App.jsx", "${digest}");`)
-    expect(output).toContain('data-ripple-instance={window.location.pathname +')
+    expect(output).toContain('data-ripple-instance={"ripple-page-v2:" + encodeURIComponent(JSON.stringify([window.location.pathname, window.location.search, window.location.hash])) + ":" +')
   })
 
   it('emits no TypeScript-only syntax into JSX files and parses as valid TSX', () => {
@@ -936,11 +936,14 @@ const graph: SourceGraph = {
   nodes: [{ id: 'jsx:src/App.jsx#10', kind: 'jsx-element', label: '<li>' }, { id: 'jsx:src/App.jsx#40', kind: 'jsx-element', label: '<p>' }],
 }
 const page = { pathname: '/catalog', search: '', hash: '' }
+const recordSourceRef = 'jsx:src/App.jsx#10'
+const v2Id = (at = page, sourceRef = recordSourceRef, suffix = `jsx:root:${sourceRef}:p1`) =>
+  `ripple-page-v2:${encodeURIComponent(JSON.stringify([at.pathname, at.search, at.hash]))}:${suffix}`
 const record = (overrides: Partial<RuntimeIdentityRecord> = {}): RuntimeIdentityRecord => ({
-  sourceRef: 'jsx:src/App.jsx#10', sourceFile: 'src/App.jsx', runtimeInstanceId: '/catalog:root:jsx:src/App.jsx#10:p1', declaredCertainty: 'stable-keyed-instance', certainty: 'stable-keyed-instance',
+  sourceRef: recordSourceRef, sourceFile: 'src/App.jsx', runtimeInstanceId: v2Id(), declaredCertainty: 'stable-keyed-instance', certainty: 'stable-keyed-instance',
   sourceVersion: 'v1', domNode: 1, sameSourceCount: 3, reasons: [], ...overrides,
 })
-const snap = (records: RuntimeIdentityRecord[], at = page): RuntimeIdentitySnapshot => ({ protocol: 'ripple-runtime-identity/v1', page: at, records })
+const snap = (records: RuntimeIdentityRecord[], at = page, protocol: RuntimeIdentitySnapshot['protocol'] = 'ripple-runtime-identity/v2'): RuntimeIdentitySnapshot => ({ protocol, page: at, records })
 const fileDigest = (file: string) => file === 'src/App.jsx' ? 'v1' : undefined
 
 describe('runtime identity assessment', () => {
@@ -976,6 +979,38 @@ describe('runtime identity assessment', () => {
     const ambiguous = record({ sourceVersion: undefined, reasons: ['source-version-ambiguous'] })
     expect(assessRuntimeIdentity(graph, snap([ambiguous]), ambiguous, { fileDigest, expectedPage: page })).toMatchObject({ locatable: false, instanceIdentityProven: false })
     expect(assessRuntimeIdentity(graph, snap([record()]), record(), { fileDigest: () => { throw new Error('ENOENT') }, expectedPage: page }).reasons).toEqual(['source-version-unavailable'])
+  })
+
+  it('proves only a canonical render-time v2 tuple with an exact sourceRef anchor', () => {
+    const expectedPage = { pathname: '/catalog', search: '?tab=a b', hash: '#/products' }
+    const valid = record({ runtimeInstanceId: v2Id(expectedPage) })
+    expect(assessRuntimeIdentity(graph, snap([valid], expectedPage), valid, { fileDigest, expectedPage }).instanceIdentityProven).toBe(true)
+
+    const wrongTuple = record({ runtimeInstanceId: v2Id({ ...expectedPage, search: '?tab=other' }) })
+    const wrongAnchor = record({ runtimeInstanceId: v2Id(expectedPage, 'jsx:src/Other.jsx#10') })
+    const missingAnchorDelimiter = record({ runtimeInstanceId: v2Id(expectedPage, recordSourceRef, `jsx:root${recordSourceRef}:p1`) })
+    const malformed = record({ runtimeInstanceId: `ripple-page-v2:%E0%A4%A:jsx:root:${recordSourceRef}:p1` })
+    for (const item of [wrongTuple, wrongAnchor, missingAnchorDelimiter, malformed]) {
+      const assessment = assessRuntimeIdentity(graph, snap([item], expectedPage), item, { fileDigest, expectedPage })
+      expect(assessment).toMatchObject({ locatable: true, instanceIdentityProven: false })
+      expect(assessment.reasons).toContain('route-namespace-stale')
+    }
+  })
+
+  it('keeps historical v1 proof limited to empty search and hash', () => {
+    const legacy = record({ runtimeInstanceId: `/catalog::_r1_:${recordSourceRef}:p1` })
+    expect(assessRuntimeIdentity(graph, snap([legacy], page, 'ripple-runtime-identity/v1'), legacy, { fileDigest, expectedPage: page }).instanceIdentityProven).toBe(true)
+    const routed = { ...page, search: '?tab=a' }
+    const assessment = assessRuntimeIdentity(graph, snap([legacy], routed, 'ripple-runtime-identity/v1'), legacy, { fileDigest, expectedPage: routed })
+    expect(assessment.instanceIdentityProven).toBe(false)
+    expect(assessment.reasons).toContain('route-namespace-stale')
+  })
+
+  it('does not treat an unknown snapshot protocol as selectable or proven', () => {
+    const item = record()
+    const unknown = { ...snap([item]), protocol: 'ripple-runtime-identity/v99' } as unknown as RuntimeIdentitySnapshot
+    expect(selectableRuntimeObservations(unknown)).toEqual([])
+    expect(assessRuntimeIdentity(graph, unknown, item, { fileDigest, expectedPage: page })).toMatchObject({ instanceIdentityProven: false, reasons: expect.arrayContaining(['route-namespace-stale']) })
   })
 
   it.each(['/?tab=b', '/#/products', '/?tab=b#/products'])(
@@ -1052,17 +1087,59 @@ describe('runtime identity assessment', () => {
     }
   })
 
+  it('does not revive a historical stale v1 snapshot when replayed after query/hash return to empty URL', () => {
+    const previousLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    const registryKey = Symbol.for('ripple.runtime-identity')
+    const collectorKey = Symbol.for('ripple.runtime-identity.collector')
+    const previousRegistryDescriptor = Object.getOwnPropertyDescriptor(globalThis, registryKey)
+    const previousCollectorDescriptor = Object.getOwnPropertyDescriptor(globalThis, collectorKey)
+    try {
+      Reflect.deleteProperty(globalThis, collectorKey)
+      window.history.replaceState(null, '', '/runtime.html?tab=a#/home')
+      Object.defineProperty(globalThis, registryKey, {
+        value: { sourceVersions: new Map([['src/App.jsx', 'v1']]), sourceVersionHistory: new Map() },
+        configurable: true,
+        writable: true,
+      })
+      document.body.innerHTML = '<div data-ripple-source="jsx:src/App.jsx#10" data-ripple-instance="/runtime.html:jsx:src/App.jsx#10" data-ripple-identity-certainty="stable-react-instance"></div>'
+
+      const historical = collectRuntimeIdentitySnapshot()
+      const stale = historical.records[0]
+      expect(stale.reasons).toContain('route-namespace-stale')
+
+      window.history.replaceState(null, '', '/runtime.html')
+      const replayed = assessRuntimeIdentity(graph, historical, stale, {
+        fileDigest,
+        expectedPage: { pathname: '/runtime.html', search: '', hash: '' },
+      })
+
+      expect(historical.page).toMatchObject({ pathname: '/runtime.html', search: '?tab=a', hash: '#/home' })
+      expect(replayed).toMatchObject({ locatable: true, instanceIdentityProven: false })
+      expect(replayed.reasons).toContain('route-namespace-stale')
+      expect(selectableRuntimeObservations(historical)).toEqual([])
+    } finally {
+      document.body.replaceChildren()
+      window.history.replaceState(null, '', previousLocation || '/')
+      if (previousRegistryDescriptor) Object.defineProperty(globalThis, registryKey, previousRegistryDescriptor)
+      else Reflect.deleteProperty(globalThis, registryKey)
+      if (previousCollectorDescriptor) Object.defineProperty(globalThis, collectorKey, previousCollectorDescriptor)
+      else Reflect.deleteProperty(globalThis, collectorKey)
+    }
+  })
+
   it('keeps only identities that survived collection for source navigation', () => {
     const records = [
-      record({ runtimeInstanceId: 'a' }),
-      record({ runtimeInstanceId: 'b', certainty: 'position-dependent', declaredCertainty: 'position-dependent' }),
-      record({ runtimeInstanceId: 'c', certainty: 'unknown', reasons: ['duplicate-runtime-instance'] }),
-      record({ runtimeInstanceId: 'd', certainty: 'unknown', declaredCertainty: 'unknown' }),
+      record({ runtimeInstanceId: v2Id(page, recordSourceRef, `jsx:root:${recordSourceRef}:a`) }),
+      record({ runtimeInstanceId: v2Id(page, recordSourceRef, `jsx:root:${recordSourceRef}:b`), certainty: 'position-dependent', declaredCertainty: 'position-dependent' }),
+      record({ runtimeInstanceId: v2Id(page, recordSourceRef, `jsx:root:${recordSourceRef}:c`), certainty: 'unknown', reasons: ['duplicate-runtime-instance'] }),
+      record({ runtimeInstanceId: v2Id(page, recordSourceRef, `jsx:root:${recordSourceRef}:d`), certainty: 'unknown', declaredCertainty: 'unknown' }),
       record({ runtimeInstanceId: undefined, certainty: 'unmapped', declaredCertainty: 'unmapped', reasons: ['unmapped-owner'] }),
-      record({ runtimeInstanceId: 'e', sourceVersion: undefined, reasons: ['source-version-unavailable'] }),
+      record({ runtimeInstanceId: v2Id(page, recordSourceRef, `jsx:root:${recordSourceRef}:e`), sourceVersion: undefined, reasons: ['source-version-unavailable'] }),
     ]
     const selectable = selectableRuntimeObservations(snap(records))
-    expect(selectable.map(item => item.runtimeInstanceId)).toEqual(['a', 'b', 'e'])
+    expect(selectable.map(item => item.runtimeInstanceId)).toEqual([
+      records[0].runtimeInstanceId, records[1].runtimeInstanceId, records[5].runtimeInstanceId,
+    ])
     expect(selectable[0]).toMatchObject({ pageContext: page, sourceVersion: 'v1' })
   })
 

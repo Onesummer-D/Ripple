@@ -64,6 +64,14 @@ function validOwnerTail(value: string, sourceRef: string): boolean {
   // valid while requiring all nested identities to anchor the current JSX
   // source at a colon boundary.
   if (value === sourceRef) return true
+  // Some historical direct-source IDs appended their key/index suffix directly
+  // after the sourceRef. Accept only an explicit colon boundary and reject a
+  // second source anchor or a later JSX owner marker.
+  if (value.startsWith(`${sourceRef}:`)) {
+    const suffix = value.slice(sourceRef.length)
+    return suffix.length > 1 && !suffix.startsWith('::') &&
+      !/(?:^|[:/])jsx:/.test(suffix) && value.indexOf(`:${sourceRef}`) < 0
+  }
   const anchor = `:${sourceRef}`
   const sourceOffset = value.indexOf(anchor)
   if (sourceOffset <= 0 || sourceOffset !== value.lastIndexOf(anchor)) return false
@@ -71,7 +79,7 @@ function validOwnerTail(value: string, sourceRef: string): boolean {
   // The collector appends only list/key suffixes after the current source.
   // A later JSX source marker means the match was an owner/ancestor anchor.
   if (/(?:^|[:/])jsx:/.test(suffix)) return false
-  return suffix === '' || suffix.startsWith(':')
+  return suffix === '' || (suffix.startsWith(':') && suffix.length > 1)
 }
 
 /**

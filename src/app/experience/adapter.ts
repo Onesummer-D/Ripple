@@ -52,7 +52,7 @@ export interface ExperienceAdapter {
   applyPickedSource?(model: ExperienceViewModel, picked: {
     sourceRef: string
     envelope: import('./real-selection').PickerEnvelope
-  }): Promise<ExperienceViewModel>
+  }, isCurrent?: () => boolean): Promise<ExperienceViewModel>
   /**
    * 第二阶段：创建真实候选（真实实现提供）。
    * operations 由当前选中目标 + 本地草稿派生，scope 由用户的页面范围决策

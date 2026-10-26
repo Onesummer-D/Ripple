@@ -223,6 +223,13 @@ describe('host runtime identity assessment', () => {
     const pageAtRender = { pathname: '/', search: '', hash: '' }
     const cases = [
       { sourceRef: leafRef, tail: leafRef, proven: true },
+      // Historical direct-source key suffixes remain supported only with an
+      // explicit delimiter after the exact sourceRef.
+      { sourceRef: leafRef, tail: `${leafRef}:key:active`, proven: true },
+      { sourceRef: leafRef, tail: `${leafRef}:key%3Aactive/a%2Fb`, proven: true },
+      { sourceRef: leafRef, tail: `${leafRef}key:active`, proven: false },
+      { sourceRef: leafRef, tail: `${leafRef}::key`, proven: false },
+      { sourceRef: leafRef, tail: `${leafRef}:key:${leafRef}`, proven: false },
       { sourceRef: leafRef, tail: nestedLeafTail, proven: true },
       { sourceRef: leafRef, tail: `${nestedLeafTail}:key:active`, proven: true },
       { sourceRef: leafRef, tail: `${nestedLeafTail}:key%3Aactive/a%2Fb`, proven: true },

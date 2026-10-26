@@ -839,7 +839,7 @@ const createRegistry = () => {
   const sourceVersions = new Map()
   const sourceVersionHistory = new Map()
   return {
-    protocol: 'ripple-runtime-identity/v1', sourceVersions, sourceVersionHistory,
+    protocol: 'ripple-runtime-identity/v2', sourceVersions, sourceVersionHistory,
     register(file, digest) {
       sourceVersions.set(file, digest)
       const seen = sourceVersionHistory.get(file) || new Set()
@@ -1503,7 +1503,7 @@ export function sourceAnnotationPlugin(projectRoot: string): Plugin {
             // and its ancestors (already computed by React when it created the elements).
             const hostParts = [...indexParts.map(part => `":" + ${part}`), ...(hostKeyed ? ['":~"'] : [])]
             const identity = owner
-              ? instanceAvailable ? `window.location.pathname + ":" + ${identityOwner} + ":" + ${JSON.stringify(sourceRef)}${hostParts.map(part => ` + ${part}`).join('')}` : undefined
+              ? instanceAvailable ? `"ripple-page-v2:" + encodeURIComponent(JSON.stringify([window.location.pathname, window.location.search, window.location.hash])) + ":" + ${identityOwner} + ":" + ${JSON.stringify(sourceRef)}${hostParts.map(part => ` + ${part}`).join('')}` : undefined
               : JSON.stringify(`unmapped:${sourceRef}`)
             const additions = [
               ...(!has('data-ripple-source') ? [`data-ripple-source=${JSON.stringify(sourceRef)}`] : []),

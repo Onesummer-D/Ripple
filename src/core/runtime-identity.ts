@@ -64,27 +64,15 @@ export function collectRuntimeIdentitySnapshot(options: { root?: string; label?:
   const history = registry && (registry as { sourceVersionHistory?: unknown }).sourceVersionHistory instanceof Map ? (registry as { sourceVersionHistory: Map<string, Set<string>> }).sourceVersionHistory : undefined
   const stateKey = Symbol.for('ripple.runtime-identity.collector')
   if (!host[stateKey]) Object.defineProperty(host, stateKey, {
-    value: { nodes: new WeakMap<Element, number>(), next: 1, ambiguousPathnames: new Set<string>() },
+    value: { nodes: new WeakMap<Element, number>(), next: 1 },
     configurable: true,
   })
   const state = host[stateKey] as {
     nodes: WeakMap<Element, number>
     next: number
-    lastPage?: { pathname: string; search: string; hash: string }
-    ambiguousPathnames?: Set<string>
   }
-  if (!(state.ambiguousPathnames instanceof Set)) state.ambiguousPathnames = new Set<string>()
   const page = { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash }
-  // v1 ids do not carry search/hash. If collection observed two URL tuples with the
-  // same pathname, a later return to an earlier tuple must not revive retained DOM.
-  // Keep this ambiguity sticky for the document lifetime; v2 render-time tuple ids
-  // will replace this conservative history guard.
-  if (state.lastPage?.pathname === page.pathname &&
-    (state.lastPage.search !== page.search || state.lastPage.hash !== page.hash)) {
-    state.ambiguousPathnames.add(page.pathname)
-  }
-  state.lastPage = page
-  const pageNamespaceAmbiguous = state.ambiguousPathnames.has(page.pathname)
+  const currentTuple = JSON.stringify([page.pathname, page.search, page.hash])
 
   // React's fiber for a DOM node (read-only; React 17+ `__reactFiber$*`, 16 `__reactInternalInstance$*`).
   // Its `key` is the string React already derived from the element's key: reading it runs no
@@ -114,6 +102,39 @@ export function collectRuntimeIdentitySnapshot(options: { root?: string; label?:
     const keys = keyChain(element)
     // Each key is URI-encoded so keys containing "/" (paths, URLs) cannot collide when joined.
     return keys ? { id: `${raw.slice(0, -1)}${keys.map(key => encodeURIComponent(key)).join('/')}`, unmapped: false, keysUnavailable: false } : { id: raw, unmapped: false, keysUnavailable: true }
+  }
+  // The ID carries the tuple captured when the annotated JSX expression rendered.
+  // Decode and re-encode to reject non-canonical or ambiguous URI spellings, then
+  // compare the original strings without URL normalization.
+  const hasCurrentV2Namespace = (id: string | undefined, sourceRef: string): boolean => {
+    if (!id || !id.startsWith('ripple-page-v2:')) return false
+    const tupleStart = 'ripple-page-v2:'.length
+    const boundary = id.indexOf(':', tupleStart)
+    if (boundary < 0) return false
+    const encoded = id.slice(tupleStart, boundary)
+    let decoded: string
+    try { decoded = decodeURIComponent(encoded) } catch { return false }
+    let tuple: unknown
+    try { tuple = JSON.parse(decoded) } catch { return false }
+    if (!Array.isArray(tuple) || tuple.length !== 3 || tuple.some(part => typeof part !== 'string')) return false
+    const canonical = JSON.stringify(tuple)
+    if (canonical !== decoded || encodeURIComponent(canonical) !== encoded || canonical !== currentTuple) return false
+    const suffix = id.slice(boundary + 1)
+    if (!/^(?:jsx:|[_:\u00ab])/.test(suffix) || !sourceRef) return false
+    // Older direct-source IDs place the sourceRef at the start of the suffix;
+    // nested IDs carry an owner chain and must anchor the exact leaf once.
+    if (suffix === sourceRef) return true
+    if (suffix.startsWith(`${sourceRef}:`)) {
+      const directTail = suffix.slice(sourceRef.length)
+      return directTail.length > 1 && !directTail.startsWith('::') && !/(?:^|[:/])jsx:/.test(directTail) &&
+        suffix.indexOf(`:${sourceRef}`) < 0
+    }
+    const anchor = `:${sourceRef}`
+    const anchorAt = suffix.indexOf(anchor)
+    if (anchorAt <= 0 || anchorAt !== suffix.lastIndexOf(anchor)) return false
+    const tail = suffix.slice(anchorAt + anchor.length)
+    if (/(?:^|[:/])jsx:/.test(tail)) return false
+    return tail === '' || (tail.startsWith(':') && tail.length > 1)
   }
 
   // Uniqueness is a property of the whole document, not of the requested subtree.
@@ -150,18 +171,12 @@ export function collectRuntimeIdentitySnapshot(options: { root?: string; label?:
       declaredCertainty = 'unmapped'
       runtimeInstanceId = undefined
       reasons.push('unmapped-owner')
-    } else if (!runtimeInstanceId) reasons.push('instance-unavailable')
-    // v1 ids embed only pathname at render time. A component that did not re-render
-    // after a pathname navigation (React.memo, unchanged props) still shows the old
-    // namespace. Search/hash routes are also unverifiable in v1: even a fresh-looking
-    // pathname prefix cannot distinguish the current page tuple from a retained DOM
-    // instance created under a different query or HashRouter route. Keep v1 locatable,
-    // but never treat it as instance proof while either part is present. The owner part
-    // after the namespace is a boundary path (`jsx:`) or a React useId, which keeps
-    // `/a:b:...` from passing as `/a`.
-    else if (page.search !== '' || page.hash !== '' || pageNamespaceAmbiguous ||
-      !runtimeInstanceId.startsWith(`${page.pathname}:`) ||
-      !/^(?:jsx:|[_:\u00ab])/.test(runtimeInstanceId.slice(page.pathname.length + 1))) reasons.push('route-namespace-stale')
+    } else if (!runtimeInstanceId) {
+      reasons.push('instance-unavailable', 'route-namespace-stale')
+    }
+    // v2 identity is written at actual JSX render time. A memoized old DOM node
+    // retains its original tuple and therefore cannot be revived by a later URL.
+    else if (!hasCurrentV2Namespace(runtimeInstanceId, sourceRef)) reasons.push('route-namespace-stale')
     if (instance.keysUnavailable) reasons.push('react-keys-unavailable')
     if (runtimeInstanceId && (byInstance.get(runtimeInstanceId) ?? 0) > 1) reasons.push('duplicate-runtime-instance')
     let domNode = state.nodes.get(element)
@@ -179,7 +194,7 @@ export function collectRuntimeIdentitySnapshot(options: { root?: string; label?:
       domNode, sameSourceCount: bySource.get(sourceRef) ?? 0, reasons, ...(label !== null ? { label } : {}),
     }
   })
-  return { protocol: 'ripple-runtime-identity/v1', page, records }
+  return { protocol: 'ripple-runtime-identity/v2', page, records }
 }
 
 export const sourceFileFromRef = (sourceRef: string): string | undefined => /^jsx:(.+)#\d+$/.exec(sourceRef)?.[1]
@@ -189,6 +204,48 @@ const samePage = (actual: RuntimePageContext, expected: Partial<RuntimePageConte
   (expected.search === undefined || expected.search === actual.search) &&
   (expected.hash === undefined || expected.hash === actual.hash)
 
+/** Checks the render-time route namespace and the record's exact sourceRef anchor. */
+const hasValidRuntimeNamespace = (snapshot: RuntimeIdentitySnapshot, record: RuntimeIdentityRecord): boolean => {
+  const id = record.runtimeInstanceId
+  if (!id || !record.sourceRef) return false
+  let suffix: string
+  if (snapshot.protocol === RUNTIME_IDENTITY_PROTOCOL) {
+    // Historical v1 IDs only contain pathname; they cannot prove a URL with query/hash.
+    if (snapshot.page.search !== '' || snapshot.page.hash !== '' || !id.startsWith(`${snapshot.page.pathname}:`)) return false
+    suffix = id.slice(snapshot.page.pathname.length + 1)
+  } else if (snapshot.protocol === RUNTIME_IDENTITY_PROTOCOL_V2) {
+    if (!id.startsWith('ripple-page-v2:')) return false
+    const tupleStart = 'ripple-page-v2:'.length
+    const boundary = id.indexOf(':', tupleStart)
+    if (boundary < 0) return false
+    const encoded = id.slice(tupleStart, boundary)
+    let decoded: string
+    try { decoded = decodeURIComponent(encoded) } catch { return false }
+    let tuple: unknown
+    try { tuple = JSON.parse(decoded) } catch { return false }
+    if (!Array.isArray(tuple) || tuple.length !== 3 || tuple.some(part => typeof part !== 'string')) return false
+    const canonical = JSON.stringify(tuple)
+    if (canonical !== decoded || encodeURIComponent(canonical) !== encoded ||
+      tuple[0] !== snapshot.page.pathname || tuple[1] !== snapshot.page.search || tuple[2] !== snapshot.page.hash) return false
+    suffix = id.slice(boundary + 1)
+  } else return false
+  if (!/^(?:jsx:|[_:\u00ab])/.test(suffix) || !record.sourceRef) return false
+  // Keep the host assessment's historical direct-source form aligned with
+  // the page collector and the trusted archive assessor.
+  if (suffix === record.sourceRef) return true
+  if (suffix.startsWith(`${record.sourceRef}:`)) {
+    const directTail = suffix.slice(record.sourceRef.length)
+    return directTail.length > 1 && !directTail.startsWith('::') &&
+      !/(?:^|[:/])jsx:/.test(directTail) && suffix.indexOf(`:${record.sourceRef}`) < 0
+  }
+  const anchor = `:${record.sourceRef}`
+  const anchorAt = suffix.indexOf(anchor)
+  if (anchorAt <= 0 || anchorAt !== suffix.lastIndexOf(anchor)) return false
+  const tail = suffix.slice(anchorAt + anchor.length)
+  if (/(?:^|[:/])jsx:/.test(tail)) return false
+  return tail === '' || (tail.startsWith(':') && tail.length > 1)
+}
+
 /**
  * Observations that may enter `createRuntimeSourceMap` for source navigation. Unknown,
  * unmapped and collection-downgraded elements are left out; position-dependent ones stay
@@ -197,7 +254,7 @@ const samePage = (actual: RuntimePageContext, expected: Partial<RuntimePageConte
 export function selectableRuntimeObservations(snapshot: RuntimeIdentitySnapshot): RuntimeElementObservation[] {
   return snapshot.records
     // Same rule as createRuntimeSourceMap: only a missing page-side version is tolerated.
-    .filter(record => !!record.runtimeInstanceId && record.certainty !== 'unknown' && record.certainty !== 'unmapped' &&
+    .filter(record => hasValidRuntimeNamespace(snapshot, record) && record.certainty !== 'unknown' && record.certainty !== 'unmapped' &&
       !record.reasons.some(reason => reason !== 'source-version-unavailable'))
     .map(record => ({
       sourceRef: record.sourceRef,
@@ -241,6 +298,7 @@ export function assessRuntimeIdentity(graph: SourceGraph, snapshot: RuntimeIdent
   expectedPage?: Partial<RuntimePageContext>
 } = {}): RuntimeIdentityAssessment {
   const reasons = new Set<RuntimeIdentityReason>(record.reasons)
+  if (!hasValidRuntimeNamespace(snapshot, record)) reasons.add('route-namespace-stale')
   const inGraph = graph.nodes.some(node => node.kind === 'jsx-element' && node.id === record.sourceRef)
   if (!inGraph) reasons.add('source-not-in-graph')
   const file = record.sourceFile ?? sourceFileFromRef(record.sourceRef)
