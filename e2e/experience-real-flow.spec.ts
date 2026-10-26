@@ -246,6 +246,7 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   expect(candidate2Response!.status(), `第二个候选 POST 失败：${candidate2Body}`).toBe(200)
   const candidate2Payload = JSON.parse(candidate2Body) as { candidate: { id: string } }
   expect(candidate2Payload.candidate.id).not.toBe(candidatePayload.candidate.id)
+  console.info('RIPPLE_CANDIDATE_FLOW_EVIDENCE ' + JSON.stringify({ attempt: 2, method: candidate2Response!.request().method(), pathname: new URL(candidate2Response!.request().url()).pathname, status: candidate2Response!.status(), previousCandidateId: candidatePayload.candidate.id, newCandidateId: candidate2Payload.candidate.id }))
   // 复核点 1（真实浏览器）：新候选不得展示上一个候选的验证运行
   await expect(page.getByTestId('verification-status')).toHaveCount(0)
   // 新候选再次运行验证：真实 VerificationRun

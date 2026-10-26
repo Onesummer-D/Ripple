@@ -96,6 +96,12 @@ function sourceSelectionResponse(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>(done => { resolve = done })
+  return { promise, resolve }
+}
+
 async function loadAdapter(routes: Record<string, MockResponse>) {
   const { fetchImpl, calls } = mockFetch(routes)
   const adapter = createRealAdapter({ projectRoot: '/work/acme-shop', fetchImpl })
@@ -124,6 +130,94 @@ describe('画布点选 → source-selection 身份校验', () => {
     // 切换目标：草稿与范围意向清空
     expect(picked.draftAfterText).toBe('')
     expect(picked.pages.find(page => page.id === 'page:home')).toMatchObject({ relation: 'editing', scope: 'include' })
+  })
+
+  it('旧点选会话迟到响应不覆盖新会话的选择、草稿和 Scope，且新会话响应正常落位', async () => {
+    const oldReplyGate = deferred<void>()
+    const newReplyGate = deferred<void>()
+    const oldRequestStarted = deferred<void>()
+    const newRequestStarted = deferred<void>()
+    const oldSourceRef = 'jsx:src/App.tsx#42'
+    const newSourceRef = 'jsx:src/App.tsx#43'
+    const analysisWithAboutTarget = {
+      ...ANALYSIS,
+      body: {
+        ...ANALYSIS.body,
+        targets: [
+          ...ANALYSIS.body.targets,
+          {
+            id: 'data:about-title', kind: 'data', label: '关于页标题', value: 'About us',
+            location: { path: 'src/data/site.ts', start: 30, end: 38 },
+            impact: { pageRefs: ['page:about'], unresolved: [], certainty: 'source-proven' },
+          },
+        ],
+      },
+    }
+    const { adapter, model } = await loadAdapter({
+      analyze: analysisWithAboutTarget,
+      history: HISTORY_EMPTY,
+      'project/preview': PREVIEW,
+      'project/source-selection': {
+        status: 200,
+        body: async (callIndex: number) => {
+          if (callIndex === 0) {
+            oldRequestStarted.resolve()
+            await oldReplyGate.promise
+            return sourceSelectionResponse({ element: { id: oldSourceRef, label: '旧点选结果' } }).body
+          }
+          newRequestStarted.resolve()
+          await newReplyGate.promise
+          return sourceSelectionResponse({
+            element: { id: newSourceRef, label: '新点选结果' },
+            editableText: [{
+              id: 'data:about-title', label: '关于页标题', value: 'About us',
+              location: { path: 'src/data/site.ts', start: 30, end: 38 },
+              impact: { pageRefs: ['page:about'], unresolved: [], certainty: 'source-proven' },
+            }],
+          }).body
+        },
+      },
+    })
+
+    let activePickerSession = 'picker-old'
+    const oldSessionIsCurrent = () => activePickerSession === 'picker-old'
+    const newSessionIsCurrent = () => activePickerSession === 'picker-new'
+    const initial = adapter.selectElement(model, 'data:hero-title')!
+    const oldDraft = adapter.setDraftText(initial, '旧会话草稿')
+    const oldScope = adapter.setPageScope(oldDraft, 'page:about', 'exclude')
+    const oldRequest = adapter.applyPickedSource!(
+      oldScope,
+      { sourceRef: oldSourceRef, envelope: pickedEnvelope(oldSourceRef) },
+      oldSessionIsCurrent,
+    )
+    await oldRequestStarted.promise
+    // 请求已发出且响应仍挂起时，旧点选会话仍有效；随后退出并进入新会话。
+    expect(oldSessionIsCurrent()).toBe(true)
+    activePickerSession = 'picker-new'
+
+    const newRequest = adapter.applyPickedSource!(
+      oldScope,
+      { sourceRef: newSourceRef, envelope: pickedEnvelope(newSourceRef) },
+      newSessionIsCurrent,
+    )
+    await newRequestStarted.promise
+    expect(newSessionIsCurrent()).toBe(true)
+    newReplyGate.resolve()
+    const newSelection = await newRequest
+    expect(newSelection.selectedElementId).toBe('data:about-title')
+
+    // 新会话已落位后，用户作出的草稿和范围决定必须免受旧响应影响。
+    const newDraft = adapter.setDraftText(newSelection, '新会话草稿')
+    const newScope = adapter.setPageScope(newDraft, 'page:about', 'exclude')
+    oldReplyGate.resolve()
+    await expect(oldRequest).rejects.toBeInstanceOf(StaleResponseError)
+
+    // 通过适配器状态投影读取私有状态，证明旧响应没有清除或覆盖新选择。
+    const afterLateResponse = adapter.setPageScope(newScope, 'page:home', 'include')
+    expect(afterLateResponse.selectedElementId).toBe('data:about-title')
+    expect(afterLateResponse.draftAfterText).toBe('新会话草稿')
+    expect(afterLateResponse.pages.find(page => page.id === 'page:about')?.scope).toBe('exclude')
+    expect(afterLateResponse.pages.find(page => page.id === 'page:home')?.scope).toBe('include')
   })
 
   it('响应与当前预演会话不一致：丢弃并阻断，绝不采信过期预览的元素', async () => {
