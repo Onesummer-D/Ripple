@@ -995,7 +995,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
      * 这里负责服务端授权路径——POST /project/source-selection，响应绑定当前
      * 预演会话才采信；显示身份用 assessPickerDisplayIdentity 评估（不构成授权）。
      */
-    async applyPickedSource(current, picked) {
+    async applyPickedSource(current, picked, isCurrent) {
       return run(async () => {
         const gen = generation
         if (!analysis || !previewSession) throw new Error('画布点选需要先建立项目预演会话')
@@ -1015,6 +1015,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         })) {
           throw new Error('点选响应与当前预演会话不一致，已丢弃（预览可能已被替换）')
         }
+        // Workbench 会忽略已退出/替换的点选会话响应；在此之前必须先阻止
+        // 迟到响应改写 adapter 私有状态，避免清空新草稿/Scope 却不更新展示模型。
+        if (isCurrent && !isCurrent()) throw new StaleResponseError()
         const framePathname = safePathname(session.url)
         const verdict = assessDisplayIdentity(picked.envelope, {
           sourceRef: response.element.id,

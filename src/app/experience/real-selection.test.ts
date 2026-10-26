@@ -71,7 +71,9 @@ describe('点选会话 · 信封归属校验（复用 A 核心）', () => {
 describe('点选会话 · 显示身份与响应绑定', () => {
   it('assessDisplayIdentity 只授予 navigation-only；证据不全时降级 unknown', () => {
     const full = assessDisplayIdentity(
-      envelope({ sourceVersion: 'a'.repeat(64), pageContext: { pathname: '/', search: '', hash: '' }, runtimeInstanceId: '/:app#1' }),
+      // A v1 runtime identity carries both a valid bare-path namespace and the exact
+      // record sourceRef anchor. An opaque placeholder must remain unproven.
+      envelope({ sourceVersion: 'a'.repeat(64), pageContext: { pathname: '/', search: '', hash: '' }, runtimeInstanceId: '/:_r_1_:jsx:src/App.tsx#42' }),
       { sourceRef: 'jsx:src/App.tsx#42', sourceVersion: 'a'.repeat(64), expectedPathname: '/' },
     )
     expect(full.permission).toBe('navigation-only')

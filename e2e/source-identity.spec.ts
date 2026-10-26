@@ -93,7 +93,7 @@ test('keeps keyed identities stable and marks unkeyed component and raw list pos
 // Snapshots are assessed against a real SourceGraph built from a Git copy of the
 // fixture, so sourceRefs, source versions and page context are checked end to end.
 // ---------------------------------------------------------------------------
-const fixtureFiles = ['index.html', 'main.jsx', 'runtime.html', 'runtime.jsx', 'repeat.js', 'roots.html', 'roots.jsx', 'getters.html', 'getters.jsx', 'cross.html', 'CrossApp.tsx', 'Row.tsx', 'Cell.tsx', 'cells.tsx', 'Badge.tsx', 'memo.html', 'memo.jsx']
+const fixtureFiles = ['index.html', 'main.jsx', 'runtime.html', 'runtime.jsx', 'repeat.js', 'roots.html', 'roots.jsx', 'getters.html', 'getters.jsx', 'cross.html', 'CrossApp.tsx', 'Row.tsx', 'Cell.tsx', 'cells.tsx', 'Badge.tsx', 'memo.html', 'memo.jsx', 'hash-router.html', 'hash-router.jsx']
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-C', cwd, '-c', 'user.email=fixture@ripple.local', '-c', 'user.name=Ripple fixture', '-c', 'commit.gpgsign=false', ...args], { encoding: 'utf8' })
 const snapshot = (page: Page): Promise<RuntimeIdentitySnapshot> => page.evaluate(collectRuntimeIdentitySnapshot, { label: 'data-testid' })
 const all = (snap: RuntimeIdentitySnapshot, label: string) => snap.records.filter(record => record.label === label)
@@ -102,9 +102,23 @@ const one = (snap: RuntimeIdentitySnapshot, label: string): RuntimeIdentityRecor
   expect(matches, `exactly one rendered element labelled ${label}`).toHaveLength(1)
   return matches[0]
 }
+const v2TupleAndSuffix = (id: string | undefined) => {
+  expect(id?.startsWith('ripple-page-v2:'), `${id} uses the v2 namespace`).toBe(true)
+  const start = 'ripple-page-v2:'.length
+  const boundary = id!.indexOf(':', start)
+  expect(boundary).toBeGreaterThan(start)
+  const encoded = id!.slice(start, boundary)
+  const decoded = decodeURIComponent(encoded)
+  expect(encodeURIComponent(decoded)).toBe(encoded)
+  const tuple = JSON.parse(decoded)
+  expect(tuple).toHaveLength(3)
+  expect(tuple.every((part: unknown) => typeof part === 'string')).toBe(true)
+  return { tuple: tuple as [string, string, string], suffix: id!.slice(boundary + 1) }
+}
 const withoutRoute = (id: string | undefined, pathname: string) => {
-  expect(id?.startsWith(`${pathname}:`), `${id} is namespaced by ${pathname}`).toBe(true)
-  return id!.slice(pathname.length)
+  const parsed = v2TupleAndSuffix(id)
+  expect(parsed.tuple[0], `${id} is namespaced by ${pathname}`).toBe(pathname)
+  return parsed.suffix
 }
 
 test.describe('runtime instance identity', () => {
@@ -261,7 +275,10 @@ test.describe('runtime instance identity', () => {
     expect(before.page.pathname).toBe('/home')
 
     await clientNavigate(page, '/products')
-    await expect.poll(async () => (await page.getByTestId('banner-shell').getAttribute('data-ripple-instance')) ?? '').toMatch(/^\/products:/)
+    await expect.poll(async () => {
+      const id = await page.getByTestId('banner-shell').getAttribute('data-ripple-instance')
+      return id ? v2TupleAndSuffix(id).tuple[0] : ''
+    }).toBe('/products')
     const after = await snapshot(page)
     const retainedPinned = one(after, 'pinned')
     const rerenderedBanner = one(after, 'banner-shell')
@@ -284,8 +301,7 @@ test.describe('runtime instance identity', () => {
     const renders = await pinnedRenders(page)
     expect(before.page).toMatchObject({ pathname: '/runtime.html', search: '?tab=a', hash: '#/home' })
 
-    // The memoized DOM remains mounted. A return to the same pathname with an empty
-    // query/hash must not make its old path-only v1 id look current again.
+    // The memoized DOM remains mounted. Its render-time v2 tuple stays old after navigation.
     await clientNavigate(page, '/runtime.html')
     const after = await snapshot(page)
     const retainedPinned = one(after, 'pinned')
@@ -312,11 +328,11 @@ test.describe('runtime instance identity', () => {
 
   for (const routeCase of [
     { name: 'root query route', before: '/?tab=a', after: '/?tab=b' },
-    { name: 'same non-root pathname with a different query', before: '/runtime.html?tab=a', after: '/runtime.html?tab=b', legacyPathnameMatch: true },
+    { name: 'same non-root pathname with a different query', before: '/runtime.html?tab=a', after: '/runtime.html?tab=b' },
     { name: 'root HashRouter route', before: '/#/home', after: '/#/products' },
-    { name: 'same non-root pathname with a different HashRouter route', before: '/runtime.html#/home', after: '/runtime.html#/products', legacyPathnameMatch: true },
+    { name: 'same non-root pathname with a different HashRouter route', before: '/runtime.html#/home', after: '/runtime.html#/products' },
     { name: 'root query and hash routes', before: '/?tab=a#/home', after: '/?tab=b#/products' },
-    { name: 'same non-root pathname with query and hash changes', before: '/runtime.html?tab=a#/home', after: '/runtime.html?tab=b#/products', legacyPathnameMatch: true },
+    { name: 'same non-root pathname with query and hash changes', before: '/runtime.html?tab=a#/home', after: '/runtime.html?tab=b#/products' },
   ]) {
     test(`does not prove a memoized old-DOM instance after ${routeCase.name}`, async ({ page }) => {
       await openRuntimeAt(page, routeCase.before)
@@ -328,14 +344,9 @@ test.describe('runtime instance identity', () => {
         hash: new URL(routeCase.before, baseUrl).hash,
       })
       const renders = await pinnedRenders(page)
-      if ('legacyPathnameMatch' in routeCase && routeCase.legacyPathnameMatch) {
-        const id = oldPinned.runtimeInstanceId!
-        const ownerSuffix = id.slice(before.page.pathname.length + 1)
-        // These controls prove that v1's old pathname prefix and owner-boundary checks
-        // would have accepted this annotation; only the missing search/hash check is new.
-        expect(id.startsWith(`${before.page.pathname}:`)).toBe(true)
-        expect(ownerSuffix).toMatch(/^(?:jsx:|[_:\u00ab])/)
-      }
+      expect(v2TupleAndSuffix(oldPinned.runtimeInstanceId).tuple).toEqual([
+        before.page.pathname, before.page.search, before.page.hash,
+      ])
 
       await clientNavigate(page, routeCase.after)
       const after = await snapshot(page)
@@ -359,6 +370,101 @@ test.describe('runtime instance identity', () => {
       expect(selectableRuntimeObservations(after).some(observation => observation.runtimeInstanceId === retainedPinned.runtimeInstanceId)).toBe(false)
     })
   }
+
+  test('writes a canonical v2 tuple at render time for pathname, query and browser hash', async ({ page }) => {
+    for (const location of ['/runtime.html', '/runtime.html?tab=a', '/runtime.html#/home', '/runtime.html?tab=a#/home']) {
+      await page.goto(`${baseUrl}${location}`)
+      const collected = await snapshot(page)
+      const pinned = one(collected, 'pinned')
+      const url = new URL(location, baseUrl)
+      expect(collected.protocol).toBe('ripple-runtime-identity/v2')
+      expect(v2TupleAndSuffix(pinned.runtimeInstanceId).tuple).toEqual([url.pathname, url.search, url.hash])
+      expect(pinned.reasons).not.toContain('route-namespace-stale')
+      expect(assessRuntimeIdentity(graph, collected, pinned, { fileDigest: digest, expectedPage: collected.page }).instanceIdentityProven).toBe(true)
+    }
+  })
+
+  test('uses a real HashRouter and rejects its retained memo DOM until that component renders again', async ({ page }) => {
+    await page.addInitScript(() => history.replaceState(null, '', '/hash-router.html?tab=a#/home'))
+    await page.goto(`${baseUrl}/hash-router.html`)
+    await expect(page.getByTestId('hash-route')).toHaveText('/home')
+    const before = await snapshot(page)
+    const pinnedBefore = one(before, 'hash-pinned')
+    expect(before.page).toMatchObject({ pathname: '/hash-router.html', search: '?tab=a', hash: '#/home' })
+    expect(v2TupleAndSuffix(pinnedBefore.runtimeInstanceId).tuple).toEqual(['/hash-router.html', '?tab=a', '#/home'])
+    expect(assessRuntimeIdentity(graph, before, pinnedBefore, { fileDigest: digest, expectedPage: before.page }).instanceIdentityProven).toBe(true)
+    const renders = await page.evaluate(() => (window as unknown as { __hashPinnedRenders: number }).__hashPinnedRenders)
+
+    await page.getByRole('button', { name: 'Go products' }).click()
+    await expect(page.getByTestId('hash-route')).toHaveText('/products')
+    const afterNavigate = await snapshot(page)
+    const retained = one(afterNavigate, 'hash-pinned')
+    expect(afterNavigate.page.hash).toBe('#/products')
+    expect(retained.domNode).toBe(pinnedBefore.domNode)
+    expect(retained.runtimeInstanceId).toBe(pinnedBefore.runtimeInstanceId)
+    expect(await page.evaluate(() => (window as unknown as { __hashPinnedRenders: number }).__hashPinnedRenders)).toBe(renders)
+    expect(retained.reasons).toContain('route-namespace-stale')
+    expect(assessRuntimeIdentity(graph, afterNavigate, retained, { fileDigest: digest, expectedPage: afterNavigate.page }).instanceIdentityProven).toBe(false)
+
+    await page.getByRole('button', { name: 'Render memo again' }).click()
+    const afterRender = await snapshot(page)
+    const refreshed = one(afterRender, 'hash-pinned')
+    expect(refreshed.domNode).toBe(pinnedBefore.domNode)
+    expect(refreshed.runtimeInstanceId).not.toBe(pinnedBefore.runtimeInstanceId)
+    expect(v2TupleAndSuffix(refreshed.runtimeInstanceId).tuple).toEqual(['/hash-router.html', '?tab=a', '#/products'])
+    expect(assessRuntimeIdentity(graph, afterRender, refreshed, { fileDigest: digest, expectedPage: afterRender.page })).toMatchObject({ locatable: true, instanceIdentityProven: true, reasons: [] })
+  })
+
+  test('collector rejects malformed, non-current, old-v1, missing and mis-anchored runtime ids', async ({ page }) => {
+    await openRuntime(page)
+    const initial = await snapshot(page)
+    const original = one(initial, 'pinned').runtimeInstanceId!
+    const sourceRef = one(initial, 'pinned').sourceRef
+    const current = initial.page
+    const suffix = v2TupleAndSuffix(original).suffix
+    const directHistoricalKeyId = `ripple-page-v2:${encodeURIComponent(JSON.stringify([current.pathname, current.search, current.hash]))}:${sourceRef}:key%3Aactive/a%2Fb`
+    await page.getByTestId('pinned').evaluate((element, value) => element.setAttribute('data-ripple-instance', value), directHistoricalKeyId)
+    const directHistoricalKey = one(await snapshot(page), 'pinned')
+    expect(directHistoricalKey.reasons).not.toContain('route-namespace-stale')
+    expect(assessRuntimeIdentity(graph, initial, directHistoricalKey, { fileDigest: digest, expectedPage: initial.page }).instanceIdentityProven).toBe(true)
+    const invalidIds = [
+      `ripple-page-v2:%E0%A4%A:${suffix}`,
+      `ripple-page-v2:${encodeURIComponent(JSON.stringify(['/other', '', '']))}:${suffix}`,
+      `/runtime.html:${sourceRef}:legacy`,
+      `ripple-page-v2:${encodeURIComponent(JSON.stringify([current.pathname, current.search, current.hash]))}:${sourceRef}key:active`,
+      `ripple-page-v2:${encodeURIComponent(JSON.stringify([current.pathname, current.search, current.hash]))}:${sourceRef}::key`,
+      `ripple-page-v2:${encodeURIComponent(JSON.stringify([current.pathname, current.search, current.hash]))}:${sourceRef}:key:${sourceRef}`,
+      `ripple-page-v2:${encodeURIComponent(JSON.stringify([current.pathname, current.search, current.hash]))}:jsx:root:jsx:src/Other.jsx#4:tail`,
+    ]
+    for (const id of invalidIds) {
+      await page.getByTestId('pinned').evaluate((element, value) => element.setAttribute('data-ripple-instance', value), id)
+      const collected = await snapshot(page)
+      const item = one(collected, 'pinned')
+      expect(item.reasons).toContain('route-namespace-stale')
+      expect(assessRuntimeIdentity(graph, collected, item, { fileDigest: digest, expectedPage: collected.page }).instanceIdentityProven).toBe(false)
+    }
+    await page.getByTestId('pinned').evaluate(element => element.removeAttribute('data-ripple-instance'))
+    const missing = one(await snapshot(page), 'pinned')
+    expect(missing.reasons).toEqual(expect.arrayContaining(['instance-unavailable', 'route-namespace-stale']))
+  })
+
+  test('duplicate ids stay unknown while SourceGraph retains exact source navigation', async ({ page }) => {
+    await openRuntime(page)
+    const before = await snapshot(page)
+    const first = one(before, 'keyed-p1')
+    const second = one(before, 'keyed-p2')
+    await page.getByTestId('keyed-p2').evaluate((element, value) => element.setAttribute('data-ripple-instance', value), first.runtimeInstanceId!)
+    const after = await snapshot(page)
+    for (const label of ['keyed-p1', 'keyed-p2']) {
+      const duplicate = one(after, label)
+      expect(duplicate.reasons).toContain('duplicate-runtime-instance')
+      expect(duplicate.certainty).toBe('unknown')
+      expect(duplicate.sourceRef).toBe(first.sourceRef)
+      expect(resolveJsxSourceElement(graph, duplicate.sourceRef).element.id).toBe(duplicate.sourceRef)
+    }
+    expect(second.sourceRef).toBe(first.sourceRef)
+    expect(selectableRuntimeObservations(after).some(item => item.runtimeInstanceId === first.runtimeInstanceId)).toBe(false)
+  })
 
   test('state updates keep identities and do not re-render memoized components', async ({ page }) => {
     await openRuntime(page)

@@ -20,6 +20,34 @@ export interface PickerEnvelope {
 }
 
 const certainties: readonly string[] = ['stable-keyed-instance', 'stable-react-instance', 'position-dependent', 'unknown', 'unmapped']
+const validSourceAnchor = (suffix: string, sourceRef: string): boolean => {
+  if (!/^(?:jsx:|[_:\u00ab])/.test(suffix)) return false
+  const anchor = `:${sourceRef}`
+  const at = suffix.indexOf(anchor)
+  if (at <= 0) return false
+  const tail = suffix.slice(at + anchor.length)
+  return tail === '' || tail.startsWith(':')
+}
+const runtimeNamespaceMatches = (id: string, sourceRef: string, page: { pathname: string; search: string; hash: string }): boolean => {
+  if (id.startsWith('ripple-page-v2:')) {
+    const start = 'ripple-page-v2:'.length
+    const boundary = id.indexOf(':', start)
+    if (boundary < 0) return false
+    const encoded = id.slice(start, boundary)
+    let decoded: string
+    try { decoded = decodeURIComponent(encoded) } catch { return false }
+    let tuple: unknown
+    try { tuple = JSON.parse(decoded) } catch { return false }
+    if (!Array.isArray(tuple) || tuple.length !== 3 || tuple.some(part => typeof part !== 'string')) return false
+    const canonical = JSON.stringify(tuple)
+    if (canonical !== decoded || encodeURIComponent(canonical) !== encoded ||
+      tuple[0] !== page.pathname || tuple[1] !== page.search || tuple[2] !== page.hash) return false
+    return validSourceAnchor(id.slice(boundary + 1), sourceRef)
+  }
+  // Historical picker messages can carry a v1 ID only on an unambiguous bare pathname.
+  if (page.search !== '' || page.hash !== '' || !id.startsWith(`${page.pathname}:`)) return false
+  return validSourceAnchor(id.slice(page.pathname.length + 1), sourceRef)
+}
 export function isCurrentPickerEnvelope(
   input: unknown, current: { eventSource: unknown; iframeSource: unknown; previewId: string; token: string },
 ): input is PickerEnvelope {
@@ -56,8 +84,8 @@ export function assessPickerDisplayIdentity(data: PickerEnvelope, trusted: {
   if (!page || typeof page.pathname !== 'string' || typeof page.search !== 'string' || typeof page.hash !== 'string') {
     reasons.add('page-context-unverified')
   } else if (page.pathname !== trusted.expectedPathname) reasons.add('page-context-mismatch')
-  if (!data.runtimeInstanceId || data.runtimeInstanceId.endsWith(':~') ||
-      !page || !data.runtimeInstanceId.startsWith(page.pathname + ':')) reasons.add('instance-unavailable')
+  if (!data.runtimeInstanceId || data.runtimeInstanceId.endsWith(':~')) reasons.add('instance-unavailable')
+  if (!data.runtimeInstanceId || !page || !runtimeNamespaceMatches(data.runtimeInstanceId, data.sourceRef, page)) reasons.add('route-namespace-stale')
   if (data.identityCertainty !== 'stable-react-instance' && data.identityCertainty !== 'stable-keyed-instance') {
     reasons.add('identity-not-stable')
   }
