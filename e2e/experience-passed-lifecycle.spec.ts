@@ -248,12 +248,19 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
 
   // 10. 历史胶片必须绑定真实 Candidate、VerificationRun 和截图 artifact，并在 Chromium 中成功解码。
   const historyImageUrl = new URL(archivedEvidence!.artifactUrl!, 'http://127.0.0.1:4173').toString()
-  const historyImageResponse = page.waitForResponse(response => response.url() === historyImageUrl)
+  // The image is lazy-loaded below the fold. Route pass-through disables cache so the browser
+  // performs a real GET after the card is scrolled into view instead of waiting on a cached image.
+  await page.route(historyImageUrl, route => route.continue())
+  const historyImageResponse = page.waitForResponse(
+    response => response.url() === historyImageUrl && response.request().method() === 'GET',
+    { timeout: 30_000 },
+  )
   await page.getByTestId('open-history').click()
   const historyCard = page.getByTestId(`version-${candidateId}`)
   await expect(historyCard).toBeVisible()
   const historyImage = page.getByTestId(`film-shot-real-${candidateId}`)
   await expect(historyImage).toBeVisible()
+  await historyImage.scrollIntoViewIfNeeded()
   expect(await historyImage.getAttribute('src')).toBe(archivedEvidence!.artifactUrl)
   expect(await historyImage.evaluate(image => (image as HTMLImageElement).currentSrc)).toBe(historyImageUrl)
   const loadedArtifact = await historyImageResponse
@@ -261,6 +268,7 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   expect(loadedArtifact.headers()['content-type']).toMatch(/^image\//)
   await expect.poll(() => historyImage.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   await expect(page.getByTestId(`film-src-real-${candidateId}`)).toContainText('真实截图')
+  await page.unroute(historyImageUrl)
   await page.setViewportSize({ width: 1440, height: 900 })
   await historyCard.scrollIntoViewIfNeeded()
   const desktopCardBox = await historyCard.boundingBox()
@@ -301,6 +309,7 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   await page.reload({ waitUntil: 'networkidle' })
   historyPanelOpen = true
   await page.getByTestId('open-history').click()
+  await page.getByTestId(`film-shot-real-${candidateId}`).scrollIntoViewIfNeeded()
   const failedThumbnail = page.getByTestId(`film-shot-failed-${candidateId}`)
   await expect(failedThumbnail).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
@@ -309,7 +318,10 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   expect(mobileCardBox?.width).toBeLessThanOrEqual(358)
   expect(await page.getByTestId('version-filmstrip').locator('.ripple-xp-film-list').evaluate(element => getComputedStyle(element).overflowX)).toBe('auto')
   await page.screenshot({ path: path.join(evidenceRoot, 'xp-history-390x844-failed.png') })
-  const retryImageResponse = page.waitForResponse(response => response.url() === historyImageUrl && response.status() === 200)
+  const retryImageResponse = page.waitForResponse(
+    response => response.url() === historyImageUrl && response.status() === 200 && response.request().method() === 'GET',
+    { timeout: 30_000 },
+  )
   await page.getByTestId(`film-shot-retry-${candidateId}`).click()
   const retryResponse = await retryImageResponse
   expect(retryResponse.status()).toBe(200)
