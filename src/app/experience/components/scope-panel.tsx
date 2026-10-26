@@ -182,6 +182,31 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                           // A/E 合同：proofLabel 必须逐字渲染，不得以任何形式升级为"实例级已证明"
                           <span key={index} className="ripple-xp-visual-proof">{pair.proofLabel ?? '未证实配对（需人工复核）'}</span>
                         ))}
+                        {entry.view?.runtimeIdentity && (
+                          <section className="ripple-xp-runtime-identity" data-testid="runtime-identity-pairing" data-strict={entry.view.runtimeIdentity.scope.strictInstanceProofAvailable}>
+                            <strong>
+                              {entry.view.runtimeIdentity.scope.strictInstanceProofAvailable
+                                ? '整页：实例级已证明'
+                                : `整页：未完整证明（${entry.view.runtimeIdentity.scope.provenPairCount}/${Math.max(entry.view.runtimeIdentity.scope.baselineRecordCount, entry.view.runtimeIdentity.scope.candidateRecordCount)} 对已证明）`}
+                            </strong>
+                            {entry.view.runtimeIdentity.scope.diagnostics.length > 0 && (
+                              <span className="ripple-xp-visual-proof">范围原因：{entry.view.runtimeIdentity.scope.diagnostics.join('、')}</span>
+                            )}
+                            {entry.view.runtimeIdentity.pairs.map(pair => (
+                              <span key={pair.runtimeInstanceId} className="ripple-xp-visual-proof">
+                                {pair.proofLabel} · {pair.runtimeInstanceId}
+                                {pair.pairReasons.length > 0 ? ` · Pair：${pair.pairReasons.join('、')}` : ''}
+                                {pair.assessmentReasons.baseline.length > 0 ? ` · Baseline：${pair.assessmentReasons.baseline.join('、')}` : ''}
+                                {pair.assessmentReasons.candidate.length > 0 ? ` · Candidate：${pair.assessmentReasons.candidate.join('、')}` : ''}
+                              </span>
+                            ))}
+                            {[...entry.view.runtimeIdentity.baselineOnly.map(record => ({ side: 'Baseline', record })), ...entry.view.runtimeIdentity.candidateOnly.map(record => ({ side: 'Candidate', record }))].map(({ side, record }) => (
+                              <span key={`${side}:${record.recordKey}`} className="ripple-xp-visual-proof">
+                                {side} 未配对 · {record.sourceRef ?? '来源未知'} · {record.diagnostics.join('、') || '未证明'}
+                              </span>
+                            ))}
+                          </section>
+                        )}
                       </li>
                     ))}
                   </ul>
