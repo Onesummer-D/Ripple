@@ -1070,4 +1070,3 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
   })
 })
-
