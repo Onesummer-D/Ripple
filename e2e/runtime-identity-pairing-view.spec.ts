@@ -141,6 +141,11 @@ async function mutateHistoryForCandidate(
 test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', async ({ page }) => {
   test.setTimeout(600_000)
   test.skip(!dockerAvailable, 'E③ 正式 API 验收需要 Linux Docker Chromium')
+  page.on('response', async response => {
+    if (!response.url().includes('/__ripple/api/history')) return
+    const text = await response.text().catch(() => '')
+    console.log(`E3 history response status=${response.status()} url=${response.url()} body=${text.slice(0, 1200)}`)
+  })
   try {
     const analysis = await post(page, 'analyze', { projectRoot })
     const target = analysis.targets.find((item: { label: string }) => item.label === 'E3 real host title')
@@ -164,6 +169,7 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     writeEvidence('positive-verification-run-1', firstVerified)
     const persistedBeforeUi = await (await page.request.get(`${api}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)).json()
     writeEvidence('positive-history-before-ui', persistedBeforeUi)
+    console.log(`E3 persisted analysisProject=${analysis.revision.projectId} history=${JSON.stringify((persistedBeforeUi.history ?? []).map((item: any) => ({ candidateId: item.candidateId, projectId: item.projectId, lifecycle: item.lifecycle, runId: item.verification?.runId, state: item.verification?.state })))}`)
     expect(persistedBeforeUi.history?.find((item: { candidateId: string }) => item.candidateId === first.candidate.id)?.verification?.runId).toBe(firstVerified.verification.runId)
 
     // The UI reads the persisted formal VerificationRun, rather than visual evidence coverage.
