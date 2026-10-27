@@ -636,9 +636,18 @@ export function inspectDeclarativeRoutes(
     if (!exportedDefault || exportedDefault.length !== 1) return undefined
     return componentFromSymbol(exportedDefault[0])
   }
+  const sameBinding = (left: ts.Symbol | undefined, right: ts.Symbol | undefined): boolean => {
+    if (!left || !right) return false
+    if (left === right) return true
+    const resolveAlias = (symbol: ts.Symbol) => symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
+    return resolveAlias(left) === resolveAlias(right)
+  }
   const jsxTagBinding = (node: ts.JsxOpeningLikeElement, expected: string, imports: Map<string, ts.Symbol>) =>
     ts.isIdentifier(node.tagName) && node.tagName.text === expected &&
-    checker.getSymbolAtLocation(node.tagName) === imports.get(expected)
+    sameBinding(checker.getSymbolAtLocation(node.tagName), imports.get(expected))
+  const jsxAncestorBinding = (node: ts.Node, expected: string, imports: Map<string, ts.Symbol>) =>
+    ts.isJsxElement(node) ? jsxTagBinding(node.openingElement, expected, imports) :
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) ? jsxTagBinding(node, expected, imports) : false
 
   for (const [absolute, source] of sources) {
     const file = path.relative(root, absolute).replaceAll('\\', '/')
@@ -679,15 +688,13 @@ export function inspectDeclarativeRoutes(
     for (const routeElement of routeElements) {
       const insideRoutes = (ancestor: ts.Node): boolean => {
         for (let current: ts.Node | undefined = ancestor; current && current !== app.node; current = current.parent) {
-          if ((ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) &&
-              jsxTagBinding(current, 'Routes', routerImports)) return true
+          if (jsxAncestorBinding(current, 'Routes', routerImports)) return true
         }
         return false
       }
       const insideRouter = (ancestor: ts.Node): boolean => {
         for (let current: ts.Node | undefined = ancestor; current && current !== app.node; current = current.parent) {
-          if ((ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) &&
-              routerNames.some(name => jsxTagBinding(current, name, routerImports))) return true
+          if (routerNames.some(name => jsxAncestorBinding(current, name, routerImports))) return true
         }
         return false
       }
@@ -724,3 +731,4 @@ export function inspectDeclarativeRoutes(
   }
   return { routes, unresolved, incomplete }
 }
+
