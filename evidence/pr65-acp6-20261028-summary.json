@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 1,
+  "review": "PR #65 AC-P6 B independent exact-SHA review",
+  "generatedAt": "2026-10-28",
+  "fixed": {
+    "repository": "Onesummer-D/Ripple",
+    "pr": 65,
+    "coreHead": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
+    "tree": "24de55f8bc1d8146b12b42b8bfdd4b24d5f41f6c",
+    "base": "0a301b04f73d08d972c971571fcd74fe5ddfb4cf",
+    "priorSlice": "2ebd1e20d043287edbbfc2ec31c10f15688a4499",
+    "thirdParty": "b244f857457d2a07f118155602eef9097fd322bd",
+    "targetFileSha256": "8de0b6c59beb8538534adcbd5bb20906bda6b6ca7b9e3998702a229a2506a920"
+  },
+  "run": {
+    "node": "v24.15.0",
+    "exitCode": 2,
+    "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs ./scripts/b-css-token-probe.mjs <fixed-project-root> --acceptance --json <acceptance.json> --expect-core-sha ed58cfdc2892acaa9b97363a3414b1c219d07053"
+  },
+  "frozen": {
+    "probeBlob": "3431294c0807161432e0a7c986825ffc5263bc87",
+    "probeSha256": "35ad94eb8e8c47d0ec100b47e4c408bf5dc02c849bc0f5c6b7f68864b82a7c22",
+    "matcherBlob": "3a04ab896b40500b2c314b710b4cb1c3a3893dcb",
+    "matcherSha256": "70c098240020538d861e45271b0232ac54396fd0d5fd8d5ee9cea0162d4ff4be",
+    "loaderBlob": "5368f6e098176f453f6e159544e4b0cbe6bcabff",
+    "loaderSha256": "04cd4e843366762f01e04ee257bca460ab0621e30b7e531ebaf82356e949fa95"
+  },
+  "report": {
+    "status": "PENDING",
+    "aCore": {
+      "sha": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
+      "expectedSha": "ed58cfdc2892acaa9b97363a3414b1c219d07053"
+    },
+    "project": {
+      "sha": "b244f857457d2a07f118155602eef9097fd322bd",
+      "targetFile": "src/css/style.css",
+      "targetFileSha256": "8de0b6c59beb8538534adcbd5bb20906bda6b6ca7b9e3998702a229a2506a920",
+      "fixtureGroundTruth": {
+        "srcCssFiles": 7,
+        "srcDefinitions": 18,
+        "srcTokenLabels": 11,
+        "srcVarUses": 126
+      }
+    },
+    "graphStats": {
+      "nodes": 675,
+      "edges": 5302,
+      "unresolved": 253,
+      "unresolvedDetail": [
+        "src/pages/About.jsx → ../assets/passport allan.jpg",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#702: var(--background) CSS selector 没有可静态匹配的 class token",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#726: var(--text-primary) CSS selector 没有可静态匹配的 class token",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#1397: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#1572: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#1609: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#1777: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#1963: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2028: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2088: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2159: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2330: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2396: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2471: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2687: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2750: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2809: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#2878: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3099: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3299: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3393: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3448: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3469: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3579: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3599: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3810: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#3978: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#4034: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#4055: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#4217: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#4237: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#4268: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#5363: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#6061: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#6128: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#6285: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#6451: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#6554: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#6626: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7358: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7378: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7569: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7606: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7658: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7686: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7706: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7861: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7882: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#7963: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#8016: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#8036: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#8333: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#8569: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#8983: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9065: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9233: var(--accent-color) 未找到已跟踪的自定义属性声明或 fallback 解析目标",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9253: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9448: var(--accent-color) 未找到已跟踪的自定义属性声明或 fallback 解析目标",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9468: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9517: var(--accent-color) 未找到已跟踪的自定义属性声明或 fallback 解析目标",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9537: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9621: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9694: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#9823: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10015: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10320: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10341: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10418: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10508: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10568: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10588: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10730: var(--skill-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#10921: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11008: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11257: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11321: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11454: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11594: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11828: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11842: var(--accent-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#11873: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#12166: var(--accent-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#12638: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#12781: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#12872: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#12960: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#13021: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#13186: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#13206: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#14483: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#14584: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#14860: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#14936: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15089: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15226: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15257: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15337: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15496: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15520: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15577: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#15973: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#16212: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#16253: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#16588: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#16652: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#16857: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#16877: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17042: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17149: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17303: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17460: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17757: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17778: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17835: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17947: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17967: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#17998: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#18143: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#18315: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#18467: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#18487: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#19402: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#19461: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#19518: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/index-hJgMd1dF.css#19546: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/Intrests-CQqgzcrc.css#123: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:dist/assets/Intrests-CQqgzcrc.css#183: var(--accent-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#115: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#161: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#600: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#687: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#952: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#977: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#1192: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#1325: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#1536: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#1739: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2137: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2163: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2230: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2371: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2396: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2432: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2620: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#2844: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#3045: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#3070: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#4479: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#4553: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#4625: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/footer.css#4658: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/interests.css#157: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/interests.css#230: var(--accent-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#97: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#173: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#581: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#681: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#890: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#1067: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#1103: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#1211: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#1415: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#1444: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#1514: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/nav.css#2061: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#966: var(--background) CSS selector 没有可静态匹配的 class token",
+        "css-token-use-unknown:src/css/style.css#995: var(--text-primary) CSS selector 没有可静态匹配的 class token",
+        "css-token-use-unknown:src/css/style.css#1998: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#2232: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#2282: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#2497: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#2738: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#2818: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#2896: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#2990: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#3231: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#3320: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#3418: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#3692: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#3770: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#3847: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#3940: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#4227: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#4497: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#4612: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#4677: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#4703: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#4842: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#4867: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#5143: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#5365: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#5431: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#5457: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#5664: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#5689: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#5725: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#7524: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#8459: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#8549: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#8756: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#8978: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#9114: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#9209: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10207: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10232: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10495: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10537: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10602: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10635: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10660: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10871: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10897: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#10994: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#11060: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#11085: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#11502: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#11810: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#12385: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#12487: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#12715: var(--accent-color) 未找到已跟踪的自定义属性声明或 fallback 解析目标",
+        "css-token-use-unknown:src/css/style.css#12735: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#12991: var(--accent-color) 未找到已跟踪的自定义属性声明或 fallback 解析目标",
+        "css-token-use-unknown:src/css/style.css#13011: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#13078: var(--accent-color) 未找到已跟踪的自定义属性声明或 fallback 解析目标",
+        "css-token-use-unknown:src/css/style.css#13098: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#13210: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#13307: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#13499: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#13751: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14167: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14193: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14286: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14396: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14469: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14494: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14682: var(--skill-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#14956: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#15077: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#15399: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#15478: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#15653: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#15834: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#16133: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#16148: var(--accent-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#16184: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#16547: var(--accent-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector class 可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#17254: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#17461: var(--card-bg) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#17572: var(--border-color) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#17688: var(--text-primary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#17767: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#17981: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响",
+        "css-token-use-unknown:src/css/style.css#18006: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；其他动态 JSX className 可能引入未枚举的页面消费者；同名声明可能受主题、级联、继承或媒体条件影响"
+      ]
+    },
+    "acceptance": {
+      "status": "PENDING",
+      "passed": 3,
+      "pending": 2,
+      "error": 0
+    },
+    "items": [
+      {
+        "id": "AC6.1",
+        "status": "PASS",
+        "pass": true
+      },
+      {
+        "id": "AC6.2",
+        "status": "PENDING",
+        "pass": false
+      },
+      {
+        "id": "AC6.3",
+        "status": "PASS",
+        "pass": true
+      },
+      {
+        "id": "AC6.4",
+        "status": "PENDING",
+        "pass": false
+      },
+      {
+        "id": "AC6.5",
+        "status": "PASS",
+        "pass": true
+      }
+    ]
+  },
+  "ac6_1": {
+    "scopedDefinitionEvidence": 14,
+    "repeatedTokens": [
+      "--background",
+      "--text-primary",
+      "--text-secondary",
+      "--accent",
+      "--accent-secondary",
+      "--card-bg",
+      "--border-color"
+    ]
+  },
+  "ac6_2": {
+    "usedTokenCount": 8,
+    "sourceUseRows": 123,
+    "strictEdgeCount": 961,
+    "coveredTokens": [
+      "--skill-color"
+    ],
+    "uncoveredTokens": [
+      "--text-primary",
+      "--border-color",
+      "--accent",
+      "--text-secondary",
+      "--background",
+      "--card-bg",
+      "--accent-secondary"
+    ],
+    "uncoveredSourceUseRows": 38
+  },
+  "ac6_3": {
+    "routeCount": 7,
+    "routeIdentities": [
+      {
+        "route": "/",
+        "nodeIds": [
+          "page:/"
+        ],
+        "identityFields": [
+          "routePath"
+        ]
+      },
+      {
+        "route": "/about",
+        "nodeIds": [
+          "page:/about"
+        ],
+        "identityFields": [
+          "routePath"
+        ]
+      },
+      {
+        "route": "/experience",
+        "nodeIds": [
+          "page:/experience"
+        ],
+        "identityFields": [
+          "routePath"
+        ]
+      },
+      {
+        "route": "/projects",
+        "nodeIds": [
+          "page:/projects"
+        ],
+        "identityFields": [
+          "routePath"
+        ]
+      },
+      {
+        "route": "/certifications",
+        "nodeIds": [
+          "page:/certifications"
+        ],
+        "identityFields": [
+          "routePath"
+        ]
+      },
+      {
+        "route": "/education",
+        "nodeIds": [
+          "page:/education"
+        ],
+        "identityFields": [
+          "routePath"
+        ]
+      },
+      {
+        "route": "/interests",
+        "nodeIds": [
+          "page:/interests"
+        ],
+        "identityFields": [
+          "routePath"
+        ]
+      }
+    ],
+    "conflicts": 0
+  },
+  "ac6_4": {
+    "consumerPairs": 147,
+    "staticAnchors": 131,
+    "unknownPairs": 16,
+    "dynamicUnknownPairs": 7,
+    "noStaticAnchorPairs": 9,
+    "dynamicClassNameFiles": [
+      "src/layouts/Nav.jsx",
+      "src/pages/Home.jsx",
+      "src/pages/Home.jsx",
+      "src/pages/Home.jsx"
+    ],
+    "elementAnchoredEdges": 1184
+  },
+  "ac6_5": {
+    "fallbackUses": 3,
+    "unknownEdges": 3
+  },
+  "edgeKinds": {
+    "imports": 38,
+    "reads": 458,
+    "renders": 250,
+    "usesToken": 2408,
+    "tokenReference": 964,
+    "cssCascade": 1184
+  },
+  "certainty": {
+    "usesToken": {
+      "semanticCandidate": 2156,
+      "unknown": 252
+    },
+    "tokenReference": {
+      "semanticCandidate": 964
+    },
+    "cssCascade": {
+      "semanticCandidate": 1184
+    }
+  },
+  "conclusion": "FIRST-SLICE INTEGRATION ACCEPTED WITH SCOPE LIMITS"
+}
