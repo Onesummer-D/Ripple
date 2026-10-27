@@ -121,6 +121,16 @@ function verificationView(run: VerificationRun | undefined, candidateId: string,
     startedAt: run.startedAt,
     completedAt: run.completedAt,
     assertions: run.assertions,
+    // Formal runpoints are required by the read-only E③ pairing projection.
+    // Visual evidence coverage is supplementary and is never used as a substitute.
+    checks: run.checks.map(check => ({
+      id: check.id,
+      route: check.route,
+      viewport: check.viewport,
+      state: check.state,
+      description: check.description,
+      mandatory: check.mandatory,
+    })),
     ...(run.runtimeIdentities !== undefined ? { runtimeIdentities: run.runtimeIdentities } : {}),
     evidence: run.evidence.map(evidence => ({
       id: evidence.id, checkId: evidence.checkId, result: evidence.result, pageUrl: evidence.pageUrl,

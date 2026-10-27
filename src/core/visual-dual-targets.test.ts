@@ -57,6 +57,14 @@ describe('cross-version pairing proof ladder', () => {
     expect(pairing.scope.missingEvidence).toEqual(['source-version', 'page-context', 'collection-reasons', 'graph-membership'])
   })
 
+  it('geometry-only scope cannot be upgraded by an injected truthy assessment object', () => {
+    const baseline = sample('baseline', [el('h1', 'jsx:src/App.tsx#100', [4, 4, 50, 12])])
+    const candidate = sample('candidate', [el('h1', 'jsx:src/App.tsx#100', [4, 4, 50, 12])])
+    const pairing = pairCrossVersionElements(baseline, candidate, { identityAssessment: { instanceIdentityProven: true } } as never)
+    expect(pairing.instanceCandidate).toHaveLength(1)
+    expect(pairing.scope.strictInstanceProofAvailable).toBe(false)
+  })
+
   it('共享 Footer 两页消费: a duplicated instance id pairs at nothing', () => {
     const baseline = sample('baseline', [el('f1', 'jsx:src/Footer.tsx#8', [0, 30, 60, 10], { runtimeInstanceId: '/:footer' }), el('f2', 'jsx:src/Footer.tsx#8', [0, 0, 60, 10], { runtimeInstanceId: '/:footer' })])
     const candidate = sample('candidate', [el('f1', 'jsx:src/Footer.tsx#8', [0, 30, 60, 10], { runtimeInstanceId: '/:footer' }), el('f2', 'jsx:src/Footer.tsx#8', [0, 0, 60, 10], { runtimeInstanceId: '/:footer' })])
