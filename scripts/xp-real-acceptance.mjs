@@ -63,7 +63,7 @@ try {
 
   await assert('真实工程标记', page.getByTestId('real-badge'), '真实工程')
   await assert('工程状态', page.getByTestId('project-status'), '工程就绪')
-  if (await page.getByTestId('demo-badge').count()) throw new Error('验收失败：真实模式出现演示标记')
+  if (await page.getByTestId('demo-note').count()) throw new Error('验收失败：真实模式出现演示来源说明')
   await assert('真实页面', page.getByTestId('page-item-page:home'), 'home')
   await assert('验证未运行如实呈现', page.getByTestId('evidence-ev:verification'), '尚未运行')
   await assert('真实审批未接入', page.getByTestId('real-approval-pending'), '审批、应用与回滚均走服务端正式接口')

@@ -89,6 +89,12 @@ export interface VersionItemXp {
   summary: string
   pageRef: string
   evidenceAvailable: boolean
+  /** Evidence records and displayable archived screenshots are distinct states. */
+  evidenceState: 'archived' | 'metadata' | 'none'
+  /** Demo art is allowed only in demo mode; real artifacts must come from the service. */
+  thumbnail?: { url: string; source: 'real-artifact' | 'demo-art' }
+  /** Human readable evidence records actually returned by the adapter. */
+  evidenceList?: string[]
 }
 
 export interface CompareSideXp {
