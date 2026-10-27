@@ -135,6 +135,10 @@ async function mutateHistoryForCandidate(
 test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', async ({ page }) => {
   test.setTimeout(600_000)
   test.skip(!dockerAvailable, 'E③ 正式 API 验收需要 Linux Docker Chromium')
+  // The repository Playwright config already starts tracing for every test.
+  // Take ownership of that collector so this acceptance can retain a named
+  // trace together with the JSON/SHA-256 evidence files.
+  await page.context().tracing.stop().catch(() => undefined)
   await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
   try {
     const analysis = await post(page, 'analyze', { projectRoot })
@@ -246,6 +250,6 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     await expect(pairing).toContainText('Web Crypto SHA-256')
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-negative-web-crypto-mobile.png'), fullPage: true })
   } finally {
-    await page.context().tracing.stop({ path: path.join(evidenceRoot, 'e3-runtime-identity.trace.zip') })
+    await page.context().tracing.stop({ path: path.join(evidenceRoot, 'e3-runtime-identity.trace.zip') }).catch(() => undefined)
   }
 })
