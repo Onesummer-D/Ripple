@@ -743,16 +743,19 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         }
       }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
-        const tag = jsxTagName(node)
-        if (tag && /^[a-z]/.test(tag)) {
-          const start = node.getStart(source)
-          const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
-          const classAttribute = node.attributes.properties.find((attribute): attribute is ts.JsxAttribute =>
-            ts.isJsxAttribute(attribute) && ['className', 'class'].includes(attribute.name.getText(source)))
-          const className = stringValue(classAttribute?.initializer)?.text
-          const dynamicClassName = Boolean(classAttribute?.initializer && ts.isJsxExpression(classAttribute.initializer))
+        const start = node.getStart(source)
+        const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
+        const classAttribute = node.attributes.properties.find((attribute): attribute is ts.JsxAttribute =>
+          ts.isJsxAttribute(attribute) && ['className', 'class'].includes(attribute.name.getText(source)))
+        const className = stringValue(classAttribute?.initializer)?.text
+        const dynamicClassName = Boolean(classAttribute?.initializer && ts.isJsxExpression(classAttribute.initializer))
+        // CSS className evidence may be attached to composite hosts such as
+        // react-router Link and framer-motion motion.button. Keep these as
+        // semantic candidates; only intrinsic JSX remains a DOM proof.
+        const sourceTag = node.tagName.getText(source)
+        if (sourceTag && (/^[a-z]/.test(sourceTag) || className !== undefined || dynamicClassName)) {
           const jsxNode: SourceNode = {
-            id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag}>`,
+            id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${sourceTag}>`,
             location: { path: relative, start, end: elementEnd, offset: start }, selector: `[data-ripple-source="jsx:${relative}#${start}"]`,
             ...(className !== undefined ? { className } : {}), ...(dynamicClassName ? { dynamicClassName: true } : {}),
           }
@@ -1001,3 +1004,4 @@ export function resolveRuntimeInstance(graph: SourceGraph, selection: { sourceRe
   if (typeof verification?.fileDigest !== 'function' || !verification.page) throw new ProjectReadError('实例级身份校验需要源码版本读取器和页面上下文')
   return resolveRuntimeElement(graph, selection, runtimeMap, verification)
 }
+
