@@ -16,3 +16,11 @@ node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs .
 
 The raw machine report and human-readable report are stored on this evidence branch only. No matcher threshold, production code, merge, deployment, or Bolt action was changed.
 
+
+
+## Final formal rerun
+
+- Final machine report: `acceptance-2ebd1e20-final.json`
+- Final human report: `final-formal-report.md`
+- Final rerun hash: `289EDDE457393F499BF53ECD85379B874E6BDE4782949E08418194723CC0571B`
+- Final process exit: `2`
