@@ -107,7 +107,13 @@ function assertStoredReceipts(payload: VerificationPayload): Array<Record<string
 
 async function waitForPairing(page: import('@playwright/test').Page): Promise<import('@playwright/test').Locator> {
   const pairing = page.getByTestId('runtime-identity-pairing')
-  await expect(pairing).toBeVisible({ timeout: 180_000 })
+  try {
+    await expect(pairing).toBeVisible({ timeout: 180_000 })
+  } catch (error) {
+    const body = await page.locator('body').innerText().catch(() => '')
+    console.log(`E3 pairing timeout url=${page.url()} body=${body.slice(0, 4000)}`)
+    throw error
+  }
   return pairing
 }
 
@@ -135,10 +141,6 @@ async function mutateHistoryForCandidate(
 test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', async ({ page }) => {
   test.setTimeout(600_000)
   test.skip(!dockerAvailable, 'E③ 正式 API 验收需要 Linux Docker Chromium')
-  // The repository Playwright config already starts tracing for every test.
-  // Use a chunk so the acceptance can retain a named trace without taking
-  // ownership of the runner's tracing lifecycle.
-  await page.context().tracing.startChunk({ title: 'E3 runtime identity acceptance' })
   try {
     const analysis = await post(page, 'analyze', { projectRoot })
     const target = analysis.targets.find((item: { label: string }) => item.label === 'E3 real host title')
@@ -160,6 +162,9 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     const firstVerified = await post(page, 'candidate/verify', { candidateId: first.candidate.id }) as VerificationPayload
     const firstReceipts = assertStoredReceipts(firstVerified)
     writeEvidence('positive-verification-run-1', firstVerified)
+    const persistedBeforeUi = await (await page.request.get(`${api}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)).json()
+    writeEvidence('positive-history-before-ui', persistedBeforeUi)
+    expect(persistedBeforeUi.history?.find((item: { candidateId: string }) => item.candidateId === first.candidate.id)?.verification?.runId).toBe(firstVerified.verification.runId)
 
     // The UI reads the persisted formal VerificationRun, rather than visual evidence coverage.
     await page.goto(`/experience.html?adapter=real&project=${encodeURIComponent(projectRoot)}`, { waitUntil: 'networkidle' })
@@ -249,6 +254,8 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     await expect(pairing).toContainText('Web Crypto SHA-256')
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-negative-web-crypto-mobile.png'), fullPage: true })
   } finally {
-    await page.context().tracing.stopChunk({ path: path.join(evidenceRoot, 'e3-runtime-identity.trace.zip') }).catch(() => undefined)
+    // The Playwright project keeps the runner-owned trace for this test on
+    // failure. No manual tracing calls are made here so runner cleanup stays
+    // valid in both success and failure paths.
   }
 })
