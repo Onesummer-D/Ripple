@@ -189,6 +189,7 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     expect(persistedBeforeUi.history?.find((item: { candidateId: string }) => item.candidateId === first.candidate.id)?.verification?.runId).toBe(firstVerified.verification.runId)
 
     // The UI reads the persisted formal VerificationRun, rather than visual evidence coverage.
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`/experience.html?adapter=real&project=${encodeURIComponent(projectRoot)}`, { waitUntil: 'networkidle' })
     let pairing = await waitForPairing(page)
     // The host positive proves all single-side records. Cross-side strictness
@@ -296,3 +297,4 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     // valid in both success and failure paths.
   }
 })
+
