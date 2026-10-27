@@ -28,7 +28,8 @@
 - VersionFilmstrip 使用真实 artifact 时标记 `real-artifact`，演示素材标记 `demo-art`。
 - 真实证据状态为 `archived / metadata / none`；缺失或加载失败可以手动重试。
 - Runtime Identity 的 `archive failed`、`version-unverifiable`、digest mismatch、missing、duplicate、stale 和 Web Crypto unavailable 均保持 fail-closed。
-- CSS SourceGraph 第一切片只产生 `semantic-candidate`、`unknown` 和 `unresolved` 关系。AC6.2、AC6.4 未完成前，CSS 关系不能增加 Scope、Candidate、Verification、Approval、Apply 或 Rollback 授权。
+- CSS Token 消费、selector/cascade、主题和媒体条件相关的 SourceGraph 候选关系只产生 `semantic-candidate`、`unknown` 和 `unresolved` 关系。AC6.2、AC6.4 未完成前，这些关系不能增加 Scope、Candidate、Verification、Approval、Apply 或 Rollback 授权。
+- 精确源码位置的 `reads` 关系在满足来源图合同的场景下可以是 `source-proven`；这只证明源码读取锚点，不证明最终 DOM 消费、CSS 级联、主题/媒体激活、computed style，也不产生任何修改授权。
 
 ## 安全限制
 

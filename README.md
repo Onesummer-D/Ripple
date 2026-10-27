@@ -20,7 +20,7 @@
 
 ## 启动
 
-在本目录执行 npm install 和 npm run dev，然后打开 http://localhost:4173。依赖尚未恢复时可执行 `npm run preview:static`，打开 http://127.0.0.1:4174/preview.html 查看无依赖的录屏预览。
+在本目录执行 `npm ci` 和 `npm run dev`，然后打开 http://localhost:4173。依赖尚未恢复时可执行 `npm run preview:static`，打开 http://127.0.0.1:4174/preview.html 查看无依赖的录屏预览。
 
 ## 验证
 
