@@ -22,6 +22,7 @@
  */
 import type { ExperienceAdapter } from './adapter'
 import type { EditOperation, ScopeDecision, VerificationRun } from '../../core/model'
+import { pairRuntimeIdentityRun, type RuntimeIdentityRunPairingView } from '../../core/runtime-identity-pairing'
 import {
   assessDisplayIdentity,
   isBoundProjectSelection,
@@ -74,6 +75,8 @@ interface VerificationView {
   startedAt?: string
   completedAt?: string
   assertions?: Array<{ id: string; result: string; detail: string }>
+  /** Formal checks define the expected runpoints independently of visual evidence. */
+  checks?: VerificationRun['checks']
   /** Host-produced v1.2 single-side receipts; this adapter passes them through without pairing or upgrading proof. */
   runtimeIdentities?: VerificationRun['runtimeIdentities']
   evidence?: Array<{
@@ -120,6 +123,12 @@ interface HistoryItem {
   verification: VerificationView
 }
 interface PreviewSession { projectId: string; previewId: string; sourceDigest: string; url: string }
+interface CandidateRestoreResponse {
+  analysis: AnalysisResponse
+  candidate: { id: string; patchHash?: string }
+  verification: VerificationView
+  workflow: WorkflowView
+}
 
 export interface RealAdapterOptions {
   /** 本机 React/Vite 工程目录；未提供时 load() 返回"未选择工程"的不可用模型。 */
@@ -129,6 +138,8 @@ export interface RealAdapterOptions {
   fetchImpl?: typeof fetch
   /** 瞬时锁冲突退避间隔（测试注入用；默认 700ms）。 */
   busyRetryDelayMs?: number
+  /** Preserve an active formally verified candidate when reloading a project. */
+  restorePersistedCandidate?: boolean
 }
 
 /* ---------- C+D 数据合同预留（第四部分：来源关系与运行时实例身份） ---------- */
@@ -214,6 +225,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   const apiBase = options.apiBase ?? ''
   const fetchImpl = options.fetchImpl ?? fetch
   const busyRetryDelayMs = options.busyRetryDelayMs ?? 700
+  const restorePersistedCandidate = options.restorePersistedCandidate ?? false
   let projectRoot = options.projectRoot
   /** generation 守卫：每次 load/openProject/refresh/dispose 自增，过期响应一律丢弃。 */
   let generation = 0
@@ -230,6 +242,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let verificationRunning = false
   /** 第二批：最近一次真实验证运行投影（服务端权威；F 不自行生成）。 */
   let activeVerification: VerificationView | undefined
+  /** E③ read-only projection cache, bound to the active candidate and verification run. */
+  let activeRuntimeIdentityPairing: RuntimeIdentityRunPairingView | undefined
   /** 第三批：当前跟踪候选的服务端工作流投影（生命周期/审批/应用/回滚全部来自真实响应）。 */
   let activeWorkflow: WorkflowView | undefined
   /** 第三批：生命周期操作在途（审批/应用/回滚请求进行中；模型携带以禁用按钮防重复提交）。 */
@@ -247,6 +261,28 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   /** C+D 预留挂点数据。 */
   let sourceRelations: RealSourceRelations | undefined
   const runtimeIdentities = new Map<string, RealRuntimeIdentityObservation>()
+
+  async function prepareRuntimeIdentityPairing(
+    verification: VerificationView | undefined,
+    capturedGeneration: number,
+    capturedCandidateId: string | undefined,
+  ): Promise<void> {
+    if (!verification) {
+      if (capturedGeneration === generation && capturedCandidateId === activeCandidate?.candidateId) activeRuntimeIdentityPairing = undefined
+      return
+    }
+    const verificationRunId = verification.runId
+    const pairing = await pairRuntimeIdentityRun({
+      id: verificationRunId as string,
+      checks: verification.checks ?? [],
+      runtimeIdentities: verification.runtimeIdentities ?? [],
+    })
+    // Hash verification is asynchronous. Revalidate every owner identity before
+    // publishing so an old run cannot replace the current project's/candidate's view.
+    if (capturedGeneration !== generation || capturedCandidateId !== activeCandidate?.candidateId ||
+        verificationRunId !== activeVerification?.runId || verification !== activeVerification) return
+    activeRuntimeIdentityPairing = pairing
+  }
 
   function stale(gen: number): void {
     if (gen !== generation) throw new StaleResponseError()
@@ -299,6 +335,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     candidatePreviewLoading = false
     verificationRunning = false
     activeVerification = undefined
+    activeRuntimeIdentityPairing = undefined
     activeWorkflow = undefined
     lifecycleBusy = undefined
     draftContract = undefined
@@ -310,6 +347,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     // C/D 挂点数据属于具体工程：切换工程时一并清除，避免跨工程残留
     sourceRelations = undefined
     runtimeIdentities.clear()
+    activeRuntimeIdentityPairing = undefined
   }
 
   /**
@@ -414,6 +452,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         activeCandidate = undefined
         activeWorkflow = undefined
         activeVerification = undefined
+        activeRuntimeIdentityPairing = undefined
         candidatePreviewUrl = undefined
         candidatePreviewLoading = false
       } else {
@@ -437,6 +476,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         activeWorkflow = workflowFromHistory(latest, undefined)
       }
     }
+    await prepareRuntimeIdentityPairing(activeVerification, gen, activeCandidate?.candidateId)
   }
 
   /** 尽力启动项目源码预演：失败如实记录原因（如应用后工作树未提交，A 核心 fail-closed 拒绝）。 */
@@ -459,9 +499,55 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     stale(gen)
   }
 
+  /**
+   * A page reload must be able to read an active candidate's persisted run.
+   * The ordinary analyze endpoint intentionally retires active candidates as a
+   * new source revision boundary. When history already contains a candidate,
+   * restore it first so a read-only reload does not destroy the candidate it is
+   * trying to display. A candidate from another project is ignored and the
+   * normal analyze path remains authoritative for that project.
+   */
+  async function restoreActiveCandidateForProject(gen: number, requestedRoot: string): Promise<AnalysisResponse | undefined> {
+    if (!restorePersistedCandidate) return undefined
+    const payload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+    // Only a formally verified history entry can carry the E③ runtime
+    // identity projection that must survive a reload. Unverified draft
+    // candidates continue through the existing analyze path.
+    const candidatesToTry = (payload.history ?? []).filter(item => item.lifecycle === 'active' &&
+      Array.isArray(item.verification?.runtimeIdentities) && item.verification.runtimeIdentities.length > 0)
+    for (const item of candidatesToTry) {
+      stale(gen)
+      try {
+        const restored = await post<CandidateRestoreResponse>('candidate/restore', { candidateId: item.candidateId })
+        stale(gen)
+        const normalizeRoot = (value: string) => value.replaceAll('\\', '/').replace(/\/+$/, '')
+        if (normalizeRoot(restored.analysis.projectRoot) !== normalizeRoot(requestedRoot)) continue
+        activeCandidate = { candidateId: restored.candidate.id, patchHash: restored.candidate.patchHash }
+        activeVerification = restored.verification
+        activeWorkflow = restored.workflow
+        return restored.analysis
+      } catch {
+        // A stale or malformed candidate is not a reason to block opening the
+        // project. The normal analyze path will report the current project
+        // state and the history endpoint will retain the audit record.
+      }
+    }
+    return undefined
+  }
+
   /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
   async function loadProjectState(gen: number): Promise<void> {
     if (!projectRoot?.trim()) return
+    const restored = restorePersistedCandidate
+      ? await restoreActiveCandidateForProject(gen, projectRoot)
+      : undefined
+    if (restored) {
+      analysis = restored
+      if (!draftContract) draftContract = proposeContract()
+      await refreshHistoryAndReconcile(gen, restored.revision.projectId)
+      await startPreviewBestEffort(gen, restored.revision.projectId)
+      return
+    }
     // reload 时旧页 dispose 的 preview/stop 可能仍持有服务端预览锁，
     // analyze 内部按项目收锁，撞锁是瞬时错误——有限重试后仍失败才如实抛出
     const analyzed = await postWithBusyRetry<AnalysisResponse>(gen, 'analyze', { projectRoot })
@@ -728,6 +814,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       recordHash: verification.recordHash,
       assertions: verification.assertions ?? [],
       runtimeIdentities: verification.runtimeIdentities,
+      runtimeIdentityPairing: activeRuntimeIdentityPairing?.verificationRunId === (verification.runId ?? null)
+        ? activeRuntimeIdentityPairing
+        : undefined,
       shots: (verification.evidence ?? []).map(entry => ({
         viewportWidth: entry.viewport.width,
         viewportHeight: entry.viewport.height,
@@ -741,13 +830,13 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         route: entry.route,
         result: entry.result,
         resultReason: entry.resultReason,
-        // E 的只读 view 投影：仅提取已知可读字段，缺失不臆造；proofLabel 逐字透传
+        // E 的只读 view 投影：视觉证据只描述自身，不承载正式身份配对结论。
         view: toVisualEvidenceViewXp(entry.view),
       })),
     }
   }
 
-  /** 从 E 的 view 投影中提取可读字段（结构以 A/E 为准，未知形状安全降级为 undefined）。 */
+  /** E 的 View 只读复制视觉证据自身的已知字段。 */
   function toVisualEvidenceViewXp(view: unknown): import('./view-model').VisualEvidenceViewXp | undefined {
     if (!view || typeof view !== 'object') return undefined
     const raw = view as Record<string, unknown>
@@ -1132,6 +1221,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         activeWorkflow = response.workflow
         // 新候选不得残留上一个候选的验证：验证严格绑定候选身份（candidateId/patchHash）
         activeVerification = undefined
+        activeRuntimeIdentityPairing = undefined
         // 服务端在候选创建时停止项目预演会话：本地状态如实跟进，不保留失效会话
         const stoppedSession = previewSession
         previewSession = undefined
@@ -1199,6 +1289,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('验证响应与当前候选不一致，已丢弃')
           activeVerification = response.verification
+          const verificationCandidateId = activeCandidate.candidateId
+          await prepareRuntimeIdentityPairing(activeVerification, gen, verificationCandidateId)
+          if (gen !== generation || activeCandidate?.candidateId !== verificationCandidateId ||
+              activeVerification?.runId !== response.verification.runId) throw new StaleResponseError()
           if (response.workflow) activeWorkflow = response.workflow
           const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
           if (gen === generation) {

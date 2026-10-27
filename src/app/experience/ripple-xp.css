@@ -248,6 +248,8 @@
 .ripple-xp-visual-evidences { margin: 0; padding-left: 18px; font-size: 13px; color: var(--xp-ink-soft); display: grid; gap: 6px; }
 .ripple-xp-visual-summary, .ripple-xp-visual-proof { display: block; font-size: 12px; color: var(--xp-ink-soft); }
 .ripple-xp-visual-proof { border-left: 2px solid var(--xp-line); padding-left: 8px; }
+.ripple-xp-runtime-identity { display: grid; gap: 4px; margin-top: 6px; padding: 8px; border: 1px solid var(--xp-line); border-radius: 6px; background: var(--xp-paper); }
+.ripple-xp-runtime-identity[data-strict="true"] { border-color: #3b8f6b; }
 .ripple-xp-assertions { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px; color: var(--xp-ink-soft); }
 .ripple-xp-assertion-mark { font-weight: 600; }
 .ripple-xp-assertion-mark.is-pass { color: var(--xp-brand); }
