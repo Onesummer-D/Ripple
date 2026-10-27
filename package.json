@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
+    "postcss": "^8.5.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

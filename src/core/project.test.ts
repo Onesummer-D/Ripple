@@ -305,6 +305,7 @@ describe('real project graph and candidate executor', () => {
 
     expect(importedCssToken.tokenOrigin).toBe('css-custom-property')
     expect(importedCssToken.location?.path).toBe('src/styles/a-theme.css')
+    expect(importedCssToken.location?.offset).toBe(fs.readFileSync(path.join(root, 'src/styles/a-theme.css'), 'utf8').indexOf('--brand-accent'))
 
     expect(sourceProvenPageImpact(graph, unused.id)).toMatchObject({
       pageRefs: [], certainty: 'unknown',
@@ -312,7 +313,10 @@ describe('real project graph and candidate executor', () => {
     expect(sourceProvenPageImpact(graph, importedCssToken.id)).toMatchObject({
       pageRefs: [], certainty: 'unknown',
     })
-    expect(graph.edges.some(edge => edge.kind === 'uses-token' && edge.to === importedCssToken.id && graph.nodes.find(node => node.id === edge.from)?.kind === 'file')).toBe(true)
+    const cssUse = graph.nodes.find(node => node.kind === 'token-use' && node.label === 'var(--brand-accent)')!
+    expect(cssUse.location?.path).toBe('src/styles/z-card.css')
+    expect(graph.edges.some(edge => edge.kind === 'uses-token' && edge.from === cssUse.id && edge.to === importedCssToken.id && edge.certainty === 'semantic-candidate')).toBe(true)
+    expect(graph.edges.some(edge => edge.kind === 'uses-token' && edge.to === importedCssToken.id && graph.nodes.find(node => node.id === edge.from)?.kind === 'file')).toBe(false)
     expect(sourceProvenPageImpact(graph, jsxToken.id)).toMatchObject({
       pageRefs: ['page:home'], certainty: 'source-proven', unresolved: [],
     })
@@ -341,8 +345,79 @@ describe('real project graph and candidate executor', () => {
     expect(tokens.map(node => node.location?.path).sort()).toEqual(['src/styles/dark.css', 'src/styles/light.css'])
 
     const tokenIds = new Set(tokens.map(node => node.id))
-    expect(graph.edges.filter(edge => edge.kind === 'uses-token' && tokenIds.has(edge.to))).toEqual([])
+    const themeCandidates = graph.edges.filter(edge => edge.kind === 'uses-token' && tokenIds.has(edge.to))
+    expect(themeCandidates.length).toBeGreaterThan(0)
+    expect(themeCandidates.every(edge => edge.certainty !== 'source-proven')).toBe(true)
+    expect(new Set(tokens.map(node => node.selectorScope))).toEqual(new Set([':root', '[data-theme="dark"]']))
     expect(sourceProvenPageImpact(graph, tokens[0].id)).toMatchObject({ pageRefs: [], certainty: 'unknown' })
+  })
+
+  it('anchors CSS var() consumers to exact JSX elements and HashRouter pages without proving cascade', () => {
+    const { root } = sampleProject()
+    const styles = path.join(root, 'src', 'styles')
+    fs.mkdirSync(styles, { recursive: true })
+    const routerPackage = path.join(root, 'node_modules', 'react-router-dom')
+    fs.mkdirSync(routerPackage, { recursive: true })
+    fs.writeFileSync(path.join(routerPackage, 'package.json'), JSON.stringify({ name: 'react-router-dom', types: 'index.d.ts' }))
+    fs.writeFileSync(path.join(routerPackage, 'index.d.ts'), 'export declare const HashRouter: any; export declare const Route: any; export declare const Routes: any;')
+    const appPath = path.join(root, 'src', 'App.tsx')
+    fs.writeFileSync(appPath, `import { HashRouter, Route, Routes } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import AutumnPage from './pages/AutumnPage';
+import './styles/tokens.css';
+export function App() { return <HashRouter><Routes><Route path="/" element={<HomePage />} /><Route path="/autumn" element={<AutumnPage />} /></Routes></HashRouter> }`)
+    const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')
+    fs.writeFileSync(homePath, `${fs.readFileSync(homePath, 'utf8').replace('</main>', '<p className="token-card">Token consumer</p></main>')}`)
+    fs.writeFileSync(homePath, fs.readFileSync(homePath, 'utf8').replace('export function HomePage', 'export default function HomePage'))
+    const autumnPath = path.join(root, 'src', 'pages', 'AutumnPage.tsx')
+    fs.writeFileSync(autumnPath, fs.readFileSync(autumnPath, 'utf8').replace('export function AutumnPage', 'export default function AutumnPage'))
+    const css = ':root { --brand: #123; }\n.token-card { color: var(--brand); }'
+    fs.writeFileSync(path.join(styles, 'tokens.css'), css)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add CSS token source and HashRouter consumers')
+
+    const graph = analyzeProject(root)
+    const token = graph.nodes.find(node => node.kind === 'token' && node.label === '--brand')!
+    const use = graph.nodes.find(node => node.kind === 'token-use' && node.label === 'var(--brand)')!
+    const consumer = graph.nodes.find(node => node.kind === 'jsx-element' && node.className === 'token-card')!
+    const useEdge = graph.edges.find(edge => edge.kind === 'uses-token' && edge.from === consumer.id && edge.to === token.id)!
+    const page = graph.nodes.find(node => node.kind === 'route' && node.routePath === '/')!
+
+    expect(token.selectorScope).toBe(':root')
+    expect(token.byteOffset).toBe(Buffer.byteLength(css.slice(0, css.indexOf('--brand')), 'utf8'))
+    expect(use.location?.offset).toBe(css.indexOf('var(--brand)'))
+    expect(use.byteOffset).toBe(Buffer.byteLength(css.slice(0, css.indexOf('var(--brand)')), 'utf8'))
+    expect(useEdge).toMatchObject({
+      certainty: 'semantic-candidate', selectorScope: ':root',
+      sourceUse: { path: 'src/styles/tokens.css', charOffset: use.location?.offset, byteOffset: use.byteOffset },
+    })
+    expect(useEdge.evidenceRefs).toContain(`css-token-use:src/styles/tokens.css:${use.location?.offset}`)
+    expect(graph.edges.some(edge => edge.kind === 'token-reference' && edge.from === token.id && edge.to === use.id && edge.certainty === 'semantic-candidate')).toBe(true)
+    expect(graph.edges.some(edge => edge.kind === 'css-cascade' && edge.from === use.id && edge.to === consumer.id && edge.certainty === 'semantic-candidate')).toBe(true)
+    expect(consumer.pages).toEqual(['/'])
+    expect(page.page).toBe('/')
+    expect(sourceProvenPageImpact(graph, token.id).certainty).toBe('unknown')
+  })
+
+  it('keeps missing fallback variables as exact unknown source evidence', () => {
+    const { root } = sampleProject()
+    const styles = path.join(root, 'src', 'styles')
+    fs.mkdirSync(styles, { recursive: true })
+    const css = ':root { --brand: #123; }\n.card { color: var(--missing, var(--brand)); }'
+    fs.writeFileSync(path.join(styles, 'tokens.css'), css)
+    const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')
+    fs.writeFileSync(homePath, `${fs.readFileSync(homePath, 'utf8').replace('</main>', '<p className="card">Token consumer</p></main>')}`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add unresolved CSS fallback variable')
+
+    const graph = analyzeProject(root)
+    const missingUse = graph.nodes.find(node => node.kind === 'token-use' && node.label === 'var(--missing)')!
+    const unknown = graph.edges.find(edge => edge.certainty === 'unknown' && edge.sourceUse?.path === 'src/styles/tokens.css' && edge.sourceUse.charOffset === missingUse.location?.offset)
+    expect(missingUse.byteOffset).toBe(Buffer.byteLength(css.slice(0, css.indexOf('var(--missing,')), 'utf8'))
+    expect(unknown).toMatchObject({ kind: 'uses-token', sourceUse: { path: 'src/styles/tokens.css' } })
+    expect(graph.unresolved.some(item => item.includes('src/styles/tokens.css#') && item.includes('--missing'))).toBe(true)
+    const brand = graph.nodes.find(node => node.kind === 'token' && node.label === '--brand')!
+    expect(sourceProvenPageImpact(graph, brand.id).certainty).toBe('unknown')
   })
 
   it('keeps token origin metadata additive to graph semantics', () => {

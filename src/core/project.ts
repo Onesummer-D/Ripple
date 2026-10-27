@@ -7,7 +7,8 @@ import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeIdent
 import { findPageOverrideMarkers, readPageOverrideRegistry } from './page-overrides'
 import type { ProjectConfigGraph } from './project-config-resolver.mjs'
 import { resolveProjectConfigGraph } from './project-config-resolver.mjs'
-import { inspectDataRouter } from './project-data-routes'
+import { inspectDataRouter, inspectDeclarativeRoutes } from './project-data-routes'
+import { parseCssTokenSource, selectorClassTokens as cssSelectorClassTokens } from './css-token-source'
 
 export class ProjectReadError extends Error {
   constructor(message: string) { super(message); this.name = 'ProjectReadError' }
@@ -300,8 +301,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const unresolved: string[] = []
   const nodeById = new Map<string, SourceNode>()
   const addNode = (node: SourceNode) => { if (!nodeById.has(node.id)) { nodes.push(node); nodeById.set(node.id, node) } }
-  const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven') => {
-    edges.push({ id, from, to, kind, certainty, evidenceRefs: [] })
+  const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven', metadata: Partial<Relation> = {}) => {
+    edges.push({ id, from, to, kind, certainty, evidenceRefs: [], ...metadata })
   }
 
   const overrideMarkers = new Map<string, Array<{ path: string; fallback: string; start: number; end: number }>>()
@@ -467,8 +468,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     return ranges
   }
   const tokenNodes = new Map<string, SourceNode[]>()
+  const tokenNodesBySource = new Map<string, SourceNode>()
   const mediaNodes = new Map<string, SourceNode[]>()
   const mediaBySource = new Map<string, SourceNode>()
+  const cssTokenUses: Array<{ file: string; node: SourceNode; use: ReturnType<typeof parseCssTokenSource>['uses'][number] }> = []
+  const jsxOwnerById = new Map<string, string>()
   const addIndexedValue = (node: SourceNode, index: Map<string, SourceNode[]>, key: string) => {
     addNode(node)
     if (!index.has(key)) index.set(key, [])
@@ -523,20 +527,44 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     const absolute = path.join(snapshot.root, file)
     if (fs.lstatSync(absolute).isSymbolicLink()) continue
     const css = fs.readFileSync(absolute, 'utf8')
-    const definitions = /(--[\w-]+)\s*:\s*([^;{}]+)/g
-    for (const match of css.matchAll(definitions)) {
-      const raw = match[2]
-      const value = raw.trim()
-      const start = match.index! + match[0].indexOf(raw) + raw.indexOf(value)
-      const token: SourceNode = {
-        id: nodeId(file, 'token', start), kind: 'token', label: match[1], value,
-        location: { path: file, start, end: start + value.length }, tokenOrigin: 'css-custom-property',
-      }
-      addIndexedValue(token, tokenNodes, match[1])
+    let parsed: ReturnType<typeof parseCssTokenSource>
+    try {
+      parsed = parseCssTokenSource(file, css)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      unresolved.push(`css-token-parse:${file}: CSS 结构无法解析，相关 Token 消费保持 unknown (${message})`)
+      continue
     }
-    for (const match of css.matchAll(/var\((--[\w-]+)/g)) {
-      const definitionsForToken = tokenNodes.get(match[1]) ?? []
-      if (definitionsForToken.length === 1) addEdge(`file:${file}`, definitionsForToken[0].id, 'uses-token', `css-token-use:${file}:${match.index}`)
+    for (const declaration of parsed.declarations) {
+      const token: SourceNode = {
+        id: nodeId(file, 'token', declaration.valueStart), kind: 'token', label: declaration.name, value: declaration.value,
+        location: { path: file, start: declaration.valueStart, end: declaration.valueEnd, offset: declaration.offset },
+        tokenOrigin: 'css-custom-property', selectorScope: declaration.selectorScope,
+        byteOffset: declaration.byteOffset,
+        mediaContext: declaration.atRuleContext.filter(context => /^@media\b/i.test(context)),
+      }
+      addIndexedValue(token, tokenNodes, declaration.name)
+      tokenNodesBySource.set(`${file}#${declaration.offset}`, token)
+    }
+    for (const use of parsed.uses) {
+      const id = nodeId(file, 'token-use', use.offset)
+      const useNode: SourceNode = {
+        id, kind: 'token-use', label: `var(${use.name})`, value: `var(${use.name})`,
+        location: { path: file, start: use.offset, end: use.offset + 4 + use.name.length, offset: use.offset },
+        byteOffset: use.byteOffset, selectorScope: use.selectorScope,
+        mediaContext: use.atRuleContext.filter(context => /^@media\b/i.test(context)),
+      }
+      addNode(useNode)
+      const sourceUse: NonNullable<Relation['sourceUse']> = {
+        path: file, charOffset: use.offset, byteOffset: use.byteOffset, offsetUnit: 'code-unit',
+      }
+      const evidenceRefs = [`css-token-use:${file}:${use.offset}`]
+      const mediaContext = use.atRuleContext.filter(context => /^@media\b/i.test(context))
+      const mediaMetadata: Partial<Relation> = mediaContext.length ? { mediaContext } : {}
+      addEdge(`file:${file}`, useNode.id, 'reads', `css-token-use-source:${file}:${use.offset}`, 'source-proven', {
+        sourceUse, selectorScope: use.selectorScope, ...mediaMetadata, evidenceRefs,
+      })
+      cssTokenUses.push({ file, node: useNode, use })
     }
   }
 
@@ -715,11 +743,27 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         }
       }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
-        const tag = jsxTagName(node)
-        if (tag && /^[a-z]/.test(tag)) {
-          const start = node.getStart(source)
-          const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
-          addNode({ id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${tag}>`, location: { path: relative, start, end: elementEnd }, selector: `[data-ripple-source="jsx:${relative}#${start}"]` })
+        const start = node.getStart(source)
+        const elementEnd = ts.isJsxOpeningElement(node) && ts.isJsxElement(node.parent) ? node.parent.getEnd() : node.getEnd()
+        const classAttribute = node.attributes.properties.find((attribute): attribute is ts.JsxAttribute =>
+          ts.isJsxAttribute(attribute) && ['className', 'class'].includes(attribute.name.getText(source)))
+        const className = stringValue(classAttribute?.initializer)?.text
+        const dynamicClassName = Boolean(classAttribute?.initializer && ts.isJsxExpression(classAttribute.initializer))
+        // CSS className evidence may be attached to composite hosts such as
+        // react-router Link and framer-motion motion.button. Keep these as
+        // semantic candidates; only intrinsic JSX remains a DOM proof.
+        const sourceTag = node.tagName.getText(source)
+        if (sourceTag && (/^[a-z]/.test(sourceTag) || className !== undefined || dynamicClassName)) {
+          const jsxNode: SourceNode = {
+            id: nodeId(relative, 'jsx', start), kind: 'jsx-element', label: `<${sourceTag}>`,
+            location: { path: relative, start, end: elementEnd, offset: start }, selector: `[data-ripple-source="jsx:${relative}#${start}"]`,
+            ...(className !== undefined ? { className } : {}), ...(dynamicClassName ? { dynamicClassName: true } : {}),
+          }
+          addNode(jsxNode)
+          if (ownerComponent) {
+            jsxOwnerById.set(jsxNode.id, ownerComponent.id)
+            addEdge(ownerComponent.id, jsxNode.id, 'renders', `component-host:${ownerComponent.id}:${jsxNode.id}`)
+          }
         }
         // JSX declared inside a data-router route object is a route configuration
         // value, not JSX actually rendered by App. In particular errorElement
@@ -777,6 +821,26 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     if (!pageTargets.has(route.page)) pageTargets.set(route.page, new Set())
     if (route.certain) pageTargets.get(route.page)!.add(route.componentId)
   }
+  const declarativeRoutes = inspectDeclarativeRoutes(snapshot.root, sourceFiles, components, checker)
+  unresolved.push(...declarativeRoutes.unresolved)
+  if (declarativeRoutes.incomplete) unresolved.push('route-coverage: 声明式 React Router 页面存在无法证明的消费者或条件分支')
+  const declarativeRouteCounts = new Map<string, number>()
+  for (const route of declarativeRoutes.routes) declarativeRouteCounts.set(route.page, (declarativeRouteCounts.get(route.page) ?? 0) + 1)
+  for (const route of declarativeRoutes.routes) {
+    const duplicate = (declarativeRouteCounts.get(route.page) ?? 0) > 1
+    const routeId = duplicate ? `page:${route.page}#${route.sourceFile}:${route.offset}` : `page:${route.page}`
+    addNode({ id: routeId, kind: 'route', label: route.page, page: route.page, routePath: route.page,
+      location: { path: route.sourceFile, start: route.offset } })
+    if (route.componentId) {
+      addEdge(routeId, route.componentId, 'renders', `declarative-router:${route.sourceFile}:${route.offset}:${route.componentId}:${route.page}`,
+        route.certain && !duplicate ? 'source-proven' : 'semantic-candidate')
+      if (route.certain && !duplicate) {
+        if (!pageTargets.has(route.page)) pageTargets.set(route.page, new Set())
+        pageTargets.get(route.page)!.add(route.componentId)
+      }
+    }
+    if (duplicate) unresolved.push(`route-coverage: 页面 ${route.page} 存在多个声明式 Route 节点，保持 unknown`)
+  }
   const routedComponentIds = new Set([...pageTargets.values()].flatMap(targets => [...targets]))
   const sharedAppComponents = [...appDirect].filter(id => !routedComponentIds.has(id))
   for (const [state, targets] of pageTargets) {
@@ -792,6 +856,75 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       const node = nodeById.get(current)
       if (node?.kind === 'component') node.pages = [...(node.pages ?? []), state]
       for (const child of componentRenders.get(current) ?? []) queue.push(child)
+    }
+  }
+  for (const [jsxId, componentId] of jsxOwnerById) {
+    const jsxNode = nodeById.get(jsxId)
+    const owner = nodeById.get(componentId)
+    if (jsxNode && owner?.kind === 'component' && owner.pages?.length) jsxNode.pages = [...new Set(owner.pages)].sort()
+  }
+
+  const hostElements = nodes.filter(node => node.kind === 'jsx-element')
+  for (const { file, node: useNode, use } of cssTokenUses) {
+    const sourceUse: NonNullable<Relation['sourceUse']> = {
+      path: file, charOffset: use.offset, byteOffset: use.byteOffset, offsetUnit: 'code-unit',
+    }
+    const useRef = `css-token-use:${file}:${use.offset}`
+    const mediaContext = use.atRuleContext.filter(context => /^@media\b/i.test(context))
+    const mediaMetadata: Partial<Relation> = mediaContext.length ? { mediaContext } : {}
+    const tokenDefinitions = (tokenNodes.get(use.name) ?? [])
+      .filter(token => token.tokenOrigin === 'css-custom-property')
+    const selector = cssSelectorClassTokens(use.selectorScope)
+    const matchedClassElements = selector.supported && selector.tokens.length
+      ? hostElements.filter(element => !element.dynamicClassName && typeof element.className === 'string' &&
+        element.className.trim().split(/\s+/).some(className => selector.tokens.includes(className)))
+      : []
+    const unresolvedUse = (reason: string) => {
+      unresolved.push(`css-token-use-unknown:${file}#${use.offset}: var(${use.name}) ${reason}`)
+      addEdge(useNode.id, `file:${file}`, 'uses-token', `css-token-unknown:${file}:${use.offset}:${use.name}`, 'unknown', {
+        sourceUse, selectorScope: use.selectorScope, ...mediaMetadata, evidenceRefs: [useRef],
+      })
+    }
+
+    if (!tokenDefinitions.length) {
+      unresolvedUse('未找到已跟踪的自定义属性声明或 fallback 解析目标')
+      continue
+    }
+    if (!selector.supported || !selector.tokens.length) {
+      unresolvedUse('CSS selector 没有可静态匹配的 class token')
+      continue
+    }
+    const unknownReasons: string[] = ['static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven']
+    const dynamicClassCouldMatch = hostElements.some(element => element.dynamicClassName)
+    if (!matchedClassElements.length) unknownReasons.push(dynamicClassCouldMatch
+      ? 'selector class 可能出现在未解析的动态 JSX className 中'
+      : 'selector class 没有静态的 JSX className 消费锚点')
+    else if (dynamicClassCouldMatch) unknownReasons.push('其他动态 JSX className 可能引入未枚举的页面消费者')
+    if (tokenDefinitions.length > 1) unknownReasons.push('同名声明可能受主题、级联、继承或媒体条件影响')
+    if (unknownReasons.length) unresolvedUse(unknownReasons.join('；'))
+
+    const ownerToken = use.ownerTokenOffset === undefined
+      ? undefined
+      : tokenNodesBySource.get(`${file}#${use.ownerTokenOffset}`)
+    for (const definition of tokenDefinitions) {
+      const metadata: Partial<Relation> = {
+        sourceUse,
+        selectorScope: definition.selectorScope,
+        ...mediaMetadata,
+        evidenceRefs: [useRef, useNode.id],
+      }
+      // A var() name is a source-level reference, but selecting one declaration
+      // still needs cascade/condition evidence. Keep the declaration link as a
+      // candidate even when the current project happens to contain one match.
+      addEdge(definition.id, useNode.id, 'token-reference', `css-token-declaration-use:${definition.id}:${useNode.id}`, 'semantic-candidate', metadata)
+      addEdge(useNode.id, definition.id, 'uses-token', `css-token-reference:${useNode.id}:${definition.id}`, 'semantic-candidate', metadata)
+      if (ownerToken) {
+        addEdge(ownerToken.id, definition.id, 'uses-token', `css-token-alias:${ownerToken.id}:${definition.id}:${useNode.id}`, 'semantic-candidate', metadata)
+      }
+      for (const element of matchedClassElements) {
+        addEdge(useNode.id, element.id, 'css-cascade', `css-selector-candidate:${useNode.id}:${element.id}`, 'semantic-candidate', metadata)
+        addEdge(element.id, definition.id, 'uses-token', `css-token-consumer:${definition.id}:${useNode.id}:${element.id}`, 'semantic-candidate', metadata)
+      }
     }
   }
 
