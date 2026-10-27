@@ -1,0 +1,83 @@
+name: B AC-P6 Linux independent evidence
+
+on:
+  push:
+    branches:
+      - evidence/pr65-acp6-linux-20261028
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_CORE_SHA: ed58cfdc2892acaa9b97363a3414b1c219d07053
+  EXPECTED_PROJECT_SHA: b244f857457d2a07f118155602eef9097fd322bd
+
+jobs:
+  acp6-linux-independent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact core SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ed58cfdc2892acaa9b97363a3414b1c219d07053
+          path: core
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify core checkout and install dependencies
+        working-directory: core
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CORE_SHA"
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Fetch fixed third-party project
+        run: |
+          git clone --quiet https://github.com/allanhue/webportflio.git "$RUNNER_TEMP/css-proj"
+          git -C "$RUNNER_TEMP/css-proj" checkout --detach "$EXPECTED_PROJECT_SHA"
+          test "$(git -C "$RUNNER_TEMP/css-proj" rev-parse HEAD)" = "$EXPECTED_PROJECT_SHA"
+          test -z "$(git -C "$RUNNER_TEMP/css-proj" status --porcelain --untracked-files=normal)"
+          cd "$RUNNER_TEMP/css-proj"
+          npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run frozen B v5 acceptance
+        working-directory: core
+        run: |
+          mkdir -p test-results
+          set +e
+          node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs ./scripts/b-css-token-probe.mjs "$RUNNER_TEMP/css-proj" --acceptance --json "$GITHUB_WORKSPACE/core/test-results/acceptance-ed58cfd.json" --expect-core-sha "$EXPECTED_CORE_SHA"
+          code=$?
+          set -e
+          printf '%s\n' "$code" > test-results/exit-code.txt
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+
+      - name: Validate report identity and retain evidence
+        if: always()
+        working-directory: core
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs'
+          const report = JSON.parse(fs.readFileSync('test-results/acceptance-ed58cfd.json', 'utf8'))
+          const code = Number(fs.readFileSync('test-results/exit-code.txt', 'utf8'))
+          if (report.aCore?.sha !== process.env.EXPECTED_CORE_SHA || report.aCore?.expectedSha !== process.env.EXPECTED_CORE_SHA) throw new Error('core SHA mismatch')
+          if (report.project?.sha !== process.env.EXPECTED_PROJECT_SHA) throw new Error('third-party SHA mismatch')
+          if (report.acceptance?.total !== 5 || report.acceptance?.error !== 0) throw new Error('invalid AC-P6 summary')
+          if (report.status !== (code === 0 ? 'PASS' : 'PENDING')) throw new Error('report/exit mismatch')
+          console.log(JSON.stringify({core: report.aCore.sha, project: report.project.sha, graph: report.graphStats, acceptance: report.acceptance, exit: code}, null, 2))
+          NODE
+
+      - name: Upload independent machine report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b-acp6-linux-ed58cfd-${{ github.run_id }}
+          path: |
+            core/test-results/acceptance-ed58cfd.json
+            core/test-results/exit-code.txt
+          retention-days: 30
+          if-no-files-found: error
