@@ -260,8 +260,10 @@ test('联合验收 UI 成功路径：点选共享页脚 → 完整 Scope → 7/7
   const historySelection = page.getByTestId(`version-${candidateId}`)
   await expect(historyCard).toBeVisible()
   const historyImage = page.getByTestId(`film-shot-real-${candidateId}`)
-  await expect(historyImage).toBeVisible()
+  // The real artifact is lazy-loaded below the filmstrip fold. Scroll first so
+  // the browser starts the request, then assert the image becomes visible.
   await historyImage.scrollIntoViewIfNeeded()
+  await expect(historyImage).toBeVisible()
   expect(await historyImage.getAttribute('src')).toBe(archivedEvidence!.artifactUrl)
   expect(await historyImage.evaluate(image => (image as HTMLImageElement).currentSrc)).toBe(historyImageUrl)
   const loadedArtifact = await historyImageResponse
