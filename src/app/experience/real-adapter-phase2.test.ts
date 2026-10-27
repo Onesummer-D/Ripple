@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createRealAdapter, StaleResponseError } from './real-adapter'
 import type { PickerEnvelope } from './real-selection'
+import { runtimeIdentityAssessmentSha256, runtimeIdentityRecordKey } from '../../core/runtime-identity-assessment'
+import type { RuntimeIdentityRecord, RuntimeIdentitySnapshot } from '../../core/runtime-identity'
+import type { ExperienceViewModel } from './view-model'
 
 /**
  * F 第二阶段第一批测试：真实画布点选 → source-selection 身份校验 →
@@ -100,6 +103,37 @@ function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
   const promise = new Promise<T>(done => { resolve = done })
   return { promise, resolve }
+}
+
+const FORMAL_CHECK = { id: 'run-desktop', route: '/', viewport: { width: 1440, height: 900 }, state: 'settled', description: 'home', mandatory: true }
+
+function formalIdentityReceipt(side: 'baseline' | 'candidate') {
+  const digest = 'a'.repeat(64)
+  const record: RuntimeIdentityRecord = {
+    sourceRef: 'jsx:src/App.tsx#10',
+    runtimeInstanceId: 'ripple-page-v2:%5B%22%2F%22%2C%22%22%2C%22%22%5D:jsx:src/App.tsx#10:key-home',
+    declaredCertainty: 'stable-keyed-instance', certainty: 'stable-keyed-instance',
+    domNode: 1, sameSourceCount: 1, reasons: [],
+  }
+  const snapshot: RuntimeIdentitySnapshot = {
+    protocol: 'ripple-runtime-identity/v2',
+    page: { pathname: '/', search: '', hash: '' },
+    records: [record],
+  }
+  const tuple = { checkId: FORMAL_CHECK.id, route: FORMAL_CHECK.route, viewport: FORMAL_CHECK.viewport, state: FORMAL_CHECK.state, side }
+  const recordKey = runtimeIdentityRecordKey(record, 0)
+  const assessment = {
+    sourceRef: record.sourceRef, runtimeInstanceId: record.runtimeInstanceId, certainty: record.certainty,
+    page: snapshot.page, locatable: true, instanceIdentityProven: true, sameSourceCount: 1, reasons: [],
+  }
+  return {
+    archive: 'stored' as const, assessmentStatus: 'complete' as const,
+    checkId: tuple.checkId, route: tuple.route, viewport: tuple.viewport, state: tuple.state, side,
+    snapshot, snapshotSha256: digest,
+    assessments: [{ recordKey, assessment, assessmentSha256: runtimeIdentityAssessmentSha256(tuple, digest, recordKey, assessment) }],
+    sourceDigests: { 'src/App.tsx': digest }, boundDigest: digest,
+    artifacts: { snapshot: { path: `${side}.json`, sha256: digest } },
+  }
 }
 
 async function loadAdapter(routes: Record<string, MockResponse>) {
@@ -496,6 +530,26 @@ describe('四视口验证（第二批：POST /candidate/verify）', () => {
     expect(verified.versions[0]?.summary).toContain('验证通过')
   })
 
+  it('没有 visualEvidences 时仍从正式 checks 显示缺失的 Runtime Identity 运行点', async () => {
+    const { adapter, created } = await adapterWithCandidate({
+      'candidate/verify': {
+        status: 200,
+        body: {
+          candidateId: 'candidate-9', previewUrl: 'http://127.0.0.1:9999/candidate/candidate-9/',
+          verification: { state: 'passed', runId: 'run-no-visuals', checks: [FORMAL_CHECK], runtimeIdentities: [] },
+          workflow: { lifecycle: 'active' },
+        },
+      },
+    })
+    const verified = await adapter.runVerification!(created)
+    const identity = verified.activeCandidate?.verification?.runtimeIdentityPairing
+    expect(verified.activeCandidate?.verification?.visualEvidences).toHaveLength(0)
+    expect(identity?.verificationRunId).toBe('run-no-visuals')
+    expect(identity?.captures).toHaveLength(1)
+    expect(identity?.captures[0].scope.diagnostics).toContain('missing-baseline-receipt')
+    expect(identity?.strictInstanceProofAvailable).toBe(false)
+  })
+
   it('验证被服务端拒绝：错误如实透出，running 状态复位不残留', async () => {
     const { adapter, created } = await adapterWithCandidate({
       'candidate/verify': { status: 409, body: { error: '候选已被替换，验证运行失败' } },
@@ -545,9 +599,9 @@ describe('第二批复核：候选切换 / 状态如实 / 失败刷新', () => {
       { id: 'ev-4', result: 'pass', viewport: { width: 390, height: 844 }, runtimeState: 'settled', artifactUrl: '/__ripple/api/candidate/candidate-9/evidence/ev-4' },
     ],
   }
-  const verifyResponse = (verification: unknown) => ({
+  const verifyResponse = (verification: unknown, candidateId = 'candidate-9') => ({
     status: 200,
-    body: { candidateId: 'candidate-9', previewUrl: 'http://127.0.0.1:9999/candidate/candidate-9/', verification, workflow: { lifecycle: 'active' } },
+    body: { candidateId, previewUrl: `http://127.0.0.1:9999/candidate/${candidateId}/`, verification, workflow: { lifecycle: 'active' } },
   })
 
   async function adapterWithVerifiedCandidate(routes: Record<string, MockResponse>) {
@@ -558,6 +612,64 @@ describe('第二批复核：候选切换 / 状态如实 / 失败刷新', () => {
     const created = await loaded.adapter.createCandidate!(decided, { rawIntent: '改标题' })
     return { ...loaded, created }
   }
+
+  it('旧候选 Assessment 哈希迟到完成时，不能覆盖新候选和新 run 的配对缓存', async () => {
+    const candidate10 = {
+      ...candidate9Route.body,
+      candidate: { id: 'candidate-10', patchHash: 'hash-1010abcdef0000' },
+      sessionId: 'session-10',
+    }
+    const loaded = await adapterWithVerifiedCandidate({
+      candidate: { status: 200, body: (index: number) => index === 0 ? candidate9Route.body : candidate10 },
+      'candidate/verify': {
+        status: 200,
+        body: (index: number) => index === 0
+          ? verifyResponse({
+              state: 'passed', runId: 'run-A', checks: [FORMAL_CHECK],
+              runtimeIdentities: [formalIdentityReceipt('baseline'), formalIdentityReceipt('candidate')],
+            }).body
+          : verifyResponse({ state: 'passed', runId: 'run-B', checks: [FORMAL_CHECK], runtimeIdentities: [] }, 'candidate-10').body,
+      },
+      history: { status: 200, body: (index: number) => ({ history: index >= 3
+        ? [{ candidateId: 'candidate-10', projectId: 'proj-acme', lifecycle: 'active', patchHash: 'hash-1010abcdef0000', updatedAt: '2026-10-23T10:05:00Z', verification: { state: 'not-run' } }]
+        : [historyItem9('active', { state: 'not-run' })] }) },
+    })
+    const resolvers: Array<(value: ArrayBuffer) => void> = []
+    const digestStarted = deferred<void>()
+    let uuid = 0
+    vi.stubGlobal('crypto', {
+      randomUUID: () => `test-uuid-${++uuid}`,
+      subtle: {
+        digest: () => new Promise<ArrayBuffer>(resolve => {
+          resolvers.push(resolve)
+          if (resolvers.length === 2) digestStarted.resolve()
+        }),
+      },
+    })
+    vi.stubGlobal('isSecureContext', true)
+    let oldRun: Promise<ExperienceViewModel> | undefined
+    try {
+      oldRun = loaded.adapter.runVerification!(loaded.created)
+      await digestStarted.promise
+
+      const secondCandidate = await loaded.adapter.createCandidate!(loaded.created, { rawIntent: '再改一次' })
+      expect(secondCandidate.activeCandidate?.candidateId).toBe('candidate-10')
+      const secondRun = await loaded.adapter.runVerification!(secondCandidate)
+      expect(secondRun.activeCandidate?.verification?.runtimeIdentityPairing?.verificationRunId).toBe('run-B')
+      expect(secondRun.activeCandidate?.verification?.runtimeIdentityPairing?.strictInstanceProofAvailable).toBe(false)
+
+      resolvers.forEach(resolve => resolve(new Uint8Array(32).buffer))
+      await expect(oldRun).rejects.toBeInstanceOf(StaleResponseError)
+      const afterLateResult = loaded.adapter.setDraftText(secondRun, 'B 的当前草稿')
+      expect(afterLateResult.activeCandidate?.candidateId).toBe('candidate-10')
+      expect(afterLateResult.activeCandidate?.verification?.runId).toBe('run-B')
+      expect(afterLateResult.activeCandidate?.verification?.runtimeIdentityPairing?.verificationRunId).toBe('run-B')
+    } finally {
+      resolvers.forEach(resolve => resolve(new Uint8Array(32).buffer))
+      vi.unstubAllGlobals()
+      await oldRun?.catch(() => undefined)
+    }
+  })
 
   it('复核点 1：创建新候选后不得残留上一个候选的验证', async () => {
     // 第二次 POST /candidate 返回 candidate-10；历史回读第 4 次起以 candidate-10 为权威

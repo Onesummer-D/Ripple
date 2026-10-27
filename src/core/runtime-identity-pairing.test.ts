@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RuntimeIdentityRecord, RuntimeIdentitySnapshot } from './runtime-identity'
 import type { RuntimeRunIdentity, RuntimeRunIdentityArchiveFailure, RuntimeRunIdentityAssessmentEntry, RuntimeRunIdentityVersionFailure, VerificationRun } from './model'
 import { runtimeIdentityAssessmentSha256, runtimeIdentityRecordKey } from './runtime-identity-assessment'
-import { pairRuntimeIdentityReceipts, type RuntimeIdentityCapturePoint } from './runtime-identity-pairing'
+import { pairRuntimeIdentityReceipts, pairRuntimeIdentityRun, type RuntimeIdentityCapturePoint } from './runtime-identity-pairing'
 
 const point: RuntimeIdentityCapturePoint = {
   verificationRunId: 'run-1',
@@ -38,6 +38,8 @@ function makeReceipt(
     assessmentOverrides?: Array<Partial<RuntimeRunIdentityAssessmentEntry['assessment']> | null | undefined>
     digestOverride?: string
     recordKeyOverride?: string
+    extraAssessment?: boolean
+    duplicateAssessment?: boolean
   } = {},
 ): RuntimeRunIdentity | RuntimeRunIdentityVersionFailure {
   const snapshot: RuntimeIdentitySnapshot = { protocol: 'ripple-runtime-identity/v2', page: options.page ?? page, records }
@@ -68,6 +70,15 @@ function makeReceipt(
       assessmentSha256: options.digestOverride ?? runtimeIdentityAssessmentSha256(tuple, snapshotSha256, recordKey, assessment),
     }
   })
+  if (options.extraAssessment) {
+    const recordKey = '["unexpected",null,9]'
+    const assessment = {
+      sourceRef: 'jsx:src/Extra.tsx#99', runtimeInstanceId: 'extra-instance', certainty: 'stable-keyed-instance' as const,
+      page: snapshot.page, locatable: true, instanceIdentityProven: true, sameSourceCount: 1, reasons: [],
+    }
+    assessments.push({ recordKey, assessment, assessmentSha256: runtimeIdentityAssessmentSha256(tuple, snapshotSha256, recordKey, assessment) })
+  }
+  if (options.duplicateAssessment && assessments[0]) assessments.push({ ...assessments[0] })
   const stored = {
     archive: 'stored' as const,
     checkId: tuple.checkId,
@@ -85,8 +96,12 @@ function makeReceipt(
     : { ...stored, assessmentStatus: 'complete', sourceDigests: { 'src/App.tsx': digest }, boundDigest: digest }
 }
 
-function run(runtimeIdentities: NonNullable<VerificationRun['runtimeIdentities']>): Pick<VerificationRun, 'id' | 'runtimeIdentities' | 'runtimeIdentitySourceRefMappings'> {
-  return { id: point.verificationRunId, runtimeIdentities }
+function run(runtimeIdentities: NonNullable<VerificationRun['runtimeIdentities']>): Pick<VerificationRun, 'id' | 'checks' | 'runtimeIdentities'> {
+  return {
+    id: point.verificationRunId,
+    checks: [{ id: point.checkId, route: point.route, viewport: point.viewport, state: point.state, description: 'home', mandatory: true }],
+    runtimeIdentities,
+  }
 }
 
 function sides(baselineRecords: RuntimeIdentityRecord[], candidateRecords: RuntimeIdentityRecord[], options: Parameters<typeof makeReceipt>[2] = {}) {
@@ -261,6 +276,48 @@ describe('pairRuntimeIdentityReceipts', () => {
     expect(incomplete.scope.strictInstanceProofAvailable).toBe(false)
   })
 
+  it('多余 Assessment 独立降级整组结论，不污染仍有效的单对结论', async () => {
+    const record = makeRecord()
+    const result = await pairRuntimeIdentityReceipts(run([
+      makeReceipt('baseline', [record]),
+      makeReceipt('candidate', [record], { extraAssessment: true }),
+    ]), point)
+    expect(result.pairs[0].proof).toBe('instance-proven')
+    expect(result.scope.diagnostics).toContain('unexpected-assessment')
+    expect(result.scope.diagnostics).toContain('incomplete-assessment-set')
+    expect(result.scope.strictInstanceProofAvailable).toBe(false)
+  })
+
+  it('重复 Assessment 和 malformed Snapshot 都 fail-closed，不抛出渲染异常', async () => {
+    const record = makeRecord()
+    const duplicate = await pairRuntimeIdentityReceipts(run([
+      makeReceipt('baseline', [record]),
+      makeReceipt('candidate', [record], { duplicateAssessment: true }),
+    ]), point)
+    expect(duplicate.scope.diagnostics).toContain('duplicate-assessment-entry')
+    expect(duplicate.scope.diagnostics).toContain('incomplete-assessment-set')
+    expect(duplicate.scope.strictInstanceProofAvailable).toBe(false)
+
+    const noSnapshot = { ...makeReceipt('candidate', [record]), snapshot: undefined } as unknown as RuntimeRunIdentity
+    const malformed = await pairRuntimeIdentityReceipts(run([makeReceipt('baseline', [record]), noSnapshot]), point)
+    expect(malformed.scope.diagnostics).toContain('candidate-snapshot-invalid')
+    expect(malformed.scope.strictInstanceProofAvailable).toBe(false)
+  })
+
+  it('Web Crypto 不可用时给出明确降级原因，不能以未经校验的 Assessment 证明实例', async () => {
+    vi.stubGlobal('crypto', undefined)
+    vi.stubGlobal('isSecureContext', false)
+    try {
+      const record = makeRecord()
+      const result = await pairRuntimeIdentityReceipts(sides([record], [record]), point)
+      expect(result.pairs[0].proof).toBe('unproven')
+      expect(result.scope.diagnostics).toContain('assessment-checksum-unavailable')
+      expect(result.scope.strictInstanceProofAvailable).toBe(false)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('非空完整记录集合才可证明整页；空集合和混合缺项均降级', async () => {
     const empty = await pairRuntimeIdentityReceipts(sides([], []), point)
     expect(empty.scope.strictInstanceProofAvailable).toBe(false)
@@ -283,5 +340,53 @@ describe('pairRuntimeIdentityReceipts', () => {
     const before = structuredClone(runData)
     await pairRuntimeIdentityReceipts(runData, point)
     expect(runData).toEqual(before)
+  })
+})
+
+describe('pairRuntimeIdentityRun', () => {
+  it('从正式 checks 与 Runtime Identity 回执生成运行点投影，无需 visualEvidences', async () => {
+    const record = makeRecord()
+    const result = await pairRuntimeIdentityRun(run([makeReceipt('baseline', [record]), makeReceipt('candidate', [record])]))
+    expect(result.state).toBe('instance-proven')
+    expect(result.strictInstanceProofAvailable).toBe(true)
+    expect(result.captures).toHaveLength(1)
+    expect(result.captures[0].capture).toMatchObject({ checkId: point.checkId, route: point.route, state: point.state })
+  })
+
+  it('即使缺失双侧回执也显示正式 check 运行点；回执外运行点保留且强制未证明', async () => {
+    const missing = await pairRuntimeIdentityRun(run([]))
+    expect(missing.captures).toHaveLength(1)
+    expect(missing.captures[0].scope.diagnostics).toContain('missing-baseline-receipt')
+    expect(missing.captures[0].scope.diagnostics).toContain('missing-candidate-receipt')
+    expect(missing.strictInstanceProofAvailable).toBe(false)
+
+    const record = makeRecord()
+    const extraPoint = { checkId: 'unknown-check', route: '/extra', viewport: point.viewport, state: point.state }
+    const extra = await pairRuntimeIdentityRun(run([
+      makeReceipt('baseline', [record], { runPoint: extraPoint }),
+      makeReceipt('candidate', [record], { runPoint: extraPoint }),
+    ]))
+    expect(extra.diagnostics).toContain('unexpected-runpoint')
+    expect(extra.captures).toHaveLength(2)
+    expect(extra.captures.every(capture => !capture.scope.strictInstanceProofAvailable)).toBe(true)
+  })
+
+  it('运行点 View 保留单侧归档失败和版本不可证状态', async () => {
+    const record = makeRecord()
+    const baseline = makeReceipt('baseline', [record])
+    const archiveFailure: RuntimeRunIdentityArchiveFailure = {
+      archive: 'failed', reason: 'snapshot-unavailable', checkId: point.checkId, route: point.route,
+      viewport: point.viewport, state: point.state, side: 'candidate',
+    }
+    const failed = await pairRuntimeIdentityRun(run([baseline, archiveFailure]))
+    expect(failed.captures[0].scope.strictInstanceProofAvailable).toBe(false)
+    expect(failed.captures[0].scope.diagnostics).toContain('candidate-archive-failed')
+
+    const versionFailure = await pairRuntimeIdentityRun(run([
+      baseline,
+      makeReceipt('candidate', [record], { status: 'version-unverifiable' }),
+    ]))
+    expect(versionFailure.captures[0].scope.strictInstanceProofAvailable).toBe(false)
+    expect(versionFailure.captures[0].scope.diagnostics).toContain('candidate-version-unverifiable')
   })
 })

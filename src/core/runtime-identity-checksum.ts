@@ -18,6 +18,15 @@ export function canonicalRuntimeIdentityJsonForConsumer(value: unknown): string 
 }
 
 /**
+ * Browser SHA-256 is available in secure contexts such as HTTPS and localhost.
+ * This consumer intentionally has no software fallback: an unavailable digest
+ * verifier means the Assessment cannot be checked and must remain unproven.
+ */
+export function runtimeIdentityAssessmentChecksumAvailable(): boolean {
+  return globalThis.isSecureContext !== false && !!globalThis.crypto?.subtle
+}
+
+/**
  * Rechecks the v1.2 content checksum in browsers and Node. A valid checksum
  * detects misbinding or changed content; it does not authenticate the host.
  */
@@ -27,7 +36,7 @@ export async function runtimeIdentityAssessmentChecksum(
   recordKey: string,
   assessment: unknown,
 ): Promise<string> {
-  const subtle = globalThis.crypto?.subtle
+  const subtle = runtimeIdentityAssessmentChecksumAvailable() ? globalThis.crypto?.subtle : undefined
   if (!subtle) throw new Error('Web Crypto SHA-256 is unavailable in this environment.')
   const serialized = canonicalRuntimeIdentityJsonForConsumer({
     protocol: 'ripple-runtime-identity-assessment/v1.2',

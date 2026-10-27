@@ -5,8 +5,8 @@ import type {
   RuntimeRunIdentityVersionFailure,
   VerificationRun,
 } from './model'
-import { runtimeIdentityAssessmentChecksum } from './runtime-identity-checksum'
-import type { RuntimeIdentityRecord, RuntimeIdentitySnapshot } from './runtime-identity'
+import { runtimeIdentityAssessmentChecksum, runtimeIdentityAssessmentChecksumAvailable } from './runtime-identity-checksum'
+import type { RuntimeIdentityRecord } from './runtime-identity'
 
 export const RUNTIME_IDENTITY_PAIRING_VIEW_SCHEMA = 'ripple-runtime-identity-pairing-view/v1'
 
@@ -37,6 +37,7 @@ export type RuntimeIdentityPairingDiagnostic =
   | 'unpaired-records'
   | 'incomplete-assessment-set'
   | 'invalid-assessment-digest'
+  | 'assessment-checksum-unavailable'
   | 'invalid-record-binding'
   | 'duplicate-runtime-instance'
   | 'source-ref-mismatch'
@@ -49,6 +50,18 @@ export type RuntimeIdentityPairingDiagnostic =
   | 'invalid-record-source-ref'
   | 'duplicate-record-key'
   | 'duplicate-record-assessment'
+  | 'duplicate-assessment-entry'
+  | 'invalid-assessment-entry'
+  | 'unexpected-runpoint'
+
+export type RuntimeIdentityRunPairingDiagnostic =
+  | 'verification-run-id-missing'
+  | 'runtime-identity-receipts-missing'
+  | 'invalid-runtime-identity-receipt'
+  | 'invalid-capture-point'
+  | 'unexpected-runpoint'
+  | 'duplicate-runpoint'
+  | 'checks-missing'
 
 export interface RuntimeIdentityPairingRecordView {
   recordKey: string
@@ -92,9 +105,19 @@ export interface RuntimeIdentityPairingView {
   candidateOnly: RuntimeIdentityPairingRecordView[]
 }
 
+export interface RuntimeIdentityRunPairingView {
+  schema: 'ripple-runtime-identity-run-pairing-view/v1'
+  verificationRunId: string | null
+  strictInstanceProofAvailable: boolean
+  state: 'instance-proven' | 'partial' | 'unproven' | 'unavailable'
+  diagnostics: RuntimeIdentityRunPairingDiagnostic[]
+  /** One independently evaluated entry per runpoint found in formal receipts. */
+  captures: RuntimeIdentityPairingView[]
+}
+
 type StoredIdentityReceipt = RuntimeRunIdentity | RuntimeRunIdentityVersionFailure
 type IdentityReceipt = StoredIdentityReceipt | RuntimeRunIdentityArchiveFailure
-type RunIdentityProjection = Pick<VerificationRun, 'id' | 'runtimeIdentities' | 'runtimeIdentitySourceRefMappings'>
+type RunIdentityProjection = Pick<VerificationRun, 'id' | 'runtimeIdentities'> & Partial<Pick<VerificationRun, 'runtimeIdentitySourceRefMappings'>>
 type PageTuple = { pathname: string; search: string; hash: string }
 
 interface AssessedRecord {
@@ -110,6 +133,7 @@ interface SideResult {
   records: AssessedRecord[]
   diagnostics: RuntimeIdentityPairingDiagnostic[]
   pageMatches: boolean
+  assessmentSetComplete: boolean
 }
 
 const HASH = /^[a-f0-9]{64}$/
@@ -156,27 +180,42 @@ function sameViewport(left: { width: number; height: number }, right: { width: n
   return left.width === right.width && left.height === right.height
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function recordKeyForSide(record: RuntimeIdentityRecord, index: number): string {
   if (!Number.isSafeInteger(index) || index < 0) throw new Error('Runtime identity snapshot index must be a non-negative safe integer.')
   return JSON.stringify([record.sourceRef, record.runtimeInstanceId ?? null, index])
 }
 
-function isCapturePoint(point: RuntimeIdentityCapturePoint): boolean {
+function isCapturePoint(value: unknown): value is RuntimeIdentityCapturePoint {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const point = value as Record<string, unknown>
+  const viewport = point.viewport
   return nonEmptyString(point.verificationRunId, 256) && nonEmptyString(point.checkId, 256) &&
     nonEmptyString(point.route, 2048) && !!parseCaptureRoute(point.route) && nonEmptyString(point.state, 300) &&
-    Number.isSafeInteger(point.viewport.width) && point.viewport.width > 0 &&
-    Number.isSafeInteger(point.viewport.height) && point.viewport.height > 0
+    !!viewport && typeof viewport === 'object' && !Array.isArray(viewport) &&
+    Number.isSafeInteger((viewport as Record<string, unknown>).width) && Number((viewport as Record<string, unknown>).width) > 0 &&
+    Number.isSafeInteger((viewport as Record<string, unknown>).height) && Number((viewport as Record<string, unknown>).height) > 0
 }
 
-function matchesCapture(receipt: IdentityReceipt, point: RuntimeIdentityCapturePoint): boolean {
-  return receipt.checkId === point.checkId && receipt.route === point.route && sameViewport(receipt.viewport, point.viewport) && receipt.state === point.state
+function matchesCapture(value: unknown, point: RuntimeIdentityCapturePoint): value is IdentityReceipt {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const receipt = value as Record<string, unknown>
+  const viewport = receipt.viewport
+  return receipt.checkId === point.checkId && receipt.route === point.route &&
+    !!viewport && typeof viewport === 'object' && !Array.isArray(viewport) &&
+    Number.isSafeInteger((viewport as Record<string, unknown>).width) && Number.isSafeInteger((viewport as Record<string, unknown>).height) &&
+    sameViewport(viewport as { width: number; height: number }, point.viewport) && receipt.state === point.state
 }
 
-function emptyView(point: RuntimeIdentityCapturePoint, diagnostics: RuntimeIdentityPairingDiagnostic[]): RuntimeIdentityPairingView {
+function emptyView(point: Partial<RuntimeIdentityCapturePoint> | undefined, diagnostics: RuntimeIdentityPairingDiagnostic[]): RuntimeIdentityPairingView {
+  const hasCapture = !!point && typeof point.checkId === 'string' && typeof point.route === 'string' && !!point.viewport && typeof point.state === 'string'
   return {
     schema: RUNTIME_IDENTITY_PAIRING_VIEW_SCHEMA,
-    verificationRunId: point.verificationRunId || null,
-    capture: point.checkId && point.route ? { checkId: point.checkId, route: point.route, viewport: { ...point.viewport }, state: point.state } : null,
+    verificationRunId: typeof point?.verificationRunId === 'string' ? point.verificationRunId : null,
+    capture: hasCapture ? { checkId: point.checkId!, route: point.route!, viewport: { ...point.viewport! }, state: point.state! } : null,
     scope: {
       strictInstanceProofAvailable: false,
       state: 'unproven',
@@ -194,38 +233,51 @@ function emptyView(point: RuntimeIdentityCapturePoint, diagnostics: RuntimeIdent
   }
 }
 
-function pageMatchesSnapshot(snapshot: RuntimeIdentitySnapshot, expectedPage: PageTuple): boolean {
-  return isPageTuple(snapshot.page) && samePage(snapshot.page, expectedPage)
+function pageMatchesSnapshot(snapshot: unknown, expectedPage: PageTuple): boolean {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return false
+  const page = (snapshot as Record<string, unknown>).page
+  return isPageTuple(page) && samePage(page, expectedPage)
 }
 
 async function assessSide(receipt: IdentityReceipt, side: 'baseline' | 'candidate', point: RuntimeIdentityCapturePoint, expectedPage: PageTuple): Promise<SideResult> {
   const diagnostics: RuntimeIdentityPairingDiagnostic[] = []
   if (receipt.archive === 'failed') {
     diagnostics.push(side === 'baseline' ? 'baseline-archive-failed' : 'candidate-archive-failed')
-    return { receipt, records: [], diagnostics, pageMatches: false }
+    return { receipt, records: [], diagnostics, pageMatches: false, assessmentSetComplete: false }
   }
 
   const stored = receipt as StoredIdentityReceipt
   const pageMatches = pageMatchesSnapshot(stored.snapshot, expectedPage)
   if (!pageMatches) diagnostics.push(side === 'baseline' ? 'baseline-page-mismatch' : 'candidate-page-mismatch')
   if (stored.assessmentStatus !== 'complete') diagnostics.push(side === 'baseline' ? 'baseline-version-unverifiable' : 'candidate-version-unverifiable')
+  const snapshot = isObject(stored.snapshot) ? stored.snapshot : undefined
+  const snapshotRecords = snapshot?.records
   if (!HASH.test(stored.snapshotSha256) || stored.artifacts?.snapshot?.sha256 !== stored.snapshotSha256 ||
-      !Array.isArray(stored.snapshot?.records) || (stored.snapshot.protocol !== 'ripple-runtime-identity/v1' && stored.snapshot.protocol !== 'ripple-runtime-identity/v2')) {
+      !snapshot || !Array.isArray(snapshotRecords) || !snapshotRecords.every(isObject) ||
+      (snapshot.protocol !== 'ripple-runtime-identity/v1' && snapshot.protocol !== 'ripple-runtime-identity/v2')) {
     diagnostics.push(side === 'baseline' ? 'baseline-snapshot-invalid' : 'candidate-snapshot-invalid')
-    return { receipt, records: [], diagnostics, pageMatches: false }
+    return { receipt, records: [], diagnostics, pageMatches: false, assessmentSetComplete: false }
   }
+  const recordsInSnapshot = snapshotRecords as RuntimeIdentityRecord[]
 
-  const entries = Array.isArray(stored.assessments) ? stored.assessments : []
+  const rawEntries: unknown = stored.assessments
+  const entries = Array.isArray(rawEntries) ? rawEntries : []
+  if (!Array.isArray(rawEntries)) diagnostics.push('incomplete-assessment-set')
   const entriesByKey = new Map<string, typeof entries>()
   for (const entry of entries) {
-    if (!entry || typeof entry.recordKey !== 'string') continue
-    entriesByKey.set(entry.recordKey, [...(entriesByKey.get(entry.recordKey) ?? []), entry])
+    if (!isObject(entry) || typeof entry.recordKey !== 'string' || entry.recordKey.length === 0) {
+      diagnostics.push('invalid-assessment-entry')
+      continue
+    }
+    const matchingEntries = entriesByKey.get(entry.recordKey) ?? []
+    if (matchingEntries.length > 0) diagnostics.push('duplicate-assessment-entry')
+    entriesByKey.set(entry.recordKey, [...matchingEntries, entry])
   }
 
   const seenKeys = new Set<string>()
   const duplicateIds = new Set<string>()
   const idCounts = new Map<string, number>()
-  for (const record of stored.snapshot.records) {
+  for (const record of recordsInSnapshot) {
     if (validRuntimeInstanceId(record.runtimeInstanceId)) idCounts.set(record.runtimeInstanceId, (idCounts.get(record.runtimeInstanceId) ?? 0) + 1)
   }
   for (const [id, count] of idCounts) if (count > 1) duplicateIds.add(id)
@@ -237,7 +289,7 @@ async function assessSide(receipt: IdentityReceipt, side: 'baseline' | 'candidat
     state: point.state,
     side,
   }
-  const records = await Promise.all(stored.snapshot.records.map(async (record, index): Promise<AssessedRecord> => {
+  const records = await Promise.all(recordsInSnapshot.map(async (record, index): Promise<AssessedRecord> => {
     const recordKey = recordKeyForSide(record, index)
     const reasons: string[] = []
     if (!validSourceRef(record.sourceRef)) reasons.push('invalid-record-source-ref')
@@ -256,15 +308,18 @@ async function assessSide(receipt: IdentityReceipt, side: 'baseline' | 'candidat
       const safeAssessment = assessment && typeof assessment === 'object' && !Array.isArray(assessment)
       const assessmentPage = safeAssessment ? assessment.page : undefined
       if (!HASH.test(entry.assessmentSha256) || !HASH.test(stored.snapshotSha256)) reasons.push('invalid-assessment-digest')
+      else if (!runtimeIdentityAssessmentChecksumAvailable()) reasons.push('assessment-checksum-unavailable')
       else {
         try {
           if (await runtimeIdentityAssessmentChecksum(capture, stored.snapshotSha256, recordKey, assessment) !== entry.assessmentSha256) reasons.push('assessment-digest-mismatch')
-        } catch {
-          reasons.push('invalid-assessment-digest')
+        } catch (error) {
+          reasons.push(error instanceof Error && error.message.includes('Web Crypto SHA-256 is unavailable')
+            ? 'assessment-checksum-unavailable'
+            : 'invalid-assessment-digest')
         }
       }
       if (!safeAssessment || assessment.sourceRef !== record.sourceRef || assessment.runtimeInstanceId !== record.runtimeInstanceId ||
-          assessment.certainty !== record.certainty || !isPageTuple(assessmentPage) || !isPageTuple(stored.snapshot.page) || !samePage(assessmentPage, stored.snapshot.page)) {
+          assessment.certainty !== record.certainty || !isPageTuple(assessmentPage) || !isPageTuple(snapshot.page) || !samePage(assessmentPage, snapshot.page)) {
         reasons.push('invalid-record-binding')
       }
       if (safeAssessment && (assessment.instanceIdentityProven !== true || assessment.locatable !== true || !Array.isArray(assessment.reasons) || assessment.reasons.length !== 0)) {
@@ -276,10 +331,17 @@ async function assessSide(receipt: IdentityReceipt, side: 'baseline' | 'candidat
     return { record, recordKey, reasons: [...new Set(reasons)], valid: reasons.length === 0, ...(entry ? { assessment: entry.assessment } : {}) }
   }))
 
-  if (entries.length !== stored.snapshot.records.length) diagnostics.push('incomplete-assessment-set')
-  if (entries.some(entry => !seenKeys.has(entry.recordKey))) diagnostics.push('unexpected-assessment')
+  if (records.some(record => record.reasons.includes('assessment-checksum-unavailable'))) diagnostics.push('assessment-checksum-unavailable')
+  const malformedAssessmentEntry = entries.some(entry => !isObject(entry) || typeof entry.recordKey !== 'string' || entry.recordKey.length === 0)
+  const unexpectedAssessment = entries.some(entry => !isObject(entry) || typeof entry.recordKey !== 'string' || !seenKeys.has(entry.recordKey))
+  if (entries.length !== recordsInSnapshot.length || diagnostics.includes('duplicate-assessment-entry') || malformedAssessmentEntry) diagnostics.push('incomplete-assessment-set')
+  if (unexpectedAssessment) diagnostics.push('unexpected-assessment')
   if (!pageMatches) records.forEach(record => { if (!record.reasons.includes('page-mismatch')) record.reasons.push('page-mismatch'); record.valid = false })
-  return { receipt, records, diagnostics, pageMatches }
+  const expectedKeys = new Set(records.map(record => record.recordKey))
+  const assessmentSetComplete = !malformedAssessmentEntry && entries.length === recordsInSnapshot.length &&
+    entriesByKey.size === expectedKeys.size && [...expectedKeys].every(key => entriesByKey.get(key)?.length === 1) &&
+    [...entriesByKey.keys()].every(key => expectedKeys.has(key))
+  return { receipt, records, diagnostics, pageMatches, assessmentSetComplete }
 }
 
 function projectionMismatch(baseline: AssessedRecord, candidate: AssessedRecord): boolean {
@@ -315,9 +377,10 @@ export async function pairRuntimeIdentityReceipts(
   point: RuntimeIdentityCapturePoint,
 ): Promise<RuntimeIdentityPairingView> {
   if (!isCapturePoint(point)) return emptyView(point, ['invalid-capture-point'])
-  if (run.id !== point.verificationRunId) return emptyView(point, ['run-id-mismatch'])
+  if (!isObject(run) || run.id !== point.verificationRunId) return emptyView(point, ['run-id-mismatch'])
 
-  const receipts = (run.runtimeIdentities ?? []).filter(receipt => matchesCapture(receipt, point))
+  const rawReceipts: unknown = run.runtimeIdentities
+  const receipts = (Array.isArray(rawReceipts) ? rawReceipts : []).filter(receipt => matchesCapture(receipt, point))
   const baselineReceipts = receipts.filter(receipt => receipt.side === 'baseline')
   const candidateReceipts = receipts.filter(receipt => receipt.side === 'candidate')
   const diagnostics: RuntimeIdentityPairingDiagnostic[] = []
@@ -328,8 +391,8 @@ export async function pairRuntimeIdentityReceipts(
   const expectedPage = parseCaptureRoute(point.route)
   if (!expectedPage) return emptyView(point, [...diagnostics, 'invalid-capture-point'])
   const [baseline, candidate] = await Promise.all([
-    baselineReceipts.length === 1 ? assessSide(baselineReceipts[0], 'baseline', point, expectedPage) : Promise.resolve({ records: [], diagnostics: [], pageMatches: false } as SideResult),
-    candidateReceipts.length === 1 ? assessSide(candidateReceipts[0], 'candidate', point, expectedPage) : Promise.resolve({ records: [], diagnostics: [], pageMatches: false } as SideResult),
+    baselineReceipts.length === 1 ? assessSide(baselineReceipts[0], 'baseline', point, expectedPage) : Promise.resolve({ records: [], diagnostics: [], pageMatches: false, assessmentSetComplete: false } as SideResult),
+    candidateReceipts.length === 1 ? assessSide(candidateReceipts[0], 'candidate', point, expectedPage) : Promise.resolve({ records: [], diagnostics: [], pageMatches: false, assessmentSetComplete: false } as SideResult),
   ])
   diagnostics.push(...baseline.diagnostics, ...candidate.diagnostics)
 
@@ -383,8 +446,8 @@ export async function pairRuntimeIdentityReceipts(
       proof: proven ? 'instance-proven' : 'unproven',
       proofLabel: proven ? '实例级已证明' : '未证明实例配对',
       assessmentReasons: {
-        baseline: b.assessment ? [...b.assessment.reasons] : [...b.reasons],
-        candidate: c.assessment ? [...c.assessment.reasons] : [...c.reasons],
+        baseline: b.assessment && Array.isArray(b.assessment.reasons) ? [...b.assessment.reasons] : [...b.reasons],
+        candidate: c.assessment && Array.isArray(c.assessment.reasons) ? [...c.assessment.reasons] : [...c.reasons],
       },
       pairReasons,
       diagnostics: [...new Set(diagnosticsForPair)],
@@ -404,7 +467,7 @@ export async function pairRuntimeIdentityReceipts(
     baselineReceipts.length === 1 && candidateReceipts.length === 1 &&
     baseline.receipt?.archive === 'stored' && baseline.receipt.assessmentStatus === 'complete' &&
     candidate.receipt?.archive === 'stored' && candidate.receipt.assessmentStatus === 'complete' &&
-    baseline.pageMatches && candidate.pageMatches &&
+    baseline.pageMatches && candidate.pageMatches && baseline.assessmentSetComplete && candidate.assessmentSetComplete &&
     baselineOnly.length === 0 && candidateOnly.length === 0 && unprovenPairCount === 0 && provenPairCount === baselineCount && provenPairCount === candidateCount
   const state = strictInstanceProofAvailable ? 'instance-proven' : provenPairCount > 0 ? 'partial' : 'unproven'
   return {
@@ -425,5 +488,140 @@ export async function pairRuntimeIdentityReceipts(
     pairs,
     baselineOnly,
     candidateOnly,
+  }
+}
+
+function capturePointKey(point: Omit<RuntimeIdentityCapturePoint, 'verificationRunId'>): string {
+  return JSON.stringify([point.checkId, point.route, point.viewport.width, point.viewport.height, point.state])
+}
+
+function capturePointFromCheck(value: unknown, verificationRunId: string): RuntimeIdentityCapturePoint | undefined {
+  if (!isObject(value)) return undefined
+  const point = {
+    verificationRunId,
+    checkId: value.id,
+    route: value.route,
+    viewport: value.viewport,
+    state: value.state,
+  }
+  return isCapturePoint(point) ? point : undefined
+}
+
+function capturePointFromReceipt(value: unknown, verificationRunId: string): RuntimeIdentityCapturePoint | undefined {
+  if (!isObject(value)) return undefined
+  const point = {
+    verificationRunId,
+    checkId: value.checkId,
+    route: value.route,
+    viewport: value.viewport,
+    state: value.state,
+  }
+  return isCapturePoint(point) ? point : undefined
+}
+
+function receiptHasKnownSideAndArchive(value: unknown): boolean {
+  return isObject(value) && (value.side === 'baseline' || value.side === 'candidate') &&
+    (value.archive === 'stored' || value.archive === 'failed')
+}
+
+function markUnexpectedRunpoint(view: RuntimeIdentityPairingView): RuntimeIdentityPairingView {
+  return {
+    ...view,
+    scope: {
+      ...view.scope,
+      strictInstanceProofAvailable: false,
+      state: 'unproven',
+      provenPairCount: 0,
+      unprovenPairCount: view.pairs.length,
+      diagnostics: [...new Set<RuntimeIdentityPairingDiagnostic>([...view.scope.diagnostics, 'unexpected-runpoint'])],
+    },
+    pairs: view.pairs.map(pair => ({
+      ...pair,
+      proof: 'unproven',
+      proofLabel: '未证明运行点',
+      diagnostics: [...new Set([...pair.diagnostics, 'unexpected-runpoint'])],
+    })),
+  }
+}
+
+/**
+ * Builds the stable, read-only run projection from formal checks and formal
+ * Runtime Identity receipts. Visual evidence and its coverage claims are never
+ * consulted. Every declared check is represented even when both receipts are
+ * absent; receipt-only runpoints are retained but forced unproven.
+ */
+export async function pairRuntimeIdentityRun(
+  run: Pick<VerificationRun, 'id' | 'checks' | 'runtimeIdentities'>,
+): Promise<RuntimeIdentityRunPairingView> {
+  const rawRun: Record<string, unknown> = isObject(run) ? run : {}
+  const verificationRunId = nonEmptyString(rawRun.id, 256) ? rawRun.id : null
+  const diagnostics: RuntimeIdentityRunPairingDiagnostic[] = []
+  if (!verificationRunId) {
+    return {
+      schema: 'ripple-runtime-identity-run-pairing-view/v1',
+      verificationRunId: null,
+      strictInstanceProofAvailable: false,
+      state: 'unavailable',
+      diagnostics: ['verification-run-id-missing'],
+      captures: [],
+    }
+  }
+
+  const rawChecks: unknown = rawRun.checks
+  const checks = Array.isArray(rawChecks) ? rawChecks : []
+  if (!Array.isArray(rawChecks) || checks.length === 0) diagnostics.push('checks-missing')
+  const pointsByKey = new Map<string, { point: RuntimeIdentityCapturePoint; fromCheck: boolean }>()
+  for (const check of checks) {
+    const point = capturePointFromCheck(check, verificationRunId)
+    if (!point) {
+      diagnostics.push('invalid-capture-point')
+      continue
+    }
+    const key = capturePointKey(point)
+    if (pointsByKey.has(key)) diagnostics.push('duplicate-runpoint')
+    else pointsByKey.set(key, { point, fromCheck: true })
+  }
+
+  const rawReceipts: unknown = rawRun.runtimeIdentities
+  const receipts = Array.isArray(rawReceipts) ? rawReceipts : []
+  if (!Array.isArray(rawReceipts) || receipts.length === 0) diagnostics.push('runtime-identity-receipts-missing')
+  for (const receipt of receipts) {
+    const point = capturePointFromReceipt(receipt, verificationRunId)
+    if (!point || !receiptHasKnownSideAndArchive(receipt)) {
+      diagnostics.push('invalid-runtime-identity-receipt')
+      continue
+    }
+    const key = capturePointKey(point)
+    if (!pointsByKey.has(key)) {
+      diagnostics.push('unexpected-runpoint')
+      pointsByKey.set(key, { point, fromCheck: false })
+    }
+  }
+
+  const captures: RuntimeIdentityPairingView[] = []
+  for (const [, entry] of [...pointsByKey].sort(([left], [right]) => left.localeCompare(right))) {
+    const projected = await pairRuntimeIdentityReceipts(
+      { id: verificationRunId, runtimeIdentities: receipts as IdentityReceipt[] },
+      entry.point,
+    )
+    captures.push(entry.fromCheck ? projected : markUnexpectedRunpoint(projected))
+    if (!entry.fromCheck && !diagnostics.includes('unexpected-runpoint')) diagnostics.push('unexpected-runpoint')
+  }
+
+  const strictInstanceProofAvailable = captures.length > 0 && diagnostics.length === 0 &&
+    captures.every(capture => capture.scope.strictInstanceProofAvailable)
+  const anyProvenPair = captures.some(capture => capture.scope.provenPairCount > 0)
+  const state = strictInstanceProofAvailable
+    ? 'instance-proven'
+    : captures.length === 0 && diagnostics.includes('runtime-identity-receipts-missing')
+      ? 'unavailable'
+      : anyProvenPair ? 'partial' : 'unproven'
+  return {
+    schema: 'ripple-runtime-identity-run-pairing-view/v1',
+    verificationRunId,
+    strictInstanceProofAvailable,
+    state,
+    diagnostics: [...new Set(diagnostics)],
+    captures,
   }
 }

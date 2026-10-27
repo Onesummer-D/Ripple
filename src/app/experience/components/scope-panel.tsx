@@ -5,6 +5,32 @@ import { CertaintyPill, SectionTitle } from './status-pill'
 
 const SCOPE_LABEL: Record<PageXp['scope'], string> = { include: '包含', exclude: '排除', protect: '保护', undecided: '未决定' }
 
+function runtimeIdentityDiagnosticLabel(code: string): string {
+  const labels: Record<string, string> = {
+    'assessment-checksum-unavailable': '当前上下文无法使用 Web Crypto SHA-256 校验；请使用 HTTPS 或 localhost，未校验的 Assessment 保持未证明。',
+    'assessment-digest-mismatch': 'Assessment 摘要与回执内容不匹配。',
+    'invalid-assessment-digest': 'Assessment 摘要缺失或格式无效。',
+    'incomplete-assessment-set': 'Assessment 集合缺项或数量不完整。',
+    'unexpected-assessment': '发现没有对应 Snapshot record 的多余 Assessment。',
+    'duplicate-assessment-entry': '同一 recordKey 存在重复 Assessment。',
+    'baseline-archive-failed': 'Baseline 归档失败。',
+    'candidate-archive-failed': 'Candidate 归档失败。',
+    'baseline-version-unverifiable': 'Baseline 来源版本无法证明。',
+    'candidate-version-unverifiable': 'Candidate 来源版本无法证明。',
+    'missing-baseline-receipt': '缺少 Baseline 正式回执。',
+    'missing-candidate-receipt': '缺少 Candidate 正式回执。',
+    'duplicate-baseline-receipt': 'Baseline 正式回执重复。',
+    'duplicate-candidate-receipt': 'Candidate 正式回执重复。',
+    'baseline-page-mismatch': 'Baseline 页面 pathname/search/hash 与运行点不一致。',
+    'candidate-page-mismatch': 'Candidate 页面 pathname/search/hash 与运行点不一致。',
+    'unexpected-runpoint': '回执运行点不属于当前 VerificationRun 的正式 checks。',
+    'duplicate-runpoint': 'VerificationRun 中存在重复运行点。',
+    'runtime-identity-receipts-missing': '当前 VerificationRun 没有 Runtime Identity 正式回执。',
+    'verification-run-id-missing': 'VerificationRun ID 缺失，无法绑定运行点。',
+  }
+  return labels[code] ?? code
+}
+
 /**
  * 右侧：选中元素 + 修改意图 + 来源信息 + 范围决策。
  * unknown/partial 页面可以被查看，但不得被提升为可安全审批的范围（approvalGate 强制）。
@@ -182,35 +208,56 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
                           // A/E 合同：proofLabel 必须逐字渲染，不得以任何形式升级为"实例级已证明"
                           <span key={index} className="ripple-xp-visual-proof">{pair.proofLabel ?? '未证实配对（需人工复核）'}</span>
                         ))}
-                        {entry.view?.runtimeIdentity && (
-                          <section className="ripple-xp-runtime-identity" data-testid="runtime-identity-pairing" data-strict={entry.view.runtimeIdentity.scope.strictInstanceProofAvailable}>
-                            <strong>
-                              {entry.view.runtimeIdentity.scope.strictInstanceProofAvailable
-                                ? '整页：实例级已证明'
-                                : `整页：未完整证明（${entry.view.runtimeIdentity.scope.provenPairCount}/${Math.max(entry.view.runtimeIdentity.scope.baselineRecordCount, entry.view.runtimeIdentity.scope.candidateRecordCount)} 对已证明）`}
-                            </strong>
-                            {entry.view.runtimeIdentity.scope.diagnostics.length > 0 && (
-                              <span className="ripple-xp-visual-proof">范围原因：{entry.view.runtimeIdentity.scope.diagnostics.join('、')}</span>
-                            )}
-                            {entry.view.runtimeIdentity.pairs.map(pair => (
-                              <span key={pair.runtimeInstanceId} className="ripple-xp-visual-proof">
-                                {pair.proofLabel} · {pair.runtimeInstanceId}
-                                {pair.pairReasons.length > 0 ? ` · Pair：${pair.pairReasons.join('、')}` : ''}
-                                {pair.assessmentReasons.baseline.length > 0 ? ` · Baseline：${pair.assessmentReasons.baseline.join('、')}` : ''}
-                                {pair.assessmentReasons.candidate.length > 0 ? ` · Candidate：${pair.assessmentReasons.candidate.join('、')}` : ''}
-                              </span>
-                            ))}
-                            {[...entry.view.runtimeIdentity.baselineOnly.map(record => ({ side: 'Baseline', record })), ...entry.view.runtimeIdentity.candidateOnly.map(record => ({ side: 'Candidate', record }))].map(({ side, record }) => (
-                              <span key={`${side}:${record.recordKey}`} className="ripple-xp-visual-proof">
-                                {side} 未配对 · {record.sourceRef ?? '来源未知'} · {record.diagnostics.join('、') || '未证明'}
-                              </span>
-                            ))}
-                          </section>
-                        )}
                       </li>
                     ))}
                   </ul>
                 )}
+                {model.activeCandidate.verification.runtimeIdentityPairing && (() => {
+                  const pairing = model.activeCandidate!.verification!.runtimeIdentityPairing!
+                  return (
+                    <section className="ripple-xp-runtime-identity" data-testid="runtime-identity-pairing" data-strict={pairing.strictInstanceProofAvailable}>
+                      <strong>
+                        {pairing.strictInstanceProofAvailable
+                          ? '当前 VerificationRun 的捕获运行点与记录集合：实例级已证明'
+                          : pairing.state === 'unavailable'
+                            ? '当前 VerificationRun：没有可用于证明的正式身份回执'
+                            : '当前 VerificationRun 的捕获运行点与记录集合：未完整证明'}
+                      </strong>
+                      {pairing.diagnostics.length > 0 && (
+                        <span className="ripple-xp-visual-proof">运行范围原因：{pairing.diagnostics.map(runtimeIdentityDiagnosticLabel).join('；')}</span>
+                      )}
+                      {pairing.captures.map((capture, index) => (
+                        <div key={`${capture.capture?.checkId ?? 'invalid'}:${index}`}>
+                          <span className="ripple-xp-visual-proof">
+                            {capture.capture
+                              ? `当前捕获运行点 ${capture.capture.checkId} · ${capture.capture.route} · ${capture.capture.viewport.width}×${capture.capture.viewport.height} · ${capture.capture.state}`
+                              : '当前捕获运行点无效'}
+                            {'：'}{capture.scope.strictInstanceProofAvailable
+                              ? '实例级已证明'
+                              : `未完整证明（${capture.scope.provenPairCount}/${Math.max(capture.scope.baselineRecordCount, capture.scope.candidateRecordCount)} 对已证明）`}
+                          </span>
+                          {capture.scope.diagnostics.length > 0 && (
+                            <span className="ripple-xp-visual-proof">运行点原因：{capture.scope.diagnostics.map(runtimeIdentityDiagnosticLabel).join('；')}</span>
+                          )}
+                          {capture.pairs.map((pair, pairIndex) => (
+                            <span key={`${pair.runtimeInstanceId}:${pairIndex}`} className="ripple-xp-visual-proof">
+                              {pair.proofLabel} · {pair.runtimeInstanceId}
+                              {pair.pairReasons.length > 0 ? ` · Pair：${pair.pairReasons.join('、')}` : ''}
+                              {pair.assessmentReasons.baseline.length > 0 ? ` · Baseline：${pair.assessmentReasons.baseline.join('、')}` : ''}
+                              {pair.assessmentReasons.candidate.length > 0 ? ` · Candidate：${pair.assessmentReasons.candidate.join('、')}` : ''}
+                              {pair.diagnostics.length > 0 ? ` · ${pair.diagnostics.map(runtimeIdentityDiagnosticLabel).join('；')}` : ''}
+                            </span>
+                          ))}
+                          {[...capture.baselineOnly.map(record => ({ side: 'Baseline', record })), ...capture.candidateOnly.map(record => ({ side: 'Candidate', record }))].map(({ side, record }) => (
+                            <span key={`${side}:${record.recordKey}`} className="ripple-xp-visual-proof">
+                              {side} 未配对 · {record.sourceRef ?? '来源未知'} · {record.diagnostics.map(runtimeIdentityDiagnosticLabel).join('；') || '未证明'}
+                            </span>
+                          ))}
+                        </div>
+                      ))}
+                    </section>
+                  )
+                })()}
                 <p className="ripple-xp-candidate-note">验证结果由服务端 VerificationRun 生成；审批严格绑定此运行 ID 与补丁哈希。</p>
               </div>
             )}

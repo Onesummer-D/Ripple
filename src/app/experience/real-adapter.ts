@@ -22,7 +22,7 @@
  */
 import type { ExperienceAdapter } from './adapter'
 import type { EditOperation, ScopeDecision, VerificationRun } from '../../core/model'
-import { pairRuntimeIdentityReceipts, type RuntimeIdentityCapturePoint, type RuntimeIdentityPairingView } from '../../core/runtime-identity-pairing'
+import { pairRuntimeIdentityRun, type RuntimeIdentityRunPairingView } from '../../core/runtime-identity-pairing'
 import {
   assessDisplayIdentity,
   isBoundProjectSelection,
@@ -75,6 +75,8 @@ interface VerificationView {
   startedAt?: string
   completedAt?: string
   assertions?: Array<{ id: string; result: string; detail: string }>
+  /** Formal checks define the expected runpoints independently of visual evidence. */
+  checks?: VerificationRun['checks']
   /** Host-produced v1.2 single-side receipts; this adapter passes them through without pairing or upgrading proof. */
   runtimeIdentities?: VerificationRun['runtimeIdentities']
   evidence?: Array<{
@@ -231,8 +233,8 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let verificationRunning = false
   /** 第二批：最近一次真实验证运行投影（服务端权威；F 不自行生成）。 */
   let activeVerification: VerificationView | undefined
-  /** E③ presentation cache; derived from the current formal run and never persisted or used by lifecycle gates. */
-  let activeRuntimeIdentityPairings = new Map<string, RuntimeIdentityPairingView>()
+  /** E③ read-only projection cache, bound to the active candidate and verification run. */
+  let activeRuntimeIdentityPairing: RuntimeIdentityRunPairingView | undefined
   /** 第三批：当前跟踪候选的服务端工作流投影（生命周期/审批/应用/回滚全部来自真实响应）。 */
   let activeWorkflow: WorkflowView | undefined
   /** 第三批：生命周期操作在途（审批/应用/回滚请求进行中；模型携带以禁用按钮防重复提交）。 */
@@ -251,37 +253,26 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   let sourceRelations: RealSourceRelations | undefined
   const runtimeIdentities = new Map<string, RealRuntimeIdentityObservation>()
 
-  function runtimeIdentityPairingKey(point: RuntimeIdentityCapturePoint): string {
-    return JSON.stringify([point.verificationRunId, point.checkId, point.route, point.viewport.width, point.viewport.height, point.state])
-  }
-
-  function runtimeIdentityCapturePoint(verification: VerificationView, entry: NonNullable<VerificationView['visualEvidences']>[number]): RuntimeIdentityCapturePoint | undefined {
-    if (!verification.runId || !entry.checkId || !entry.route || !entry.view || typeof entry.view !== 'object') return undefined
-    const raw = entry.view as Record<string, unknown>
-    const coverage = raw.coverage && typeof raw.coverage === 'object' ? raw.coverage as Record<string, unknown> : undefined
-    const viewport = coverage?.viewport && typeof coverage.viewport === 'object' ? coverage.viewport as Record<string, unknown> : undefined
-    const state = coverage?.interactionState
-    if (!viewport || !Number.isInteger(viewport.width) || !Number.isInteger(viewport.height) || typeof state !== 'string' || !state) return undefined
-    return {
-      verificationRunId: verification.runId,
-      checkId: entry.checkId,
-      route: entry.route,
-      viewport: { width: viewport.width as number, height: viewport.height as number },
-      state,
+  async function prepareRuntimeIdentityPairing(
+    verification: VerificationView | undefined,
+    capturedGeneration: number,
+    capturedCandidateId: string | undefined,
+  ): Promise<void> {
+    if (!verification) {
+      if (capturedGeneration === generation && capturedCandidateId === activeCandidate?.candidateId) activeRuntimeIdentityPairing = undefined
+      return
     }
-  }
-
-  async function prepareRuntimeIdentityPairings(verification: VerificationView | undefined): Promise<void> {
-    const next = new Map<string, RuntimeIdentityPairingView>()
-    if (verification?.runId) {
-      await Promise.all((verification.visualEvidences ?? []).map(async entry => {
-        const point = runtimeIdentityCapturePoint(verification, entry)
-        if (!point) return
-        const pairing = await pairRuntimeIdentityReceipts({ id: verification.runId!, runtimeIdentities: verification.runtimeIdentities ?? [] }, point)
-        next.set(runtimeIdentityPairingKey(point), pairing)
-      }))
-    }
-    activeRuntimeIdentityPairings = next
+    const verificationRunId = verification.runId
+    const pairing = await pairRuntimeIdentityRun({
+      id: verificationRunId as string,
+      checks: verification.checks ?? [],
+      runtimeIdentities: verification.runtimeIdentities ?? [],
+    })
+    // Hash verification is asynchronous. Revalidate every owner identity before
+    // publishing so an old run cannot replace the current project's/candidate's view.
+    if (capturedGeneration !== generation || capturedCandidateId !== activeCandidate?.candidateId ||
+        verificationRunId !== activeVerification?.runId || verification !== activeVerification) return
+    activeRuntimeIdentityPairing = pairing
   }
 
   function stale(gen: number): void {
@@ -335,7 +326,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     candidatePreviewLoading = false
     verificationRunning = false
     activeVerification = undefined
-    activeRuntimeIdentityPairings.clear()
+    activeRuntimeIdentityPairing = undefined
     activeWorkflow = undefined
     lifecycleBusy = undefined
     draftContract = undefined
@@ -347,7 +338,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     // C/D 挂点数据属于具体工程：切换工程时一并清除，避免跨工程残留
     sourceRelations = undefined
     runtimeIdentities.clear()
-    activeRuntimeIdentityPairings.clear()
+    activeRuntimeIdentityPairing = undefined
   }
 
   /**
@@ -452,7 +443,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         activeCandidate = undefined
         activeWorkflow = undefined
         activeVerification = undefined
-        activeRuntimeIdentityPairings.clear()
+        activeRuntimeIdentityPairing = undefined
         candidatePreviewUrl = undefined
         candidatePreviewLoading = false
       } else {
@@ -476,7 +467,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         activeWorkflow = workflowFromHistory(latest, undefined)
       }
     }
-    await prepareRuntimeIdentityPairings(activeVerification)
+    await prepareRuntimeIdentityPairing(activeVerification, gen, activeCandidate?.candidateId)
   }
 
   /** 尽力启动项目源码预演：失败如实记录原因（如应用后工作树未提交，A 核心 fail-closed 拒绝）。 */
@@ -768,6 +759,9 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       recordHash: verification.recordHash,
       assertions: verification.assertions ?? [],
       runtimeIdentities: verification.runtimeIdentities,
+      runtimeIdentityPairing: activeRuntimeIdentityPairing?.verificationRunId === (verification.runId ?? null)
+        ? activeRuntimeIdentityPairing
+        : undefined,
       shots: (verification.evidence ?? []).map(entry => ({
         viewportWidth: entry.viewport.width,
         viewportHeight: entry.viewport.height,
@@ -781,17 +775,14 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         route: entry.route,
         result: entry.result,
         resultReason: entry.resultReason,
-        // E 的只读 view 投影：仅提取已知可读字段，缺失不臆造；proofLabel 逐字透传
-        view: toVisualEvidenceViewXp(entry.view, (() => {
-          const point = runtimeIdentityCapturePoint(verification, entry)
-          return point ? activeRuntimeIdentityPairings.get(runtimeIdentityPairingKey(point)) : undefined
-        })()),
+        // E 的只读 view 投影：视觉证据只描述自身，不承载正式身份配对结论。
+        view: toVisualEvidenceViewXp(entry.view),
       })),
     }
   }
 
-  /** E 的 View 只读复制已核验字段，并附加当前 Run 推导出的配对结果。 */
-  function toVisualEvidenceViewXp(view: unknown, runtimeIdentity?: RuntimeIdentityPairingView): import('./view-model').VisualEvidenceViewXp | undefined {
+  /** E 的 View 只读复制视觉证据自身的已知字段。 */
+  function toVisualEvidenceViewXp(view: unknown): import('./view-model').VisualEvidenceViewXp | undefined {
     if (!view || typeof view !== 'object') return undefined
     const raw = view as Record<string, unknown>
     const cross = raw.crossVersion && typeof raw.crossVersion === 'object'
@@ -817,7 +808,6 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
       limitations: Array.isArray(raw.limitations)
         ? raw.limitations.filter((item): item is string => typeof item === 'string')
         : undefined,
-      ...(runtimeIdentity ? { runtimeIdentity } : {}),
       crossVersion: cross ? { scope: { strictInstanceProofAvailable: typeof crossScope?.strictInstanceProofAvailable === 'boolean' ? crossScope.strictInstanceProofAvailable : undefined }, pairs } : undefined,
     }
   }
@@ -1176,7 +1166,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
         activeWorkflow = response.workflow
         // 新候选不得残留上一个候选的验证：验证严格绑定候选身份（candidateId/patchHash）
         activeVerification = undefined
-        activeRuntimeIdentityPairings.clear()
+        activeRuntimeIdentityPairing = undefined
         // 服务端在候选创建时停止项目预演会话：本地状态如实跟进，不保留失效会话
         const stoppedSession = previewSession
         previewSession = undefined
@@ -1244,7 +1234,10 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
           if (gen !== generation) throw new StaleResponseError()
           if (response.candidateId !== activeCandidate.candidateId) throw new Error('验证响应与当前候选不一致，已丢弃')
           activeVerification = response.verification
-          await prepareRuntimeIdentityPairings(activeVerification)
+          const verificationCandidateId = activeCandidate.candidateId
+          await prepareRuntimeIdentityPairing(activeVerification, gen, verificationCandidateId)
+          if (gen !== generation || activeCandidate?.candidateId !== verificationCandidateId ||
+              activeVerification?.runId !== response.verification.runId) throw new StaleResponseError()
           if (response.workflow) activeWorkflow = response.workflow
           const historyPayload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
           if (gen === generation) {

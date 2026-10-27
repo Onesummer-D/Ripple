@@ -1,5 +1,5 @@
 import type { VerificationRun } from '../../core/model'
-import type { RuntimeIdentityPairingView } from '../../core/runtime-identity-pairing'
+import type { RuntimeIdentityRunPairingView } from '../../core/runtime-identity-pairing'
 
 /**
  * F 体验层 ViewModel 契约（纯类型 + 纯派生函数，不依赖 React）。
@@ -227,6 +227,8 @@ export interface CandidateVerificationXp {
   assertions: Array<{ id: string; result: string; detail: string }>
   /** Host-assessed single-side receipts; E uses them only for a read-only pair projection. */
   runtimeIdentities?: VerificationRun['runtimeIdentities']
+  /** Stable E③ projection built from formal checks and runtimeIdentities, independent of visual evidence. */
+  runtimeIdentityPairing?: RuntimeIdentityRunPairingView
   /** 四视口证据截图（imageUrl 已为绝对地址，可直接作 img src）。 */
   shots: Array<{
     viewportWidth: number
@@ -260,8 +262,6 @@ export interface VisualEvidenceViewXp {
   regionCount?: number
   identityStatus?: string
   limitations?: string[]
-  /** Derived read-only pairing from the formal VerificationRun receipts; never a gate input. */
-  runtimeIdentity?: RuntimeIdentityPairingView
   crossVersion?: {
     scope?: { strictInstanceProofAvailable?: boolean }
     pairs?: Array<{ proofLabel?: string; reasons?: string[] }>
