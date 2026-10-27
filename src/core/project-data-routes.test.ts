@@ -122,6 +122,76 @@ describe('agent C: conservative data-router page provenance', () => {
   })
 })
 
+describe('agent C: declarative route identity and import binding safety', () => {
+  const routerTypes = `declare module 'react-router-dom' {
+  export const HashRouter: any; export const BrowserRouter: any;
+  export const Routes: any; export const Route: any;
+}
+declare module 'react' { export function lazy<T>(load: () => Promise<T>): any }
+`
+
+  it('resolves named and default page imports, aliased router bindings, and React.lazy default exports', () => {
+    const root = project({
+      'node_modules/react-router-dom/index.d.ts': routerTypes,
+      'node_modules/react/index.d.ts': `export function lazy<T>(load: () => Promise<T>): any`,
+      'src/pages/Named.tsx': 'export function Named(){ return <main><h1>Named</h1></main> }',
+      'src/pages/Default.tsx': 'export default function Default(){ return <main><h1>Default</h1></main> }',
+      'src/pages/Lazy.tsx': 'export default function Lazy(){ return <main><h1>Lazy</h1></main> }',
+      'src/App.tsx': `import { HashRouter as AppRouter, Routes as AppRoutes, Route as AppRoute } from 'react-router-dom';
+import { lazy as load } from 'react';
+import { Named } from './pages/Named'; import Default from './pages/Default';
+const LazyPage = load(() => import('./pages/Lazy'));
+export function App(){ return <AppRouter><AppRoutes>
+  <AppRoute path="/named" element={<Named/>}/>
+  <AppRoute path="/default" element={<Default/>}/>
+  <AppRoute path="/lazy" element={<LazyPage/>}/>
+</AppRoutes></AppRouter> }`,
+    })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(item => item.includes('声明式 React Router'))).toEqual([])
+    expect(impact(graph, 'Named')).toMatchObject({ pageRefs: ['page:/named'], certainty: 'source-proven' })
+    expect(impact(graph, 'Default')).toMatchObject({ pageRefs: ['page:/default'], certainty: 'source-proven' })
+    expect(impact(graph, 'Lazy')).toMatchObject({ pageRefs: ['page:/lazy'], certainty: 'source-proven' })
+  })
+
+  it('keeps duplicate declarative paths as separate candidate route nodes and unknown impact', () => {
+    const root = project({
+      'node_modules/react-router-dom/index.d.ts': routerTypes,
+      'src/pages/Named.tsx': 'export function Named(){ return <main><h1>Named</h1></main> }',
+      'src/pages/Default.tsx': 'export default function Default(){ return <main><h1>Default</h1></main> }',
+      'src/App.tsx': `import { HashRouter, Routes, Route } from 'react-router-dom';
+import { Named } from './pages/Named'; import Default from './pages/Default';
+export function App(){ return <HashRouter><Routes>
+  <Route path="/same" element={<Named/>}/><Route path="/same" element={<Default/>}/>
+</Routes></HashRouter> }`,
+    })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.some(item => item.includes('多个声明式 Route 节点'))).toBe(true)
+    expect(graph.nodes.filter(item => item.kind === 'route' && item.routePath === '/same')).toHaveLength(2)
+    expect(impact(graph, 'Named').certainty).not.toBe('source-proven')
+    expect(impact(graph, 'Default').certainty).not.toBe('source-proven')
+  })
+
+  it('rejects dynamic, query-bearing, hash-bearing, and out-of-router paths', () => {
+    const root = project({
+      'node_modules/react-router-dom/index.d.ts': routerTypes,
+      'src/pages/Named.tsx': 'export function Named(){ return <main><h1>Named</h1></main> }',
+      'src/App.tsx': `import { HashRouter, Routes, Route } from 'react-router-dom';
+import { Named } from './pages/Named'; const pathName = '/dynamic';
+export function App(){ return <HashRouter><Routes>
+  <Route path={pathName} element={<Named/>}/><Route path="/?tab=a" element={<Named/>}/>
+  <Route path="/#/hash" element={<Named/>}/>
+</Routes></HashRouter> }
+export function Outside(){ return <Route path="/outside" element={<Named/>}/> }`,
+    })
+    const graph = analyzeProject(root)
+    expect(graph.unresolved.filter(item => item.includes('route path is dynamic, absent or ambiguous')).length).toBeGreaterThanOrEqual(1)
+    expect(graph.unresolved.filter(item => item.includes('route path cannot be normalized exactly')).length).toBe(2)
+    expect(graph.nodes.filter(item => item.kind === 'route' && item.routePath === '/outside')).toHaveLength(0)
+    expect(impact(graph, 'Named').certainty).not.toBe('source-proven')
+  })
+})
+
 
 describe('agent C P1: app ownership, lexical binding and mutable route safety', () => {
   it('models a provable route errorElement as a page-scoped consumer without an App-level render edge', () => {
@@ -1000,3 +1070,4 @@ describe('agent C AC-P2b: data-router fallback and conditional consumers', () =>
     expect(graph.unresolved.some(entry => entry.startsWith('route-coverage:'))).toBe(true)
   })
 })
+
