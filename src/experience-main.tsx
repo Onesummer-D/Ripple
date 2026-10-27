@@ -21,7 +21,7 @@ const adapter = staticDemo
   : adapterParam === 'real-stub'
     ? createStubRealAdapter()
     : adapterParam === 'real'
-      ? createRealAdapter({ projectRoot: params.get('project') ?? undefined })
+      ? createRealAdapter({ projectRoot: params.get('project') ?? undefined, restorePersistedCandidate: true })
       : createDemoAdapter()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
