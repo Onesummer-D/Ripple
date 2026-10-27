@@ -1164,4 +1164,3 @@ export function AutumnPage() {
     expect(fs.readFileSync(path.join(root, 'untracked.txt'), 'utf8')).toBe('preserve')
   }, 15_000)
 })
-
