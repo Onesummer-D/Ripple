@@ -15,6 +15,16 @@
 
 本次使用 C+D 精确 HEAD 的 `src/core/css-token-source.ts`、`model.ts`、`project-data-routes.ts`、`project.ts` 等源文件；探针、匹配器和 TypeScript loader 均从冻结 B 基线恢复。未使用 C+D 的 detail.json 作为判定输入。
 
+## 本次运行的源文件字节摘要
+
+C+D 精确 HEAD 源文件（本地 UTF-8 bytes 的 SHA-256）：
+
+- `src/core/css-token-source.ts`: `8CED2A2CC3DF4486B7042297B8155E7E0B444F868584090E697B1D8A38EC1400`
+- `src/core/model.ts`: `C193FD31108268234A0EAA5671E3EBA3E3F6D5B04FCEB3DCBEC0B4CD743346FA`
+- `src/core/project-data-routes.ts`: `6C2C4E682864879581A34420E8E0D4807F7542D9E5513EC0A64EA7DE8BA9FE52`
+- `src/core/project.ts`: `B2583EBC7C7452D2E6774718FD4CBC7921A43B2BE2C12BE0F7A2CF1F5E3AE196`
+- `src/core/project.test.ts`: `959550708CE0A21A15138897BE927CC465B4F6F9DE9386E12017887FE3FDCBFE`
+
 ## 复跑命令与机器结果
 
 ```powershell
