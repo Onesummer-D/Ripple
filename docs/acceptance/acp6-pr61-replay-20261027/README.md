@@ -44,4 +44,4 @@ AC6.5:
 
 - Three `--accent-color` fallback uses retained as unknown at offsets 12715, 12991, 13078.
 
-The two raw JSON reports are archived losslessly as `acceptance-1a2ec305.json.gz` and `acceptance-28d76e8.json.gz`; decompress with gzip to obtain `acceptance-1a.json` and `acceptance-28d.json`. No Candidate/Verification/Approval/Apply/Rollback changes were made.
+The two raw JSON reports are archived as both `acceptance-1a.json` / `acceptance-28d.json` and lossless gzip copies `acceptance-1a2ec305.json.gz` / `acceptance-28d76e8.json.gz`. No Candidate/Verification/Approval/Apply/Rollback changes were made.
