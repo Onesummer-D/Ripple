@@ -362,12 +362,15 @@ describe('real project graph and candidate executor', () => {
     fs.writeFileSync(path.join(routerPackage, 'index.d.ts'), 'export declare const HashRouter: any; export declare const Route: any; export declare const Routes: any;')
     const appPath = path.join(root, 'src', 'App.tsx')
     fs.writeFileSync(appPath, `import { HashRouter, Route, Routes } from 'react-router-dom';
-import { HomePage } from './pages/HomePage';
-import { AutumnPage } from './pages/AutumnPage';
+import HomePage from './pages/HomePage';
+import AutumnPage from './pages/AutumnPage';
 import './styles/tokens.css';
 export function App() { return <HashRouter><Routes><Route path="/" element={<HomePage />} /><Route path="/autumn" element={<AutumnPage />} /></Routes></HashRouter> }`)
     const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')
     fs.writeFileSync(homePath, `${fs.readFileSync(homePath, 'utf8').replace('</main>', '<p className="token-card">Token consumer</p></main>')}`)
+    fs.writeFileSync(homePath, fs.readFileSync(homePath, 'utf8').replace('export function HomePage', 'export default function HomePage'))
+    const autumnPath = path.join(root, 'src', 'pages', 'AutumnPage.tsx')
+    fs.writeFileSync(autumnPath, fs.readFileSync(autumnPath, 'utf8').replace('export function AutumnPage', 'export default function AutumnPage'))
     const css = ':root { --brand: #123; }\n.token-card { color: var(--brand); }'
     fs.writeFileSync(path.join(styles, 'tokens.css'), css)
     git(root, 'add', '.')
