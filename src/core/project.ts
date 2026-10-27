@@ -1004,4 +1004,3 @@ export function resolveRuntimeInstance(graph: SourceGraph, selection: { sourceRe
   if (typeof verification?.fileDigest !== 'function' || !verification.page) throw new ProjectReadError('实例级身份校验需要源码版本读取器和页面上下文')
   return resolveRuntimeElement(graph, selection, runtimeMap, verification)
 }
-
