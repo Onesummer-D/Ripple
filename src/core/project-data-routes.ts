@@ -12,6 +12,12 @@ export interface StaticRouteResult {
   incomplete: boolean
 }
 
+export interface DeclarativeRouteResult {
+  routes: Array<{ page: string; componentId?: string; sourceFile: string; offset: number; certain: boolean }>
+  unresolved: string[]
+  incomplete: boolean
+}
+
 const unwrap = (value: ts.Expression): ts.Expression => {
   let expr = value
   while (ts.isAsExpression(expr) || ts.isSatisfiesExpression(expr) || ts.isParenthesizedExpression(expr) || ts.isTypeAssertionExpression(expr)) expr = expr.expression
@@ -555,6 +561,180 @@ export function inspectDataRouter(
       node.forEachChild(walkMutations)
     }
     walkMutations(source)
+  }
+  return { routes, unresolved, incomplete }
+}
+
+/**
+ * Recognizes a conservative subset of React Router declarative routes inside
+ * the project's `App` component. Only literal paths beneath imported Router /
+ * Routes / Route bindings are recorded. Lazy page components are followed only
+ * through a single `lazy(() => import("./Page"))` expression with a unique
+ * default component export; other route shapes remain incomplete.
+ */
+export function inspectDeclarativeRoutes(
+  root: string,
+  sources: Map<string, ts.SourceFile>,
+  components: StaticRouteComponent[],
+  checker: ts.TypeChecker,
+): DeclarativeRouteResult {
+  const routes: DeclarativeRouteResult['routes'] = []
+  const unresolved: string[] = []
+  let incomplete = false
+  const byDeclaration = new Map(components.map(component => [component.node, component]))
+  const normalizeFile = (value: string) => path.resolve(value).replaceAll('\\', '/')
+  const componentFromSymbol = (raw: ts.Symbol | undefined): StaticRouteComponent | undefined => {
+    if (!raw) return undefined
+    const symbol = raw.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(raw) : raw
+    const declarations = symbol.declarations ?? []
+    const matches = declarations.flatMap(declaration => {
+      const component = byDeclaration.get(declaration)
+      return component ? [component] : []
+    })
+    return matches.length === 1 ? matches[0] : undefined
+  }
+  const isReactLazy = (callee: ts.Expression): boolean => {
+    let binding: ts.Identifier | undefined
+    let namespace = false
+    if (ts.isIdentifier(callee)) binding = callee
+    else if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'lazy' && ts.isIdentifier(callee.expression)) {
+      binding = callee.expression
+      namespace = true
+    }
+    if (!binding) return false
+    const symbol = checker.getSymbolAtLocation(binding)
+    return Boolean(symbol?.declarations?.some(declaration => {
+      if (namespace && ts.isNamespaceImport(declaration)) {
+        const clause = declaration.parent.parent
+        return ts.isImportDeclaration(clause) && ts.isStringLiteral(clause.moduleSpecifier) && clause.moduleSpecifier.text === 'react'
+      }
+      if (!namespace && ts.isImportSpecifier(declaration)) {
+        const clause = declaration.parent.parent.parent
+        return ts.isImportDeclaration(clause) && ts.isStringLiteral(clause.moduleSpecifier) && clause.moduleSpecifier.text === 'react' &&
+          (declaration.propertyName?.text ?? declaration.name.text) === 'lazy'
+      }
+      return false
+    }))
+  }
+  const resolveLazyDefault = (symbol: ts.Symbol | undefined, containingFile: string): StaticRouteComponent | undefined => {
+    const declaration = symbol?.declarations?.find(ts.isVariableDeclaration)
+    const initializer = declaration?.initializer && unwrap(declaration.initializer)
+    if (!initializer || !ts.isCallExpression(initializer)) return undefined
+    const callee = unwrap(initializer.expression)
+    if (!isReactLazy(callee) || initializer.arguments.length !== 1) return undefined
+    const callback = unwrap(initializer.arguments[0])
+    const body = ts.isArrowFunction(callback) || ts.isFunctionExpression(callback) ? callback.body : undefined
+    const importCall = body && !ts.isBlock(body) ? unwrap(body) : undefined
+    if (!importCall || !ts.isCallExpression(importCall) || importCall.expression.kind !== ts.SyntaxKind.ImportKeyword ||
+        importCall.arguments.length !== 1 || !ts.isStringLiteral(importCall.arguments[0])) return undefined
+    const resolved = ts.resolveModuleName(importCall.arguments[0].text, containingFile,
+      { moduleResolution: ts.ModuleResolutionKind.Bundler, allowJs: true, jsx: ts.JsxEmit.Preserve }, ts.sys).resolvedModule?.resolvedFileName
+    if (!resolved || path.relative(root, resolved).startsWith('..')) return undefined
+    const target = sources.get(normalizeFile(resolved))
+    const moduleSymbol = target && checker.getSymbolAtLocation(target)
+    const exportedDefault = moduleSymbol && checker.getExportsOfModule(moduleSymbol).filter(item => item.name === 'default')
+    if (!exportedDefault || exportedDefault.length !== 1) return undefined
+    return componentFromSymbol(exportedDefault[0])
+  }
+  const sameBinding = (left: ts.Symbol | undefined, right: ts.Symbol | undefined): boolean => {
+    if (!left || !right) return false
+    if (left === right) return true
+    const resolveAlias = (symbol: ts.Symbol) => symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
+    return resolveAlias(left) === resolveAlias(right)
+  }
+  const jsxTagBinding = (node: ts.JsxOpeningLikeElement, expected: string, imports: Map<string, ts.Symbol>) =>
+    ts.isIdentifier(node.tagName) && node.tagName.text === expected &&
+    sameBinding(checker.getSymbolAtLocation(node.tagName), imports.get(expected))
+  const jsxAncestorBinding = (node: ts.Node, expected: string, imports: Map<string, ts.Symbol>) =>
+    ts.isJsxElement(node) ? jsxTagBinding(node.openingElement, expected, imports) :
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) ? jsxTagBinding(node, expected, imports) : false
+
+  for (const [absolute, source] of sources) {
+    const file = path.relative(root, absolute).replaceAll('\\', '/')
+    const appCandidates = components.filter(component => component.file === file && component.name === 'App')
+    if (!appCandidates.length) continue
+    if (appCandidates.length !== 1) {
+      incomplete = true
+      unresolved.push(`declarative-router ${file}: multiple App declarations prevent unique route ownership`)
+      continue
+    }
+    const app = appCandidates[0]
+    const routerImports = new Map<string, ts.Symbol>()
+    const routerRoles = new Map<string, string>()
+    for (const statement of source.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
+          !['react-router', 'react-router-dom'].includes(statement.moduleSpecifier.text)) continue
+      const bindings = statement.importClause?.namedBindings
+      if (!bindings || !ts.isNamedImports(bindings)) continue
+      for (const specifier of bindings.elements) {
+        const importedName = specifier.propertyName?.text ?? specifier.name.text
+        if (['Route', 'Routes', 'HashRouter', 'BrowserRouter', 'MemoryRouter'].includes(importedName)) {
+          const symbol = checker.getSymbolAtLocation(specifier.name)
+          if (symbol) {
+            routerImports.set(specifier.name.text, symbol)
+            routerRoles.set(specifier.name.text, importedName)
+          }
+        }
+      }
+    }
+    const routeBinding = [...routerImports.entries()].find(([name]) => routerRoles.get(name) === 'Route')
+    const routesBinding = [...routerImports.entries()].find(([name]) => routerRoles.get(name) === 'Routes')
+    const routerNames = [...routerImports.keys()].filter(name => {
+      const role = routerRoles.get(name)
+      return role !== undefined && ['HashRouter', 'BrowserRouter', 'MemoryRouter'].includes(role)
+    })
+    if (!routeBinding || !routesBinding || !routerNames.length) continue
+
+    const routeElements: ts.JsxOpeningLikeElement[] = []
+    const collect = (node: ts.Node) => {
+      if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+          jsxTagBinding(node, routeBinding[0], routerImports)) routeElements.push(node)
+      node.forEachChild(collect)
+    }
+    collect(app.node)
+    for (const routeElement of routeElements) {
+      const insideRoutes = (ancestor: ts.Node): boolean => {
+        for (let current: ts.Node | undefined = ancestor; current && current !== app.node; current = current.parent) {
+          if (jsxAncestorBinding(current, routesBinding[0], routerImports)) return true
+        }
+        return false
+      }
+      const insideRouter = (ancestor: ts.Node): boolean => {
+        for (let current: ts.Node | undefined = ancestor; current && current !== app.node; current = current.parent) {
+          if (routerNames.some(name => jsxAncestorBinding(current, name, routerImports))) return true
+        }
+        return false
+      }
+      if (!insideRoutes(routeElement) || !insideRouter(routeElement)) continue
+      const attributes = routeElement.attributes.properties.filter(ts.isJsxAttribute)
+      const pathAttributes = attributes.filter(attribute => attribute.name.getText(source) === 'path')
+      const elementAttributes = attributes.filter(attribute => attribute.name.getText(source) === 'element')
+      if (pathAttributes.length !== 1 || !pathAttributes[0].initializer || !ts.isStringLiteral(pathAttributes[0].initializer)) {
+        incomplete = true
+        unresolved.push(`declarative-router ${file}#${routeElement.getStart(source)}: route path is dynamic, absent or ambiguous`)
+        continue
+      }
+      const page = path.posix.normalize(pathAttributes[0].initializer.text)
+      if (!page.startsWith('/') || /[?#]/.test(page)) {
+        incomplete = true
+        unresolved.push(`declarative-router ${file}#${routeElement.getStart(source)}: route path cannot be normalized exactly`)
+        continue
+      }
+      const elementExpression = elementAttributes.length === 1 && elementAttributes[0].initializer &&
+        ts.isJsxExpression(elementAttributes[0].initializer) ? elementAttributes[0].initializer.expression : undefined
+      const jsx = elementExpression && (ts.isJsxElement(elementExpression) || ts.isJsxSelfClosingElement(elementExpression))
+        ? elementExpression : undefined
+      const tag = jsx && (ts.isJsxElement(jsx) ? jsx.openingElement.tagName : jsx.tagName)
+      const tagSymbol = tag && ts.isIdentifier(tag) ? checker.getSymbolAtLocation(tag) : undefined
+      const target = componentFromSymbol(tagSymbol) ?? resolveLazyDefault(tagSymbol, absolute)
+      const certain = Boolean(target && elementAttributes.length === 1)
+      if (!certain) {
+        incomplete = true
+        unresolved.push(`declarative-router ${file}#${routeElement.getStart(source)}: route component is not a unique tracked component`)
+      }
+      routes.push({ page, ...(target ? { componentId: target.id } : {}), sourceFile: file,
+        offset: routeElement.getStart(source), certain })
+    }
   }
   return { routes, unresolved, incomplete }
 }
