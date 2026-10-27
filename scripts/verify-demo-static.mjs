@@ -41,7 +41,7 @@ async function verifyFlow(page, label) {
   check(`${label}：默认 / 直接进入体验工作台`, response.status() === 200 && new URL(page.url()).pathname === '/')
   await page.getByTestId('xp-topbar').waitFor()
   // DEMO 标识保留
-  await check(`${label}：DEMO 标识（演示数据徽章）`, await page.getByTestId('demo-badge').isVisible())
+  await check(`${label}：演示来源说明`, await page.getByTestId('demo-note').isVisible())
   // 关系图：编辑目标与页面关系可操作
   await page.getByTestId('canvas-el-el:hero-title').click()
   check(`${label}：点选元素（关系图选中）`, (await page.getByTestId('canvas-el-el:hero-title').getAttribute('aria-pressed')) === 'true')
@@ -90,7 +90,7 @@ async function verifyFlow(page, label) {
   check(`${label}：无打开真实工程入口`, (await page.getByTestId('open-project-form').count()) === 0)
   // 真实后端 URL 参数在静态版被屏蔽
   await page.goto(`http://127.0.0.1:${port}/?adapter=real`, { waitUntil: 'networkidle' })
-  check(`${label}：?adapter=real 被强制演示模式`, await page.getByTestId('demo-badge').isVisible())
+  check(`${label}：?adapter=real 被强制演示模式`, await page.getByTestId('demo-note').isVisible())
   check(`${label}：?adapter=real 无真实工程入口`, (await page.getByTestId('open-project-form').count()) === 0)
   check(`${label}：控制台无错误`, consoleErrors.length === errorsBefore, consoleErrors.slice(errorsBefore).join(' | ') || 'clean')
 }

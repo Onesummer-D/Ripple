@@ -6,6 +6,10 @@ import { createStubRealAdapter } from './stub-real-adapter'
 import type { ExperienceAdapter } from './adapter'
 import type { ExperienceViewModel } from './view-model'
 import { createRealAdapter } from './real-adapter'
+import { createDemoAdapter } from './demo-adapter'
+import { CompareStrip } from './components/compare-strip'
+import { VersionFilmstrip } from './components/version-filmstrip'
+import { PageRail } from './components/page-rail'
 
 const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 
@@ -13,15 +17,127 @@ const text = (testId: string) => screen.getByTestId(testId).textContent ?? ''
 describe('F 体验工作台 · 青野演示流', () => {
   afterEach(cleanup)
 
+  it('真实 Compare 的截图加载失败保持可见且不宣称可比较', async () => {
+    const demoModel = await createDemoAdapter().load()
+    const realModel: ExperienceViewModel = {
+      ...demoModel,
+      dataProvenance: 'real',
+      compare: {
+        ...demoModel.compare,
+        baseline: { ...demoModel.compare.baseline, state: 'ready', imageUrl: '/evidence/baseline.png' },
+        candidate: { ...demoModel.compare.candidate, state: 'ready', imageUrl: '/evidence/candidate.png' },
+        compareState: 'partial',
+      },
+    }
+    render(<CompareStrip model={realModel} />)
+
+    expect(screen.getByTestId('compare-strip')).toBeTruthy()
+    expect(text('viewport-match-note')).toContain('真实截图尚不齐全，对照结果不完整')
+    const screenshots = screen.getAllByTestId('compare-real-img')
+    expect(screenshots).toHaveLength(2)
+    screenshots.forEach(image => fireEvent.error(image))
+    expect(text('compare-baseline')).toContain('截图不可用')
+    expect(text('compare-candidate')).toContain('截图不可用')
+    expect(text('viewport-match-note')).not.toContain('可比较')
+  })
+
   async function selectAndType() {
     fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '冬日茶器市集' } })
   }
 
-  it('演示数据全程标记 DEMO', async () => {
+  it('演示来源用纯文字说明，真实模式不显示模拟数据提示', async () => {
     render(<ExperienceWorkbench />)
-    await screen.findByTestId('demo-badge')
-    expect(text('demo-badge')).toContain('演示数据')
+    await screen.findByTestId('demo-note')
+    expect(text('demo-note')).toContain('演示预览')
+    expect(text('demo-note')).toContain('模拟数据')
+  })
+
+  it('四步跳转只改变当前步骤，不改变审批门控或范围状态', async () => {
+    render(<ExperienceWorkbench />)
+    await screen.findByTestId('scope-steps')
+    expect(screen.getByTestId('precheck-miss-target')).toBeTruthy()
+    expect(screen.queryByTestId('demo-approve')).toBeNull()
+    const before = text('scope-summary')
+    fireEvent.click(screen.getByTestId('precheck-jump-target'))
+    expect(screen.getByTestId('step-tab-1').getAttribute('aria-current')).toBe('step')
+    expect(screen.queryByTestId('demo-approve')).toBeNull()
+    expect(text('scope-summary')).toBe(before)
+    expect(screen.getByTestId('gate-reasons').textContent).toContain('尚未选中要修改的位置')
+  })
+
+  it('PageRail 将来源分成三类，并保留来源未知页面', async () => {
+    const model = await createDemoAdapter().load()
+    const pages = model.pages.map((page, index) => ({
+      ...page,
+      relationCertainty: index === 0 ? 'source-proven' as const : index === 1 ? 'partial' as const : 'unknown' as const,
+    }))
+    render(<PageRail pages={pages} currentPageRef={pages[0].id} onSelectPage={() => undefined} />)
+    expect(screen.getByTestId('overview-toggle-source-proven').textContent).toContain('来源已证实')
+    expect(screen.getByTestId('overview-toggle-partial').textContent).toContain('部分证明')
+    expect(screen.getByTestId('overview-toggle-unknown').textContent).toContain('来源未知')
+    expect(screen.getByTestId('overview-list-unknown').textContent).toContain(pages[2].label)
+  })
+
+  it('历史卡片分开处理版本选择与证据展开，并隔离 Demo 素材图', async () => {
+    const demoModel = await createDemoAdapter().load()
+    const onSelect = vi.fn()
+    const onClose = vi.fn()
+    const { rerender } = render(<VersionFilmstrip model={demoModel} onSelect={onSelect} onClose={onClose} />)
+
+    expect(screen.getByTestId('version-card-v:3').tagName).toBe('ARTICLE')
+    expect(screen.getByTestId('film-shot-demo-v:3')).toBeTruthy()
+    expect(screen.queryByTestId('film-shot-real-v:3')).toBeNull()
+    const versionButton = screen.getByTestId('version-v:3') as HTMLButtonElement
+    const evidenceButton = screen.getByTestId('evidence-toggle-v:3') as HTMLButtonElement
+    expect(versionButton.tabIndex).toBe(0)
+    expect(evidenceButton.tabIndex).toBe(0)
+    expect(evidenceButton.getAttribute('aria-expanded')).toBe('false')
+    versionButton.focus()
+    expect(document.activeElement).toBe(versionButton)
+    evidenceButton.focus()
+    expect(document.activeElement).toBe(evidenceButton)
+    fireEvent.click(evidenceButton)
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(evidenceButton.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByTestId('evidence-list-v:3')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('version-v:3'))
+    expect(onSelect).toHaveBeenCalledWith(demoModel.versions[0])
+    fireEvent.click(screen.getByTestId('close-filmstrip'))
+    expect(onClose).toHaveBeenCalledOnce()
+
+    const realModel: ExperienceViewModel = {
+      ...demoModel,
+      dataProvenance: 'real',
+      versions: [
+        { ...demoModel.versions[0], evidenceState: 'archived', thumbnail: { url: '/__ripple/api/candidate/candidate-1/evidence/shot-1', source: 'real-artifact' } },
+        { ...demoModel.versions[1], evidenceState: 'metadata', thumbnail: { url: '/__ripple/api/candidate/candidate-2/evidence/shot-2', source: 'real-artifact' } },
+        { ...demoModel.versions[2], evidenceAvailable: true, evidenceState: 'none', thumbnail: undefined },
+      ],
+    }
+    rerender(<VersionFilmstrip model={realModel} onSelect={onSelect} onClose={onClose} />)
+    expect(screen.getByTestId('film-shot-real-v:3').getAttribute('src')).toBe('/__ripple/api/candidate/candidate-1/evidence/shot-1')
+    expect(screen.getByTestId('film-shot-none-v:1').textContent).toContain('未归档真实截图')
+    expect(screen.queryByTestId('film-shot-real-v:1')).toBeNull()
+    expect(screen.queryByTestId('film-shot-demo-v:3')).toBeNull()
+    fireEvent.error(screen.getByTestId('film-shot-real-v:3'))
+    expect(screen.getByTestId('film-shot-failed-v:3').textContent).toContain('真实截图加载失败')
+    const retryButton = screen.getByTestId('film-shot-retry-v:3')
+    fireEvent.click(retryButton)
+    const retriedImage = screen.getByTestId('film-shot-real-v:3')
+    expect(retriedImage.getAttribute('src')).toBe('/__ripple/api/candidate/candidate-1/evidence/shot-1')
+    fireEvent.load(retriedImage)
+    expect(screen.getByTestId('film-src-real-v:3').textContent).toBe('真实截图')
+
+    const refreshedModel: ExperienceViewModel = {
+      ...realModel,
+      versions: realModel.versions.map(version => version.id === 'v:3'
+        ? { ...version, thumbnail: { url: '/__ripple/api/candidate/candidate-1/evidence/shot-1-retry', source: 'real-artifact' } }
+        : version),
+    }
+    rerender(<VersionFilmstrip model={refreshedModel} onSelect={onSelect} onClose={onClose} />)
+    expect(screen.getByTestId('film-shot-loading-v:3')).toBeTruthy()
+    expect(screen.queryByTestId('film-shot-failed-v:3')).toBeNull()
   })
 
   it('DEMO 对照文案负例：绝不显示真实截图校验通过的结论', async () => {
@@ -45,8 +161,8 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('无选中/无修改时不得审批（门控前置条件）', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('scope-panel')
-    expect(text('approval-area')).toContain('尚未选中')
-    expect(text('approval-area')).toContain('修改内容为空')
+    expect(text('gate-reasons')).toContain('尚未选中')
+    expect(text('gate-reasons')).toContain('修改内容为空')
   })
 
   it('选中活动标题并输入新标题：候选状态推进、选中摘要与前后对照更新', async () => {
@@ -140,7 +256,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('compare-candidate')).toContain('尚未生成候选')
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '以器会友' } })
     expect(text('compare-candidate')).toContain('以器会友')
-    expect(text('compare-candidate')).toContain('⟶')
+    expect(text('compare-candidate')).toContain('修改位置')
     // 清空草稿：候选侧恢复未生成状态，不把原文伪装成候选
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '' } })
     expect(text('compare-candidate')).toContain('尚未生成候选')
@@ -165,7 +281,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     // 修改范围决策 → 旧反馈立即消失，approvalGate 重新阻断
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
     expect(screen.queryByTestId('approve-feedback')).toBeNull()
-    expect(text('approval-area')).toContain('无法完全证明')
+    expect(text('gate-reasons')).toContain('无法完全证明')
     expect(screen.queryByTestId('demo-approve')).toBeNull()
     // 恢复范围 → 再次审批 → 修改草稿 → 旧反馈消失
     fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
@@ -203,7 +319,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     // 选中 partial + editable 的当季横幅并输入
     fireEvent.click(screen.getByTestId('canvas-el-el:seasonal-banner'))
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新春限定' } })
-    expect(text('approval-area')).toContain('未完全证明')
+    expect(text('gate-reasons')).toContain('未完全证明')
     expect(screen.queryByTestId('demo-approve')).toBeNull()
   })
 
@@ -211,10 +327,10 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     await selectAndType()
     // 两个未证明页面未决定 → 门控
-    expect(text('approval-area')).toContain('未决定')
+    expect(text('gate-reasons')).toContain('未决定')
     // 把未证明页面“包含” → 仍然不得审批（不得提升为安全范围）
     fireEvent.click(screen.getByTestId('scope-include-page:contact'))
-    expect(text('approval-area')).toContain('无法完全证明')
+    expect(text('gate-reasons')).toContain('无法完全证明')
     // 排除两个未证明页面 → 允许演示审批
     fireEvent.click(screen.getByTestId('scope-exclude-page:contact'))
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
@@ -242,9 +358,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('open-history'))
     expect(text('version-v:3')).toContain('已回滚')
-    expect(text('version-v:2')).toContain('证据可用')
-    expect(text('version-v:1')).toContain('已失效')
-    expect(text('version-v:1')).toContain('无证据')
+    expect(text('evidence-toggle-v:2')).toContain('证据可用')
+    expect(text('version-card-v:1')).toContain('已失效')
+    expect(text('version-card-v:1')).toContain('无证据')
     fireEvent.click(screen.getByTestId('version-v:3'))
     expect(screen.getByTestId('page-item-page:products').getAttribute('aria-current')).toBe('page')
   })
@@ -402,7 +518,7 @@ describe('F 体验工作台 · 真实/演示隔离', () => {
     expect(screen.getAllByText('尚无真实截图').length).toBe(2)
     // 演示状态切换器与 DEMO 标记不出现
     expect(screen.queryByTestId('demo-canvas-state')).toBeNull()
-    expect(screen.queryByTestId('demo-badge')).toBeNull()
+    expect(screen.queryByTestId('demo-note')).toBeNull()
     // real 模式没有可执行的审批入口，明确提示未接入
     expect(screen.queryByTestId('demo-approve')).toBeNull()
     expect(text('real-approval-pending')).toContain('正式接口')
@@ -456,7 +572,7 @@ describe('F 体验工作台 · Real Adapter 真实流程', () => {
     await screen.findByTestId('open-project-form')
     expect(text('blocked-reason')).toContain('尚未选择工程')
     expect(screen.queryByTestId('demo-canvas')).toBeNull()
-    expect(screen.queryByTestId('demo-badge')).toBeNull()
+    expect(screen.queryByTestId('demo-note')).toBeNull()
     expect(screen.getByTestId('real-badge')).toBeTruthy()
   })
 
