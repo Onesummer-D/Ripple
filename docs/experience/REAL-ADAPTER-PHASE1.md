@@ -1,7 +1,8 @@
-# Real Adapter 第一阶段报告（F 体验工作台 × 真实 A 后端）
+# Real Adapter 第一阶段历史报告（F 体验工作台 × 真实 A 后端）
 
 > 2026-10-22 · 分支 `feat/integration-f-real-adapter-20261022` · 基线 `feat/project-first-core-20261018 @ 2525092`（PR #14 合入后）
-> 目标：实现真正读取 A+D 工程状态的 Real Adapter，把已存在的真实数据映射到 F 工作台。本阶段只读映射 + 本地意向，不开放真实 Approval/Apply。
+> 本文记录当时的阶段范围和测试结果，不代表 v0.5 RC1 的当前能力。当前权威说明见 [`REAL-ADAPTER-CURRENT.md`](./REAL-ADAPTER-CURRENT.md)。
+> 当时目标：实现真正读取 A+D 工程状态的 Real Adapter，把已存在的真实数据映射到 F 工作台；本阶段只读映射 + 本地意向，未开放真实 Approval/Apply。
 
 ## 1. 交付内容
 

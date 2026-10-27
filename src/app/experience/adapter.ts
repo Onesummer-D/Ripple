@@ -5,14 +5,18 @@
  * - demo-adapter（青野演示，全部数据标记 DEMO/SIMULATED）——原有能力与测试原样保留；
  * - real-adapter（真实模式，映射 /__ripple/api/* 的真实响应，数据标记 real）。
  *
- * 约定：
- * - 适配器不修改任何核心领域对象；只读投影。
- * - 演示数据绝不进入 Approval / Apply（体验层没有这两个动作，只有
- *   "演示审批"按钮且明确标 DEMO，真实生命周期仍由 A 的工作台负责）。
- * - real 模式同样不开放真实 Approval/Apply：real-adapter 只做只读映射与本地的
- *   草稿/范围意向，审批入口由 UI 明确提示"尚未接入"。
+ * 约定（v0.5 RC1）：
+ * - 适配器不修改任何核心领域对象；只读投影和用户意图由 A 的服务端合同约束。
+ * - demo 模式绝不进入真实 Approval / Apply；演示按钮只改变本地标记并明确显示 DEMO。
+ * - real 模式可消费真实 Project API 的 Candidate、Verification、Approval、Apply、Rollback
+ *   响应。所有动作仍由服务端身份、Scope、VerificationRun 和生命周期门控决定，适配器
+ *   不自行生成成功状态。
+ * - Runtime Identity、E③ 配对和 CSS SourceGraph 关系只作为服务端回执的只读投影；
+ *   SourceGraph 的 semantic-candidate/unknown 不能单独授予编辑授权。
  *
- * 异步契约（最小升级，2026-10-22 Real Adapter 第一阶段）：
+ * 异步契约（RC1 当前实现；历史阶段说明见
+ * docs/experience/REAL-ADAPTER-PHASE1.md，权威能力说明见
+ * docs/experience/REAL-ADAPTER-CURRENT.md）：
  * - `load()` 是唯一必需方法；`selectElement/setDraftText/setPageScope/setViewport/setPage`
  *   保持同步纯派生，真实实现同样在本地派生（草稿/范围意向不直接写服务端）。
  * - 三个可选方法构成真实异步契约，demo-adapter 无需实现：
