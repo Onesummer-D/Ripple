@@ -51,7 +51,7 @@ test.beforeAll(() => {
   fs.writeFileSync(path.join(projectRoot, 'index.html'), '<!doctype html><html><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>')
   fs.writeFileSync(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { jsx: 'react-jsx', moduleResolution: 'Bundler' }, include: ['src'] }))
   fs.writeFileSync(path.join(projectRoot, 'src', 'main.tsx'), "import { createRoot } from 'react-dom/client'; import { App } from './App'; createRoot(document.getElementById('root')!).render(<App />)\n")
-  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), "import { HomePage } from './pages/HomePage'; export function App(){return <><nav aria-label=\"Primary\"><a>E3 test navigation</a></nav><HomePage/></>}\n")
+  fs.writeFileSync(path.join(projectRoot, 'src', 'App.tsx'), "import { useState } from 'react'; import { HomePage } from './pages/HomePage'; export function App(){const [page]=useState('home'); return <>{page === 'home' && <><nav aria-label=\"Primary\"><a>E3 test navigation</a></nav><HomePage/></>}</>}\n")
   fs.writeFileSync(path.join(projectRoot, 'src', 'pages', 'HomePage.tsx'), "export function HomePage(){return <main><h1>E3 real host title</h1><p>E3 stable paragraph</p></main>}\n")
   fs.symlinkSync(path.join(process.cwd(), 'node_modules'), path.join(projectRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
   git('init', '-q')
@@ -136,10 +136,9 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
   test.setTimeout(600_000)
   test.skip(!dockerAvailable, 'E③ 正式 API 验收需要 Linux Docker Chromium')
   // The repository Playwright config already starts tracing for every test.
-  // Take ownership of that collector so this acceptance can retain a named
-  // trace together with the JSON/SHA-256 evidence files.
-  await page.context().tracing.stop().catch(() => undefined)
-  await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
+  // Use a chunk so the acceptance can retain a named trace without taking
+  // ownership of the runner's tracing lifecycle.
+  await page.context().tracing.startChunk({ title: 'E3 runtime identity acceptance' })
   try {
     const analysis = await post(page, 'analyze', { projectRoot })
     const target = analysis.targets.find((item: { label: string }) => item.label === 'E3 real host title')
@@ -250,6 +249,6 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     await expect(pairing).toContainText('Web Crypto SHA-256')
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-negative-web-crypto-mobile.png'), fullPage: true })
   } finally {
-    await page.context().tracing.stop({ path: path.join(evidenceRoot, 'e3-runtime-identity.trace.zip') }).catch(() => undefined)
+    await page.context().tracing.stopChunk({ path: path.join(evidenceRoot, 'e3-runtime-identity.trace.zip') }).catch(() => undefined)
   }
 })
