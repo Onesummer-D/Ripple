@@ -660,6 +660,7 @@ export function inspectDeclarativeRoutes(
     }
     const app = appCandidates[0]
     const routerImports = new Map<string, ts.Symbol>()
+    const routerRoles = new Map<string, string>()
     for (const statement of source.statements) {
       if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
           !['react-router', 'react-router-dom'].includes(statement.moduleSpecifier.text)) continue
@@ -669,13 +670,19 @@ export function inspectDeclarativeRoutes(
         const importedName = specifier.propertyName?.text ?? specifier.name.text
         if (['Route', 'Routes', 'HashRouter', 'BrowserRouter', 'MemoryRouter'].includes(importedName)) {
           const symbol = checker.getSymbolAtLocation(specifier.name)
-          if (symbol) routerImports.set(specifier.name.text, symbol)
+          if (symbol) {
+            routerImports.set(specifier.name.text, symbol)
+            routerRoles.set(specifier.name.text, importedName)
+          }
         }
       }
     }
-    const routeBinding = [...routerImports.entries()].find(([name]) => name === 'Route')
-    const routesBinding = routerImports.get('Routes')
-    const routerNames = [...routerImports.keys()].filter(name => ['HashRouter', 'BrowserRouter', 'MemoryRouter'].includes(name))
+    const routeBinding = [...routerImports.entries()].find(([name]) => routerRoles.get(name) === 'Route')
+    const routesBinding = [...routerImports.entries()].find(([name]) => routerRoles.get(name) === 'Routes')
+    const routerNames = [...routerImports.keys()].filter(name => {
+      const role = routerRoles.get(name)
+      return role !== undefined && ['HashRouter', 'BrowserRouter', 'MemoryRouter'].includes(role)
+    })
     if (!routeBinding || !routesBinding || !routerNames.length) continue
 
     const routeElements: ts.JsxOpeningLikeElement[] = []
@@ -688,7 +695,7 @@ export function inspectDeclarativeRoutes(
     for (const routeElement of routeElements) {
       const insideRoutes = (ancestor: ts.Node): boolean => {
         for (let current: ts.Node | undefined = ancestor; current && current !== app.node; current = current.parent) {
-          if (jsxAncestorBinding(current, 'Routes', routerImports)) return true
+          if (jsxAncestorBinding(current, routesBinding[0], routerImports)) return true
         }
         return false
       }
