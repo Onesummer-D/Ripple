@@ -139,8 +139,10 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   for (let i = 0; i < 6; i += 1) {
     const exclude = page.locator('button[data-testid^="scope-exclude-"]').first()
     if (await exclude.count() > 0 && await exclude.isEnabled()) await exclude.click()
+    // Playwright 1.64 起 locator.isEnabled() 在元素不存在时按轮询等待而非返回 false，
+    // 必须先 count() 守卫（fixture 只被来源分析证明单页路由时翻页器不渲染）。
     const next = page.getByTestId('scope-pager-next')
-    if (await next.isEnabled().catch(() => false)) await next.click()
+    if ((await next.count()) > 0 && await next.isEnabled().catch(() => false)) await next.click()
     else break
   }
   // 全部页面显式决策后门控解除：生成候选按钮可用（第 4 步）
@@ -206,8 +208,9 @@ test('真实链路：iframe 点选 → source-selection → Scope 决策 → 候
   for (let i = 0; i < 6; i += 1) {
     const exclude = page.locator('button[data-testid^="scope-exclude-"]').first()
     if (await exclude.count() > 0 && await exclude.isEnabled()) await exclude.click()
+    // 同上：isEnabled 前先 count() 守卫，避免元素缺失时轮询挂起
     const next = page.getByTestId('scope-pager-next')
-    if (await next.isEnabled().catch(() => false)) await next.click()
+    if ((await next.count()) > 0 && await next.isEnabled().catch(() => false)) await next.click()
     else break
   }
   await page.getByTestId('step-tab-4').click()
