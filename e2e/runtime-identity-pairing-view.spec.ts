@@ -204,13 +204,13 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
       verificationContract,
     })
     expect(second.candidate.id).not.toBe(first.candidate.id)
-    await page.goto(`/experience.html?adapter=real&project=${encodeURIComponent(projectRoot)}`, { waitUntil: 'networkidle' })
-    await expect(page.getByTestId('verification-status')).toHaveCount(0)
-    await expect(page.getByTestId('runtime-identity-pairing')).toHaveCount(0)
     const secondVerified = await post(page, 'candidate/verify', { candidateId: second.candidate.id }) as VerificationPayload
     assertStoredReceipts(secondVerified)
     expect(secondVerified.verification.runId).not.toBe(firstVerified.verification.runId)
     writeEvidence('positive-verification-run-2', secondVerified)
+    // The second candidate is verified before the reload so the real API does
+    // not retire it through the intentional analyze lifecycle boundary.
+    await page.goto(`/experience.html?adapter=real&project=${encodeURIComponent(projectRoot)}`, { waitUntil: 'networkidle' })
     await page.reload({ waitUntil: 'networkidle' })
     pairing = await waitForPairing(page)
     await expect(pairing).toContainText(secondVerified.verification.runId!.slice(0, 12))

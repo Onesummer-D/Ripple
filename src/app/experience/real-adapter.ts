@@ -514,8 +514,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     // identity projection that must survive a reload. Unverified draft
     // candidates continue through the existing analyze path.
     const candidatesToTry = (payload.history ?? []).filter(item => item.lifecycle === 'active' &&
-      ((Array.isArray(item.verification?.runtimeIdentities) && item.verification.runtimeIdentities.length > 0) ||
-        (Array.isArray(item.verification?.checks) && item.verification.checks.length > 0)))
+      Array.isArray(item.verification?.runtimeIdentities) && item.verification.runtimeIdentities.length > 0)
     for (const item of candidatesToTry) {
       stale(gen)
       try {
