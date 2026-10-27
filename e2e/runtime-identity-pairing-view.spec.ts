@@ -117,6 +117,22 @@ async function waitForPairing(page: import('@playwright/test').Page): Promise<im
   return pairing
 }
 
+async function assertResponsiveRuntimeIdentity(page: import('@playwright/test').Page, label: string): Promise<void> {
+  const metrics = await page.evaluate(() => {
+    const width = window.innerWidth
+    const offenders = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .map(element => {
+        const rect = element.getBoundingClientRect()
+        return { testId: element.dataset.testid ?? '', tag: element.tagName.toLowerCase(), right: Math.round(rect.right), left: Math.round(rect.left), width: Math.round(rect.width) }
+      })
+      .filter(item => item.width > 0 && (item.right > width + 1 || item.left < -1))
+      .slice(0, 12)
+    return { innerWidth: width, scrollWidth: document.documentElement.scrollWidth, offenders }
+  })
+  console.log(`E3 responsive ${label} ${JSON.stringify(metrics)}`)
+  expect(metrics.scrollWidth, `${label} 横向溢出：${JSON.stringify(metrics.offenders)}`).toBeLessThanOrEqual(metrics.innerWidth)
+}
+
 async function mutateHistoryForCandidate(
   page: import('@playwright/test').Page,
   candidateId: string,
@@ -182,13 +198,23 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     expect(['true', 'false']).toContain(positiveStrict)
     await expect(pairing).toContainText(firstVerified.verification.runId!)
     await expect(pairing).toContainText('当前捕获运行点')
+    await assertResponsiveRuntimeIdentity(page, '1440x900 positive')
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-positive-desktop.png'), fullPage: true })
+
+    // Tablet layout must preserve the same run projection and remain within the viewport.
+    await page.setViewportSize({ width: 768, height: 900 })
+    await page.reload({ waitUntil: 'networkidle' })
+    pairing = await waitForPairing(page)
+    await expect(pairing).toContainText(firstVerified.verification.runId!)
+    await assertResponsiveRuntimeIdentity(page, '768x900 positive')
+    await page.screenshot({ path: path.join(evidenceRoot, 'e3-positive-tablet.png'), fullPage: true })
 
     // Refresh and mobile layout must preserve the same run projection and capture tuple labels.
     await page.setViewportSize({ width: 390, height: 844 })
     await page.reload({ waitUntil: 'networkidle' })
     pairing = await waitForPairing(page)
     await expect(pairing).toContainText(firstVerified.verification.runId!)
+    await assertResponsiveRuntimeIdentity(page, '390x844 positive')
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-positive-mobile.png'), fullPage: true })
     const history1 = await (await page.request.get(`${api}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)).json()
     writeEvidence('positive-history-run-1', history1)
@@ -252,6 +278,7 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     })
     await expect(pairing).toContainText('未完整证明')
     await page.setViewportSize({ width: 390, height: 844 })
+    await assertResponsiveRuntimeIdentity(page, '390x844 negative')
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-negative-runtime-id-mismatch-mobile.png'), fullPage: true })
 
     // Controlled browser environment negative: no Web Crypto means no Assessment proof.

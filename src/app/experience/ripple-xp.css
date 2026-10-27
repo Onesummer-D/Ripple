@@ -247,6 +247,20 @@
 .ripple-xp-candidate-note { margin: 0; font-size: 14px; color: var(--xp-ink-soft); }
 /* 第二批：四视口验证结果（截图/断言/E 视觉证据均来自服务端 VerificationRun） */
 .ripple-xp-verification { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--xp-line); border-radius: 12px; background: var(--xp-paper); }
+.ripple-xp-candidate-box,
+.ripple-xp-verification,
+.ripple-xp-runtime-identity,
+.ripple-xp-visual-evidences,
+.ripple-xp-assertions { min-width: 0; max-width: 100%; }
+.ripple-xp-candidate-box *,
+.ripple-xp-verification *,
+.ripple-xp-runtime-identity *,
+.ripple-xp-visual-evidences * {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .ripple-xp-verification-head { margin: 0; font-size: 14px; font-weight: 600; }
 .ripple-xp-verification-shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .ripple-xp-verification-shots figure { margin: 0; display: grid; gap: 4px; }
