@@ -738,4 +738,3 @@ export function inspectDeclarativeRoutes(
   }
   return { routes, unresolved, incomplete }
 }
-
