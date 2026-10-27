@@ -1,0 +1,102 @@
+name: Dependency Security Audit
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/dependency-audit.yml
+      - scripts/dependency-audit-gate.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Capture complete all-dependencies audit JSON
+        id: audit-all
+        continue-on-error: true
+        run: npm audit --json --registry=https://registry.npmjs.org > npm-audit-all.json
+      - name: Capture production-dependencies audit JSON
+        id: audit-prod
+        continue-on-error: true
+        run: npm audit --omit=dev --json --registry=https://registry.npmjs.org > npm-audit-production.json
+      - name: Summarize both reports without hiding raw JSON
+        if: always()
+        env:
+          AUDIT_ALL_OUTCOME: ${{ steps.audit-all.outcome }}
+          AUDIT_PROD_OUTCOME: ${{ steps.audit-prod.outcome }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const destinations = []
+          const reports = [
+            ['All dependencies', 'npm-audit-all.json', process.env.AUDIT_ALL_OUTCOME],
+            ['Production dependencies (--omit=dev)', 'npm-audit-production.json', process.env.AUDIT_PROD_OUTCOME],
+          ]
+
+          for (const [label, reportPath, outcome] of reports) {
+            let report
+            try {
+              report = JSON.parse(fs.readFileSync(reportPath, 'utf8'))
+            } catch (error) {
+              destinations.push(`## ${label}\n\nAudit outcome: ${outcome}\n\nThe endpoint did not produce valid JSON: ${error.message}`)
+              continue
+            }
+
+            const rows = Object.entries(report.vulnerabilities ?? {})
+            const counts = report.metadata?.vulnerabilities ?? {}
+            const lines = [
+              `## ${label}`,
+              '',
+              `Audit exit outcome: ${outcome}`,
+              `Counts: ${JSON.stringify(counts)}`,
+              '',
+              '| Package | Severity | Direct | Affected range | Fix available | Advisories |',
+              '|---|---:|:---:|---|---|---|',
+            ]
+            for (const [name, item] of rows) {
+              const advisories = (item.via ?? [])
+                .filter(value => value && typeof value === 'object')
+                .map(value => `${value.title ?? value.name ?? 'advisory'} (${value.url ?? 'no URL'})`)
+                .join('<br>') || 'transitive dependency chain; see raw JSON'
+              lines.push(`| ${name} | ${item.severity ?? 'unknown'} | ${item.isDirect ? 'yes' : 'no'} | ${item.range ?? 'unknown'} | ${JSON.stringify(item.fixAvailable ?? false)} | ${advisories} |`)
+            }
+            if (rows.length === 0 && report.error) {
+              lines.push('', `Audit endpoint error: ${report.error.summary ?? report.message ?? 'unknown error'}`)
+            }
+            destinations.push(lines.join('\n'))
+          }
+
+          const output = `${destinations.join('\n\n')}\n`
+          console.log(output)
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output)
+          NODE
+      - name: Upload both raw audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-${{ github.run_id }}
+          path: |
+            npm-audit-all.json
+            npm-audit-production.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce zero-vulnerability audit gate
+        if: always()
+        env:
+          AUDIT_ALL_OUTCOME: ${{ steps.audit-all.outcome }}
+          AUDIT_PROD_OUTCOME: ${{ steps.audit-prod.outcome }}
+        run: node scripts/dependency-audit-gate.mjs npm-audit-all.json npm-audit-production.json
+      - name: Verify audit gate negative examples
+        if: always()
+        run: node scripts/dependency-audit-gate.mjs --self-test
