@@ -123,6 +123,12 @@ interface HistoryItem {
   verification: VerificationView
 }
 interface PreviewSession { projectId: string; previewId: string; sourceDigest: string; url: string }
+interface CandidateRestoreResponse {
+  analysis: AnalysisResponse
+  candidate: { id: string; patchHash?: string }
+  verification: VerificationView
+  workflow: WorkflowView
+}
 
 export interface RealAdapterOptions {
   /** 本机 React/Vite 工程目录；未提供时 load() 返回"未选择工程"的不可用模型。 */
@@ -132,6 +138,8 @@ export interface RealAdapterOptions {
   fetchImpl?: typeof fetch
   /** 瞬时锁冲突退避间隔（测试注入用；默认 700ms）。 */
   busyRetryDelayMs?: number
+  /** Preserve an active formally verified candidate when reloading a project. */
+  restorePersistedCandidate?: boolean
 }
 
 /* ---------- C+D 数据合同预留（第四部分：来源关系与运行时实例身份） ---------- */
@@ -217,6 +225,7 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
   const apiBase = options.apiBase ?? ''
   const fetchImpl = options.fetchImpl ?? fetch
   const busyRetryDelayMs = options.busyRetryDelayMs ?? 700
+  const restorePersistedCandidate = options.restorePersistedCandidate ?? false
   let projectRoot = options.projectRoot
   /** generation 守卫：每次 load/openProject/refresh/dispose 自增，过期响应一律丢弃。 */
   let generation = 0
@@ -490,9 +499,55 @@ export function createRealAdapter(options: RealAdapterOptions = {}): ExperienceA
     stale(gen)
   }
 
+  /**
+   * A page reload must be able to read an active candidate's persisted run.
+   * The ordinary analyze endpoint intentionally retires active candidates as a
+   * new source revision boundary. When history already contains a candidate,
+   * restore it first so a read-only reload does not destroy the candidate it is
+   * trying to display. A candidate from another project is ignored and the
+   * normal analyze path remains authoritative for that project.
+   */
+  async function restoreActiveCandidateForProject(gen: number, requestedRoot: string): Promise<AnalysisResponse | undefined> {
+    if (!restorePersistedCandidate) return undefined
+    const payload = await get<{ history?: HistoryItem[] }>('history').catch(() => ({ history: [] as HistoryItem[] }))
+    // Only a formally verified history entry can carry the E③ runtime
+    // identity projection that must survive a reload. Unverified draft
+    // candidates continue through the existing analyze path.
+    const candidatesToTry = (payload.history ?? []).filter(item => item.lifecycle === 'active' &&
+      (Array.isArray(item.verification?.runtimeIdentities) || Array.isArray(item.verification?.checks)))
+    for (const item of candidatesToTry) {
+      stale(gen)
+      try {
+        const restored = await post<CandidateRestoreResponse>('candidate/restore', { candidateId: item.candidateId })
+        stale(gen)
+        const normalizeRoot = (value: string) => value.replaceAll('\\', '/').replace(/\/+$/, '')
+        if (normalizeRoot(restored.analysis.projectRoot) !== normalizeRoot(requestedRoot)) continue
+        activeCandidate = { candidateId: restored.candidate.id, patchHash: restored.candidate.patchHash }
+        activeVerification = restored.verification
+        activeWorkflow = restored.workflow
+        return restored.analysis
+      } catch {
+        // A stale or malformed candidate is not a reason to block opening the
+        // project. The normal analyze path will report the current project
+        // state and the history endpoint will retain the audit record.
+      }
+    }
+    return undefined
+  }
+
   /** 加载真实工程状态：analyze → history → 尽力启动源码预演。 */
   async function loadProjectState(gen: number): Promise<void> {
     if (!projectRoot?.trim()) return
+    const restored = restorePersistedCandidate
+      ? await restoreActiveCandidateForProject(gen, projectRoot)
+      : undefined
+    if (restored) {
+      analysis = restored
+      if (!draftContract) draftContract = proposeContract()
+      await refreshHistoryAndReconcile(gen, restored.revision.projectId)
+      await startPreviewBestEffort(gen, restored.revision.projectId)
+      return
+    }
     // reload 时旧页 dispose 的 preview/stop 可能仍持有服务端预览锁，
     // analyze 内部按项目收锁，撞锁是瞬时错误——有限重试后仍失败才如实抛出
     const analyzed = await postWithBusyRetry<AnalysisResponse>(gen, 'analyze', { projectRoot })
