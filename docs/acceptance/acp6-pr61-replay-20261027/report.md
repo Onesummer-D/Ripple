@@ -47,9 +47,10 @@
 
 SourceGraph 已建立严格格式的候选消费者边，但真实 `var()` 覆盖仍不完整。
 
-- 源使用 token：8 个。
+- 源使用 token：8 个；探针评估 123 个 source-use rows（固定 CSS 中原始 `var()` ground truth 为 126 处）。
+- 严格边覆盖：73/123（59.35%）；50 个 source-use rows 的 `linkedStrictEdges=0`，因此缺边数为 50。
 - 完整覆盖：仅 `--skill-color`。
-- 未覆盖：`--text-primary`、`--border-color`、`--accent`、`--text-secondary`、`--background`、`--card-bg`、`--accent-secondary`。
+- 未覆盖 token：`--text-primary`、`--border-color`、`--accent`、`--text-secondary`、`--background`、`--card-bg`、`--accent-secondary`（7/8）。
 - 许多声明节点已经有严格边，但仍有真实 source use 的 `linkedStrictEdges=0`，例如：
   - `src/css/nav.css:681`，`.nav-logo:hover`
   - `src/css/nav.css:890`，`.nav-link`
@@ -68,9 +69,9 @@ SourceGraph 已建立严格格式的候选消费者边，但真实 `var()` 覆�
 实际结果：
 
 - `pageNodes=[]`
-- 七条 `matchedRoutes` 的 `graphNodeIds=[])
-- 每条 `matched=false)
-- `routeIdentityConflicts=[])
+- 七条 `matchedRoutes` 的 `graphNodeIds=[]`。
+- 每条 `matched=false`。
+- `routeIdentityConflicts=[]`。
 
 因此这不是“路由冲突误匹配”，而是当前图没有可证明的 route identity。匹配器保守地保持 PENDING。
 
@@ -79,13 +80,14 @@ SourceGraph 已建立严格格式的候选消费者边，但真实 `var()` 覆�
 静态 class 证据有一部分成功，但动态 class 和未形成边的消费者仍未闭合。
 
 - 147 个 source-positioned consumer pair 被收集。
-- 147 个 anchored consumer records 被记录；仍有 53 个 uncovered pairs。
-- `componentLevelEdgesTotal=0)。
+- 静态锚点覆盖 94/147（63.95%）；53 个 pair 缺少可证明的静态锚点（`uncoveredConsumerPairs=53`）。
+- 动态 className 候选共 4 条记录，分布在 2 个文件：`src/layouts/Nav.jsx` 1 条、`src/pages/Home.jsx` 3 条。
+- `componentLevelEdgesTotal=0`。
 - 动态 className 文件：
   - `src/layouts/Nav.jsx`
   - `src/pages/Home.jsx`（3 条记录）
 - 动态 class gate：`PENDING: dynamic className expressions may produce additional consumers without exact static source evidence`。
-- 这与“静态候选不等于 proven consumer”的合同一致，不能升绿。
+- 这与“静态候选不等于 proven consumer”的合同一致，不能升绿。由于固定样本确实包含动态 className，且当前匹配器拒绝对动态表达式作静态证明，AC6.4 在不放宽规则、不修改样本的前提下必然保持 PENDING。
 
 ### AC6.5 — PASS
 
@@ -95,7 +97,7 @@ SourceGraph 已建立严格格式的候选消费者边，但真实 `var()` 覆�
 - `src/css/style.css:12991`，`.stat-card:hover`
 - `src/css/style.css:13078`，`.stat-icon`
 
-结果：3 条 unknown edges、3 条记录，未把 fallback 当作成功消费证明。
+结果：3 条 unknown edges、3 条记录，未把 fallback 当作成功消费证明。整份机器报告的 unresolved/unknown 总数为 253；其中 AC6.5 显式 fallback unknown 为 3。
 
 ## PR CI 归因
 
@@ -117,4 +119,18 @@ PR #61 在固定第三方 SHA 上确实落地了来源图字段、UTF-8 byteOffs
 **AC6.1 PASS、AC6.2 PENDING、AC6.3 PENDING、AC6.4 PENDING、AC6.5 PASS；总计 2/5 PASS。**
 
 未修改 A 的 Candidate、Verification、Approval、Apply 或 Rollback 接口；未把静态候选提升为 proven；PR #61 继续保持 Draft。
+
+## 证据归档
+
+- 证据分支：[evidence/pr61-acp6-replay-20261027](https://github.com/Onesummer-D/Ripple/tree/evidence/pr61-acp6-replay-20261027)
+- 归档提交：[39cc807e9a52cf576fd1032286d007826199c502](https://github.com/Onesummer-D/Ripple/commit/39cc807e9a52cf576fd1032286d007826199c502)
+- 归档内容：`acceptance-1a2ec305.json.gz`、`acceptance-28d76e8.json.gz`、本报告和 README manifest。
+- 完整复跑命令：
+
+  ```text
+  node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs ./scripts/b-css-token-probe.mjs <fixed-project-root> --acceptance --json <acceptance.json> --expect-core-sha <core-sha>
+  ```
+
+- 两个固定样本 SHA 均为 `PENDING / 2 PASS / 3 PENDING / 0 ERROR / exit 2`；下一次正式复跑等待 C+D 提供最终待验收 HEAD，不提前使用 `0cc9d7d8` 作正式结论。
+
 
