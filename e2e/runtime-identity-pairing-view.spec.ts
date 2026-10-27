@@ -180,7 +180,7 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     // edited candidate may legitimately remain partial or unproven.
     const positiveStrict = await pairing.getAttribute('data-strict')
     expect(['true', 'false']).toContain(positiveStrict)
-    await expect(pairing).toContainText(firstVerified.verification.runId!.slice(0, 12))
+    await expect(pairing).toContainText(firstVerified.verification.runId!)
     await expect(pairing).toContainText('当前捕获运行点')
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-positive-desktop.png'), fullPage: true })
 
@@ -188,7 +188,7 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     await page.setViewportSize({ width: 390, height: 844 })
     await page.reload({ waitUntil: 'networkidle' })
     pairing = await waitForPairing(page)
-    await expect(pairing).toContainText(firstVerified.verification.runId!.slice(0, 12))
+    await expect(pairing).toContainText(firstVerified.verification.runId!)
     await page.screenshot({ path: path.join(evidenceRoot, 'e3-positive-mobile.png'), fullPage: true })
     const history1 = await (await page.request.get(`${api}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)).json()
     writeEvidence('positive-history-run-1', history1)
@@ -213,8 +213,8 @@ test('E③ 真实 API 正例、历史回读、候选隔离与受控负例 UI', a
     await page.goto(`/experience.html?adapter=real&project=${encodeURIComponent(projectRoot)}`, { waitUntil: 'networkidle' })
     await page.reload({ waitUntil: 'networkidle' })
     pairing = await waitForPairing(page)
-    await expect(pairing).toContainText(secondVerified.verification.runId!.slice(0, 12))
-    await expect(pairing).not.toContainText(firstVerified.verification.runId!.slice(0, 12))
+    await expect(pairing).toContainText(secondVerified.verification.runId!)
+    await expect(pairing).not.toContainText(firstVerified.verification.runId!)
 
     const history2 = await (await page.request.get(`${api}/history?projectId=${encodeURIComponent(analysis.revision.projectId)}`)).json()
     writeEvidence('positive-history-run-2', history2)
