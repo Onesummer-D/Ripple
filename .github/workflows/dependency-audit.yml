@@ -6,6 +6,7 @@ on:
       - package.json
       - package-lock.json
       - .github/workflows/dependency-audit.yml
+      - scripts/dependency-audit-gate.mjs
   workflow_dispatch:
 
 permissions:
@@ -90,3 +91,12 @@ jobs:
             npm-audit-production.json
           if-no-files-found: error
           retention-days: 30
+      - name: Enforce zero-vulnerability audit gate
+        if: always()
+        env:
+          AUDIT_ALL_OUTCOME: ${{ steps.audit-all.outcome }}
+          AUDIT_PROD_OUTCOME: ${{ steps.audit-prod.outcome }}
+        run: node scripts/dependency-audit-gate.mjs npm-audit-all.json npm-audit-production.json
+      - name: Verify audit gate negative examples
+        if: always()
+        run: node scripts/dependency-audit-gate.mjs --self-test
