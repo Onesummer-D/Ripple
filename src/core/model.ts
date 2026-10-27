@@ -23,12 +23,23 @@ export interface ProjectRevision {
 export type TokenOrigin = 'css-custom-property' | 'tailwind-palette'
 export interface SourceNode {
   id: Id
-  kind: 'file' | 'symbol' | 'component' | 'route' | 'data' | 'media' | 'token' | 'jsx-element' | 'state'
+  kind: 'file' | 'symbol' | 'component' | 'route' | 'data' | 'media' | 'token' | 'token-use' | 'jsx-element' | 'state'
   label: string
-  location?: { path: string; start?: number; end?: number }
+  location?: { path: string; start?: number; end?: number; offset?: number; byteOffset?: number }
   page?: string
+  routePath?: string
   pages?: string[]
   selector?: string
+  /** CSS selector identity for a token declaration/use; does not prove cascade resolution. */
+  selectorScope?: string
+  /** UTF-8 byte offset of the CSS token property name or var() call. */
+  byteOffset?: number
+  /** Conditional CSS context retained for audit; it is not evaluated as computed style. */
+  mediaContext?: string[]
+  /** Literal className source value for exact static CSS selector matching. */
+  className?: string
+  /** A dynamic JSX className cannot be completely represented by `className`. */
+  dynamicClassName?: boolean
   value?: string
   pageOverrides?: Record<Id, string>
   /** Additive source provenance; only meaningful for `kind: 'token'`. */
@@ -38,9 +49,15 @@ export interface Relation {
   id: Id
   from: Id
   to: Id
-  kind: 'imports' | 'reads' | 'renders' | 'uses-token' | 'asset-consumer' | 'css-cascade' | 'same-copy' | 'semantic-link'
+  kind: 'imports' | 'reads' | 'renders' | 'uses-token' | 'token-reference' | 'asset-consumer' | 'css-cascade' | 'same-copy' | 'semantic-link'
   certainty: RelationCertainty
   evidenceRefs: Id[]
+  /** Exact CSS var() source anchor carried by a token-reference/consumer candidate edge. */
+  sourceUse?: { path: string; charOffset: number; byteOffset: number; offsetUnit: 'code-unit' }
+  /** The declaration selector whose identity is being considered by this relation. */
+  selectorScope?: string
+  /** Conditional CSS contexts retained without computing their runtime activation. */
+  mediaContext?: string[]
 }
 export interface SourceGraph {
   id: Id
