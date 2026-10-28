@@ -1,0 +1,25 @@
+AC-P6 Phase 0 clean reproduction log
+Generated: 2026-10-28
+Archive branch base: 4279ff6472fce7eae0c9685d24f59e57815c9095
+Input: evidence/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json
+Input SHA-256: 289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b
+Validator: scripts/validation/validate-acp6-v06-phase0-gap-matrix.mjs
+Matrix: docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json
+
+Clean checkout command:
+  git clone --no-checkout <repository> phase0-clean
+  git -C phase0-clean checkout <final-commit>
+  node scripts/validation/validate-acp6-v06-phase0-gap-matrix.mjs docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json evidence/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json
+  exit code: 0
+
+The normal run reports pass=true, positive=true, shuffleInvariant=true, and all six negative tests pass.
+
+Negative cases (the validator returns exit code 0 when it correctly rejects the mutation):
+  --negative=duplicate-id                  exit 0
+  --negative=deleted-classification        exit 0
+  --negative=tampered-source-location      exit 0
+  --negative=tampered-input-hash           exit 0
+  --negative=tampered-coverage-statistics  exit 0
+  --negative=graph-node-missing-bypassed   exit 0
+
+The normal run performs the shuffle stability check in-process. The input hash check reads the second CLI argument; no D: drive path is required.

@@ -1,8 +1,9 @@
-# SHA-256 manifest for AC-P6 v0.6 Phase 0 assets
-# Generated 2026-10-28; manifest excludes itself
-48f1b694ea83218562dcc89dd6f5f9d737db56ede8d3c11a569ac650bd150410  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028.md
-28be37148fd65ce66179336f73db83148dcb39171535e32154b5d072d7095a46  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028.json
-f13324daaedfb9819001c7b9c5c0e0b1a6d9965c6d600535bd19eca0a1706a9e  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028-validation.json
-6204e7fe71ea7ac2243b1ad311ba88728880ad2d57b65957ae51bd654d0f9de1  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\validate-acp6-v06-phase0-gap-matrix.mjs
-289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-pr61-2ebd1e20-independent-20261027\acceptance-2ebd1e20-final.json
-
+# SHA-256 manifest for AC-P6 v0.6 Phase 0 final GitHub archive
+# Generated 2026-10-28; hashes are over the exact UTF-8 bytes stored in the final GitHub commit; this manifest excludes itself
+18e67777437ce526cc9a3afd70c465984d066e325723cc73fdbba558edef78cc  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.md
+51dc89b85f3c67a418e294f0b48665a5e0cd8e7f485f2576a4c3d46b5cd4217c  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json
+7a8f561ff3e6f7794fa1f5aa5d1ca5cdcb00bae3c844af9e76f2d070dab3e8f4  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028-validation.json
+cfc7347300f415f4ddb989bb25ff210c94248f91a39e8cbec76db7cb2b8e7678  scripts/validation/validate-acp6-v06-phase0-gap-matrix.mjs
+289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json
+be3b62d73b970d56b0dc0c73ffd7b6a3a18361f6f71e599e55708223dbcb108a  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/README.md
+89a255044f5e17e2ccb66d2e922544508ad09def2d6a439ee6943730f7bc21af  docs/acceptance/2026-10-28/acp6-phase0/acp6-phase0-clean-reproduction-20261028.txt
