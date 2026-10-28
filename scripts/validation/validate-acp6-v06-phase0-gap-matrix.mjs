@@ -29,6 +29,7 @@ function validateCore(m){
   check('row-count',rows.length===123,{actual:rows.length,expected:123});
   check('covered-count',covered.length===85,{actual:covered.length,expected:85});
   check('uncovered-count',uncovered.length===38,{actual:uncovered.length,expected:38});
+  check('matrix-stats-match',m.stats?.sourceUseRows===rows.length&&m.stats?.coveredRows===covered.length&&m.stats?.uncoveredRows===uncovered.length,{stats:m.stats,computed:{sourceUseRows:rows.length,coveredRows:covered.length,uncoveredRows:uncovered.length}});
   check('token-count',m.stats?.tokenCount===8,{actual:m.stats?.tokenCount,expected:8});
   check('unknown-pair-count',m.stats?.ac64UnknownPairs===16,{actual:m.stats?.ac64UnknownPairs,expected:16});
   check('uncovered-id-index',new Set(m.uncoveredRowIds||[]).size===38&&(m.uncoveredRowIds||[]).length===38&&(m.uncoveredRowIds||[]).every(id=>uncovered.some(r=>r.rowId===id)),{});
@@ -39,6 +40,7 @@ function validateCore(m){
   check('source-input-present',Boolean(sourceBytes),{sourcePath});
   check('source-evidence-sha256',Boolean(sourceBytes)&&actualSourceSha===m.source.acceptanceJsonSha256,{actual:actualSourceSha,recorded:m.source.acceptanceJsonSha256});
   check('source-not-overwritten',m.source.overwritten===false,{});
+  check('source-comparison-recorded',m.sourceComparison?.remoteB?.sha256==='b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4'&&m.sourceComparison.remoteB.jsonParse==='fail'&&m.sourceComparison.remoteB.independentlyExtractedSections.consumerGroups===123&&m.sourceComparison.remoteB.independentlyExtractedSections.uncoveredConsumerPairs===16&&m.sourceComparison.remoteB.ac62StrictCoverage.status==='unavailable-from-malformed-source'&&m.sourceComparison.localDerivedInput?.sha256===m.source.acceptanceJsonSha256&&m.sourceComparison.localDerivedInput.jsonParse==='pass',{remote:m.sourceComparison?.remoteB,local:m.sourceComparison?.localDerivedInput});
   check('phase0-base',m.execution?.baseCommit==='5b75fe699afce98638e6fd6ad110911d83389dc8'&&m.execution.remoteVerified===true,{actual:m.execution});
   const pass=checks.every(c=>c.pass);
   return {pass,checks,summary:{rows:rows.length,covered:covered.length,uncovered:uncovered.length,tokens:m.stats?.tokenCount,unknownPairs:m.stats?.ac64UnknownPairs,gapClassCounts:m.stats?.gapClassCounts}};
@@ -55,6 +57,7 @@ negative('duplicate-id',m=>{m.rows[1].rowId=m.rows[0].rowId;});
 negative('deleted-classification',m=>{const r=m.rows.find(x=>x.coverageStatus==='uncovered');r.gapClass=null;r.gapClasses=[];});
 negative('tampered-source-location',m=>{const r=m.rows.find(x=>x.coverageStatus==='uncovered');r.sourceRef.byteOffset+=1;});
 negative('tampered-input-hash',m=>{m.source.acceptanceJsonSha256='0'.repeat(64);});
+negative('tampered-coverage-statistics',m=>{m.stats.coveredRows=84;m.stats.uncoveredRows=39;});
 negative('graph-node-missing-bypassed',m=>{const r=m.rows.find(x=>x.coverageStatus==='uncovered');r.sourceUseGraphNodeIds={status:'present',value:['invented-node']};});
 const pass=positive.pass&&shuffleInvariant&&negatives.every(x=>x.pass);
 const result={schemaVersion:'acp6-v06-phase0-validation/v2',generatedAt:'2026-10-28',matrixPath,sourcePath,matrixSha256:sha256(fs.readFileSync(matrixPath)),pass,positive,shuffleInvariant,negativeTests:negatives};

@@ -1,8 +1,8 @@
 # SHA-256 manifest for AC-P6 v0.6 Phase 0 assets
 # Generated 2026-10-28; manifest excludes itself
-1e1e81f7a498895591ca44a5706bb3c264f9b2f93ea5f9386f87bab4221c9474  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028.md
-351538d8486e49f286f1fd924710a43a15af4389b77c73a2ff4e747fb5e64912  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028.json
-76b6642761b411f08701624ac1887465da9c10c6bb34c414af37854afd8d034e  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028-validation.json
-079c8a3420b2e9d6c1a29a0a7bcab841852ca2987363343d2de01bb65a172a37  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\validate-acp6-v06-phase0-gap-matrix.mjs
+594a3b3bb7dff4502b27f61b6c5a0cb68e75e8d75b7b547465ebd308714f9002  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028.md
+28be37148fd65ce66179336f73db83148dcb39171535e32154b5d072d7095a46  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028.json
+f13324daaedfb9819001c7b9c5c0e0b1a6d9965c6d600535bd19eca0a1706a9e  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-v06-phase0-gap-matrix-20261028-validation.json
+24f034255c21bf13374a4b358885564d4927b527ba184d84f1dfad159a56bec8  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\validate-acp6-v06-phase0-gap-matrix.mjs
 289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b  D:\Onesummer_D\Learning\Competitons\ShuMei_QG\Ripple涟漪\_scratch\acp6-pr61-2ebd1e20-independent-20261027\acceptance-2ebd1e20-final.json
 

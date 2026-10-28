@@ -13,6 +13,27 @@
 - 稳定 ID：SHA-256(`acp6-v06-phase0-row|token|file|byteOffset|selector`) 的前 16 位，前缀为 `acp6-gap-`。
 - 原始 JSON 未被覆盖；本矩阵只增加派生分类和一致性元数据。
 
+## 原始 B JSON 来源对照
+
+派生矩阵实际使用本地精确复跑文件：
+
+- 路径：`D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/acceptance-2ebd1e20-final.json`
+- 大小：1,035,281 bytes
+- SHA-256：`289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b`
+- 生成来源：PR #61 精确 HEAD `2ebd1e20d043287edbbfc2ec31c10f15688a4499`，冻结 B v5 probe/matcher，退出码 2（3 PASS / 2 PENDING / 0 ERROR）。
+- JSON.parse：成功。
+
+GitHub B 归档文件：
+
+- [acceptance-ed58cfd-final.json](https://github.com/Onesummer-D/Ripple/blob/evidence/pr65-acp6-ed58-independent-20261028/evidence/acceptance-ed58cfd-final.json)
+- 大小：802,145 bytes
+- SHA-256：`b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4`
+- 项目 SHA：`b244f857457d2a07f118155602eef9097fd322bd`；A core：`ed58cfdc2892acaa9b97363a3414b1c219d07053`。
+- JSON.parse：失败，byte 378,995（line 11,201 column 50）；未修补、未替换。
+- 对原始字节做非修改式局部提取仍得到 consumerGroups=123、uncoveredConsumerPairs=16（静态 9、动态 7），但该文件没有可 JSON.parse 的 AC6.2 declarationSetCoverage，因此不能从它直接重提取 85/38。
+
+结论：本派生矩阵没有冒充或覆盖远端 B 文件；123/85/38 来自 JSON.parse 成功的本地精确复跑文件，并在矩阵中同时保留远端 SHA 与解析失败事实。
+
 ## B 结果一致性快照
 
 | 指标 | 派生矩阵 | B 原始期望 |
@@ -202,9 +223,9 @@ B v5 source-use rows 没有逐行 `graphNodeIds`。因此每行写入：
 
 `node _scratch/validate-acp6-v06-phase0-gap-matrix.mjs _scratch/acp6-v06-phase0-gap-matrix-20261028.json _scratch/acp6-pr61-2ebd1e20-independent-20261027/acceptance-2ebd1e20-final.json`
 
-退出码：`0`；正例通过，记录顺序反转保持 ID/统计不变，重复 ID、删除分类、篡改来源定位、篡改输入 hash、伪造 graphNodeIds 五个负例均按预期失败。
+退出码：`0`；正例通过，记录顺序反转保持 ID/统计不变，重复 ID、删除分类、篡改来源定位、篡改输入 hash、篡改 covered/uncovered 统计、伪造 graphNodeIds 六个负例均按预期失败。
 
-校验项目包括：稳定 ID 唯一、确定性复算、五类分类合法、primary 属于 gapClasses、sourceRef 完整、graphNodeIds 明确 missing、123/85/38 统计、8 Token、16 UNKNOWN、原始证据 hash 存在，以及打乱顺序、重复 ID、删除分类、篡改来源定位和篡改输入 hash 的负例。
+校验项目包括：稳定 ID 唯一、确定性复算、五类分类合法、primary 属于 gapClasses、sourceRef 完整、graphNodeIds 明确 missing、123/85/38 统计、8 Token、16 UNKNOWN、原始证据 hash 存在，以及打乱顺序、重复 ID、删除分类、篡改来源定位、篡改输入 hash、篡改 covered/uncovered 统计和伪造 graphNodeIds 的负例。
 
 本次校验结果：`_scratch/acp6-v06-phase0-gap-matrix-20261028-validation.json`，`pass: true`。文件 SHA-256 清单：`_scratch/acp6-v06-phase0-sha256-20261028.txt`。
 

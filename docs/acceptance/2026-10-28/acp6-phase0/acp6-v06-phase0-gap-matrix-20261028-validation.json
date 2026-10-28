@@ -3,7 +3,7 @@
   "generatedAt": "2026-10-28",
   "matrixPath": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-v06-phase0-gap-matrix-20261028.json",
   "sourcePath": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-pr61-2ebd1e20-independent-20261027\\acceptance-2ebd1e20-final.json",
-  "matrixSha256": "351538d8486e49f286f1fd924710a43a15af4389b77c73a2ff4e747fb5e64912",
+  "matrixSha256": "28be37148fd65ce66179336f73db83148dcb39171535e32154b5d072d7095a46",
   "pass": true,
   "positive": {
     "pass": true,
@@ -88,6 +88,37 @@
         }
       },
       {
+        "name": "matrix-stats-match",
+        "pass": true,
+        "details": {
+          "stats": {
+            "sourceUseRows": 123,
+            "coveredRows": 85,
+            "uncoveredRows": 38,
+            "tokenCount": 8,
+            "uncoveredTokenCount": 7,
+            "coveredTokenCount": 1,
+            "ac64ConsumerPairs": 147,
+            "ac64StaticAnchors": 131,
+            "ac64UnknownPairs": 16,
+            "ac64UnknownStatic": 9,
+            "ac64UnknownDynamic": 7,
+            "gapClassCounts": {
+              "selector-owner-unresolved": 24,
+              "dynamic-className": 9,
+              "candidate-without-strict-edge": 4,
+              "theme-cascade-ambiguity": 1,
+              "complex-selector-normalization": 0
+            }
+          },
+          "computed": {
+            "sourceUseRows": 123,
+            "coveredRows": 85,
+            "uncoveredRows": 38
+          }
+        }
+      },
+      {
         "name": "token-count",
         "pass": true,
         "details": {
@@ -153,6 +184,63 @@
         "details": {}
       },
       {
+        "name": "source-comparison-recorded",
+        "pass": true,
+        "details": {
+          "remote": {
+            "url": "https://github.com/Onesummer-D/Ripple/blob/evidence/pr65-acp6-ed58-independent-20261028/evidence/acceptance-ed58cfd-final.json",
+            "ref": "evidence/pr65-acp6-ed58-independent-20261028",
+            "path": "evidence/acceptance-ed58cfd-final.json",
+            "bytes": 802145,
+            "sha256": "b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4",
+            "jsonParse": "fail",
+            "parseError": "Expected \\, or } after property value in JSON at position 378995 (line 11201 column 50)",
+            "malformedAtByte": 378995,
+            "malformedExcerpt": "\"to\": \"token:dist/assets/index-<non-ASCII bytes>\": \"token:src/css/style.css#788\"",
+            "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+            "aCoreSha": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
+            "independentlyExtractedSections": {
+              "consumerGroups": 123,
+              "uncoveredConsumerPairs": 16,
+              "staticUnknownPairs": 9,
+              "dynamicUnknownPairs": 7
+            },
+            "ac62StrictCoverage": {
+              "status": "unavailable-from-malformed-source",
+              "rows": null,
+              "covered": null,
+              "uncovered": null
+            },
+            "note": "Raw bytes retained for audit; no repair, replacement, or acceptance-result substitution was performed."
+          },
+          "local": {
+            "path": "D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/acceptance-2ebd1e20-final.json",
+            "generationReport": "D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/report-2ebd1e20-final.md",
+            "replayCommand": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs ./scripts/b-css-token-probe.mjs <fixed-project-root> --acceptance --json <acceptance.json> --expect-core-sha 2ebd1e20d043287edbbfc2ec31c10f15688a4499",
+            "sourcePrHead": "2ebd1e20d043287edbbfc2ec31c10f15688a4499",
+            "sourcePrBase": "0c02b85cdf7b1d52821fee3e06c013cbd664efa8",
+            "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+            "bytes": 1035281,
+            "sha256": "289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b",
+            "jsonParse": "pass",
+            "ac62StrictCoverage": {
+              "rows": 123,
+              "covered": 85,
+              "uncovered": 38,
+              "tokens": 8,
+              "closedTokens": 1,
+              "unclosedTokens": 7
+            },
+            "ac64": {
+              "pairs": 147,
+              "staticAnchors": 131,
+              "unknownPairs": 16,
+              "dynamicUnknownPairs": 7
+            }
+          }
+        }
+      },
+      {
         "name": "phase0-base",
         "pass": true,
         "details": {
@@ -214,7 +302,16 @@
       "pass": true,
       "expectedFailure": true,
       "failedChecks": [
-        "source-evidence-sha256"
+        "source-evidence-sha256",
+        "source-comparison-recorded"
+      ]
+    },
+    {
+      "name": "tampered-coverage-statistics",
+      "pass": true,
+      "expectedFailure": true,
+      "failedChecks": [
+        "matrix-stats-match"
       ]
     },
     {
