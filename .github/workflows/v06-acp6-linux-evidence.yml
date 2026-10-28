@@ -48,20 +48,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf 'requested_core_sha=%s\n' "$REQUESTED_CORE_SHA" > core-verification.tmp
           if [[ ! "$REQUESTED_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "invalid core SHA input" >> core-verification.tmp
+            mkdir -p test-results
+            printf 'requested_core_sha=%s\ninvalid core SHA input\n' "$REQUESTED_CORE_SHA" > test-results/core-verification.txt
             exit 1
           fi
           actual_core_sha="$(git rev-parse HEAD)"
           actual_tree_sha="$(git rev-parse HEAD^{tree})"
-          printf 'actual_core_sha=%s\nactual_tree_sha=%s\n' "$actual_core_sha" "$actual_tree_sha" >> core-verification.tmp
           test "$actual_core_sha" = "$REQUESTED_CORE_SHA"
           test -z "$(git status --porcelain --untracked-files=normal)"
           mkdir -p test-results
-          mv core-verification.tmp test-results/core-verification.txt
+          {
+            printf 'requested_core_sha=%s\n' "$REQUESTED_CORE_SHA"
+            printf 'actual_core_sha=%s\nactual_tree_sha=%s\n' "$actual_core_sha" "$actual_tree_sha"
+          } > test-results/core-verification.txt
           printf 'core_tree_sha=%s\n' "$actual_tree_sha" >> "$GITHUB_ENV"
-          for spec in             "scripts/b-css-token-probe.mjs:$PROBE_BLOB"             "scripts/b-acp6-matching.mjs:$MATCHER_BLOB"             "scripts/ts-extension-loader.mjs:$LOADER_BLOB"; do
+          for spec in "scripts/b-css-token-probe.mjs:$PROBE_BLOB" "scripts/b-acp6-matching.mjs:$MATCHER_BLOB" "scripts/ts-extension-loader.mjs:$LOADER_BLOB"; do
             file="${spec%%:*}"
             expected="${spec##*:}"
             actual="$(git rev-parse "HEAD:$file")"
