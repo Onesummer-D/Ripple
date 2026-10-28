@@ -87,7 +87,7 @@ const reproLog = [
 fs.writeFileSync(path.join(dir, 'reproduction-log.txt'), reproLog, 'utf8');
 
 const validationTable = commands.map(item => `| ${item.name} | ${item.exitCode} | ${item.validatorPass} | ${item.failedChecks.join(', ') || 'none'} |`).join('\n');
-const baseMarkdown = read('acp6-v06-phase0-gap-matrix-v2-20261029.md');
+const baseMarkdown = read('acp6-v06-phase0-gap-matrix-v2-20261029.md').split('\n## Clean reproduction record\n', 1)[0].trimEnd() + '\n';
 const finalMarkdown = `${baseMarkdown}\n## Clean reproduction record\n\nThe formal source JSON parsed successfully and matched SHA-256 \`0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a\`. The historical corrupt #65 JSON remains preserved and is never used.\n\n| Case | Process exit | Validator pass | Failed checks observed |\n| --- | ---: | --- | --- |\n${validationTable}\n\nThe negative cases cover duplicate IDs, unknown raw/canonical classifications, deleted classifications, wrong mappings, source-location mutation, input-hash mutation, count mutation, invented graphNodeIds, platform offset drift, and source-row mutation. Reversing row order passes while preserving IDs, counts and classifications.\n`;
 fs.writeFileSync(path.join(dir, 'acp6-v06-phase0-gap-matrix-v2-20261029.md'), finalMarkdown, 'utf8');
 
