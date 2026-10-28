@@ -314,6 +314,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(screen.getByText(/来源未知：可以先查看，但不能承诺修改范围/)).not.toBeNull()
     expect(screen.getAllByTestId('certainty-unknown').length).toBeGreaterThan(0)
     expect(text('gate-reasons')).toContain('来源未知')
+    expect(screen.queryByTestId('demo-approve')).toBeNull()
   })
 
   it('partial 来源的元素即使可编辑，排除未知页面后也不给安全审批', async () => {
