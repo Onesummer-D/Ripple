@@ -9,8 +9,8 @@
   "files": [
     {
       "path": "README.md",
-      "bytes": 2593,
-      "sha256": "8d963b0db7d496d68334496f3a443afa27dfef6fee290afe64dac68baf1f7929"
+      "bytes": 2852,
+      "sha256": "8cb38c68e37e1ec68d79b01166cee875e151f5a41b965ec8e9da35fd76c68ee8"
     },
     {
       "path": "acceptance-ed58cfd-final.json",
@@ -24,13 +24,18 @@
     },
     {
       "path": "acp6-v06-phase0-gap-matrix-v2-20261029.md",
-      "bytes": 24641,
-      "sha256": "47ae0fe70f676c154b2a9253b67bbc2016062873d3442ac9cbbba4951430f115"
+      "bytes": 26233,
+      "sha256": "e8fde1aed43edbd5111b0c3917cf302a1ee30267d07d8f58eb748fda0a5aa308"
     },
     {
       "path": "build-phase0-v2.mjs",
       "bytes": 20236,
       "sha256": "b3b8b7a95b9cefdd6ba46c751d9358b6b34056a2d701e13848a6a3ce859e9739"
+    },
+    {
+      "path": "clean-reproduction-log.txt",
+      "bytes": 1784,
+      "sha256": "ac0deaaca36f8d81677150c692cf77cb7bc7b02b8c17ec7ca47a2b340e0682ee"
     },
     {
       "path": "finalize-phase0-v2.mjs",

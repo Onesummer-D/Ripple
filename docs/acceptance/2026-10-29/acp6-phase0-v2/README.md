@@ -27,6 +27,8 @@ node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json
 
 The positive run exits 0. Negative mutations in `negative-run-index.json` are expected to be detected by the validator and are recorded with their exit codes and failed checks in `reproduction-log.txt`. `shuffle-order` is the positive order-invariance case. The validator compares every source-use row, checks both platform offset records, rejects invented graphNodeIds and invalid classifications, and keeps AC6.2 dynamic rows separate from AC6.4 dynamic UNKNOWN pairs.
 
+`clean-reproduction-log.txt` records a second replay from a separate directory containing only the archived matrix, recovered input, and validator. It includes the exact input hashes and process exit code for the positive, negative, and shuffled-order runs.
+
 ## Archive identity
 
 The new branch is based on `c851bfe11e6851e01695f94246a5a571435d8faa`. `manifest.json` lists every evidence file's byte length and SHA-256; `manifest.json` and `manifest-sha256.txt` are excluded from that list to avoid a self-reference cycle, and `manifest-sha256.txt` hashes the final manifest bytes. All files are written with LF and hashes refer to the exact bytes committed to GitHub.
