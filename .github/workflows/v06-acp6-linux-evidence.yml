@@ -50,12 +50,12 @@ jobs:
           set -euo pipefail
           printf 'requested_core_sha=%s\n' "$REQUESTED_CORE_SHA" > core-verification.tmp
           if [[ ! "$REQUESTED_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "invalid core SHA input" | tee -a test-results/core-verification.txt
+            echo "invalid core SHA input" >> core-verification.tmp
             exit 1
           fi
           actual_core_sha="$(git rev-parse HEAD)"
           actual_tree_sha="$(git rev-parse HEAD^{tree})"
-          printf 'actual_core_sha=%s\nactual_tree_sha=%s\n' "$actual_core_sha" "$actual_tree_sha" | tee -a test-results/core-verification.txt
+          printf 'actual_core_sha=%s\nactual_tree_sha=%s\n' "$actual_core_sha" "$actual_tree_sha" >> core-verification.tmp
           test "$actual_core_sha" = "$REQUESTED_CORE_SHA"
           test -z "$(git status --porcelain --untracked-files=normal)"
           mkdir -p test-results
