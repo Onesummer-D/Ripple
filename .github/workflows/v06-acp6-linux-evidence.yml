@@ -17,7 +17,8 @@ permissions:
 
 env:
   FIXED_PROJECT_SHA: b244f857457d2a07f118155602eef9097fd322bd
-  FIXED_STYLE_SHA256: 8de0b6c59beb8538534adcbd5bb20906bda6b6ca7b9e3998702a229a2506a920
+  FIXED_STYLE_SHA256: 5038b3fd088d0e51aa430a2767d6637b51daa9a712dd174b76c0e305ff238007
+  WINDOWS_REFERENCE_STYLE_SHA256: 8de0b6c59beb8538534adcbd5bb20906bda6b6ca7b9e3998702a229a2506a920
   EXPECTED_ACCEPTED_CORE_SHA: ed58cfdc2892acaa9b97363a3414b1c219d07053
   PROBE_BLOB: 3431294c0807161432e0a7c986825ffc5263bc87
   MATCHER_BLOB: 3a04ab896b40500b2c314b710b4cb1c3a3893dcb
@@ -128,6 +129,8 @@ jobs:
             coreSha: expectedCore,
             coreTreeSha: process.env.core_tree_sha ?? null,
             fixedProjectSha: expectedProject,
+            linuxStyleSha256: process.env.FIXED_STYLE_SHA256,
+            windowsReferenceStyleSha256: process.env.WINDOWS_REFERENCE_STYLE_SHA256,
             exitCode: null,
             verificationStatus: 'ERROR',
             failure: null,
