@@ -197,7 +197,7 @@ jobs:
           validation_code=$?
           set -e
           rm -f test-results/sha256sums.txt
-          find test-results -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > test-results/sha256sums.txt
+          find test-results -maxdepth 1 -type f ! -name sha256sums.txt -print0 | sort -z | xargs -0 sha256sum > test-results/sha256sums.txt
           cat test-results/summary.json
           if [ "$validation_code" -ne 0 ]; then exit "$validation_code"; fi
 
