@@ -2,7 +2,7 @@
 # Generated 2026-10-28; hashes are over the exact UTF-8 bytes stored in the final GitHub commit; this manifest excludes itself
 18e67777437ce526cc9a3afd70c465984d066e325723cc73fdbba558edef78cc  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.md
 51dc89b85f3c67a418e294f0b48665a5e0cd8e7f485f2576a4c3d46b5cd4217c  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json
-7a8f561ff3e6f7794fa1f5aa5d1ca5cdcb00bae3c844af9e76f2d070dab3e8f4  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028-validation.json
+bd9124261a512b327d61f299a91735ed37b9d20f5e6c5924759c300e2719d01d  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028-validation.json
 cfc7347300f415f4ddb989bb25ff210c94248f91a39e8cbec76db7cb2b8e7678  scripts/validation/validate-acp6-v06-phase0-gap-matrix.mjs
 289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json
 be3b62d73b970d56b0dc0c73ffd7b6a3a18361f6f71e599e55708223dbcb108a  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/README.md
