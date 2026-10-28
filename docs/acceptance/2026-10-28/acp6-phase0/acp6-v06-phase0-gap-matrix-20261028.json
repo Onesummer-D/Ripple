@@ -1,0 +1,5470 @@
+{
+  "schemaVersion": "acp6-v06-phase0-gap-matrix/v2",
+  "generatedAt": "2026-10-28",
+  "generatedBy": "Ripple C+D Phase 0 design asset generator",
+  "generationRuleVersion": "acp6-v06-phase0-rules-20261028-r2",
+  "source": {
+    "acceptanceJson": "D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/acceptance-2ebd1e20-final.json",
+    "acceptanceJsonSha256": "289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b",
+    "sourcePrHead": "2ebd1e20d043287edbbfc2ec31c10f15688a4499",
+    "sourcePrBase": "0c02b85cdf7b1d52821fee3e06c013cbd664efa8",
+    "fixedProject": "allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd",
+    "overwritten": false,
+    "bAcceptanceSourceHead": "2ebd1e20d043287edbbfc2ec31c10f15688a4499",
+    "bAcceptanceSourceBase": "0c02b85cdf7b1d52821fee3e06c013cbd664efa8",
+    "phase0Base": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+    "phase0BaseRemoteVerified": true
+  },
+  "classification": {
+    "allowedGapClasses": [
+      "selector-owner-unresolved",
+      "dynamic-className",
+      "theme-cascade-ambiguity",
+      "complex-selector-normalization",
+      "candidate-without-strict-edge"
+    ],
+    "ruleText": {
+      "selector-owner-unresolved": "Global/element/pseudo selector or no unique JSX/DOM owner; no static source anchor is safe.",
+      "dynamic-className": "Selector class is listed in the B dynamic-className consumer set; runtime observation is required.",
+      "theme-cascade-ambiguity": "Theme selector or active declaration/cascade state is not proven by static source graph.",
+      "complex-selector-normalization": "Selector list/combinator/newline/escaped span needs branch-preserving normalization before matching.",
+      "candidate-without-strict-edge": "A candidate consumer exists but no strict source edge was emitted; candidate is not proof."
+    },
+    "taxonomyVersion": "acp6-gap-taxonomy/v1",
+    "taxonomyStatus": "proposed-awaiting-A-final-confirmation",
+    "legacyMapping": {
+      "selector-owner-unresolved": [
+        "no-static-element-anchor",
+        "pseudo-element-or-generated-content",
+        "global-or-theme-selector (global/element portion)"
+      ],
+      "dynamic-className": [
+        "dynamic-or-ambiguous-class (only evidence-backed dynamic className portion)"
+      ],
+      "candidate-without-strict-edge": [
+        "candidate-without-source-edge"
+      ],
+      "theme-cascade-ambiguity": [
+        "global-or-theme-selector (theme portion)",
+        "duplicate declaration/cascade ambiguity"
+      ],
+      "complex-selector-normalization": [
+        "complex-selector-normalization"
+      ]
+    }
+  },
+  "stats": {
+    "sourceUseRows": 123,
+    "coveredRows": 85,
+    "uncoveredRows": 38,
+    "tokenCount": 8,
+    "uncoveredTokenCount": 7,
+    "coveredTokenCount": 1,
+    "ac64ConsumerPairs": 147,
+    "ac64StaticAnchors": 131,
+    "ac64UnknownPairs": 16,
+    "ac64UnknownStatic": 9,
+    "ac64UnknownDynamic": 7,
+    "gapClassCounts": {
+      "selector-owner-unresolved": 24,
+      "dynamic-className": 9,
+      "candidate-without-strict-edge": 4,
+      "theme-cascade-ambiguity": 1,
+      "complex-selector-normalization": 0
+    }
+  },
+  "rows": [
+    {
+      "rowId": "acp6-gap-7681a1cbb8f0413c",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 115,
+        "byteOffset": 115,
+        "selector": ".footer"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "7681a1cbb8f0413c39d7ff9e81d0c6901798e6facfd60bfbe1f38eb11e6ba124"
+    },
+    {
+      "rowId": "acp6-gap-3622ac946f5dca38",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 1192,
+        "byteOffset": 1192,
+        "selector": ".footer-section h4"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "3622ac946f5dca3834468b09e4b715f650209d237fb0004f072ddf64604701ee"
+    },
+    {
+      "rowId": "acp6-gap-80f8f8307616027b",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 681,
+        "byteOffset": 681,
+        "selector": ".nav-logo:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "80f8f8307616027b87a20258ec4b93ccd04350c28e2206dcd03fa812431162ac"
+    },
+    {
+      "rowId": "acp6-gap-3b6136e218b1fd32",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 890,
+        "byteOffset": 890,
+        "selector": ".nav-link"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 6,
+        "linkedStrictEdges": 10,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "3b6136e218b1fd32b7d78f181b774f21660edc8d48640101cd34f3db426c772c"
+    },
+    {
+      "rowId": "acp6-gap-772811fbc0457512",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 1211,
+        "byteOffset": 1211,
+        "selector": ".hamburger"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "772811fbc045751280d53f24142e7fa10868cb4bc173c1608bc075e7a110f4e7"
+    },
+    {
+      "rowId": "acp6-gap-1a07ac810794baae",
+      "coverageStatus": "uncovered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 995,
+        "byteOffset": 995,
+        "selector": "body"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "1a07ac810794baaec8ac75ac86c3ff0889216809911a95886406ff770b21682c"
+    },
+    {
+      "rowId": "acp6-gap-a99b0609ab86f64f",
+      "coverageStatus": "uncovered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 3320,
+        "byteOffset": 3320,
+        "selector": ".content h2"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a99b0609ab86f64faf04afe9f6c525f21d518c9ea34ad51c711fdf0b8892ed9f"
+    },
+    {
+      "rowId": "acp6-gap-12c7345a271c6404",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 4497,
+        "byteOffset": 4497,
+        "selector": ".contact-form label"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "12c7345a271c6404dd1e277ac6bcc530bc05c16f7a079480265d7d42ef65ca03"
+    },
+    {
+      "rowId": "acp6-gap-5fc08122bea47a3d",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 4703,
+        "byteOffset": 4703,
+        "selector": ".contact-form input,\r\n.contact-form textarea"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "5fc08122bea47a3dbb9640881d39ab546ace308fc6fecac88a144b6ae378c085"
+    },
+    {
+      "rowId": "acp6-gap-f5f0d08a3b7886e8",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 5457,
+        "byteOffset": 5457,
+        "selector": ".theme-toggle"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "f5f0d08a3b7886e8600ae38d7eea875fcedd10be7941344794595f32b19baec9"
+    },
+    {
+      "rowId": "acp6-gap-a040cfff69fc21c4",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 8459,
+        "byteOffset": 8459,
+        "selector": ".greeting h1"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a040cfff69fc21c44227a4ec15c78469b3d53dc4ea74c17121fdbf3f85da118c"
+    },
+    {
+      "rowId": "acp6-gap-af7e7830fa2a14a4",
+      "coverageStatus": "uncovered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10495,
+        "byteOffset": 10495,
+        "selector": ".btn-secondary"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "af7e7830fa2a14a40b2abb7444f21d42a04d4bb7510a08c2392e3d0b5b6471b9"
+    },
+    {
+      "rowId": "acp6-gap-792185a53960990d",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 13210,
+        "byteOffset": 13210,
+        "selector": ".stat-number"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "792185a53960990dbf36b373062b8ef1f67e74ea77d1946601f8e3c6698a75ce"
+    },
+    {
+      "rowId": "acp6-gap-38dd4f78f305a492",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 13499,
+        "byteOffset": 13499,
+        "selector": ".skills-section h3"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "38dd4f78f305a492b9cd683d9bc483415291793cfb4b1a7f189a86359ef36379"
+    },
+    {
+      "rowId": "acp6-gap-b6507b0e953549fa",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14193,
+        "byteOffset": 14193,
+        "selector": ".skills-section .skill-badge"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 4,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "b6507b0e953549fae26d98d56c59fa0e9deb1fa3cde72a6169e25a3dd9866624"
+    },
+    {
+      "rowId": "acp6-gap-494379191ec2ba4d",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14956,
+        "byteOffset": 14956,
+        "selector": ".section-header h3"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "494379191ec2ba4d5a132f095c18fb44e4947da98b1bb55555dd9c2f5d66b280"
+    },
+    {
+      "rowId": "acp6-gap-01d38eadec5e0376",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 15834,
+        "byteOffset": 15834,
+        "selector": ".project-header h4"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "01d38eadec5e037696b7b79a8a2021b52afdc26df2f240825f62c42a374f9fc4"
+    },
+    {
+      "rowId": "acp6-gap-87857215a58d54b6",
+      "coverageStatus": "covered",
+      "token": "--text-primary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 17688,
+        "byteOffset": 17688,
+        "selector": ".contact-card h3"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 185,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#201"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 772,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#788"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "87857215a58d54b6c54cab4e62796f21823dc2cfa2b3182e5a18ab8cfe6a065b"
+    },
+    {
+      "rowId": "acp6-gap-04fc5fd5533c3338",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 161,
+        "byteOffset": 161,
+        "selector": ".footer"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "04fc5fd5533c3338f3e44dd3a988f054061b1d1c4175dc6137780ed766165196"
+    },
+    {
+      "rowId": "acp6-gap-bfacabea13b57d58",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2230,
+        "byteOffset": 2230,
+        "selector": ".social-icon"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "bfacabea13b57d5836b9fb1246a69cc951ee999655593e468864b8f67bde7f13"
+    },
+    {
+      "rowId": "acp6-gap-069212c8c2f62eea",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2620,
+        "byteOffset": 2620,
+        "selector": ".footer-divider"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "069212c8c2f62eea911bb228bef74d7a4f246ebbd6cf7c7efc7cc6d374b20e11"
+    },
+    {
+      "rowId": "acp6-gap-c8b86a239f88cd41",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 4479,
+        "byteOffset": 4479,
+        "selector": "[data-theme=\"light\"] .footer"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "c8b86a239f88cd413b47c449348add71a706f5927fba00216bec277bee8dc828"
+    },
+    {
+      "rowId": "acp6-gap-f39969fed0f7990b",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 4658,
+        "byteOffset": 4658,
+        "selector": "[data-theme=\"light\"] .social-icon"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "f39969fed0f7990b4f17bb2d958419c81023dd5d165dbbb025fae693ec415942"
+    },
+    {
+      "rowId": "acp6-gap-8f1344622d75274e",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 173,
+        "byteOffset": 173,
+        "selector": ".nav-container"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "8f1344622d75274ec08c1955f28a7997cd67310f96b4f5b9ac39f9fb61746b47"
+    },
+    {
+      "rowId": "acp6-gap-b67204d231e5653b",
+      "coverageStatus": "uncovered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 2061,
+        "byteOffset": 2061,
+        "selector": ".nav-links"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "b67204d231e5653b383ef2b270b6f40f57b1bb42d616bc40c90a6ee1d47bcb66"
+    },
+    {
+      "rowId": "acp6-gap-16dc5d9eb24a4dc1",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 2818,
+        "byteOffset": 2818,
+        "selector": ".skills-grid > div"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "16dc5d9eb24a4dc15204d9adf689ee6fc72e1e20ff152289b83ccc494c40b879"
+    },
+    {
+      "rowId": "acp6-gap-e2e5e10fb82cf5a2",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 3770,
+        "byteOffset": 3770,
+        "selector": ".stats-grid div"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e2e5e10fb82cf5a25b5f875ac2049c92ff893ef23bf8f0e4a4f12486c1c938e6"
+    },
+    {
+      "rowId": "acp6-gap-3961080530e5810e",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 4612,
+        "byteOffset": 4612,
+        "selector": ".contact-form input,\r\n.contact-form textarea"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "3961080530e5810e4bdcd561936829e3890d663d337ad6619666b388f8a0702f"
+    },
+    {
+      "rowId": "acp6-gap-0ee36268df344755",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 5365,
+        "byteOffset": 5365,
+        "selector": ".theme-toggle"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "0ee36268df34475507900c4ef995d6886169f5749cf60ecd2b0ab175ad35bb13"
+    },
+    {
+      "rowId": "acp6-gap-87321cad295188a3",
+      "coverageStatus": "uncovered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10537,
+        "byteOffset": 10537,
+        "selector": ".btn-secondary"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "87321cad295188a3022b5b6bb5331681a47604c72ecb77ddc3b3f343f936c59a"
+    },
+    {
+      "rowId": "acp6-gap-3a9f56944909d61f",
+      "coverageStatus": "uncovered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10994,
+        "byteOffset": 10994,
+        "selector": ".social-links a"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "3a9f56944909d61f7f0bc6ac27dafc5847b327153602f74173d8f9664bc182fb"
+    },
+    {
+      "rowId": "acp6-gap-94b8fb684ea376dd",
+      "coverageStatus": "uncovered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 12487,
+        "byteOffset": 12487,
+        "selector": ".stat-card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "94b8fb684ea376dd9c3793a3bd03c1ba405fa27f1c2acafca193f82048a2f2cf"
+    },
+    {
+      "rowId": "acp6-gap-25033f92bac0ead7",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14286,
+        "byteOffset": 14286,
+        "selector": ".skills-section .skill-badge"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 4,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "25033f92bac0ead7c1009f12c75539944fa4b3f6e1f6a17ed5a7e45953aae4b3"
+    },
+    {
+      "rowId": "acp6-gap-ab43f861e4be2c04",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 15478,
+        "byteOffset": 15478,
+        "selector": ".project-card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "ab43f861e4be2c04b77a463dde45fa501aa2f6b0e3649de24b078ae0156be2e9"
+    },
+    {
+      "rowId": "acp6-gap-11c342f726cb237f",
+      "coverageStatus": "covered",
+      "token": "--border-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 17572,
+        "byteOffset": 17572,
+        "selector": ".contact-card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 455,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#471"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 907,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#923"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "11c342f726cb237f8506796bb5aeb52e0742876030ec43c755e48dc720629d17"
+    },
+    {
+      "rowId": "acp6-gap-c4609510f77e7b44",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 600,
+        "byteOffset": 600,
+        "selector": ".footer-brand"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "c4609510f77e7b44be6e2458e3faa7a3da1ecb6d4b8d410c29d5d53d654c9c11"
+    },
+    {
+      "rowId": "acp6-gap-1027a7455bb3d74f",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 952,
+        "byteOffset": 952,
+        "selector": ".footer-cta"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "candidate-without-strict-edge",
+      "gapClasses": [
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "1027a7455bb3d74fc089982cf0711200d3f24b4256738c1f65a20b54d31522ed"
+    },
+    {
+      "rowId": "acp6-gap-8cebe28b7de80471",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 1325,
+        "byteOffset": 1325,
+        "selector": ".footer-section h4"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "8cebe28b7de804715ec2f18e91edc83da8bcee7b5da8262a60f4e780a4e88876"
+    },
+    {
+      "rowId": "acp6-gap-dc96bd48e41e2565",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 1739,
+        "byteOffset": 1739,
+        "selector": ".footer-links li a:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "dc96bd48e41e2565dbecdc2c721b29b31f0a1343210055486fea6889ba230e5b"
+    },
+    {
+      "rowId": "acp6-gap-460c622984ae9d97",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2371,
+        "byteOffset": 2371,
+        "selector": ".social-icon:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "460c622984ae9d9732be71c28090386ce60bd9dffc60172a7fcc3d859571de36"
+    },
+    {
+      "rowId": "acp6-gap-17e038f806870668",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2432,
+        "byteOffset": 2432,
+        "selector": ".social-icon:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "17e038f806870668a828436d74de66a54a93ec622f86067cb3ced4edd47ec220"
+    },
+    {
+      "rowId": "acp6-gap-f590c38d66d52f5e",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 3045,
+        "byteOffset": 3045,
+        "selector": ".scroll-to-top"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "f590c38d66d52f5e51eb73e2399bfa8723eee666669c1af8e8ee96fa80d08c9e"
+    },
+    {
+      "rowId": "acp6-gap-3e431957897adb9f",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 4553,
+        "byteOffset": 4553,
+        "selector": "[data-theme=\"light\"] .footer-brand"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "theme-cascade-ambiguity",
+      "gapClasses": [
+        "theme-cascade-ambiguity",
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "3e431957897adb9f49f00fd845f4c9a08d826f9b0aef6cc41e1e903e0591baa3"
+    },
+    {
+      "rowId": "acp6-gap-52f50d80f289d159",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/interests.css",
+        "offset": 157,
+        "byteOffset": 157,
+        "selector": ".interests-grid .card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 8,
+        "linkedStrictEdges": 16,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "52f50d80f289d1595a03e7d6f2ea4216f5af23dbf40b37a739d08ecbc4fad618"
+    },
+    {
+      "rowId": "acp6-gap-56923cab340f259a",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 581,
+        "byteOffset": 581,
+        "selector": ".nav-logo"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "56923cab340f259a34b97826ea53cf81160416d323ac2f6816b2425513ab171a"
+    },
+    {
+      "rowId": "acp6-gap-fa87445de6eeca0c",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 1067,
+        "byteOffset": 1067,
+        "selector": ".nav-link:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 6,
+        "linkedStrictEdges": 10,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "fa87445de6eeca0ceed347111c12d80f3e2c8da653151ec976ac01c7fd69e9a7"
+    },
+    {
+      "rowId": "acp6-gap-bc6fc7b767348c4e",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 1444,
+        "byteOffset": 1444,
+        "selector": ".hamburger:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "bc6fc7b767348c4ea543367c2c14ad3988b3397f40e0b8a5fabc16bc733921a9"
+    },
+    {
+      "rowId": "acp6-gap-a07b7efaa938245c",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 1514,
+        "byteOffset": 1514,
+        "selector": ".hamburger:focus-visible"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a07b7efaa938245c8231a4e1bdd19b871c3a1a492c726e0378cff128a1892e0a"
+    },
+    {
+      "rowId": "acp6-gap-e9cd71230c8fecdf",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 1998,
+        "byteOffset": 1998,
+        "selector": ".section-title"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e9cd71230c8fecdfa4f62c8e5019b2ec89bed6b63b3fe0fd02253f275d5dc5b7"
+    },
+    {
+      "rowId": "acp6-gap-d81381d84c0356ee",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 2232,
+        "byteOffset": 2232,
+        "selector": ".section-title::after"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "d81381d84c0356eeb08a16cb0fd49813ea4b1ad7c59e1de5e607c09f1087593b"
+    },
+    {
+      "rowId": "acp6-gap-b11568f8e63f06cb",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 2497,
+        "byteOffset": 2497,
+        "selector": ".experience-item"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 4,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "b11568f8e63f06cb4c8497944601c1fe939bd929be3fab5d7dec8e36c94d9dc2"
+    },
+    {
+      "rowId": "acp6-gap-30305395e59fccf8",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 2896,
+        "byteOffset": 2896,
+        "selector": ".skills-grid h3"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "30305395e59fccf8017fa3549968e2bbf2bf46f848409adbf306b927a83c10db"
+    },
+    {
+      "rowId": "acp6-gap-9b280c12225690cb",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 3231,
+        "byteOffset": 3231,
+        "selector": ".content h1"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "9b280c12225690cbdf2ebf21e9d1cae0630290f43e6052d0a7625ef475ced225"
+    },
+    {
+      "rowId": "acp6-gap-575e4bc21bc5e381",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 3847,
+        "byteOffset": 3847,
+        "selector": ".stats-grid h2"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "575e4bc21bc5e381e8801a237c4baacef9455003a79d4811568fb1de5287090e"
+    },
+    {
+      "rowId": "acp6-gap-fdd0a9e050c54406",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 4227,
+        "byteOffset": 4227,
+        "selector": ".image-container img"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "fdd0a9e050c544068a0908af678547a36d765cc67f8ac7acb0bc8e457a22de4a"
+    },
+    {
+      "rowId": "acp6-gap-44e51ee48330fc98",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 4842,
+        "byteOffset": 4842,
+        "selector": ".contact-form button"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "44e51ee48330fc9824fbe87fd47d2f99b6b48036c164b77680deb3a2c6937b09"
+    },
+    {
+      "rowId": "acp6-gap-e8087459138cbb21",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 5143,
+        "byteOffset": 5143,
+        "selector": ".social-media a"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e8087459138cbb21608cdba5ad1e81a6f2b212b16efa438990510ab4cbeefb0a"
+    },
+    {
+      "rowId": "acp6-gap-226e3f18bce6f82d",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 5664,
+        "byteOffset": 5664,
+        "selector": ".theme-toggle:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "226e3f18bce6f82dec8f851d9ca0feb79da20d86517bd82795650ff1a7548fc4"
+    },
+    {
+      "rowId": "acp6-gap-b28782dc8cd54747",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 5725,
+        "byteOffset": 5725,
+        "selector": ".theme-toggle:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "b28782dc8cd54747c86d11ab842188da7025f0ee7b9033ebab77abfa171f1e15"
+    },
+    {
+      "rowId": "acp6-gap-d499b2e05a50e8a7",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 8549,
+        "byteOffset": 8549,
+        "selector": ".name-highlight"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "d499b2e05a50e8a774c97e405f5727292405793bd163f53cfb7f1e2b1f2cdf1e"
+    },
+    {
+      "rowId": "acp6-gap-a24853b5ecd1ca10",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 8756,
+        "byteOffset": 8756,
+        "selector": ".name-highlight::after"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a24853b5ecd1ca100897e93a4ca7fed968b4d607b481d4a323e55d092a56c183"
+    },
+    {
+      "rowId": "acp6-gap-e29cecb2c1316328",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 9209,
+        "byteOffset": 9209,
+        "selector": ".company"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e29cecb2c131632841784b08cf947202ef62e0120be170ae8a6818eceab470c0"
+    },
+    {
+      "rowId": "acp6-gap-91ab97ddc9309383",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10207,
+        "byteOffset": 10207,
+        "selector": ".btn-primary"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "91ab97ddc930938379ecef830dfdc47814d97218c151e2548705a9773c8388c3"
+    },
+    {
+      "rowId": "acp6-gap-8538bd1e7defa405",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10635,
+        "byteOffset": 10635,
+        "selector": ".btn-secondary:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "8538bd1e7defa405778102875910bf94580abff1cab632a478c4603b85dba6d2"
+    },
+    {
+      "rowId": "acp6-gap-f242b0230ed3acb5",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10660,
+        "byteOffset": 10660,
+        "selector": ".btn-secondary:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "f242b0230ed3acb5e32226dd48a181c5a613c615af96e9d4e473c92ecf059d39"
+    },
+    {
+      "rowId": "acp6-gap-28601cf0954a9348",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 11060,
+        "byteOffset": 11060,
+        "selector": ".social-links a:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "28601cf0954a93487d2c80cfd63661824a8968b25463febc944466170f959541"
+    },
+    {
+      "rowId": "acp6-gap-c30b85cdab347df5",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 11502,
+        "byteOffset": 11502,
+        "selector": ".profile-image"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "c30b85cdab347df51445240fa30bdd29f0fc55a21e4f0d5ca90f70537479f6a5"
+    },
+    {
+      "rowId": "acp6-gap-6a48459fe1baaec5",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 11810,
+        "byteOffset": 11810,
+        "selector": ".image-decoration"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "6a48459fe1baaec5637e4e27a67a6503531b66cc9d73e094eee627575e790210"
+    },
+    {
+      "rowId": "acp6-gap-99850a3adda7e481",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 12735,
+        "byteOffset": 12735,
+        "selector": ".stat-card::before"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "99850a3adda7e481cf15cd723bdfa41b5916031af451a06e18ff9d8a098f0673"
+    },
+    {
+      "rowId": "acp6-gap-8a7a8f3d659dfb5d",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 13011,
+        "byteOffset": 13011,
+        "selector": ".stat-card:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "8a7a8f3d659dfb5dbd663a408d800c8c3d9e5c0292e4ba82c2251cf653da9ab7"
+    },
+    {
+      "rowId": "acp6-gap-e5d92ef523cacbfa",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 13098,
+        "byteOffset": 13098,
+        "selector": ".stat-icon"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e5d92ef523cacbfa3c893ec59f2212e30d1d82ce548232bccffab2d97a461c84"
+    },
+    {
+      "rowId": "acp6-gap-8bc34077d1c9da7d",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 13751,
+        "byteOffset": 13751,
+        "selector": ".skills-section h3::after"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "8bc34077d1c9da7df41fb2c96e34c5fcd73eda113778dface751894a924cc8b9"
+    },
+    {
+      "rowId": "acp6-gap-329ff8f72a814e4c",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14396,
+        "byteOffset": 14396,
+        "selector": ".skills-section .skill-badge"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 4,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "329ff8f72a814e4c36f0b5718394cab50e486c38fd84f5b52940d82163a618a7"
+    },
+    {
+      "rowId": "acp6-gap-79d5d2a6066eea68",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14469,
+        "byteOffset": 14469,
+        "selector": ".skills-section .skill-badge:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 4,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "79d5d2a6066eea688ad4a0df61cb9cadb0bac7ef7d3bc98eb8f2da607c342bd1"
+    },
+    {
+      "rowId": "acp6-gap-a8ec201981072653",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 15077,
+        "byteOffset": 15077,
+        "selector": ".view-all"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a8ec2019810726538c4a5a1fd8c0f0240d871b19b9a1f3881cde237c3f131292"
+    },
+    {
+      "rowId": "acp6-gap-9830d198fe48163b",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 15653,
+        "byteOffset": 15653,
+        "selector": ".project-card:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "9830d198fe48163b3c63c2edbb14a4e2bcc7b94e9ef2a62164c79ed1366d6c98"
+    },
+    {
+      "rowId": "acp6-gap-80b33ac13167c0c1",
+      "coverageStatus": "uncovered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 16133,
+        "byteOffset": 16133,
+        "selector": ".project-link"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "80b33ac13167c0c1385e6e673ce957b5343bb7ebe1c6a3d97163aab716b7ddb8"
+    },
+    {
+      "rowId": "acp6-gap-daa82297af946f45",
+      "coverageStatus": "covered",
+      "token": "--accent",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 17981,
+        "byteOffset": 17981,
+        "selector": ".contact-btn"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 287,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#297"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 830,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#840"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "daa82297af946f45434684400b3836eecfc759d25e811935f1eb0fca5aa5a6d3"
+    },
+    {
+      "rowId": "acp6-gap-e5fd86b599c27aa2",
+      "coverageStatus": "uncovered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 687,
+        "byteOffset": 687,
+        "selector": ".footer-tagline"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": "candidate-without-strict-edge",
+      "gapClasses": [
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e5fd86b599c27aa27607560a9ee3f997c568f49ca8a9be42f65bc5ffcc4fe9fd"
+    },
+    {
+      "rowId": "acp6-gap-2624fa0fa5f6d031",
+      "coverageStatus": "uncovered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 1536,
+        "byteOffset": 1536,
+        "selector": ".footer-links li a"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "2624fa0fa5f6d031ed3f51a969691a8aaedd4146904d5feae4ed84226b330248"
+    },
+    {
+      "rowId": "acp6-gap-b192ab3f1cde76af",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2163,
+        "byteOffset": 2163,
+        "selector": ".social-icon"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "b192ab3f1cde76af5cde21ed27d6d1b7ee2f7c260bd7074f6bf7559648f124bb"
+    },
+    {
+      "rowId": "acp6-gap-e399f9ce225922ba",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2844,
+        "byteOffset": 2844,
+        "selector": ".footer-copyright"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e399f9ce225922ba0a8a07ccc608824d41e7c8872c8e10dc64c52f91e57571a0"
+    },
+    {
+      "rowId": "acp6-gap-e0237a73cac1eee8",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 2990,
+        "byteOffset": 2990,
+        "selector": ".skills-grid p"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e0237a73cac1eee89b8b54d70a253056ba4a397ae91fcbd8deb76001851471f5"
+    },
+    {
+      "rowId": "acp6-gap-2b8c0eda083726f4",
+      "coverageStatus": "uncovered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 3418,
+        "byteOffset": 3418,
+        "selector": ".content p"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "2b8c0eda083726f4eee6dba06d809ae2812989444476f82c69da2b28897f5c49"
+    },
+    {
+      "rowId": "acp6-gap-dd9d8b2db0329e65",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 3940,
+        "byteOffset": 3940,
+        "selector": ".stats-grid p"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "dd9d8b2db0329e6525b575290578bede5148aef9ec7c5bf6bc391b93c345744a"
+    },
+    {
+      "rowId": "acp6-gap-193ee5fb755f60b5",
+      "coverageStatus": "uncovered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 8978,
+        "byteOffset": 8978,
+        "selector": ".title"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": "candidate-without-strict-edge",
+      "gapClasses": [
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "193ee5fb755f60b52483f34c44f2c6da92b0888c790559522298cb9de9e67949"
+    },
+    {
+      "rowId": "acp6-gap-c84cd4aacf4dd82b",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 9114,
+        "byteOffset": 9114,
+        "selector": ".bio"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "c84cd4aacf4dd82b4b081978b54e49998c1c800d5fdb901df3b1704d650c8567"
+    },
+    {
+      "rowId": "acp6-gap-de767764ebbc4de1",
+      "coverageStatus": "uncovered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10897,
+        "byteOffset": 10897,
+        "selector": ".social-links a"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "de767764ebbc4de16e486813f8f5028e0d23bfec6e8e4aca199bd5c487fc2252"
+    },
+    {
+      "rowId": "acp6-gap-1ce697519f63215e",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 13307,
+        "byteOffset": 13307,
+        "selector": ".stat-label"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "1ce697519f63215ec628572a94fbb3ea9b255d296d0318113258792889fdb1ca"
+    },
+    {
+      "rowId": "acp6-gap-1cf5a82d1f65687c",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 17254,
+        "byteOffset": 17254,
+        "selector": ".project-tech"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "1cf5a82d1f65687c6059eb5f8b3d728bd622f46c45a7a918e95147483c7dbee6"
+    },
+    {
+      "rowId": "acp6-gap-7da644343632ca2f",
+      "coverageStatus": "covered",
+      "token": "--text-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 17767,
+        "byteOffset": 17767,
+        "selector": ".contact-card p"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 233,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#251"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 800,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#818"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "7da644343632ca2f38ff5870e63a6de6b5964039acb51cbd503a9bc0e9f33c14"
+    },
+    {
+      "rowId": "acp6-gap-98288a263b162995",
+      "coverageStatus": "uncovered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 977,
+        "byteOffset": 977,
+        "selector": ".footer-cta"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": "candidate-without-strict-edge",
+      "gapClasses": [
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "98288a263b1629953226f6be23685cd5f66f873ffb44e8955523be579ae89cf7"
+    },
+    {
+      "rowId": "acp6-gap-1b37eecf8eef9d08",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2396,
+        "byteOffset": 2396,
+        "selector": ".social-icon:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "1b37eecf8eef9d08acde74df8869cff54b29ad73eb8977d5fa6c516709bfb99c"
+    },
+    {
+      "rowId": "acp6-gap-1400102a06187831",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 3070,
+        "byteOffset": 3070,
+        "selector": ".scroll-to-top"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "1400102a061878312bdc174b2c450704bbefd08ea6c7d35b66b60aba53e157af"
+    },
+    {
+      "rowId": "acp6-gap-727ef431d90055ad",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 1103,
+        "byteOffset": 1103,
+        "selector": ".nav-link:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 6,
+        "linkedStrictEdges": 10,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "727ef431d90055ad0fe53ce95517aaa12579d6556422ffe31298491c7d1abfeb"
+    },
+    {
+      "rowId": "acp6-gap-2369656a3b4b410b",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 1415,
+        "byteOffset": 1415,
+        "selector": ".hamburger:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "2369656a3b4b410bd1a8f5c56bb19a760f063c977c5d5c474827b7ce92d236ec"
+    },
+    {
+      "rowId": "acp6-gap-a854d2e75c916e13",
+      "coverageStatus": "uncovered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 966,
+        "byteOffset": 966,
+        "selector": "body"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a854d2e75c916e137b66907432800dab535c62966d8d60787832ed71eba00337"
+    },
+    {
+      "rowId": "acp6-gap-b35f2448295c2c45",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 4867,
+        "byteOffset": 4867,
+        "selector": ".contact-form button"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "b35f2448295c2c45337cf6d2e01a05be8ceb6e84e50d40a695a7b56f6a242f81"
+    },
+    {
+      "rowId": "acp6-gap-a5f928ee53776fe2",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 5689,
+        "byteOffset": 5689,
+        "selector": ".theme-toggle:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a5f928ee53776fe2bf84b5553a8b92b5a90db4b17c2baefb0665f28913faa7e4"
+    },
+    {
+      "rowId": "acp6-gap-584a50dce381d511",
+      "coverageStatus": "uncovered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 7524,
+        "byteOffset": 7524,
+        "selector": ".hero-background"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "584a50dce381d511625f48cf0a9053bc4c14c83f8737a83fa11c647204cc7783"
+    },
+    {
+      "rowId": "acp6-gap-891f160b463ae316",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10232,
+        "byteOffset": 10232,
+        "selector": ".btn-primary"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "891f160b463ae316d97c587e3211a3855805c4dc687af9259ee35d7ffb71833b"
+    },
+    {
+      "rowId": "acp6-gap-a242cedaab77a87c",
+      "coverageStatus": "uncovered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 11085,
+        "byteOffset": 11085,
+        "selector": ".social-links a:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "a242cedaab77a87ce8f1a55dcfc24898cefa1a61d3d7b7cfded6955e228d6f15"
+    },
+    {
+      "rowId": "acp6-gap-766b86077e6e6ee6",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14494,
+        "byteOffset": 14494,
+        "selector": ".skills-section .skill-badge:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 4,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "766b86077e6e6ee6dfc7586e4de26adc74ec05ea10fa02001384d96324a2b507"
+    },
+    {
+      "rowId": "acp6-gap-f6c2a5153396edf2",
+      "coverageStatus": "uncovered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 16184,
+        "byteOffset": 16184,
+        "selector": ".project-link"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "f6c2a5153396edf26ac4fb4358c4935e56306586b4bd483f236c4574ad5329d8"
+    },
+    {
+      "rowId": "acp6-gap-d43b6bde441cb4e5",
+      "coverageStatus": "covered",
+      "token": "--background",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 18006,
+        "byteOffset": 18006,
+        "selector": ".contact-btn"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 115,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#129"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 746,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#760"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "d43b6bde441cb4e5f255ada804a965fba9edd84e67de15a80c33b38fa938f697"
+    },
+    {
+      "rowId": "acp6-gap-0f7a8f18de3c871d",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 2137,
+        "byteOffset": 2137,
+        "selector": ".social-icon"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "0f7a8f18de3c871d77b9e241b30d63a745c0557b452d28981f8f060135b79a10"
+    },
+    {
+      "rowId": "acp6-gap-24f03c20aee330e6",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/footer.css",
+        "offset": 4625,
+        "byteOffset": 4625,
+        "selector": "[data-theme=\"light\"] .social-icon"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "24f03c20aee330e67ae5cbc5eb938185164c1ad3ced0657c2209d806b7b48653"
+    },
+    {
+      "rowId": "acp6-gap-bb22591555459854",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/nav.css",
+        "offset": 97,
+        "byteOffset": 97,
+        "selector": ".nav-container"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "bb22591555459854b026de7a996c7dd71917f676ef7972e5b903c841ebb8a7a8"
+    },
+    {
+      "rowId": "acp6-gap-35c0eeb1ea10efe9",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 2282,
+        "byteOffset": 2282,
+        "selector": ".card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 7,
+        "linkedStrictEdges": 14,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "35c0eeb1ea10efe9e3537238a24fdd983883676c5c8f539472da873850fa7e6e"
+    },
+    {
+      "rowId": "acp6-gap-d0d0367b89c0e00d",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 2738,
+        "byteOffset": 2738,
+        "selector": ".skills-grid > div"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 3,
+        "linkedStrictEdges": 6,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "d0d0367b89c0e00d8d3f1c969e949f0f1d0a80da23a7aeb7e4c4239b8f6bd94c"
+    },
+    {
+      "rowId": "acp6-gap-20227b8b89485ebb",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 3692,
+        "byteOffset": 3692,
+        "selector": ".stats-grid div"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "20227b8b89485ebb375b54e0e9158af37dd9614ee5f9c194edf9f7b2dbde8712"
+    },
+    {
+      "rowId": "acp6-gap-2749e4f7eac37fb0",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 4677,
+        "byteOffset": 4677,
+        "selector": ".contact-form input,\r\n.contact-form textarea"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "2749e4f7eac37fb043db354a8b1016e24d8a1a566d72b48f2445d6ef50a326a4"
+    },
+    {
+      "rowId": "acp6-gap-5f6757279fa42a26",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 5431,
+        "byteOffset": 5431,
+        "selector": ".theme-toggle"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "5f6757279fa42a2697407d7db49dcd3eec2b9795d7b9e33745754919b16555a4"
+    },
+    {
+      "rowId": "acp6-gap-345b1ce52c592eb6",
+      "coverageStatus": "uncovered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10602,
+        "byteOffset": 10602,
+        "selector": ".btn-secondary:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "345b1ce52c592eb6f0193cbd853f88fe93fa251f82b72358c774b85424a8eead"
+    },
+    {
+      "rowId": "acp6-gap-e20fc1493021c241",
+      "coverageStatus": "uncovered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 10871,
+        "byteOffset": 10871,
+        "selector": ".social-links a"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 0,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": "selector-owner-unresolved",
+      "gapClasses": [
+        "selector-owner-unresolved"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "e20fc1493021c2411dc63897ddfa36ecc08316eedda792e0d9deca5c7874a2ec"
+    },
+    {
+      "rowId": "acp6-gap-84c08bdb0b00726a",
+      "coverageStatus": "uncovered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 12385,
+        "byteOffset": 12385,
+        "selector": ".stat-card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "84c08bdb0b00726a0c39747401fce1babd9833c040f3533a9ae653cee7dcf9c9"
+    },
+    {
+      "rowId": "acp6-gap-21ffe4e9cdd5e2c4",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14167,
+        "byteOffset": 14167,
+        "selector": ".skills-section .skill-badge"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 4,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "21ffe4e9cdd5e2c4ed83b0b4b0f0691adb73bebfb9924bbbf24eb160f91a45ef"
+    },
+    {
+      "rowId": "acp6-gap-11213eba96515fde",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 15399,
+        "byteOffset": 15399,
+        "selector": ".project-card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "11213eba96515fde4ddb20b00d2cd432029002eb6fb850902748adcb0800c227"
+    },
+    {
+      "rowId": "acp6-gap-308c224f5dd5d8bd",
+      "coverageStatus": "covered",
+      "token": "--card-bg",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 17461,
+        "byteOffset": 17461,
+        "selector": ".contact-card"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 387,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#398"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 884,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#895"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "308c224f5dd5d8bd1d1b4bda69396b7b799e5ae508b2e42a2a20d4fe81663924"
+    },
+    {
+      "rowId": "acp6-gap-40d00fe6fa2e103e",
+      "coverageStatus": "covered",
+      "token": "--accent-secondary",
+      "sourceRef": {
+        "file": "src/css/interests.css",
+        "offset": 230,
+        "byteOffset": 230,
+        "selector": ".interests-grid .card:hover"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 8,
+        "linkedStrictEdges": 16,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 333,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#353"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 852,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#872"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "40d00fe6fa2e103e368a0e6c2db87e0debc1663304a30fc1f5f2cc8237b74429"
+    },
+    {
+      "rowId": "acp6-gap-1cfcc36cf6678e9a",
+      "coverageStatus": "uncovered",
+      "token": "--accent-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 16148,
+        "byteOffset": 16148,
+        "selector": ".project-link"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 333,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#353"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 852,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#872"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "1cfcc36cf6678e9a982d8dd9c744fd7ec13392540f2912c0e4d9f071b30b1d22"
+    },
+    {
+      "rowId": "acp6-gap-fbdb1f3a2f99a2cb",
+      "coverageStatus": "uncovered",
+      "token": "--accent-secondary",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 16547,
+        "byteOffset": 16547,
+        "selector": ".project-link:focus-visible"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 1,
+        "linkedStrictEdges": 0,
+        "covered": false
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 333,
+          "selectorScope": ":root",
+          "graphNodeIds": [
+            "token:src/css/style.css#353"
+          ]
+        },
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 852,
+          "selectorScope": "[data-theme=\"light\"]",
+          "graphNodeIds": [
+            "token:src/css/style.css#872"
+          ]
+        }
+      ],
+      "gapClass": "dynamic-className",
+      "gapClasses": [
+        "dynamic-className",
+        "candidate-without-strict-edge"
+      ],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "fbdb1f3a2f99a2cb51df1e4d16342e44e59ddd5668d00db8a22e86ae4cfe62ae"
+    },
+    {
+      "rowId": "acp6-gap-b3630405fc03a356",
+      "coverageStatus": "covered",
+      "token": "--skill-color",
+      "sourceRef": {
+        "file": "src/css/style.css",
+        "offset": 14682,
+        "byteOffset": 14682,
+        "selector": ".skills-section .skill-icon"
+      },
+      "originalEvidence": {
+        "candidateConsumers": 2,
+        "linkedStrictEdges": 2,
+        "covered": true
+      },
+      "declarationRefs": [
+        {
+          "file": "src/css/style.css",
+          "byteOffset": 14381,
+          "selectorScope": ".skills-section .skill-badge",
+          "graphNodeIds": [
+            "token:src/css/style.css#14396"
+          ]
+        }
+      ],
+      "gapClass": null,
+      "gapClasses": [],
+      "sourceUseGraphNodeIds": {
+        "status": "missing",
+        "value": null,
+        "reason": "B v5 source-use rows do not emit per-use graphNodeIds; no node association is inferred."
+      },
+      "evidenceHash": "b3630405fc03a356a20018552f8a03739babca452c84e297c6455184de0426e7"
+    }
+  ],
+  "uncoveredRowIds": [
+    "acp6-gap-1a07ac810794baae",
+    "acp6-gap-a99b0609ab86f64f",
+    "acp6-gap-af7e7830fa2a14a4",
+    "acp6-gap-b67204d231e5653b",
+    "acp6-gap-87321cad295188a3",
+    "acp6-gap-3a9f56944909d61f",
+    "acp6-gap-94b8fb684ea376dd",
+    "acp6-gap-c4609510f77e7b44",
+    "acp6-gap-1027a7455bb3d74f",
+    "acp6-gap-dc96bd48e41e2565",
+    "acp6-gap-3e431957897adb9f",
+    "acp6-gap-e9cd71230c8fecdf",
+    "acp6-gap-d81381d84c0356ee",
+    "acp6-gap-9b280c12225690cb",
+    "acp6-gap-fdd0a9e050c54406",
+    "acp6-gap-e8087459138cbb21",
+    "acp6-gap-e29cecb2c1316328",
+    "acp6-gap-8538bd1e7defa405",
+    "acp6-gap-f242b0230ed3acb5",
+    "acp6-gap-28601cf0954a9348",
+    "acp6-gap-99850a3adda7e481",
+    "acp6-gap-8a7a8f3d659dfb5d",
+    "acp6-gap-80b33ac13167c0c1",
+    "acp6-gap-e5fd86b599c27aa2",
+    "acp6-gap-2624fa0fa5f6d031",
+    "acp6-gap-2b8c0eda083726f4",
+    "acp6-gap-193ee5fb755f60b5",
+    "acp6-gap-de767764ebbc4de1",
+    "acp6-gap-98288a263b162995",
+    "acp6-gap-a854d2e75c916e13",
+    "acp6-gap-584a50dce381d511",
+    "acp6-gap-a242cedaab77a87c",
+    "acp6-gap-f6c2a5153396edf2",
+    "acp6-gap-345b1ce52c592eb6",
+    "acp6-gap-e20fc1493021c241",
+    "acp6-gap-84c08bdb0b00726a",
+    "acp6-gap-1cfcc36cf6678e9a",
+    "acp6-gap-fbdb1f3a2f99a2cb"
+  ],
+  "coveredRowIds": [
+    "acp6-gap-7681a1cbb8f0413c",
+    "acp6-gap-3622ac946f5dca38",
+    "acp6-gap-80f8f8307616027b",
+    "acp6-gap-3b6136e218b1fd32",
+    "acp6-gap-772811fbc0457512",
+    "acp6-gap-12c7345a271c6404",
+    "acp6-gap-5fc08122bea47a3d",
+    "acp6-gap-f5f0d08a3b7886e8",
+    "acp6-gap-a040cfff69fc21c4",
+    "acp6-gap-792185a53960990d",
+    "acp6-gap-38dd4f78f305a492",
+    "acp6-gap-b6507b0e953549fa",
+    "acp6-gap-494379191ec2ba4d",
+    "acp6-gap-01d38eadec5e0376",
+    "acp6-gap-87857215a58d54b6",
+    "acp6-gap-04fc5fd5533c3338",
+    "acp6-gap-bfacabea13b57d58",
+    "acp6-gap-069212c8c2f62eea",
+    "acp6-gap-c8b86a239f88cd41",
+    "acp6-gap-f39969fed0f7990b",
+    "acp6-gap-8f1344622d75274e",
+    "acp6-gap-16dc5d9eb24a4dc1",
+    "acp6-gap-e2e5e10fb82cf5a2",
+    "acp6-gap-3961080530e5810e",
+    "acp6-gap-0ee36268df344755",
+    "acp6-gap-25033f92bac0ead7",
+    "acp6-gap-ab43f861e4be2c04",
+    "acp6-gap-11c342f726cb237f",
+    "acp6-gap-8cebe28b7de80471",
+    "acp6-gap-460c622984ae9d97",
+    "acp6-gap-17e038f806870668",
+    "acp6-gap-f590c38d66d52f5e",
+    "acp6-gap-52f50d80f289d159",
+    "acp6-gap-56923cab340f259a",
+    "acp6-gap-fa87445de6eeca0c",
+    "acp6-gap-bc6fc7b767348c4e",
+    "acp6-gap-a07b7efaa938245c",
+    "acp6-gap-b11568f8e63f06cb",
+    "acp6-gap-30305395e59fccf8",
+    "acp6-gap-575e4bc21bc5e381",
+    "acp6-gap-44e51ee48330fc98",
+    "acp6-gap-226e3f18bce6f82d",
+    "acp6-gap-b28782dc8cd54747",
+    "acp6-gap-d499b2e05a50e8a7",
+    "acp6-gap-a24853b5ecd1ca10",
+    "acp6-gap-91ab97ddc9309383",
+    "acp6-gap-c30b85cdab347df5",
+    "acp6-gap-6a48459fe1baaec5",
+    "acp6-gap-e5d92ef523cacbfa",
+    "acp6-gap-8bc34077d1c9da7d",
+    "acp6-gap-329ff8f72a814e4c",
+    "acp6-gap-79d5d2a6066eea68",
+    "acp6-gap-a8ec201981072653",
+    "acp6-gap-9830d198fe48163b",
+    "acp6-gap-daa82297af946f45",
+    "acp6-gap-b192ab3f1cde76af",
+    "acp6-gap-e399f9ce225922ba",
+    "acp6-gap-e0237a73cac1eee8",
+    "acp6-gap-dd9d8b2db0329e65",
+    "acp6-gap-c84cd4aacf4dd82b",
+    "acp6-gap-1ce697519f63215e",
+    "acp6-gap-1cf5a82d1f65687c",
+    "acp6-gap-7da644343632ca2f",
+    "acp6-gap-1b37eecf8eef9d08",
+    "acp6-gap-1400102a06187831",
+    "acp6-gap-727ef431d90055ad",
+    "acp6-gap-2369656a3b4b410b",
+    "acp6-gap-b35f2448295c2c45",
+    "acp6-gap-a5f928ee53776fe2",
+    "acp6-gap-891f160b463ae316",
+    "acp6-gap-766b86077e6e6ee6",
+    "acp6-gap-d43b6bde441cb4e5",
+    "acp6-gap-0f7a8f18de3c871d",
+    "acp6-gap-24f03c20aee330e6",
+    "acp6-gap-bb22591555459854",
+    "acp6-gap-35c0eeb1ea10efe9",
+    "acp6-gap-d0d0367b89c0e00d",
+    "acp6-gap-20227b8b89485ebb",
+    "acp6-gap-2749e4f7eac37fb0",
+    "acp6-gap-5f6757279fa42a26",
+    "acp6-gap-21ffe4e9cdd5e2c4",
+    "acp6-gap-11213eba96515fde",
+    "acp6-gap-308c224f5dd5d8bd",
+    "acp6-gap-40d00fe6fa2e103e",
+    "acp6-gap-b3630405fc03a356"
+  ],
+  "consistencyExpectations": {
+    "sourceUseRows": 123,
+    "coveredRows": 85,
+    "uncoveredRows": 38,
+    "tokenCount": 8,
+    "unknownConsumerPairs": 16
+  },
+  "notes": [
+    "This is a derived matrix. The B acceptance JSON remains unchanged.",
+    "Phase 0 execution base is 5b75fe699afce98638e6fd6ad110911d83389dc8; the B evidence source remains the recorded PR #61 head/base pair.",
+    "graphNodeIds missing is explicit; declaration graph node IDs are copied only where B supplied them and are not used to infer source-use node identity.",
+    "No gap class upgrades a semantic-candidate or unknown relation to source-proven.",
+    "taxonomyVersion acp6-gap-taxonomy/v1 is proposed for A final confirmation; legacy labels remain in the mapping metadata only."
+  ],
+  "execution": {
+    "phase": "Phase 0",
+    "baseCommit": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+    "remoteVerified": true,
+    "productionChanges": false
+  }
+}
+

@@ -1,0 +1,230 @@
+{
+  "schemaVersion": "acp6-v06-phase0-validation/v2",
+  "generatedAt": "2026-10-28",
+  "matrixPath": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-v06-phase0-gap-matrix-20261028.json",
+  "sourcePath": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-pr61-2ebd1e20-independent-20261027\\acceptance-2ebd1e20-final.json",
+  "matrixSha256": "aedb2721faa942ae0d959b838e034adb1b776807e541e8729cd79c032eca027d",
+  "pass": true,
+  "positive": {
+    "pass": true,
+    "checks": [
+      {
+        "name": "schema-version",
+        "pass": true,
+        "details": {
+          "actual": "acp6-v06-phase0-gap-matrix/v2"
+        }
+      },
+      {
+        "name": "taxonomy-version",
+        "pass": true,
+        "details": {
+          "actual": "acp6-gap-taxonomy/v1"
+        }
+      },
+      {
+        "name": "stable-id-unique",
+        "pass": true,
+        "details": {
+          "rows": 123,
+          "uniqueIds": 123
+        }
+      },
+      {
+        "name": "stable-id-reproducible",
+        "pass": true,
+        "details": {}
+      },
+      {
+        "name": "all-source-locations-present",
+        "pass": true,
+        "details": {}
+      },
+      {
+        "name": "classification-legal",
+        "pass": true,
+        "details": {
+          "allowed": [
+            "selector-owner-unresolved",
+            "dynamic-className",
+            "theme-cascade-ambiguity",
+            "complex-selector-normalization",
+            "candidate-without-strict-edge"
+          ]
+        }
+      },
+      {
+        "name": "covered-have-no-gap",
+        "pass": true,
+        "details": {}
+      },
+      {
+        "name": "source-use-graph-node-ids-explicit-missing",
+        "pass": true,
+        "details": {}
+      },
+      {
+        "name": "row-count",
+        "pass": true,
+        "details": {
+          "actual": 123,
+          "expected": 123
+        }
+      },
+      {
+        "name": "covered-count",
+        "pass": true,
+        "details": {
+          "actual": 85,
+          "expected": 85
+        }
+      },
+      {
+        "name": "uncovered-count",
+        "pass": true,
+        "details": {
+          "actual": 38,
+          "expected": 38
+        }
+      },
+      {
+        "name": "token-count",
+        "pass": true,
+        "details": {
+          "actual": 8,
+          "expected": 8
+        }
+      },
+      {
+        "name": "unknown-pair-count",
+        "pass": true,
+        "details": {
+          "actual": 16,
+          "expected": 16
+        }
+      },
+      {
+        "name": "uncovered-id-index",
+        "pass": true,
+        "details": {}
+      },
+      {
+        "name": "covered-id-index",
+        "pass": true,
+        "details": {}
+      },
+      {
+        "name": "classification-counts",
+        "pass": true,
+        "details": {
+          "actual": {
+            "selector-owner-unresolved": 24,
+            "dynamic-className": 9,
+            "candidate-without-strict-edge": 4,
+            "theme-cascade-ambiguity": 1,
+            "complex-selector-normalization": 0
+          },
+          "computed": {
+            "selector-owner-unresolved": 24,
+            "dynamic-className": 9,
+            "candidate-without-strict-edge": 4,
+            "theme-cascade-ambiguity": 1
+          }
+        }
+      },
+      {
+        "name": "source-input-present",
+        "pass": true,
+        "details": {
+          "sourcePath": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-pr61-2ebd1e20-independent-20261027\\acceptance-2ebd1e20-final.json"
+        }
+      },
+      {
+        "name": "source-evidence-sha256",
+        "pass": true,
+        "details": {
+          "actual": "289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b",
+          "recorded": "289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b"
+        }
+      },
+      {
+        "name": "source-not-overwritten",
+        "pass": true,
+        "details": {}
+      },
+      {
+        "name": "phase0-base",
+        "pass": true,
+        "details": {
+          "actual": {
+            "phase": "Phase 0",
+            "baseCommit": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+            "remoteVerified": true,
+            "productionChanges": false
+          }
+        }
+      }
+    ],
+    "summary": {
+      "rows": 123,
+      "covered": 85,
+      "uncovered": 38,
+      "tokens": 8,
+      "unknownPairs": 16,
+      "gapClassCounts": {
+        "selector-owner-unresolved": 24,
+        "dynamic-className": 9,
+        "candidate-without-strict-edge": 4,
+        "theme-cascade-ambiguity": 1,
+        "complex-selector-normalization": 0
+      }
+    }
+  },
+  "shuffleInvariant": true,
+  "negativeTests": [
+    {
+      "name": "duplicate-id",
+      "pass": true,
+      "expectedFailure": true,
+      "failedChecks": [
+        "stable-id-unique",
+        "stable-id-reproducible",
+        "covered-id-index"
+      ]
+    },
+    {
+      "name": "deleted-classification",
+      "pass": true,
+      "expectedFailure": true,
+      "failedChecks": [
+        "classification-legal",
+        "classification-counts"
+      ]
+    },
+    {
+      "name": "tampered-source-location",
+      "pass": true,
+      "expectedFailure": true,
+      "failedChecks": [
+        "stable-id-reproducible"
+      ]
+    },
+    {
+      "name": "tampered-input-hash",
+      "pass": true,
+      "expectedFailure": true,
+      "failedChecks": [
+        "source-evidence-sha256"
+      ]
+    },
+    {
+      "name": "graph-node-missing-bypassed",
+      "pass": true,
+      "expectedFailure": true,
+      "failedChecks": [
+        "source-use-graph-node-ids-explicit-missing"
+      ]
+    }
+  ]
+}
+
