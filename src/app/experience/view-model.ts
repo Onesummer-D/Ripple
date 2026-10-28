@@ -38,6 +38,12 @@ export interface CanvasElementXp {
   certainty: SourceCertainty
   /** 已知消费此来源的页面。 */
   impactPageRefs: string[]
+  /** Demo-only fixture ownership; never inferred from currentPageRef and never used by Real Adapter. */
+  demoPageRef?: string
+  /** Demo-only slot/source mapping for multi-page candidate projection. */
+  demoSlotId?: string
+  demoSourceKey?: string
+  demoProvenance?: 'demo'
   unresolvedReasons: string[]
   /** 能否进入编辑（unknown 元素只能查看，不能承诺修改范围）。 */
   editable: boolean

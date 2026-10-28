@@ -44,6 +44,41 @@ test('网站概览按来源确定性分组，页面明细可展开与收起', as
   await expect(page.getByTestId('page-item-page:home')).toBeVisible()
 })
 
+test('UI-RC2 四页可浏览：共享 TEXT 在三页联动，Contact 保留 UNKNOWN', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await page.getByTestId('demo-layer').selectOption('candidate')
+
+  for (const pageRef of ['page:home', 'page:products', 'page:seasonal'] as const) {
+    await page.getByTestId(`page-item-${pageRef}`).click()
+    await expect(page.getByTestId(`page-item-${pageRef}`)).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByTestId('demo-canvas')).toHaveAttribute('data-demo-page', pageRef)
+    await expect(page.getByTestId('demo-canvas')).toContainText('冬日茶器市集')
+    await expect(page.getByTestId('demo-provenance')).toContainText('DEMO')
+  }
+
+  await page.getByTestId('page-item-page:contact').click()
+  await expect(page.getByTestId('demo-canvas')).toHaveAttribute('data-demo-page', 'page:contact')
+  await expect(page.getByTestId('demo-page-note')).toContainText('来源未证明')
+  await expect(page.getByTestId('canvas-el-el:hero-title')).toHaveCount(0)
+  await expect(page.getByTestId('draft-text-input')).toBeVisible()
+  await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+})
+
+test('UI-RC2 PageRail 支持 Enter/Space 键盘导航并同步 aria-current', async ({ page }) => {
+  await openExperience(page)
+  const products = page.getByTestId('page-item-page:products')
+  await products.focus()
+  await products.press('Enter')
+  await expect(products).toHaveAttribute('aria-current', 'page')
+  const seasonal = page.getByTestId('page-item-page:seasonal')
+  await seasonal.focus()
+  await seasonal.press('Space')
+  await expect(seasonal).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('demo-page-title')).toContainText('活动页')
+})
+
 test('选中与编辑：标题更新、候选状态推进、前后对照同步', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
@@ -170,14 +205,14 @@ test('1440、768 与 390 宽度工作台都可操作并记录截图', async ({ p
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
   await page.getByTestId('draft-text-input').fill('桌面验收标题')
   await expect(page.getByTestId('compare-candidate')).toContainText('桌面验收标题')
-  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc1-stage2-workbench-1440x900.png'), fullPage: true })
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc2-demo-workbench-1440x900.png'), fullPage: true })
 
   await page.setViewportSize({ width: 768, height: 900 })
   await expect(page.getByTestId('scope-panel')).toBeVisible()
   await expect(page.getByTestId('canvas-stage')).toBeVisible()
   await expect(page.getByTestId('canvas-el-el:hero-title')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(768)
-  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc1-stage2-workbench-768x900.png'), fullPage: true })
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc2-demo-workbench-768x900.png'), fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => window.innerWidth)).toBe(390)
@@ -190,7 +225,7 @@ test('1440、768 与 390 宽度工作台都可操作并记录截图', async ({ p
   await page.getByTestId('scope-exclude-page:contact').click()
   await expect(page.getByTestId('scope-exclude-page:contact')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
-  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc1-stage2-workbench-390x844.png'), fullPage: true })
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc2-demo-workbench-390x844.png'), fullPage: true })
 })
 
 test('任务一：切换编辑目标重建页面关系与默认范围（标题→副标题→标题）', async ({ page }) => {

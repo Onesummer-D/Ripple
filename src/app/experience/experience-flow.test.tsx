@@ -173,7 +173,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('candidate-status')).toContain('候选已生成')
     expect(text('compare-candidate')).toContain('冬日茶器市集')
     expect(text('compare-baseline')).toContain('秋日茶器市集')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(text('scope-summary')).toContain('包含 3')
   })
 
   it('原文与草稿分离：逐字输入后原文稳定，清空草稿后描述准确', async () => {
@@ -208,7 +208,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     // 初次选中活动标题：商品专题存在同源关系
     fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
     expect(text('page-item-page:products')).toContain('同源关联')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(text('scope-summary')).toContain('包含 3')
     // 修改 Scope：商品专题改为保护（旧决定，稍后不得跨目标残留）
     fireEvent.click(screen.getByTestId('scope-protect-page:products'))
     expect(screen.getByTestId('scope-protect-page:products').getAttribute('aria-pressed')).toBe('true')
@@ -225,7 +225,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-title'))
     expect(text('page-item-page:products')).toContain('同源关联')
     expect(text('scope-row-page:products')).toContain('包含')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(text('scope-summary')).toContain('包含 3')
     // 旧草稿不串回标题
     expect(text('evidence-ev:expect')).toContain('把「秋日茶器市集」改为「（尚未输入）」')
   })

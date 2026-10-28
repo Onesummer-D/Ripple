@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CanvasElementXp, ExperienceViewModel, RealPreviewXp } from '../view-model'
 import { isCurrentEnvelope, selectionModeMessage, type PickerEnvelope } from '../real-selection'
 import { CertaintyPill } from './status-pill'
+import { renderDemoPage } from './demo-pages'
 
 const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
   ready: '', loading: '预演加载中…', failed: '预演加载失败，请重试', unavailable: '该视口暂不可用',
@@ -66,6 +67,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   const [hostWidth, setHostWidth] = useState(0)
   const [hoveredId, setHoveredId] = useState<string>()
   const [demoCanvasState, setDemoCanvasState] = useState<ExperienceViewModel['canvasState']>('ready')
+  const [demoLayer, setDemoLayer] = useState<'baseline' | 'candidate'>('baseline')
   const viewport = model.viewports.find(item => item.id === model.activeViewportId) ?? model.viewports[0]
   const scale = hostWidth ? Math.min(1, hostWidth / viewport.width) : 1
   const canvasState = model.dataProvenance === 'demo' ? demoCanvasState : model.canvasState
@@ -123,7 +125,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
     return () => observer.disconnect()
   }, [])
 
-  const renderElement = (element: CanvasElementXp, children: ReactNode) => {
+  const renderElement = (element: CanvasElementXp, children: ReactNode, note?: string) => {
     const isSelected = element.id === model.selectedElementId
     const isHovered = element.id === hoveredId
     return (
@@ -147,47 +149,10 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
             {!element.editable && ' · 来源未知，仅可查看'}
           </span>
         )}
+        {note && <span className="ripple-xp-demo-slot-note" data-testid={`demo-slot-note-${element.id}`}>{note}</span>}
       </div>
     )
   }
-
-  const heroTitle = model.elements.find(item => item.id === 'el:hero-title')
-  const heroSubtitle = model.elements.find(item => item.id === 'el:hero-subtitle')
-  const seasonal = model.elements.find(item => item.id === 'el:seasonal-banner')
-  const promo = model.elements.find(item => item.id === 'el:promo-card')
-
-  const demoPage = (
-    <div className="ripple-xp-demo-page" data-testid="demo-canvas">
-      <header className="ripple-xp-demo-nav">
-        <strong>青野文创</strong>
-        <span>首页</span><span>全部商品</span><span>品牌故事</span><span>联系我们</span>
-      </header>
-      <section className="ripple-xp-demo-hero">
-        <img className="ripple-xp-demo-hero-media" src="demo-assets/hero-market.jpg" alt="" aria-hidden />
-        <div className="ripple-xp-demo-hero-overlay">
-          {heroTitle && renderElement(heroTitle, <h1>{heroTitle.currentText}</h1>)}
-          {heroSubtitle && renderElement(heroSubtitle, <p className="ripple-xp-demo-sub">{heroSubtitle.currentText}</p>)}
-          <div className="ripple-xp-demo-cta-row">
-            <span className="ripple-xp-demo-cta">逛市集</span>
-            {seasonal && renderElement(seasonal, <span className="ripple-xp-demo-banner">{seasonal.currentText}</span>)}
-          </div>
-        </div>
-      </section>
-      <section className="ripple-xp-demo-grid">
-        {([
-          ['柴烧茶壶', 'demo-assets/workshop.jpg'],
-          ['素白陶碗', 'demo-assets/vessels.jpg'],
-          ['手作风铃', 'demo-assets/seasonal.jpg'],
-        ] as const).map(([name, art]) => (
-          <div key={name} className="ripple-xp-demo-card">
-            <span className="ripple-xp-demo-thumb" style={{ backgroundImage: `url(${art})` }} />
-            <strong>{name}</strong>
-          </div>
-        ))}
-        {promo && renderElement(promo, <div className="ripple-xp-demo-card is-promo"><span className="ripple-xp-demo-thumb" style={{ backgroundImage: 'url(demo-assets/seasonal.jpg)' }} /><strong>{promo.currentText}</strong></div>)}
-      </section>
-    </div>
-  )
 
   return <section className="ripple-xp-stage reveal" aria-label="网页画布" data-testid="canvas-stage">
     <div className="ripple-xp-stage-toolbar">
@@ -208,20 +173,33 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
         ))}
       </div>
       {model.dataProvenance === 'demo' && (
-        <label className="ripple-xp-demo-state">
-          演示状态
-          <select
-            data-testid="demo-canvas-state"
-            value={demoCanvasState}
-            onChange={event => setDemoCanvasState(event.target.value as ExperienceViewModel['canvasState'])}
-          >
-            <option value="ready">正常</option>
-            <option value="loading">加载中</option>
-            <option value="failed">加载失败</option>
-            <option value="unavailable">不可用</option>
-            <option value="stale-evidence">证据过期</option>
-          </select>
-        </label>
+        <>
+          <label className="ripple-xp-demo-state">
+            预演层
+            <select
+              data-testid="demo-layer"
+              value={demoLayer}
+              onChange={event => setDemoLayer(event.target.value as 'baseline' | 'candidate')}
+            >
+              <option value="baseline">修改前</option>
+              <option value="candidate">候选预演</option>
+            </select>
+          </label>
+          <label className="ripple-xp-demo-state">
+            演示状态
+            <select
+              data-testid="demo-canvas-state"
+              value={demoCanvasState}
+              onChange={event => setDemoCanvasState(event.target.value as ExperienceViewModel['canvasState'])}
+            >
+              <option value="ready">正常</option>
+              <option value="loading">加载中</option>
+              <option value="failed">加载失败</option>
+              <option value="unavailable">不可用</option>
+              <option value="stale-evidence">证据过期</option>
+            </select>
+          </label>
+        </>
       )}
       {isReal && (
         // 画布点选（D 桥）：仅在项目预演会话可用时出现；不可用时不隐藏入口而给出准确原因
@@ -248,11 +226,13 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
       <p className="ripple-xp-picker-error" role="alert" data-testid="picker-error">{pickerError}</p>
     )}
 
-    {model.dataProvenance !== 'demo' && model.elements.length > 0 && (
-      // 真实模式：预演页面在隔离 iframe 中（不可跨文档点选），
-      // 已分析的编辑目标以列表形式提供选中入口，来源确定性逐条标注。
+    {model.elements.length > 0 && (
+      // 真实模式的 iframe 与 Demo 当前页都保留显式目标入口，保证目标切换不依赖
+      // 当前浏览页；Demo 只隐藏当前页已经渲染的元素，避免冻结 testid 重复。
       <div className="ripple-xp-target-strip" role="group" aria-label="已分析的编辑目标" data-testid="target-strip">
-        {model.elements.map(element => (
+        {model.elements
+          .filter(element => model.dataProvenance !== 'demo' || element.demoPageRef !== currentPage?.id)
+          .map(element => (
           <button
             key={element.id}
             type="button"
@@ -331,13 +311,12 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
             </div>
           )
         ) : canvasState === 'ready' ? (
-          currentPage?.id === 'page:home' ? demoPage : (
-            <div className="ripple-xp-demo-page is-placeholder" data-testid="demo-canvas-placeholder">
-              <h2>{currentPage?.label}</h2>
-              <p>演示数据：该页面的画布内容未包含在本轮演示中。</p>
-              <p>页面关系：{currentPage?.relation === 'same-source' ? '与当前修改同源，修改会随范围决策生效。' : '影响范围未证明。'}</p>
-            </div>
-          )
+          renderDemoPage({
+            model,
+            pageRef: (currentPage?.id ?? 'page:home') as 'page:home' | 'page:products' | 'page:seasonal' | 'page:contact',
+            layer: demoLayer,
+            renderElement,
+          })
         ) : (
           <div className={`ripple-xp-canvas-state ripple-xp-canvas-${canvasState}`} role="status" data-testid="canvas-state-banner">
             {CANVAS_STATE_LABEL[canvasState]}

@@ -11,10 +11,61 @@
  * → 范围决策 → 前后对照 → 证据/风险/未知 → 版本历史。
  */
 import type { ExperienceAdapter } from './adapter'
+import { DEMO_CONTENT, demoSlotForElement, type DemoContentSlot } from './demo-content'
 import { projectPageRelations } from './view-model'
 import type { CanvasElementXp, ExperienceViewModel, PageScopeChoiceXp } from './view-model'
 
 const HOME = 'page:home'
+
+function slotText(slot: DemoContentSlot): string {
+  const value = slot.original as { text?: string; asset?: { alt: string }; label?: string }
+  return value.text ?? value.asset?.alt ?? value.label ?? ''
+}
+
+function ownerRelation(slot: DemoContentSlot): DemoContentSlot['consumers'][number] | undefined {
+  return slot.consumers.find(consumer => consumer.pageRef === slot.pageRef)
+}
+
+function demoElements(): CanvasElementXp[] {
+  return DEMO_CONTENT.pages.flatMap(page => page.slots
+    .filter(slot => slot.selectableElement)
+    .map(slot => {
+      const selectable = slot.selectableElement!
+      const owner = ownerRelation(slot)
+      const impactPageRefs = slot.consumers
+        .filter(consumer => consumer.certainty !== 'unknown' && consumer.relation !== 'unrelated')
+        .map(consumer => consumer.pageRef)
+      return {
+        id: selectable.elementId,
+        label: selectable.label,
+        demoSelector: selectable.selector,
+        currentText: slotText(slot),
+        sourceRef: `demo:${slot.sourceKey}`,
+        sourcePath: slot.sourceKey.startsWith('campaign.') ? 'src/data/campaign.ts'
+          : slot.sourceKey === 'data:seasonal-banner' ? 'src/data/seasonal.ts'
+            : `Demo fixture · ${page.path}`,
+        certainty: owner?.certainty ?? 'unknown',
+        impactPageRefs,
+        demoPageRef: slot.pageRef,
+        demoSlotId: slot.slotId,
+        demoSourceKey: slot.sourceKey,
+        demoProvenance: 'demo' as const,
+        unresolvedReasons: [...slot.unknownReasons],
+        editable: selectable.editable,
+      }
+    }))
+}
+
+function initialPages(): ExperienceViewModel['pages'] {
+  return DEMO_CONTENT.pages.map(page => ({
+    id: page.pageRef,
+    label: page.label,
+    path: page.path,
+    relation: page.pageRef === HOME ? 'editing' as const : page.pageRef === 'page:products' ? 'same-source' as const : 'unproven' as const,
+    relationCertainty: page.pageRef === HOME || page.pageRef === 'page:products' ? 'source-proven' as const : page.pageRef === 'page:seasonal' ? 'partial' as const : 'unknown' as const,
+    scope: page.pageRef === HOME || page.pageRef === 'page:products' ? 'include' as const : 'undecided' as const,
+  }))
+}
 
 function initialModel(): ExperienceViewModel {
   return {
@@ -26,34 +77,8 @@ function initialModel(): ExperienceViewModel {
     draftAfterText: '',
     activeViewportId: 'desktop',
     canvasState: 'ready',
-    pages: [
-      { id: HOME, label: '首页', path: '/', relation: 'editing', relationCertainty: 'source-proven', scope: 'include' },
-      { id: 'page:products', label: '商品专题', path: '/products', relation: 'same-source', relationCertainty: 'source-proven', scope: 'include' },
-      { id: 'page:seasonal', label: '活动页', path: '/seasonal', relation: 'unproven', relationCertainty: 'partial', scope: 'undecided' },
-      { id: 'page:contact', label: '联系我们', path: '/contact', relation: 'unproven', relationCertainty: 'unknown', scope: 'undecided' },
-    ],
-    elements: [
-      {
-        id: 'el:hero-title', label: '活动标题「秋日茶器市集」', demoSelector: '[data-xp-demo="hero-title"]',
-        currentText: '秋日茶器市集', sourceRef: 'data:hero-title', sourcePath: 'src/data/campaign.ts',
-        certainty: 'source-proven', impactPageRefs: [HOME, 'page:products'],
-        unresolvedReasons: [], editable: true,
-      },
-      {
-        id: 'el:hero-subtitle', label: '副标题「以茶会友，以器传心」', demoSelector: '[data-xp-demo="hero-subtitle"]',
-        currentText: '以茶会友，以器传心', sourceRef: 'data:hero-subtitle', sourcePath: 'src/data/campaign.ts',
-        certainty: 'source-proven', impactPageRefs: [HOME], unresolvedReasons: [], editable: true,
-      },
-      {
-        id: 'el:seasonal-banner', label: '当季横幅', demoSelector: '[data-xp-demo="seasonal-banner"]',
-        currentText: '冬雪限定 · 陆续上架', sourceRef: 'data:seasonal-banner', sourcePath: 'src/data/seasonal.ts',
-        certainty: 'partial', impactPageRefs: ['page:seasonal'], unresolvedReasons: ['条件渲染分支只有一臂可以解析'], editable: true,
-      },
-      {
-        id: 'el:promo-card', label: '推荐卡片（动态内容）', demoSelector: '[data-xp-demo="promo-card"]',
-        currentText: '为你推荐', certainty: 'unknown', impactPageRefs: [], unresolvedReasons: ['内容来自运行时接口，静态分析无法确认'], editable: false,
-      },
-    ],
+    pages: initialPages(),
+    elements: demoElements(),
     viewports: [
       { id: 'desktop', label: '桌面 1440', width: 1440, height: 900, verificationStatus: 'available' },
       { id: 'tablet', label: '平板 768', width: 768, height: 1024, verificationStatus: 'available' },
@@ -154,7 +179,15 @@ export function createDemoAdapter(): ExperienceAdapter {
         // （演示数据没有"已证明无影响"清单，缺页一律保持未证明，不臆造 unrelated；
         //   演示元素都位于首页；真实 Adapter 中目标所属页须由可信来源提供，
         //   与用户正在浏览的 currentPageRef 区分）
-        pages: projectPageRelations(current.pages, element, HOME),
+        pages: projectPageRelations(
+          current.pages,
+          element,
+          element?.demoProvenance === 'demo' && element.demoPageRef
+            ? (demoSlotForElement(element.id)?.consumers.find(consumer => consumer.pageRef === element.demoPageRef)?.certainty === 'source-proven'
+              ? element.demoPageRef
+              : '__demo-unproven-target__')
+            : element?.demoPageRef ?? HOME,
+        ),
         compare: { ...current.compare, focusArea: element?.label },
         evidence: evidenceForSelection(element, ''),
       }
