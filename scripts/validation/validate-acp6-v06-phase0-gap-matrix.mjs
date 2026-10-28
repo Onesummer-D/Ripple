@@ -63,5 +63,7 @@ const pass=positive.pass&&shuffleInvariant&&negatives.every(x=>x.pass);
 const result={schemaVersion:'acp6-v06-phase0-validation/v2',generatedAt:'2026-10-28',matrixPath,sourcePath,matrixSha256:sha256(fs.readFileSync(matrixPath)),pass,positive,shuffleInvariant,negativeTests:negatives};
 fs.writeFileSync(resultPath,JSON.stringify(result,null,2)+'\n','utf8');
 console.log(JSON.stringify({resultPath,pass,positive:positive.pass,shuffleInvariant,negativeTests:negatives,summary:positive.summary,sourcePath},null,2));
+const selectedNegative=process.argv.find(a=>a.startsWith('--negative='))?.slice('--negative='.length);
+if(selectedNegative){const selected=negatives.find(x=>x.name===selectedNegative);console.log(JSON.stringify({negativeCase:selectedNegative,record:selected||null,exitMeaning:'0 means the validator correctly rejected the mutation; 1 means it failed to reject or the case is unknown'},null,2));process.exitCode=selected?.pass?0:1;}
 if(!pass) process.exitCode=1;
 

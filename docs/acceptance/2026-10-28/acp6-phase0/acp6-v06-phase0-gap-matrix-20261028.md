@@ -225,6 +225,8 @@ B v5 source-use rows 没有逐行 `graphNodeIds`。因此每行写入：
 
 退出码：`0`；正例通过，记录顺序反转保持 ID/统计不变，重复 ID、删除分类、篡改来源定位、篡改输入 hash、篡改 covered/uncovered 统计、伪造 graphNodeIds 六个负例均按预期失败。
 
+逐项负例命令可追加 `--negative=<case>`；本地实际退出码均为 `0`：`duplicate-id`、`deleted-classification`、`tampered-source-location`、`tampered-input-hash`、`tampered-coverage-statistics`、`graph-node-missing-bypassed`。该模式中退出码 0 表示校验器正确拒绝了篡改。
+
 校验项目包括：稳定 ID 唯一、确定性复算、五类分类合法、primary 属于 gapClasses、sourceRef 完整、graphNodeIds 明确 missing、123/85/38 统计、8 Token、16 UNKNOWN、原始证据 hash 存在，以及打乱顺序、重复 ID、删除分类、篡改来源定位、篡改输入 hash、篡改 covered/uncovered 统计和伪造 graphNodeIds 的负例。
 
 本次校验结果：`_scratch/acp6-v06-phase0-gap-matrix-20261028-validation.json`，`pass: true`。文件 SHA-256 清单：`_scratch/acp6-v06-phase0-sha256-20261028.txt`。
