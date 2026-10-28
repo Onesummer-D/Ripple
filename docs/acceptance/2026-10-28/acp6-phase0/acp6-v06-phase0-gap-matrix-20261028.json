@@ -5458,7 +5458,8 @@
     "Phase 0 execution base is 5b75fe699afce98638e6fd6ad110911d83389dc8; the B evidence source remains the recorded PR #61 head/base pair.",
     "graphNodeIds missing is explicit; declaration graph node IDs are copied only where B supplied them and are not used to infer source-use node identity.",
     "No gap class upgrades a semantic-candidate or unknown relation to source-proven.",
-    "taxonomyVersion acp6-gap-taxonomy/v1 is proposed for A final confirmation; legacy labels remain in the mapping metadata only."
+    "taxonomyVersion acp6-gap-taxonomy/v1 is proposed for A final confirmation; legacy labels remain in the mapping metadata only.",
+    "AC6.2 dynamic-className gap count (9) is a CSS source-use-row classification; AC6.4 dynamic UNKNOWN pair count (7) is a consumer-pair classification. They are different cardinalities and are not mapped one-to-one."
   ],
   "execution": {
     "phase": "Phase 0",

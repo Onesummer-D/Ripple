@@ -54,6 +54,8 @@
 
 矩阵保留全部 123 行；其中 38 行有 gapClass，85 行为 covered 且 gapClass 为 null。每行都携带原始 token、文件、offset、UTF-8 byteOffset、selector、candidateConsumers、linkedStrictEdges。
 
+**动态记录边界**：AC6.2 的 `dynamic-className` 为 9 条 CSS source-use rows 的分类；AC6.4 的动态 UNKNOWN 为 7 个消费者 pair。两者来自不同层级的记录，不能按数量或 selector 推断一一映射。
+
 | # | stable rowId | status | token | file | offset/byteOffset | selector | primaryGapClass | gapClasses | candidates | strict edges | source-use graphNodeIds |
 |---:|---|---|---|---|---|---|---|---|---:|---:|---|
 | 1 | acp6-gap-7681a1cbb8f0413c | covered | --text-primary | src/css/footer.css | 115/115 | .footer | — | — | 1 | 2 | missing |
