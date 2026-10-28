@@ -9,8 +9,8 @@
   "files": [
     {
       "path": "README.md",
-      "bytes": 2477,
-      "sha256": "7da0f4d3ca2cfc1af1d8d94eeca5f83709a1a38d5705e9e50010337ce7486e8b"
+      "bytes": 2593,
+      "sha256": "8d963b0db7d496d68334496f3a443afa27dfef6fee290afe64dac68baf1f7929"
     },
     {
       "path": "acceptance-ed58cfd-final.json",
@@ -24,8 +24,8 @@
     },
     {
       "path": "acp6-v06-phase0-gap-matrix-v2-20261029.md",
-      "bytes": 23049,
-      "sha256": "d3728aa665c5292bdbab3e46df21128e079be19e5360283c661dea04024753f6"
+      "bytes": 24641,
+      "sha256": "47ae0fe70f676c154b2a9253b67bbc2016062873d3442ac9cbbba4951430f115"
     },
     {
       "path": "build-phase0-v2.mjs",
@@ -34,8 +34,8 @@
     },
     {
       "path": "finalize-phase0-v2.mjs",
-      "bytes": 7404,
-      "sha256": "dfee28e34a7e29f965cca654ca82c017c915a67ab643d15560d8984dbae86adf"
+      "bytes": 7449,
+      "sha256": "5a8c7de10717727713de01088a5b4c8fb3df7ddf0467b55977efa58b6fb2db7c"
     },
     {
       "path": "formal-input-declaration.json",
@@ -46,11 +46,6 @@
       "path": "legacy-archive-reference.json",
       "bytes": 875,
       "sha256": "c632550ccabfa088115368b514615b2923666f0bd71339907be4387a3fb807b9"
-    },
-    {
-      "path": "manifest-sha256.txt",
-      "bytes": 80,
-      "sha256": "58d26c32fb4fe939f8ebbcd22e21e65f94f2c24132c7e9c1629d002b3ea393ac"
     },
     {
       "path": "negative-run-index.json",
@@ -138,5 +133,5 @@
       "sha256": "499ebc59c7cfd35cd1d24ed38168b11bb5c57a412dd9e284d9108333ce239110"
     }
   ],
-  "selfHashPolicy": "manifest.json is intentionally excluded from its own entries; hash the final manifest bytes separately when publishing the commit."
+  "selfHashPolicy": "manifest.json and manifest-sha256.txt are intentionally excluded from manifest entries; manifest-sha256.txt records the final manifest bytes separately."
 }

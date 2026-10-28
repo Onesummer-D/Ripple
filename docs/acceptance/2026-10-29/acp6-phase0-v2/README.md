@@ -29,4 +29,4 @@ The positive run exits 0. Negative mutations in `negative-run-index.json` are ex
 
 ## Archive identity
 
-The new branch is based on `c851bfe11e6851e01695f94246a5a571435d8faa`. `manifest.json` lists every file's byte length and SHA-256; `manifest-sha256.txt` hashes the final manifest bytes. All files are written with LF and hashes refer to the exact bytes committed to GitHub.
+The new branch is based on `c851bfe11e6851e01695f94246a5a571435d8faa`. `manifest.json` lists every evidence file's byte length and SHA-256; `manifest.json` and `manifest-sha256.txt` are excluded from that list to avoid a self-reference cycle, and `manifest-sha256.txt` hashes the final manifest bytes. All files are written with LF and hashes refer to the exact bytes committed to GitHub.

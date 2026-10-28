@@ -91,7 +91,7 @@ const baseMarkdown = read('acp6-v06-phase0-gap-matrix-v2-20261029.md');
 const finalMarkdown = `${baseMarkdown}\n## Clean reproduction record\n\nThe formal source JSON parsed successfully and matched SHA-256 \`0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a\`. The historical corrupt #65 JSON remains preserved and is never used.\n\n| Case | Process exit | Validator pass | Failed checks observed |\n| --- | ---: | --- | --- |\n${validationTable}\n\nThe negative cases cover duplicate IDs, unknown raw/canonical classifications, deleted classifications, wrong mappings, source-location mutation, input-hash mutation, count mutation, invented graphNodeIds, platform offset drift, and source-row mutation. Reversing row order passes while preserving IDs, counts and classifications.\n`;
 fs.writeFileSync(path.join(dir, 'acp6-v06-phase0-gap-matrix-v2-20261029.md'), finalMarkdown, 'utf8');
 
-const exclude = new Set(['manifest.json']);
+const exclude = new Set(['manifest.json', 'manifest-sha256.txt']);
 const files = fs.readdirSync(dir).filter(name => !exclude.has(name) && fs.statSync(path.join(dir, name)).isFile()).sort();
 const manifest = {
   schemaVersion: 'acp6-v06-phase0-manifest/v1',
@@ -102,7 +102,7 @@ const manifest = {
   taxonomyVersion: formal.taxonomyVersion,
   mappingVersion: formal.mappingVersion,
   files: files.map(name => ({ path: name, bytes: fs.statSync(path.join(dir, name)).size, sha256: sha256File(name) })),
-  selfHashPolicy: 'manifest.json is intentionally excluded from its own entries; hash the final manifest bytes separately when publishing the commit.',
+  selfHashPolicy: 'manifest.json and manifest-sha256.txt are intentionally excluded from manifest entries; manifest-sha256.txt records the final manifest bytes separately.',
 };
 fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 const manifestHash = sha256File('manifest.json');
