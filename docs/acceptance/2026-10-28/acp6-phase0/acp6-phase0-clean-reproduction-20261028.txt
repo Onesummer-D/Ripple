@@ -31,5 +31,6 @@ Negative commands (exit code 0 means the validator rejected the mutation):
   node validate.mjs matrix.json source.json --negative=tampered-input-hash           -> 0
   node validate.mjs matrix.json source.json --negative=tampered-coverage-statistics  -> 0
   node validate.mjs matrix.json source.json --negative=graph-node-missing-bypassed   -> 0
+  node validate.mjs matrix.json source.json --negative=taxonomy-class-list-tampered  -> 0
 
 The normal run performs the shuffle stability check in-process. The input hash is read from the second CLI argument; no D: drive path is required.

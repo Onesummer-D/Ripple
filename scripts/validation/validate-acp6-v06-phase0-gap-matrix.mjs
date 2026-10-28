@@ -22,6 +22,7 @@ function validateCore(m){
   const uniqueIds=new Set(ids);
   check('schema-version',m.schemaVersion==='acp6-v06-phase0-gap-matrix/v2',{actual:m.schemaVersion});
   check('taxonomy-version',m.classification?.taxonomyVersion===SIGNED_TAXONOMY_VERSION,{actual:m.classification?.taxonomyVersion});
+  check('taxonomy-classes-signed',Array.isArray(m.classification?.allowedGapClasses)&&m.classification.allowedGapClasses.length===SIGNED_ALLOWED_GAP_CLASSES.length&&JSON.stringify([...m.classification.allowedGapClasses].sort())===JSON.stringify([...SIGNED_ALLOWED_GAP_CLASSES].sort()),{actual:m.classification?.allowedGapClasses,expected:SIGNED_ALLOWED_GAP_CLASSES});
   check('stable-id-unique',uniqueIds.size===ids.length,{rows:ids.length,uniqueIds:uniqueIds.size});
   check('stable-id-reproducible',rows.every(r=>{const h=sha256(`acp6-v06-phase0-row|${r.token}|${r.sourceRef.file}|${r.sourceRef.byteOffset}|${r.sourceRef.selector}`);return r.rowId===`acp6-gap-${h.slice(0,16)}`}),{});
   check('all-source-locations-present',rows.every(r=>r.sourceRef&&typeof r.sourceRef.file==='string'&&Number.isInteger(r.sourceRef.offset)&&Number.isInteger(r.sourceRef.byteOffset)&&typeof r.sourceRef.selector==='string'),{});
@@ -61,6 +62,7 @@ negative('tampered-source-location',m=>{const r=m.rows.find(x=>x.coverageStatus=
 negative('tampered-input-hash',m=>{m.source.acceptanceJsonSha256='0'.repeat(64);});
 negative('tampered-coverage-statistics',m=>{m.stats.coveredRows=84;m.stats.uncoveredRows=39;});
 negative('graph-node-missing-bypassed',m=>{const r=m.rows.find(x=>x.coverageStatus==='uncovered');r.sourceUseGraphNodeIds={status:'present',value:['invented-node']};});
+negative('taxonomy-class-list-tampered',m=>{m.classification.allowedGapClasses=['untrusted-class'];});
 const pass=positive.pass&&shuffleInvariant&&negatives.every(x=>x.pass);
 const result={schemaVersion:'acp6-v06-phase0-validation/v2',generatedAt:'2026-10-28',matrixPath,sourcePath,matrixSha256:sha256(fs.readFileSync(matrixPath)),pass,positive,shuffleInvariant,negativeTests:negatives};
 fs.writeFileSync(resultPath,JSON.stringify(result,null,2)+'\n','utf8');

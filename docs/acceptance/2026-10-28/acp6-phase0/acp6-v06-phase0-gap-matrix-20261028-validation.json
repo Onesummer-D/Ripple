@@ -23,6 +23,26 @@
         }
       },
       {
+        "name": "taxonomy-classes-signed",
+        "pass": true,
+        "details": {
+          "actual": [
+            "selector-owner-unresolved",
+            "dynamic-className",
+            "theme-cascade-ambiguity",
+            "complex-selector-normalization",
+            "candidate-without-strict-edge"
+          ],
+          "expected": [
+            "selector-owner-unresolved",
+            "dynamic-className",
+            "candidate-without-strict-edge",
+            "theme-cascade-ambiguity",
+            "complex-selector-normalization"
+          ]
+        }
+      },
+      {
         "name": "stable-id-unique",
         "pass": true,
         "details": {
@@ -320,6 +340,14 @@
       "expectedFailure": true,
       "failedChecks": [
         "source-use-graph-node-ids-explicit-missing"
+      ]
+    },
+    {
+      "name": "taxonomy-class-list-tampered",
+      "pass": true,
+      "expectedFailure": true,
+      "failedChecks": [
+        "taxonomy-classes-signed"
       ]
     }
   ]
