@@ -238,7 +238,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('scope-row-page:products')).toContain('未决定')
     // unknown 目标同样如此
     fireEvent.click(screen.getByTestId('canvas-el-el:promo-card'))
-    for (const id of ['page:products', 'page:seasonal', 'page:contact']) {
+    expect(text('page-item-page:products')).toContain('正在修改')
+    expect(text('page-item-page:products')).toContain('未知')
+    for (const id of ['page:seasonal', 'page:contact']) {
       expect(text(`page-item-${id}`)).toContain('影响未证明')
     }
   })
@@ -306,9 +308,12 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('来源未知的元素只能查看，不能进入编辑', async () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('canvas-el-el:promo-card'))
+    expect(text('page-item-page:products')).toContain('正在修改')
+    expect(text('page-item-page:products')).toContain('未知')
     expect(screen.queryByTestId('draft-text-input')).toBeNull()
     expect(screen.getByText(/来源未知：可以先查看，但不能承诺修改范围/)).not.toBeNull()
     expect(screen.getAllByTestId('certainty-unknown').length).toBeGreaterThan(0)
+    expect(text('gate-reasons')).toContain('来源未知')
   })
 
   it('partial 来源的元素即使可编辑，排除未知页面后也不给安全审批', async () => {
@@ -318,6 +323,8 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
     // 选中 partial + editable 的当季横幅并输入
     fireEvent.click(screen.getByTestId('canvas-el-el:seasonal-banner'))
+    expect(text('page-item-page:seasonal')).toContain('正在修改')
+    expect(text('page-item-page:seasonal')).toContain('部分证明')
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新春限定' } })
     expect(text('gate-reasons')).toContain('未完全证明')
     expect(screen.queryByTestId('demo-approve')).toBeNull()

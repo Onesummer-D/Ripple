@@ -11,7 +11,7 @@
  * → 范围决策 → 前后对照 → 证据/风险/未知 → 版本历史。
  */
 import type { ExperienceAdapter } from './adapter'
-import { DEMO_CONTENT, demoSlotForElement, type DemoContentSlot } from './demo-content'
+import { DEMO_CONTENT, type DemoContentSlot } from './demo-content'
 import { projectPageRelations } from './view-model'
 import type { CanvasElementXp, ExperienceViewModel, PageScopeChoiceXp } from './view-model'
 
@@ -177,16 +177,12 @@ export function createDemoAdapter(): ExperienceAdapter {
         // 页面关系与默认 Scope 全部以当前目标重新投影：
         // 上一目标留下的同源判定、Scope 决定都不跨目标复用
         // （演示数据没有"已证明无影响"清单，缺页一律保持未证明，不臆造 unrelated；
-        //   演示元素都位于首页；真实 Adapter 中目标所属页须由可信来源提供，
-        //   与用户正在浏览的 currentPageRef 区分）
+        //   目标所属页始终来自 fixture 的 demoPageRef，与用户正在浏览的
+        //   currentPageRef 区分；projectPageRelations 再按元素确定性降级）
         pages: projectPageRelations(
           current.pages,
           element,
-          element?.demoProvenance === 'demo' && element.demoPageRef
-            ? (demoSlotForElement(element.id)?.consumers.find(consumer => consumer.pageRef === element.demoPageRef)?.certainty === 'source-proven'
-              ? element.demoPageRef
-              : '__demo-unproven-target__')
-            : element?.demoPageRef ?? HOME,
+          element?.demoPageRef ?? HOME,
         ),
         compare: { ...current.compare, focusArea: element?.label },
         evidence: evidenceForSelection(element, ''),

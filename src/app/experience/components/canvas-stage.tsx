@@ -77,6 +77,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   const renderedDemoElementIds = model.dataProvenance === 'demo' && currentPage
     ? demoRenderedElementIds(model, currentPage.id as Parameters<typeof demoRenderedElementIds>[1])
     : new Set<string>()
+  const hideRenderedDemoTargets = model.dataProvenance === 'demo' && canvasState === 'ready'
 
   /**
    * 点选模式同步：把【当前有效状态】发给预演 iframe——进入携带 nonce、退出发
@@ -235,7 +236,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
       // 当前浏览页；Demo 只隐藏当前页已经渲染的元素，避免冻结 testid 重复。
       <div className="ripple-xp-target-strip" role="group" aria-label="已分析的编辑目标" data-testid="target-strip">
         {model.elements
-          .filter(element => model.dataProvenance !== 'demo' || !renderedDemoElementIds.has(element.id))
+          .filter(element => model.dataProvenance !== 'demo' || !hideRenderedDemoTargets || !renderedDemoElementIds.has(element.id))
           .map(element => (
           <button
             key={element.id}

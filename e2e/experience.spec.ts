@@ -114,6 +114,28 @@ test('UI-RC2 当前页目标唯一、共享 sourceKey 稳定且跨页状态保�
   await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
 })
 
+test('UI-RC2 画布非 ready 时目标条仍可选，恢复 ready 后 testid 唯一', async ({ page }) => {
+  await openExperience(page)
+  const heroId = 'canvas-el-el:hero-title'
+
+  await page.getByTestId('demo-canvas-state').selectOption('failed')
+  await expect(page.getByTestId('canvas-state-banner')).toContainText('预演加载失败')
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+  await page.getByTestId('target-strip').getByTestId(heroId).click()
+  await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+
+  await page.getByTestId('demo-canvas-state').selectOption('loading')
+  await expect(page.getByTestId('canvas-state-banner')).toContainText('预演加载中')
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+
+  await page.getByTestId('demo-canvas-state').selectOption('ready')
+  await expect(page.getByTestId('demo-canvas').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(0)
+})
+
 test('选中与编辑：标题更新、候选状态推进、前后对照同步', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
