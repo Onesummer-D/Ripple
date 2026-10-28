@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "acp6-v06-linux-artifact-provenance/v1",
+  "repository": "Onesummer-D/Ripple",
+  "runId": 40656095611,
+  "runUrl": "https://github.com/Onesummer-D/Ripple/actions/runs/40656095611",
+  "artifactId": 12801358049,
+  "artifactName": "ripple-v06-acp6-linux-ed58cfdc2892acaa9b97363a3414b1c219d07053-40656095611.zip",
+  "artifactSha256": "8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c",
+  "coreSha": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
+  "coreTree": "24de55f8bc1d8146b12b42b8bfdd4b24d5f41f6c",
+  "fixedProject": "allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd",
+  "reportSha256": "7aee05647b185743663d4a4e5dee5996eea971a6de556944e8eb51d99782297b",
+  "styleSha256": "5038b3fd088d0e51aa430a2767d6637b51daa9a712dd174b76c0e305ff238007",
+  "acceptance": { "passed": 3, "pending": 2, "error": 0, "exitCode": 2 },
+  "evidenceLevel": "independent-run-artifact-metadata",
+  "offsetExtraction": "not-proven",
+  "reason": "Artifact identity and digest are independently available; local replay cannot read ZIP bytes, so this record supplies no Linux per-row offsets."
+}

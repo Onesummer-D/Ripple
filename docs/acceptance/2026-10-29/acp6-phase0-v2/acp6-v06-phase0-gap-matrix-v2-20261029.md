@@ -33,7 +33,7 @@ Primary selection is ordered pseudo → global/theme → dynamic → candidate �
 
 The matrix is rebuilt from every AC6.2 `declarationSetCoverage.sourceUseCoverage` row in the recovered JSON. Validator compares token, file, character offset, UTF-8 byteOffset, selector, covered flag, candidate/strict edge counts, and declaration references row by row. Source-use graphNodeIds remain explicitly missing.
 
-Offsets are measured on exact UTF-8 source bytes. No LF/CRLF normalization is performed. Linux and Windows platform records must match the same byte offsets; any platform drift is a validation failure.
+Offsets are measured on exact UTF-8 source bytes. No LF/CRLF normalization is performed. The Linux Actions artifact is independently identified (run 40656095611, artifact 12801358049, ZIP SHA-256 8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c) but its ZIP bytes were unavailable to this local replay, so all cross-platform offset status is unavailable/not-proven; no Linux offsets are copied from Windows.
 
 ## Machine-readable row matrix
 
@@ -168,7 +168,7 @@ Offsets are measured on exact UTF-8 source bytes. No LF/CRLF normalization is pe
 
 ## Validation and negative cases
 
-Run the validator from a clean checkout with the source JSON and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, and Linux/Windows offset drift. A reversed row order must preserve stable IDs and all statistics.
+Run the validator from a clean checkout with the source JSON and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications or row mappingVersion, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, AC6.4 pair mutations, row-index mutations, and copied/under-proven platform evidence. A reversed row order must preserve stable IDs and all statistics.
 
 AC6.2 dynamic-className rows and AC6.4 dynamic UNKNOWN pairs have separate cardinalities: 9 raw source-use rows versus 7 consumer pairs. The matrix never maps them one-to-one.
 
@@ -178,22 +178,38 @@ This is evidence and validation only. SourceGraph production code, B v5 matcher/
 
 ## Clean reproduction record
 
-The formal source JSON parsed successfully and matched SHA-256 `0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a`. The historical corrupt #65 JSON remains preserved and is never used.
+The formal source JSON parsed successfully and matched SHA-256 `0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a`. The historical corrupt #65 JSON remains preserved and is never used. Cross-platform offsets remain `unavailable/not-proven` because Linux artifact contents were not locally readable.
 
 | Case | Process exit | Validator pass | Failed checks observed |
 | --- | ---: | --- | --- |
 | positive | 0 | true | none |
-| duplicate-id | 0 | false | stable-id-unique, stable-id-reproducible, source-use-full-row-comparison |
+| duplicate-id | 0 | false | stable-id-unique, stable-id-reproducible, source-use-full-row-comparison, platform-offsets |
 | unknown-raw-class | 0 | false | uncovered-classifications-legal, raw-counts |
 | unknown-canonical-class | 0 | false | uncovered-classifications-legal, canonical-counts |
 | deleted-classification | 0 | false | taxonomy-version, uncovered-classifications-legal, canonical-counts, raw-counts |
+| missing-row-mapping-version | 0 | false | uncovered-classifications-legal |
+| wrong-row-mapping-version | 0 | false | uncovered-classifications-legal |
 | wrong-mapping-rule | 0 | false | uncovered-classifications-legal |
 | tampered-source-location | 0 | false | stable-id-reproducible, source-use-full-row-comparison |
 | tampered-input-hash | 0 | false | source-hash |
 | tampered-counts | 0 | false | row-counts |
 | graph-node-present | 0 | false | source-use-graph-node-ids-explicit-missing |
-| offset-platform-mismatch | 0 | false | platform-offsets |
 | source-row-mutation | 0 | false | source-use-full-row-comparison |
+| ac64-pair-file | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-byte-offset | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-token | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-component | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-source-ref | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-edge-count | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-certainty | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-id | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-content-hash | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
+| ac64-pair-set-hash | 0 | false | ac64-pair-set-hash |
+| ac64-unknown-pair-ids | 0 | false | ac64-unknown-pair-ids |
+| covered-row-id-mutation | 0 | false | row-indexes-exact, order-stability |
+| uncovered-row-id-mutation | 0 | false | row-indexes-exact, order-stability |
+| copied-platform-evidence | 0 | false | platform-offsets |
+| offset-platform-mismatch | 0 | false | platform-offsets |
 | shuffle-order | 0 | true | none |
 
-The negative cases cover duplicate IDs, unknown raw/canonical classifications, deleted classifications, wrong mappings, source-location mutation, input-hash mutation, count mutation, invented graphNodeIds, platform offset drift, and source-row mutation. Reversing row order passes while preserving IDs, counts and classifications.
+The negative cases cover row IDs, taxonomy/mapping fields, source locations and hashes, AC6.4 pair content and pair-set integrity, row index sets, graph node status, copied platform provenance, and source-row mutations. Reversing row order passes while preserving IDs, counts and classifications.

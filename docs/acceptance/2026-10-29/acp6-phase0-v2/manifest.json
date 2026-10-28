@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "acp6-v06-phase0-manifest/v1",
+  "schemaVersion": "acp6-v06-phase0-manifest/v2",
   "generatedAt": "2026-10-29",
   "branchIntent": "new evidence-only branch; old c851bfe archive remains intact",
   "baseCommit": "c851bfe11e6851e01695f94246a5a571435d8faa",
@@ -19,48 +19,48 @@
     },
     {
       "path": "acp6-v06-phase0-gap-matrix-v2-20261029.json",
-      "bytes": 234660,
-      "sha256": "450378ebda0e89549da6ee266e13b56dead7135b0b5e55e0b0b9342d9ede6922"
+      "bytes": 492740,
+      "sha256": "d8ed4653ba673d9b60bee7679419f2e89e93ed7578e40054269b1722aea07f8c"
     },
     {
       "path": "acp6-v06-phase0-gap-matrix-v2-20261029.md",
-      "bytes": 23049,
-      "sha256": "d3728aa665c5292bdbab3e46df21128e079be19e5360283c661dea04024753f6"
+      "bytes": 24698,
+      "sha256": "75232d8020ac6181cd6b5497edd98fd682c61f90753cae422dbf7a9d5ce4d2a1"
     },
     {
       "path": "build-phase0-v2.mjs",
-      "bytes": 20236,
-      "sha256": "b3b8b7a95b9cefdd6ba46c751d9358b6b34056a2d701e13848a6a3ce859e9739"
+      "bytes": 24169,
+      "sha256": "ba316c1eb5404daa4f027bd82ee9d709d5e9ee44250be61bece0d8c2dd73cc2c"
     },
     {
-      "path": "clean-reproduction-log.txt",
-      "bytes": 1784,
-      "sha256": "ac0deaaca36f8d81677150c692cf77cb7bc7b02b8c17ec7ca47a2b340e0682ee"
+      "path": "clean-reproduction-log-v4.txt",
+      "bytes": 1402,
+      "sha256": "e0d0bb14876d1aac0488de588a0b39256adc952eefc70f00b9d367d8f79bb4ff"
     },
     {
       "path": "finalize-phase0-v2.mjs",
-      "bytes": 7514,
-      "sha256": "559e778ef64c28af26e7055b389809247c458d3f4dfdf01c794fdda8275ab966"
+      "bytes": 10166,
+      "sha256": "71fe6cc382e91233eb88540634fc6478e692e2f13c69fd0df3628c0aa39e429a"
     },
     {
       "path": "formal-input-declaration.json",
-      "bytes": 2251,
-      "sha256": "b5a6b54a0f21716ad70acbe7ff0922b446c8384ba34746f9ebb176cae6aaa89f"
+      "bytes": 3861,
+      "sha256": "40396b4d8f3ff686a995c5d919044ab94de31fdb68fe9feddd05ae682b823075"
     },
     {
       "path": "legacy-archive-reference.json",
-      "bytes": 875,
-      "sha256": "c632550ccabfa088115368b514615b2923666f0bd71339907be4387a3fb807b9"
+      "bytes": 1358,
+      "sha256": "a606caa7381bd2230af699a6b2201acc45325559946eb13d1741035d4c2e2866"
     },
     {
-      "path": "negative-run-index.json",
-      "bytes": 3609,
-      "sha256": "60bf66927d79907570ee410e072dc2bc85c225a957bf6f0f14188fa0893d00bc"
+      "path": "linux-artifact-provenance.json",
+      "bytes": 1114,
+      "sha256": "97848c8d14d89b08e4e4b07779c6a7914225e019699ba2d63bbaf1b634f53559"
     },
     {
-      "path": "reproduction-log.txt",
-      "bytes": 3217,
-      "sha256": "2b957dd43add2108ef6b515ef9536d8c9f08949859ffbc6b6c44c2709721bef8"
+      "path": "negative-run-index-v4.json",
+      "bytes": 6709,
+      "sha256": "9ff36c08c5f865d8089213b27519af63d4e29fa4c2a1f976ee2cd6f20071bb67"
     },
     {
       "path": "taxonomy-contract-reference.md",
@@ -68,75 +68,161 @@
       "sha256": "9e977b446c042dd9b8465865854400f4ec9f7b50b523c23ea2b303743a2b19ba"
     },
     {
+      "path": "taxonomy-erratum-reference.md",
+      "bytes": 670,
+      "sha256": "0a153334fd250abb8b793d7dce1a31978190a608bf4bab8b3ab9f6adb777088f"
+    },
+    {
       "path": "validate-acp6-v06-phase0-v2.mjs",
-      "bytes": 16369,
-      "sha256": "4d32010eb177f43bf76d606b37be3ef8bb9427e55e11e7fbccc1aed91c809088"
+      "bytes": 22216,
+      "sha256": "f1c33c2afa8382cd7c8e40f599e1a41f3a4622bd8f78dc9f023cae1f7fac6c60"
     },
     {
-      "path": "validation-deleted-classification.json",
-      "bytes": 5973,
-      "sha256": "cd9fd1491e2d1f9242d80399746cd5192265223a1aa0ca58df8ca158539e7cb8"
+      "path": "validation-ac64-pair-byte-offset-v4.json",
+      "bytes": 5204,
+      "sha256": "925a7e20ddca4961dfb6dd21657a6e1f326434c5f11a1d6591d5c8341cb0135c"
     },
     {
-      "path": "validation-duplicate-id.json",
-      "bytes": 5879,
-      "sha256": "53f0ba4031392f317993ccfc678475949f53c1275c495c025b87aadeb0bb02e8"
+      "path": "validation-ac64-pair-certainty-v4.json",
+      "bytes": 5202,
+      "sha256": "4897f001ee0ab9a4535b21b41140ceb28e0736fca1a79b8d954806056c8ab220"
     },
     {
-      "path": "validation-graph-node-present.json",
-      "bytes": 5883,
-      "sha256": "ba5c30b898408ce2aeeeb33a88b0eec4af46430eedcbdb2895e015c73fa7dbd0"
+      "path": "validation-ac64-pair-component-v4.json",
+      "bytes": 5202,
+      "sha256": "986c0e5b3c6695d234cef6c4a968317c699777e83928188ce77bff58437b699e"
     },
     {
-      "path": "validation-offset-platform-mismatch.json",
-      "bytes": 5889,
-      "sha256": "da5910e187d9ac0172771d04295b1cfff8cd80619d4f94e08fb1125c6f5f6cfe"
+      "path": "validation-ac64-pair-content-hash-v4.json",
+      "bytes": 5205,
+      "sha256": "58f196167ad7df998880c77fcfb3759aaecc22204271aeee7c677fbe40942366"
     },
     {
-      "path": "validation-positive.json",
-      "bytes": 5646,
-      "sha256": "a839ff409d54068617f5c29060b8cbdb7e46ced21edbb5e89d52487a34912f8b"
+      "path": "validation-ac64-pair-edge-count-v4.json",
+      "bytes": 5203,
+      "sha256": "612c514577964d9da9eb19c3a5d2d59febe83036b6c3cdaba47c5a8acd8cb457"
     },
     {
-      "path": "validation-shuffle-order.json",
-      "bytes": 5875,
-      "sha256": "e53ca8dcc28d2a696a754343c5fa211f81a9119ee920615a22cfab41c9b99198"
+      "path": "validation-ac64-pair-file-v4.json",
+      "bytes": 5197,
+      "sha256": "bf87b0ae963cc22e3c88923af29fc2ad4ca3285e2b8d8a660e87e0ee272fb6ca"
     },
     {
-      "path": "validation-source-row-mutation.json",
-      "bytes": 5884,
-      "sha256": "5d9c271b32e0f5afa7341aa20c34ff6fdd9261f5a7f484e37d0ba6b7200762bc"
+      "path": "validation-ac64-pair-id-v4.json",
+      "bytes": 5195,
+      "sha256": "8505b6b95228d83836259d8f1dff379466492646f5cb390b618f63fd792f3b52"
     },
     {
-      "path": "validation-tampered-counts.json",
-      "bytes": 5880,
-      "sha256": "0d93dc52a79a93acd350fdcbc0462f1cd69faba71ee1b73108e76ceef58e6e61"
+      "path": "validation-ac64-pair-set-hash-v4.json",
+      "bytes": 5200,
+      "sha256": "61200a5c2343afc0ef61a93e96bfd9aec4197c331890f5d930910974400b9b70"
     },
     {
-      "path": "validation-tampered-input-hash.json",
-      "bytes": 5884,
-      "sha256": "c0d34de4ec79a61f504f27143a80a796a8b9fd78cc60e009a2f2e582cafd62b0"
+      "path": "validation-ac64-pair-source-ref-v4.json",
+      "bytes": 5203,
+      "sha256": "7350faae36d4ce0d85c71ee72823c378fa0cd3679e76864737b85389de72e255"
     },
     {
-      "path": "validation-tampered-source-location.json",
-      "bytes": 5890,
-      "sha256": "2cf3a21db057097f5dde84fbbad0a13109854dfee5b552afabc67114e46f3e10"
+      "path": "validation-ac64-pair-token-v4.json",
+      "bytes": 5198,
+      "sha256": "19e94d35d8a92b286862119537720d7f1fa9d760f74c7949da4942e344244a44"
     },
     {
-      "path": "validation-unknown-canonical-class.json",
-      "bytes": 5971,
-      "sha256": "8e4e7cd41edfca49547fbae091b4cb6bb44e04e1abf4d50228af16baf08f6d86"
+      "path": "validation-ac64-unknown-pair-ids-v4.json",
+      "bytes": 5203,
+      "sha256": "c27206710f8807b3cb4a118af0696e245bdbf153b25c074e37a8fe7a4901c937"
     },
     {
-      "path": "validation-unknown-raw-class.json",
-      "bytes": 5920,
-      "sha256": "4421c3bd6ed3bc7af790fdc8705346a7652ecd3ca335850bd520024e532b115a"
+      "path": "validation-copied-platform-evidence-v4.json",
+      "bytes": 5214,
+      "sha256": "c4586ee7595ba304992371ef1c0cef853c5e5b3a9f79d322f1b99e437e8c95ff"
     },
     {
-      "path": "validation-wrong-mapping-rule.json",
-      "bytes": 5883,
-      "sha256": "499ebc59c7cfd35cd1d24ed38168b11bb5c57a412dd9e284d9108333ce239110"
+      "path": "validation-covered-row-id-mutation-v4.json",
+      "bytes": 5206,
+      "sha256": "c7f6e50697cf4df360a014d5bbf011437083f57a4d5538820aeb9d4ed0d615e6"
+    },
+    {
+      "path": "validation-deleted-classification-v4.json",
+      "bytes": 5287,
+      "sha256": "efd3adb2da14695c9a7ac33ec61378d12b283e7724a1cb7a4e4f3f471bd0349e"
+    },
+    {
+      "path": "validation-duplicate-id-v4.json",
+      "bytes": 5197,
+      "sha256": "f85ee751ad90a6019f036164893fa9696f7352e0f42211515f38484ddebccca0"
+    },
+    {
+      "path": "validation-graph-node-present-v4.json",
+      "bytes": 5200,
+      "sha256": "f8f7057119a52c166efb1e32b810de208c0d82e2260d59836a6d6c6a5c175c0e"
+    },
+    {
+      "path": "validation-missing-row-mapping-version-v4.json",
+      "bytes": 5209,
+      "sha256": "52a9121c453a7bd09010a2c01e9299cebdb9fbb2fca4ad35b7a4c1af1f2b2126"
+    },
+    {
+      "path": "validation-offset-platform-mismatch-v4.json",
+      "bytes": 5214,
+      "sha256": "e4bf304a157623a0a29789b076fb5e8591a87f768385073aba143a5657c2e8a6"
+    },
+    {
+      "path": "validation-positive-v4.json",
+      "bytes": 5182,
+      "sha256": "1d2bf87d6a330d7fb579b9e1ddf798b80f586baf35f2b2a04bf6fd8b03a107bf"
+    },
+    {
+      "path": "validation-shuffle-order-v4.json",
+      "bytes": 5192,
+      "sha256": "71c04d5e4e3a654c47de64844ac1fe65266274c3174599fa46e1c476d52bef6e"
+    },
+    {
+      "path": "validation-source-row-mutation-v4.json",
+      "bytes": 5201,
+      "sha256": "f8ad9158e7040ac077de3f5944680a05ff796d3f1503bd8a0ddd3396c139953b"
+    },
+    {
+      "path": "validation-tampered-counts-v4.json",
+      "bytes": 5197,
+      "sha256": "ac1ffbcf6ffd5cd092f64ab87bf0bfdd2fcb51f4774fc11eacbd6b48574a480d"
+    },
+    {
+      "path": "validation-tampered-input-hash-v4.json",
+      "bytes": 5201,
+      "sha256": "8340a9f33d0666f291570d2c30134f89878ed0636b9c4343b7855ee9c81df2d2"
+    },
+    {
+      "path": "validation-tampered-source-location-v4.json",
+      "bytes": 5207,
+      "sha256": "4613da3176a9e16f75bd7519b6203821548f0dbeae67c7f3d170c4fe87ca2490"
+    },
+    {
+      "path": "validation-uncovered-row-id-mutation-v4.json",
+      "bytes": 5208,
+      "sha256": "799ce9f2e3aa55ac6c7da125b117f81baa4761cdfcc4acc41415da7cd61b93be"
+    },
+    {
+      "path": "validation-unknown-canonical-class-v4.json",
+      "bytes": 5286,
+      "sha256": "6203c6062e859ebd0e1a3a49e5d306bd05de2c52c89ddff653cc10dccf5025c8"
+    },
+    {
+      "path": "validation-unknown-raw-class-v4.json",
+      "bytes": 5236,
+      "sha256": "41484fe1ce0075c7d42e7c6365efc09d9bef84b626e40cc6a7746771c7d04c1f"
+    },
+    {
+      "path": "validation-wrong-mapping-rule-v4.json",
+      "bytes": 5200,
+      "sha256": "fefde3006f75f80362c766ac06f5df12d1251dfb3084be78dce28e2c75531aad"
+    },
+    {
+      "path": "validation-wrong-row-mapping-version-v4.json",
+      "bytes": 5207,
+      "sha256": "1a6b14a8518de2db91c621a2d30aaa1e375ee009ecd8be7455f0ff6f915d93a0"
     }
   ],
-  "selfHashPolicy": "manifest.json and manifest-sha256.txt are intentionally excluded from manifest entries; manifest-sha256.txt records the final manifest bytes separately."
+  "selfHashPolicy": "manifest.json and manifest-sha256.txt are intentionally excluded from manifest entries; manifest-sha256.txt records the final manifest bytes separately.",
+  "historicalFilesRetainedInBase": "Legacy v3 validation outputs and reproduction logs remain in the d1 parent archive but are excluded from this repaired manifest because they contain stale absolute local paths."
 }
