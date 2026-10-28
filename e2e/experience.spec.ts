@@ -308,7 +308,8 @@ test('任务一负例：partial 目标不产生已证明无关页，来源确定
   await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
   // 整个页面导航中除当前编辑页外不允许出现"来源已证实"的页面关系
   await page.getByTestId('canvas-el-el:promo-card').click()
-  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('page-item-page:products')).toContainText('正在修改')
+  await expect(page.getByTestId('page-item-page:products')).toContainText('未知')
   await expect(page.getByTestId('page-item-page:seasonal')).toContainText('影响未证明')
 })
 
