@@ -1,20 +1,44 @@
-Phase 0 v4 clean replay (2026-10-29)
-Working directory: evidence archive scratch only; no production worktree files were read or modified.
-Formal input: acceptance-ed58cfd-final.json
+Phase 0 v5 clean replay (2026-10-29)
+Clean directory: _scratch/acp6-phase0-clean-replay-v5-20261029
 Formal input SHA-256: 0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a
-Core SHA: ed58cfdc2892acaa9b97363a3414b1c219d07053
-Taxonomy: acp6-gap-taxonomy/v1
-Mapping: acp6-gap-mapping/v1 (required on every uncovered row)
-Linux run metadata: 40656095611 / artifact 12801358049 / ZIP SHA-256 8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c
-Linux offset status: unavailable/not-proven; artifact ZIP was not readable in this local environment, so no Linux offsets were copied.
+Raw classification source SHA-256: 89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200
+PR Base: d1d26185710c8e4d80182356f760109123bdc989
+Cross-platform offset status: unavailable/not-proven
 
-Commands and exits:
-1. node build-phase0-v2.mjs -> exit 0 (123 rows; 85 covered; 38 uncovered; canonical 3/21/8/4/2)
-2. node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json -> exit 0 (pass=true)
-3. For every negative case listed in negative-run-index-v4.json: validator process exit 0 means the expected rejection was observed (exitPass=true).
-4. shuffle-order negative: validator process exit 0 and validation.pass=true (stable IDs/statistics preserved under order change).
-
-AC6.4 pair integrity:
-- 16 UNKNOWN pairs compared against source pair content.
-- pairContentSha256 and ac64PairSetSha256 checked.
-- file and sourceUses byteOffset mutations rejected.
+clean positive exit=0 pass=True
+clean duplicate-id exit=0 validationPass=False exitPass=True
+clean unknown-raw-class exit=0 validationPass=False exitPass=True
+clean unknown-canonical-class exit=0 validationPass=False exitPass=True
+clean deleted-classification exit=0 validationPass=False exitPass=True
+clean missing-row-mapping-version exit=0 validationPass=False exitPass=True
+clean wrong-row-mapping-version exit=0 validationPass=False exitPass=True
+clean wrong-mapping-rule exit=0 validationPass=False exitPass=True
+clean tampered-source-location exit=0 validationPass=False exitPass=True
+clean tampered-input-hash exit=0 validationPass=False exitPass=True
+clean tampered-counts exit=0 validationPass=False exitPass=True
+clean graph-node-present exit=0 validationPass=False exitPass=True
+clean source-row-mutation exit=0 validationPass=False exitPass=True
+clean ac64-pair-file exit=0 validationPass=False exitPass=True
+clean ac64-pair-byte-offset exit=0 validationPass=False exitPass=True
+clean ac64-pair-token exit=0 validationPass=False exitPass=True
+clean ac64-pair-component exit=0 validationPass=False exitPass=True
+clean ac64-pair-source-ref exit=0 validationPass=False exitPass=True
+clean ac64-pair-edge-count exit=0 validationPass=False exitPass=True
+clean ac64-pair-certainty exit=0 validationPass=False exitPass=True
+clean ac64-pair-id exit=0 validationPass=False exitPass=True
+clean ac64-pair-content-hash exit=0 validationPass=False exitPass=True
+clean ac64-pair-set-hash exit=0 validationPass=False exitPass=True
+clean ac64-unknown-pair-ids exit=0 validationPass=False exitPass=True
+clean covered-row-id-mutation exit=0 validationPass=False exitPass=True
+clean uncovered-row-id-mutation exit=0 validationPass=False exitPass=True
+clean copied-platform-evidence exit=0 validationPass=False exitPass=True
+clean offset-platform-mismatch exit=0 validationPass=False exitPass=True
+clean drift-status-null-linux exit=0 validationPass=False exitPass=True
+clean drift-status-unobserved exit=0 validationPass=False exitPass=True
+clean drift-fake-delta exit=0 validationPass=False exitPass=True
+clean drift-missing-row exit=0 validationPass=False exitPass=True
+clean offset-reconciliation-promoted exit=0 validationPass=False exitPass=True
+clean raw-classification-label-swap exit=0 validationPass=False exitPass=True
+clean raw-classification-source-hash exit=0 validationPass=False exitPass=True
+clean shuffle-order exit=0 validationPass=True exitPass=True
+clean negativeBad=0 totalCases=35

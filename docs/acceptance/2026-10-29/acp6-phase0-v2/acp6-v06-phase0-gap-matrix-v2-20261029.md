@@ -5,7 +5,8 @@
 - Input bytes: `1035281`
 - Fixed project: `allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd`
 - Taxonomy: `acp6-gap-taxonomy/v1`; mapping: `acp6-gap-mapping/v1`
-- Legacy archive retained at `evidence/cd-acp6-phase0-20261028-final` @ `c851bfe11e6851e01695f94246a5a571435d8faa`; it is not overwritten.
+- PR Base for this repair archive: `d1d26185710c8e4d80182356f760109123bdc989`
+- Raw classification evidence baseline: `c851bfe11e6851e01695f94246a5a571435d8faa` (SHA-256 `89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200`); it is bound row by row and is not the formal B input.
 
 ## Scope and counts
 
@@ -31,7 +32,7 @@ Primary selection is ordered pseudo → global/theme → dynamic → candidate �
 
 ## Source comparison and offsets
 
-The matrix is rebuilt from every AC6.2 `declarationSetCoverage.sourceUseCoverage` row in the recovered JSON. Validator compares token, file, character offset, UTF-8 byteOffset, selector, covered flag, candidate/strict edge counts, and declaration references row by row. Source-use graphNodeIds remain explicitly missing.
+The matrix is rebuilt from every AC6.2 `declarationSetCoverage.sourceUseCoverage` row in the recovered JSON; rawGapClass/rawGapClasses are checked against the exact c851bfe raw classification matrix. Validator compares token, file, character offset, UTF-8 byteOffset, selector, covered flag, candidate/strict edge counts, and declaration references row by row. Source-use graphNodeIds remain explicitly missing.
 
 Offsets are measured on exact UTF-8 source bytes. No LF/CRLF normalization is performed. The Linux Actions artifact is independently identified (run 40656095611, artifact 12801358049, ZIP SHA-256 8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c) but its ZIP bytes were unavailable to this local replay, so all cross-platform offset status is unavailable/not-proven; no Linux offsets are copied from Windows.
 
@@ -168,7 +169,7 @@ Offsets are measured on exact UTF-8 source bytes. No LF/CRLF normalization is pe
 
 ## Validation and negative cases
 
-Run the validator from a clean checkout with the source JSON and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications or row mappingVersion, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, AC6.4 pair mutations, row-index mutations, and copied/under-proven platform evidence. A reversed row order must preserve stable IDs and all statistics.
+Run the validator from a clean checkout with the source JSON, raw classification source, and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications or row mappingVersion, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, AC6.4 pair mutations, row-index mutations, and copied/under-proven platform evidence. A reversed row order must preserve stable IDs and all statistics.
 
 AC6.2 dynamic-className rows and AC6.4 dynamic UNKNOWN pairs have separate cardinalities: 9 raw source-use rows versus 7 consumer pairs. The matrix never maps them one-to-one.
 
@@ -178,15 +179,15 @@ This is evidence and validation only. SourceGraph production code, B v5 matcher/
 
 ## Clean reproduction record
 
-The formal source JSON parsed successfully and matched SHA-256 `0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a`. The historical corrupt #65 JSON remains preserved and is never used. Cross-platform offsets remain `unavailable/not-proven` because Linux artifact contents were not locally readable.
+The formal source JSON parsed successfully and matched SHA-256 `0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a`. The raw classification source is c851bfe11e6851e01695f94246a5a571435d8faa with SHA-256 `89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200` and is checked row by row. The PR Base is d1d26185710c8e4d80182356f760109123bdc989. The historical corrupt #65 JSON remains preserved and is never used. Cross-platform offsets remain `unavailable/not-proven` because Linux artifact contents were not locally readable.
 
 | Case | Process exit | Validator pass | Failed checks observed |
 | --- | ---: | --- | --- |
 | positive | 0 | true | none |
-| duplicate-id | 0 | false | stable-id-unique, stable-id-reproducible, source-use-full-row-comparison, platform-offsets |
-| unknown-raw-class | 0 | false | uncovered-classifications-legal, raw-counts |
-| unknown-canonical-class | 0 | false | uncovered-classifications-legal, canonical-counts |
-| deleted-classification | 0 | false | taxonomy-version, uncovered-classifications-legal, canonical-counts, raw-counts |
+| duplicate-id | 0 | false | stable-id-unique, stable-id-reproducible, source-use-full-row-comparison, platform-offsets, order-stability |
+| unknown-raw-class | 0 | false | uncovered-classifications-legal, raw-classification-row-comparison, raw-counts, order-stability |
+| unknown-canonical-class | 0 | false | uncovered-classifications-legal, canonical-counts, order-stability |
+| deleted-classification | 0 | false | taxonomy-version, uncovered-classifications-legal, raw-classification-row-comparison, canonical-counts, raw-counts, order-stability |
 | missing-row-mapping-version | 0 | false | uncovered-classifications-legal |
 | wrong-row-mapping-version | 0 | false | uncovered-classifications-legal |
 | wrong-mapping-rule | 0 | false | uncovered-classifications-legal |
@@ -206,10 +207,17 @@ The formal source JSON parsed successfully and matched SHA-256 `0d7e5f97d91e6985
 | ac64-pair-content-hash | 0 | false | ac64-pair-content-integrity, ac64-pair-evidence |
 | ac64-pair-set-hash | 0 | false | ac64-pair-set-hash |
 | ac64-unknown-pair-ids | 0 | false | ac64-unknown-pair-ids |
-| covered-row-id-mutation | 0 | false | row-indexes-exact, order-stability |
-| uncovered-row-id-mutation | 0 | false | row-indexes-exact, order-stability |
+| covered-row-id-mutation | 0 | false | row-indexes-exact |
+| uncovered-row-id-mutation | 0 | false | row-indexes-exact |
 | copied-platform-evidence | 0 | false | platform-offsets |
 | offset-platform-mismatch | 0 | false | platform-offsets |
+| drift-status-null-linux | 0 | false | platform-offsets |
+| drift-status-unobserved | 0 | false | platform-offsets |
+| drift-fake-delta | 0 | false | platform-offsets |
+| drift-missing-row | 0 | false | platform-offsets |
+| offset-reconciliation-promoted | 0 | false | offset-reconciliation-observation |
+| raw-classification-label-swap | 0 | false | uncovered-classifications-legal, raw-classification-row-comparison, raw-counts, order-stability |
+| raw-classification-source-hash | 0 | false | archive-base-identity, raw-classification-source-hash |
 | shuffle-order | 0 | true | none |
 
-The negative cases cover row IDs, taxonomy/mapping fields, source locations and hashes, AC6.4 pair content and pair-set integrity, row index sets, graph node status, copied platform provenance, and source-row mutations. Reversing row order passes while preserving IDs, counts and classifications.
+The negative cases cover row IDs, taxonomy/mapping fields, raw classification row and source-hash binding, source locations and hashes, AC6.4 pair content and pair-set integrity, row index sets, graph node status, copied platform provenance, independent-drift status with null/unobserved inputs, fake deltas, missing drift rows, and source-row mutations. Reversing row order passes while preserving IDs, counts and classifications.

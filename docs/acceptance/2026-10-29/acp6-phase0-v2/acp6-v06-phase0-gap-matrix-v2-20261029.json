@@ -11,6 +11,7 @@
     "sourcePrHead": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
     "sourcePrTree": "24de55f8bc1d8146b12b42b8bfdd4b24d5f41f6c",
     "sourcePrBase": "0c02b85cdf7b1d52821fee3e06c013cbd664efa8",
+    "archivePrBase": "d1d26185710c8e4d80182356f760109123bdc989",
     "fixedProject": "allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd",
     "overwritten": false,
     "historicalCorruptArchive": {
@@ -28,6 +29,9 @@
       "commit": "c851bfe11e6851e01695f94246a5a571435d8faa",
       "path": "docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json",
       "sha256": "89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200",
+      "blob": "0716de01663f1a7efc370242c5809bf0990978fa",
+      "localPath": "raw-classification-source-c851bfe.json",
+      "bytes": 163072,
       "role": "raw classification evidence only; not the formal B input"
     }
   },
@@ -6041,6 +6045,17 @@
       }
     ],
     "statusReason": "Linux artifact identity is independently verified, but its ZIP contents are unavailable to this local replay; no copied Linux offsets are emitted.",
+    "externalReconciliationObservation": {
+      "status": "externally-observed-not-replayed",
+      "rowsChecked": 123,
+      "differingRows": 123,
+      "relation": "CRLF/LF line-ending offset drift reported by independent external review",
+      "linuxArtifactId": 12801358049,
+      "linuxArtifactSha256": "8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c",
+      "linuxReportSha256": "7aee05647b185743663d4a4e5dee5996eea971a6de556944e8eb51d99782297b",
+      "evidenceLevel": "external-review-report-only",
+      "promotesProof": false
+    },
     "platformChecks": [
       {
         "rowId": "acp6-gap-7681a1cbb8f0413c",
@@ -12952,7 +12967,7 @@
     "Canonical primary counts are 3/21/8/4/2 for global/no-anchor/dynamic/candidate/pseudo. Raw counts are selector-owner-unresolved=24, dynamic-className=9, candidate-without-strict-edge=4, theme-cascade-ambiguity=1, complex-selector-normalization=0.",
     "AC6.2 dynamic-className rows (9 raw rows, 8 canonical primary dynamic rows) and AC6.4 dynamic UNKNOWN pairs (7 pairs) are different units and are never mapped one-to-one.",
     "A taxonomy erratum requires mappingVersion on every uncovered row; this matrix records acp6-gap-mapping/v1 per row.",
-    "Cross-platform offset comparison is explicitly unavailable/not-proven because the independent Linux artifact contents could not be read locally; platform fields are not copied and no equality claim is made.",
+    "Cross-platform offset comparison is explicitly unavailable/not-proven because the independent Linux artifact contents could not be read locally; platform fields are not copied and no equality claim is made. An external review reports 123/123 CRLF/LF offset differences using the same artifact identity; that observation is retained for reconciliation but does not promote proof.",
     "AC6.4 unknown pairs preserve the complete B pair content, per-pair SHA-256, and a sorted pair-set SHA-256.",
     "No graphNodeIds are inferred for source-use rows; every row records status=missing and value=null.",
     "This evidence does not modify SourceGraph production logic, B v5 matcher/probe, Runtime Identity, Candidate, Verification, Approval, Apply or Rollback."

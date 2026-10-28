@@ -45,7 +45,16 @@ const formal = {
     ac62: { rows: 123, covered: 85, uncovered: 38, tokens: 8, completeTokens: 1 },
     ac64: { pairs: 147, anchored: 131, unknown: 16, staticUnknown: 9, dynamicUnknown: 7 },
   },
-  replayCommand: 'node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json',
+  replayCommand: 'node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json',
+  archivePrBase: 'd1d26185710c8e4d80182356f760109123bdc989',
+  rawClassificationSource: {
+    commit: 'c851bfe11e6851e01695f94246a5a571435d8faa',
+    path: 'docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json',
+    localPath: 'raw-classification-source-c851bfe.json',
+    blob: '0716de01663f1a7efc370242c5809bf0990978fa',
+    sha256: '89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200',
+    role: 'row-level raw classification witness; not the formal B input',
+  },
   taxonomyVersion: 'acp6-gap-taxonomy/v1',
   mappingVersion: 'acp6-gap-mapping/v1',
   mappingVersionRequiredPerUncoveredRow: true,
@@ -111,8 +120,8 @@ const failedChecks = name => {
   return item.validation.checks.filter(check => !check.pass).map(check => check.name);
 };
 const commands = [
-  { name: 'positive', command: 'node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json', exitCode: positive.exitPass ? 0 : 1, validatorPass: positive.validation.pass, failedChecks: failedChecks('positive') },
-  ...negativeIndex.map(item => ({ name: item.case, command: `node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=${item.case}`, exitCode: item.exitCode, validatorPass: json(`validation-${item.case}-v4.json`).validation.pass, failedChecks: failedChecks(item.case) })),
+  { name: 'positive', command: 'node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json', exitCode: positive.exitPass ? 0 : 1, validatorPass: positive.validation.pass, failedChecks: failedChecks('positive') },
+  ...negativeIndex.map(item => ({ name: item.case, command: `node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=${item.case}`, exitCode: item.exitCode, validatorPass: json(`validation-${item.case}-v4.json`).validation.pass, failedChecks: failedChecks(item.case) })),
 ];
 const reproLog = [
   '# AC-P6 Phase 0 v2 clean reproduction',
@@ -124,7 +133,7 @@ fs.writeFileSync(path.join(dir, 'reproduction-log.txt'), reproLog, 'utf8');
 
 const validationTable = commands.map(item => `| ${item.name} | ${item.exitCode} | ${item.validatorPass} | ${item.failedChecks.join(', ') || 'none'} |`).join('\n');
 const baseMarkdown = read('acp6-v06-phase0-gap-matrix-v2-20261029.md').split('\n## Clean reproduction record\n', 1)[0].trimEnd() + '\n';
-const finalMarkdown = `${baseMarkdown}\n## Clean reproduction record\n\nThe formal source JSON parsed successfully and matched SHA-256 \`0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a\`. The historical corrupt #65 JSON remains preserved and is never used. Cross-platform offsets remain \`unavailable/not-proven\` because Linux artifact contents were not locally readable.\n\n| Case | Process exit | Validator pass | Failed checks observed |\n| --- | ---: | --- | --- |\n${validationTable}\n\nThe negative cases cover row IDs, taxonomy/mapping fields, source locations and hashes, AC6.4 pair content and pair-set integrity, row index sets, graph node status, copied platform provenance, and source-row mutations. Reversing row order passes while preserving IDs, counts and classifications.\n`;
+const finalMarkdown = `${baseMarkdown}\n## Clean reproduction record\n\nThe formal source JSON parsed successfully and matched SHA-256 \`0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a\`. The raw classification source is c851bfe11e6851e01695f94246a5a571435d8faa with SHA-256 \`89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200\` and is checked row by row. The PR Base is d1d26185710c8e4d80182356f760109123bdc989. The historical corrupt #65 JSON remains preserved and is never used. Cross-platform offsets remain \`unavailable/not-proven\` because Linux artifact contents were not locally readable.\n\n| Case | Process exit | Validator pass | Failed checks observed |\n| --- | ---: | --- | --- |\n${validationTable}\n\nThe negative cases cover row IDs, taxonomy/mapping fields, raw classification row and source-hash binding, source locations and hashes, AC6.4 pair content and pair-set integrity, row index sets, graph node status, copied platform provenance, independent-drift status with null/unobserved inputs, fake deltas, missing drift rows, and source-row mutations. Reversing row order passes while preserving IDs, counts and classifications.\n`;
 fs.writeFileSync(path.join(dir, 'acp6-v06-phase0-gap-matrix-v2-20261029.md'), finalMarkdown, 'utf8');
 
 const exclude = new Set(['manifest.json', 'manifest-sha256.txt', 'clean-reproduction-log.txt', 'negative-run-index.json', 'reproduction-log.txt', 'old-corrupt-archive-ed58cfd.json']);
@@ -137,7 +146,8 @@ const manifest = {
   schemaVersion: 'acp6-v06-phase0-manifest/v2',
   generatedAt: '2026-10-29',
   branchIntent: 'new evidence-only branch; old c851bfe archive remains intact',
-  baseCommit: 'c851bfe11e6851e01695f94246a5a571435d8faa',
+  baseCommit: 'd1d26185710c8e4d80182356f760109123bdc989',
+  rawClassificationEvidenceCommit: 'c851bfe11e6851e01695f94246a5a571435d8faa',
   formalInputSha256: formal.source.sha256,
   taxonomyVersion: formal.taxonomyVersion,
   mappingVersion: formal.mappingVersion,

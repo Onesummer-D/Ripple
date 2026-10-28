@@ -1,6 +1,9 @@
 {
-  "schemaVersion": "acp6-v06-phase0-negative-index/v4",
+  "schemaVersion": "acp6-v06-phase0-negative-index/v5",
   "generatedAt": "2026-10-29",
+  "matrixSchema": "acp6-v06-phase0-gap-matrix/v4",
+  "formalInputSha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a",
+  "rawClassificationSourceSha256": "89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200",
   "cases": [
     {
       "negative": "duplicate-id",
@@ -11,7 +14,8 @@
         "stable-id-unique",
         "stable-id-reproducible",
         "source-use-full-row-comparison",
-        "platform-offsets"
+        "platform-offsets",
+        "order-stability"
       ]
     },
     {
@@ -21,7 +25,9 @@
       "exitPass": true,
       "failedChecks": [
         "uncovered-classifications-legal",
-        "raw-counts"
+        "raw-classification-row-comparison",
+        "raw-counts",
+        "order-stability"
       ]
     },
     {
@@ -31,7 +37,8 @@
       "exitPass": true,
       "failedChecks": [
         "uncovered-classifications-legal",
-        "canonical-counts"
+        "canonical-counts",
+        "order-stability"
       ]
     },
     {
@@ -42,8 +49,10 @@
       "failedChecks": [
         "taxonomy-version",
         "uncovered-classifications-legal",
+        "raw-classification-row-comparison",
         "canonical-counts",
-        "raw-counts"
+        "raw-counts",
+        "order-stability"
       ]
     },
     {
@@ -233,8 +242,7 @@
       "validationPass": false,
       "exitPass": true,
       "failedChecks": [
-        "row-indexes-exact",
-        "order-stability"
+        "row-indexes-exact"
       ]
     },
     {
@@ -243,8 +251,7 @@
       "validationPass": false,
       "exitPass": true,
       "failedChecks": [
-        "row-indexes-exact",
-        "order-stability"
+        "row-indexes-exact"
       ]
     },
     {
@@ -263,6 +270,73 @@
       "exitPass": true,
       "failedChecks": [
         "platform-offsets"
+      ]
+    },
+    {
+      "negative": "drift-status-null-linux",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "platform-offsets"
+      ]
+    },
+    {
+      "negative": "drift-status-unobserved",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "platform-offsets"
+      ]
+    },
+    {
+      "negative": "drift-fake-delta",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "platform-offsets"
+      ]
+    },
+    {
+      "negative": "drift-missing-row",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "platform-offsets"
+      ]
+    },
+    {
+      "negative": "offset-reconciliation-promoted",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "offset-reconciliation-observation"
+      ]
+    },
+    {
+      "negative": "raw-classification-label-swap",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "uncovered-classifications-legal",
+        "raw-classification-row-comparison",
+        "raw-counts",
+        "order-stability"
+      ]
+    },
+    {
+      "negative": "raw-classification-source-hash",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "archive-base-identity",
+        "raw-classification-source-hash"
       ]
     },
     {
