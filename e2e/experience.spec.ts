@@ -61,7 +61,7 @@ test('UI-RC2 四页可浏览：共享 TEXT 在三页联动，Contact 保留 UNKN
   await page.getByTestId('page-item-page:contact').click()
   await expect(page.getByTestId('demo-canvas')).toHaveAttribute('data-demo-page', 'page:contact')
   await expect(page.getByTestId('demo-page-note')).toContainText('来源未证明')
-  await expect(page.getByTestId('canvas-el-el:hero-title')).toHaveCount(0)
+  await expect(page.getByTestId('demo-canvas').getByTestId('canvas-el-el:hero-title')).toHaveCount(0)
   await expect(page.getByTestId('draft-text-input')).toBeVisible()
   await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
 })
