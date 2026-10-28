@@ -1,0 +1,202 @@
+name: v0.6 AC-P6 Linux evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      core_sha:
+        description: "Exact Ripple Core commit SHA to validate"
+        required: true
+        type: string
+        default: "ed58cfdc2892acaa9b97363a3414b1c219d07053"
+
+permissions:
+  contents: read
+
+env:
+  FIXED_PROJECT_SHA: b244f857457d2a07f118155602eef9097fd322bd
+  FIXED_STYLE_SHA256: 8de0b6c59beb8538534adcbd5bb20906bda6b6ca7b9e3998702a229a2506a920
+  EXPECTED_ACCEPTED_CORE_SHA: ed58cfdc2892acaa9b97363a3414b1c219d07053
+  PROBE_BLOB: 3431294c0807161432e0a7c986825ffc5263bc87
+  MATCHER_BLOB: 3a04ab896b40500b2c314b710b4cb1c3a3893dcb
+  LOADER_BLOB: 5368f6e098176f453f6e159544e4b0cbe6bcabff
+
+jobs:
+  acp6-linux-evidence:
+    name: AC-P6 exact-SHA Linux evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      REQUESTED_CORE_SHA: ${{ inputs.core_sha }}
+    steps:
+      - name: Checkout requested Core SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.core_sha }}
+          path: core
+          fetch-depth: 1
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify exact Core, clean tree, and frozen v5 blobs
+        working-directory: core
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          printf 'requested_core_sha=%s\n' "$REQUESTED_CORE_SHA" | tee test-results/core-verification.txt
+          if [[ ! "$REQUESTED_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "invalid core SHA input" | tee -a test-results/core-verification.txt
+            exit 1
+          fi
+          actual_core_sha="$(git rev-parse HEAD)"
+          actual_tree_sha="$(git rev-parse HEAD^{tree})"
+          printf 'actual_core_sha=%s\nactual_tree_sha=%s\n' "$actual_core_sha" "$actual_tree_sha" | tee -a test-results/core-verification.txt
+          test "$actual_core_sha" = "$REQUESTED_CORE_SHA"
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          printf 'core_tree_sha=%s\n' "$actual_tree_sha" >> "$GITHUB_ENV"
+          for spec in             "scripts/b-css-token-probe.mjs:$PROBE_BLOB"             "scripts/b-acp6-matching.mjs:$MATCHER_BLOB"             "scripts/ts-extension-loader.mjs:$LOADER_BLOB"; do
+            file="${spec%%:*}"
+            expected="${spec##*:}"
+            actual="$(git rev-parse "HEAD:$file")"
+            printf '%s=%s expected=%s\n' "$file" "$actual" "$expected" | tee -a test-results/core-verification.txt
+            test "$actual" = "$expected"
+          done
+          printf 'probe_blob=%s\nmatcher_blob=%s\nloader_blob=%s\n' "$PROBE_BLOB" "$MATCHER_BLOB" "$LOADER_BLOB" >> test-results/core-verification.txt
+
+      - name: Install Core dependencies
+        working-directory: core
+        shell: bash
+        run: npm ci --ignore-scripts --no-audit --no-fund > test-results/npm-ci-core.log 2>&1
+
+      - name: Checkout and verify fixed third-party project
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/ripple-acp6-webportflio"
+          git clone --quiet https://github.com/allanhue/webportflio.git "$project"
+          git -C "$project" checkout --quiet --detach "$FIXED_PROJECT_SHA"
+          test "$(git -C "$project" rev-parse HEAD)" = "$FIXED_PROJECT_SHA"
+          test -z "$(git -C "$project" status --porcelain --untracked-files=normal)"
+          sha256sum "$project/src/css/style.css" | tee core/test-results/fixed-style-sha256.txt
+          test "$(cut -d' ' -f1 core/test-results/fixed-style-sha256.txt)" = "$FIXED_STYLE_SHA256"
+          printf 'project_sha=%s\nstyle_sha256=%s\n' "$FIXED_PROJECT_SHA" "$FIXED_STYLE_SHA256" | tee core/test-results/project-verification.txt
+          cd "$project"
+          npm ci --ignore-scripts --no-audit --no-fund > "$GITHUB_WORKSPACE/core/test-results/npm-ci-project.log" 2>&1
+          printf 'PROJECT_ROOT=%s\n' "$project" >> "$GITHUB_ENV"
+
+      - name: Run frozen B v5 acceptance probe
+        id: probe
+        working-directory: core
+        shell: bash
+        run: |
+          set +e
+          node --experimental-transform-types             --loader ./scripts/ts-extension-loader.mjs             ./scripts/b-css-token-probe.mjs             "$PROJECT_ROOT"             --acceptance             --json "$GITHUB_WORKSPACE/core/test-results/acceptance.json"             --expect-core-sha "$REQUESTED_CORE_SHA"             > test-results/probe.stdout.log 2> test-results/probe.stderr.log
+          code=$?
+          set -e
+          printf '%s\n' "$code" > test-results/exit-code.txt
+          echo "probe_exit_code=$code"
+          exit 0
+
+      - name: Validate report, exit contract, and write machine summary
+        if: always()
+        working-directory: core
+        shell: bash
+        run: |
+          set +e
+          node --input-type=module > test-results/validation.log 2>&1 <<'NODE'
+          import fs from 'node:fs'
+          import crypto from 'node:crypto'
+
+          const root = 'test-results'
+          const expectedCore = process.env.REQUESTED_CORE_SHA
+          const expectedProject = process.env.FIXED_PROJECT_SHA
+          const acceptedCore = process.env.EXPECTED_ACCEPTED_CORE_SHA
+          const out = (name, value) => fs.writeFileSync(`${root}/${name}`, value)
+          const sha256 = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+          const summary = {
+            schemaVersion: 1,
+            generatedBy: 'v0.6 AC-P6 Linux evidence workflow',
+            coreSha: expectedCore,
+            coreTreeSha: process.env.core_tree_sha ?? null,
+            fixedProjectSha: expectedProject,
+            exitCode: null,
+            verificationStatus: 'ERROR',
+            failure: null,
+            report: null,
+            scripts: {
+              probeBlob: process.env.PROBE_BLOB,
+              matcherBlob: process.env.MATCHER_BLOB,
+              loaderBlob: process.env.LOADER_BLOB
+            }
+          }
+
+          try {
+            const exitCode = Number(fs.readFileSync(`${root}/exit-code.txt`, 'utf8').trim())
+            summary.exitCode = exitCode
+            if (![0, 1, 2].includes(exitCode)) throw new Error(`invalid probe exit code: ${exitCode}`)
+            const reportPath = `${root}/acceptance.json`
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'))
+            if (report.schemaVersion !== 2) throw new Error(`unexpected report schema: ${report.schemaVersion}`)
+            if (report.generatedBy !== 'scripts/b-css-token-probe.mjs (v5)') throw new Error('probe version drift')
+            if (report.runMode !== 'current-capability-acceptance') throw new Error('wrong probe run mode')
+            if (report.aCore?.sha !== expectedCore || report.aCore?.expectedSha !== expectedCore) throw new Error('Core SHA mismatch in report')
+            if (report.project?.sha !== expectedProject) throw new Error('fixed project SHA mismatch in report')
+            if (report.project?.targetFileSha256 !== process.env.FIXED_STYLE_SHA256) throw new Error('fixed style SHA mismatch in report')
+            const a = report.acceptance
+            if (!a || a.total !== 5 || !Array.isArray(a.items) || a.items.length !== 5) throw new Error('invalid AC-P6 acceptance shape')
+            if (a.error !== 0) throw new Error(`acceptance execution errors: ${a.error}`)
+            for (const item of a.items) {
+              if (!['PASS', 'PENDING'].includes(item.status) || typeof item.pass !== 'boolean') throw new Error(`invalid item status: ${item.id}`)
+              if ((item.pass && item.status !== 'PASS') || (!item.pass && item.status !== 'PENDING')) throw new Error(`item status/pass mismatch: ${item.id}`)
+            }
+            const passed = a.items.filter(item => item.pass).length
+            const pending = a.items.filter(item => !item.pass).length
+            if (a.passed !== passed || a.pending !== pending) throw new Error('acceptance summary does not match item statuses')
+            if (exitCode === 0 && (a.status !== 'PASS' || passed !== 5 || pending !== 0)) throw new Error('exit 0 requires 5 PASS / 0 PENDING')
+            if (exitCode === 2 && (a.status !== 'PENDING' || pending === 0)) throw new Error('exit 2 requires PENDING capability items')
+            if (exitCode === 1) throw new Error('probe execution error')
+            if (expectedCore === acceptedCore && (passed !== 3 || pending !== 2 || a.error !== 0 || a.items.find(item => item.id === 'AC6.2')?.status !== 'PENDING' || a.items.find(item => item.id === 'AC6.4')?.status !== 'PENDING')) {
+              throw new Error('accepted PR #65 slice must remain 3 PASS / 2 PENDING / 0 ERROR with AC6.2 and AC6.4 pending')
+            }
+            summary.verificationStatus = exitCode === 0 ? 'PASS' : 'PENDING'
+            summary.report = {
+              schemaVersion: report.schemaVersion,
+              generatedBy: report.generatedBy,
+              status: report.status,
+              acceptance: {
+                status: a.status,
+                passed,
+                pending,
+                error: a.error,
+                items: a.items.map(item => ({ id: item.id, status: item.status, pass: item.pass }))
+              },
+              graphStats: report.graphStats,
+              reportSha256: sha256(reportPath)
+            }
+            out('summary.json', JSON.stringify(summary, null, 2) + '\n')
+            console.log(JSON.stringify(summary, null, 2))
+          } catch (error) {
+            summary.failure = error instanceof Error ? error.message : String(error)
+            out('summary.json', JSON.stringify(summary, null, 2) + '\n')
+            console.error(summary.failure)
+            process.exitCode = 1
+          }
+          NODE
+          validation_code=$?
+          set -e
+          rm -f test-results/sha256sums.txt
+          find test-results -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > test-results/sha256sums.txt
+          cat test-results/summary.json
+          if [ "$validation_code" -ne 0 ]; then exit "$validation_code"; fi
+
+      - name: Upload complete AC-P6 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-v06-acp6-linux-${{ inputs.core_sha }}-${{ github.run_id }}
+          path: core/test-results
+          retention-days: 90
+          if-no-files-found: error
