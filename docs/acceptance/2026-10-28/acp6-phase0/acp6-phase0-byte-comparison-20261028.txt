@@ -1,0 +1,13 @@
+AC-P6 Phase 0 byte comparison
+Comparison source: GitHub fetch_blob at commit 4279ff6472fce7eae0c9685d24f59e57815c9095
+Local files: Phase 0 scratch originals used before archive sealing
+Result: every archived blob is byte-for-byte equal to its corresponding local file followed by one final CRLF (0D 0A). No earlier byte differs.
+
+path | local bytes | GitHub blob bytes | local+final-CRLF exact
+docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.md | 27226 | 27228 | true
+docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json | 163268 | 163270 | true
+docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028-validation.json | 9761 | 9763 | true
+scripts/validation/validate-acp6-v06-phase0-gap-matrix.mjs | 7228 | 7230 | true
+docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-sha256-20261028.txt | 1018 | 1020 | true
+
+This is an archive-byte comparison, not a normalization claim over semantic content. The corrected manifest hashes the exact final GitHub bytes.

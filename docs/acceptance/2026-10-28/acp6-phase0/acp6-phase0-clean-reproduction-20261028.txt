@@ -1,10 +1,9 @@
 AC-P6 Phase 0 clean reproduction log
 Generated: 2026-10-28
 Repository: https://github.com/Onesummer-D/Ripple.git
-Final evidence branch: evidence/cd-acp6-phase0-20261028-final
-Final HEAD: fc363808e8cc19de96f96af030c66f9452715817
-Final tree: a0b32e21ac3f497e2831d6b6717975c99a51a58b
+Evidence branch: evidence/cd-acp6-phase0-20261028-final
 Evidence base commit: 4279ff6472fce7eae0c9685d24f59e57815c9095
+The sealing commit and tree are reported with this file in the delivery record; this log is content-addressed and does not self-embed its containing commit.
 Input: evidence/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json
 Input SHA-256: 289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b
 Validator: scripts/validation/validate-acp6-v06-phase0-gap-matrix.mjs
