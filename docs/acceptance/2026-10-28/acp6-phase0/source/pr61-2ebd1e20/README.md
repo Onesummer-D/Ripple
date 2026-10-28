@@ -6,6 +6,7 @@ This directory contains the JSON.parse-valid B v5 acceptance input used to deriv
 - Source PR #61 replay base: `0c02b85cdf7b1d52821fee3e06c013cbd664efa8`
 - Fixed project: `allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd`
 - Input: `acceptance-2ebd1e20-final.json`
+- Generation report: `report-2ebd1e20-final.md`
 - Input bytes: 1,035,281
 - Input SHA-256: `289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b`
 - JSON.parse: pass

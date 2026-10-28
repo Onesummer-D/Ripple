@@ -4,7 +4,7 @@
 
 ## 来源与生成规则
 
-- 原始证据：`D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/acceptance-2ebd1e20-final.json`
+- 原始证据：`evidence/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json`
 - 原始证据 SHA-256：`289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b`
 - B 验收证据来源 HEAD：`2ebd1e20d043287edbbfc2ec31c10f15688a4499`；其原始 base：`0c02b85cdf7b1d52821fee3e06c013cbd664efa8`
 - 本次 Phase 0 执行基线：`5b75fe699afce98638e6fd6ad110911d83389dc8`（远端已核验）
@@ -17,7 +17,7 @@
 
 派生矩阵实际使用本地精确复跑文件：
 
-- 路径：`D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/acceptance-2ebd1e20-final.json`
+- 路径：`evidence/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json`
 - 大小：1,035,281 bytes
 - SHA-256：`289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b`
 - 生成来源：PR #61 精确 HEAD `2ebd1e20d043287edbbfc2ec31c10f15688a4499`，冻结 B v5 probe/matcher，退出码 2（3 PASS / 2 PENDING / 0 ERROR）。

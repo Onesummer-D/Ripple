@@ -3,7 +3,7 @@
   "generatedAt": "2026-10-28",
   "matrixPath": "matrix.json",
   "sourcePath": "source.json",
-  "matrixSha256": "51dc89b85f3c67a418e294f0b48665a5e0cd8e7f485f2576a4c3d46b5cd4217c",
+  "matrixSha256": "89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200",
   "pass": true,
   "positive": {
     "pass": true,
@@ -234,8 +234,8 @@
             "note": "Raw bytes retained for audit; no repair, replacement, or acceptance-result substitution was performed."
           },
           "local": {
-            "path": "D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/acceptance-2ebd1e20-final.json",
-            "generationReport": "D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/acp6-pr61-2ebd1e20-independent-20261027/report-2ebd1e20-final.md",
+            "path": "evidence/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json",
+            "generationReport": "evidence/acp6-phase0/source/pr61-2ebd1e20/report-2ebd1e20-final.md",
             "replayCommand": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs ./scripts/b-css-token-probe.mjs <fixed-project-root> --acceptance --json <acceptance.json> --expect-core-sha 2ebd1e20d043287edbbfc2ec31c10f15688a4499",
             "sourcePrHead": "2ebd1e20d043287edbbfc2ec31c10f15688a4499",
             "sourcePrBase": "0c02b85cdf7b1d52821fee3e06c013cbd664efa8",

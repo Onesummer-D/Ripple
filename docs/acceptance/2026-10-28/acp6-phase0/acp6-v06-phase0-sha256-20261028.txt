@@ -1,10 +1,11 @@
 # SHA-256 manifest for AC-P6 v0.6 Phase 0 final GitHub archive
 # Generated 2026-10-28; hashes are over the exact UTF-8 bytes stored in the final GitHub commit; this manifest excludes itself
-18e67777437ce526cc9a3afd70c465984d066e325723cc73fdbba558edef78cc  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.md
-51dc89b85f3c67a418e294f0b48665a5e0cd8e7f485f2576a4c3d46b5cd4217c  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json
-cdf472f728d63693a0072b51d7c2c3cb7ddf1c116eecda651ab22dc6bf437891  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028-validation.json
+ce43e4cd0d3ce1415029e023ad7737dd1c0c3eb79e5580029b4fb83a43967685  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.md
+89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json
+061463972cbec257ba5f6086a23bbb031bea33a04ff5ee35551cd028b9ef484e  docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028-validation.json
 0b08e6b32d2d85c8f46f1c80f9daa102697f9f962f025d2ac439d3339be01500  scripts/validation/validate-acp6-v06-phase0-gap-matrix.mjs
 289edde457393f499bf53ecd85379b874e6bde4782949e08418194723cc0571b  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/acceptance-2ebd1e20-final.json
-be3b62d73b970d56b0dc0c73ffd7b6a3a18361f6f71e599e55708223dbcb108a  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/README.md
+189b7b20b02b8cda9a6f27a6e71c62db122807fa3de31ea26566bc14684895fc  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/report-2ebd1e20-final.md
+e1072bd5833a12d46247654cd6f4bd0fc29e3ff2a121c0cf02b9ab752af0dfa8  docs/acceptance/2026-10-28/acp6-phase0/source/pr61-2ebd1e20/README.md
 843b567fde6d3a91ba041b082e939efa9f2cac130fd2ba267c86055e57e70a79  docs/acceptance/2026-10-28/acp6-phase0/acp6-phase0-clean-reproduction-20261028.txt
 f7d601ab01371a06137b2e9f33ef25c9dfbcee4936725651046a89b88d565a9e  docs/acceptance/2026-10-28/acp6-phase0/acp6-phase0-byte-comparison-20261028.txt
