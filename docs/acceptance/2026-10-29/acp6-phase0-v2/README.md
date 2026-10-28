@@ -1,0 +1,32 @@
+# AC-P6 Phase 0 canonical evidence archive
+
+This directory is evidence-only. It contains the canonical Phase 0 matrix rebuilt from the recovered B `ed58cfd` JSON, the signed A taxonomy reference, the validator, and replay outputs. No production SourceGraph, B v5 matcher/probe, Runtime Identity, Candidate, Verification, Approval, Apply, Rollback, or threshold files are changed.
+
+## Inputs
+
+- Formal input: `acceptance-ed58cfd-final.json`
+- Source commit: `ed58cfdc2892acaa9b97363a3414b1c219d07053`
+- Recovery commit: `ba48108532bec0724614867182e69bd07277de96`
+- Exact input SHA-256: `0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a`
+- Fixed project: `allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd`
+- JSON.parse: pass; bytes: 1,035,281
+
+The prior `c851bfe11e6851e01695f94246a5a571435d8faa` archive remains intact in the parent evidence branch and is referenced by `legacy-archive-reference.json`. Its historical classification witness is not treated as the formal B acceptance JSON.
+
+## Results
+
+The matrix preserves all 123 source-use rows from the recovered JSON: 85 covered and 38 uncovered, across 8 tokens with 1 complete token and 7 incomplete tokens. AC6.4 remains 147 pairs, 131 anchored, and 16 UNKNOWN (9 static and 7 dynamic). Canonical primary counts are 3 global/theme, 21 no-static-anchor, 8 dynamic/ambiguous, 4 candidate-without-source-edge, and 2 pseudo/generated-content. Raw labels and secondary causes are retained per row. Source-use graphNodeIds are explicitly `missing` and never inferred.
+
+## Reproduction
+
+From this directory:
+
+```text
+node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json
+```
+
+The positive run exits 0. Negative mutations in `negative-run-index.json` are expected to be detected by the validator and are recorded with their exit codes and failed checks in `reproduction-log.txt`. `shuffle-order` is the positive order-invariance case. The validator compares every source-use row, checks both platform offset records, rejects invented graphNodeIds and invalid classifications, and keeps AC6.2 dynamic rows separate from AC6.4 dynamic UNKNOWN pairs.
+
+## Archive identity
+
+The new branch is based on `c851bfe11e6851e01695f94246a5a571435d8faa`. `manifest.json` lists every file's byte length and SHA-256; `manifest-sha256.txt` hashes the final manifest bytes. All files are written with LF and hashes refer to the exact bytes committed to GitHub.

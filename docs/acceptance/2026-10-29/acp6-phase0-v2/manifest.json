@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "acp6-v06-phase0-manifest/v1",
+  "generatedAt": "2026-10-29",
+  "branchIntent": "new evidence-only branch; old c851bfe archive remains intact",
+  "baseCommit": "c851bfe11e6851e01695f94246a5a571435d8faa",
+  "formalInputSha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a",
+  "taxonomyVersion": "acp6-gap-taxonomy/v1",
+  "mappingVersion": "acp6-gap-mapping/v1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2477,
+      "sha256": "7da0f4d3ca2cfc1af1d8d94eeca5f83709a1a38d5705e9e50010337ce7486e8b"
+    },
+    {
+      "path": "acceptance-ed58cfd-final.json",
+      "bytes": 1035281,
+      "sha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a"
+    },
+    {
+      "path": "acp6-v06-phase0-gap-matrix-v2-20261029.json",
+      "bytes": 234660,
+      "sha256": "450378ebda0e89549da6ee266e13b56dead7135b0b5e55e0b0b9342d9ede6922"
+    },
+    {
+      "path": "acp6-v06-phase0-gap-matrix-v2-20261029.md",
+      "bytes": 23049,
+      "sha256": "d3728aa665c5292bdbab3e46df21128e079be19e5360283c661dea04024753f6"
+    },
+    {
+      "path": "build-phase0-v2.mjs",
+      "bytes": 20236,
+      "sha256": "b3b8b7a95b9cefdd6ba46c751d9358b6b34056a2d701e13848a6a3ce859e9739"
+    },
+    {
+      "path": "finalize-phase0-v2.mjs",
+      "bytes": 7404,
+      "sha256": "dfee28e34a7e29f965cca654ca82c017c915a67ab643d15560d8984dbae86adf"
+    },
+    {
+      "path": "formal-input-declaration.json",
+      "bytes": 2251,
+      "sha256": "b5a6b54a0f21716ad70acbe7ff0922b446c8384ba34746f9ebb176cae6aaa89f"
+    },
+    {
+      "path": "legacy-archive-reference.json",
+      "bytes": 875,
+      "sha256": "c632550ccabfa088115368b514615b2923666f0bd71339907be4387a3fb807b9"
+    },
+    {
+      "path": "manifest-sha256.txt",
+      "bytes": 80,
+      "sha256": "58d26c32fb4fe939f8ebbcd22e21e65f94f2c24132c7e9c1629d002b3ea393ac"
+    },
+    {
+      "path": "negative-run-index.json",
+      "bytes": 3609,
+      "sha256": "60bf66927d79907570ee410e072dc2bc85c225a957bf6f0f14188fa0893d00bc"
+    },
+    {
+      "path": "reproduction-log.txt",
+      "bytes": 3217,
+      "sha256": "2b957dd43add2108ef6b515ef9536d8c9f08949859ffbc6b6c44c2709721bef8"
+    },
+    {
+      "path": "taxonomy-contract-reference.md",
+      "bytes": 1195,
+      "sha256": "9e977b446c042dd9b8465865854400f4ec9f7b50b523c23ea2b303743a2b19ba"
+    },
+    {
+      "path": "validate-acp6-v06-phase0-v2.mjs",
+      "bytes": 16369,
+      "sha256": "4d32010eb177f43bf76d606b37be3ef8bb9427e55e11e7fbccc1aed91c809088"
+    },
+    {
+      "path": "validation-deleted-classification.json",
+      "bytes": 5973,
+      "sha256": "cd9fd1491e2d1f9242d80399746cd5192265223a1aa0ca58df8ca158539e7cb8"
+    },
+    {
+      "path": "validation-duplicate-id.json",
+      "bytes": 5879,
+      "sha256": "53f0ba4031392f317993ccfc678475949f53c1275c495c025b87aadeb0bb02e8"
+    },
+    {
+      "path": "validation-graph-node-present.json",
+      "bytes": 5883,
+      "sha256": "ba5c30b898408ce2aeeeb33a88b0eec4af46430eedcbdb2895e015c73fa7dbd0"
+    },
+    {
+      "path": "validation-offset-platform-mismatch.json",
+      "bytes": 5889,
+      "sha256": "da5910e187d9ac0172771d04295b1cfff8cd80619d4f94e08fb1125c6f5f6cfe"
+    },
+    {
+      "path": "validation-positive.json",
+      "bytes": 5646,
+      "sha256": "a839ff409d54068617f5c29060b8cbdb7e46ced21edbb5e89d52487a34912f8b"
+    },
+    {
+      "path": "validation-shuffle-order.json",
+      "bytes": 5875,
+      "sha256": "e53ca8dcc28d2a696a754343c5fa211f81a9119ee920615a22cfab41c9b99198"
+    },
+    {
+      "path": "validation-source-row-mutation.json",
+      "bytes": 5884,
+      "sha256": "5d9c271b32e0f5afa7341aa20c34ff6fdd9261f5a7f484e37d0ba6b7200762bc"
+    },
+    {
+      "path": "validation-tampered-counts.json",
+      "bytes": 5880,
+      "sha256": "0d93dc52a79a93acd350fdcbc0462f1cd69faba71ee1b73108e76ceef58e6e61"
+    },
+    {
+      "path": "validation-tampered-input-hash.json",
+      "bytes": 5884,
+      "sha256": "c0d34de4ec79a61f504f27143a80a796a8b9fd78cc60e009a2f2e582cafd62b0"
+    },
+    {
+      "path": "validation-tampered-source-location.json",
+      "bytes": 5890,
+      "sha256": "2cf3a21db057097f5dde84fbbad0a13109854dfee5b552afabc67114e46f3e10"
+    },
+    {
+      "path": "validation-unknown-canonical-class.json",
+      "bytes": 5971,
+      "sha256": "8e4e7cd41edfca49547fbae091b4cb6bb44e04e1abf4d50228af16baf08f6d86"
+    },
+    {
+      "path": "validation-unknown-raw-class.json",
+      "bytes": 5920,
+      "sha256": "4421c3bd6ed3bc7af790fdc8705346a7652ecd3ca335850bd520024e532b115a"
+    },
+    {
+      "path": "validation-wrong-mapping-rule.json",
+      "bytes": 5883,
+      "sha256": "499ebc59c7cfd35cd1d24ed38168b11bb5c57a412dd9e284d9108333ce239110"
+    }
+  ],
+  "selfHashPolicy": "manifest.json is intentionally excluded from its own entries; hash the final manifest bytes separately when publishing the commit."
+}

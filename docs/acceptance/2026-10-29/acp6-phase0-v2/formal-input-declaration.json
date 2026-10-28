@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "acp6-v06-phase0-formal-input/v1",
+  "declaration": "The recovered ed58cfd B v5 JSON is the only formal input for this Phase 0 rebuild.",
+  "source": {
+    "repository": "Onesummer-D/Ripple",
+    "evidenceBranch": "evidence/pr65-acp6-integrity-repair-20261028",
+    "sourceCommit": "ba48108532bec0724614867182e69bd07277de96",
+    "sourceTree": "6b77a1730cbe6963edbd74510f1c7e84f596e9a7",
+    "sourcePath": "evidence/acceptance-ed58cfd-original-recovered.json",
+    "localPath": "acceptance-ed58cfd-final.json",
+    "sourcePrHead": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
+    "sourcePrTree": "24de55f8bc1d8146b12b42b8bfdd4b24d5f41f6c",
+    "fixedProject": "allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd",
+    "bytes": 1035281,
+    "sha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a",
+    "actualLocalSha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a",
+    "jsonParse": "pass"
+  },
+  "historicalCorruptArchive": {
+    "branch": "evidence/pr65-acp6-ed58-independent-20261028",
+    "path": "evidence/acceptance-ed58cfd-final.json",
+    "sha256": "b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4",
+    "jsonParse": "fail",
+    "preserved": true,
+    "role": "historical record only; never used as formal input and never overwritten"
+  },
+  "expectedEvidence": {
+    "ac62": {
+      "rows": 123,
+      "covered": 85,
+      "uncovered": 38,
+      "tokens": 8,
+      "completeTokens": 1
+    },
+    "ac64": {
+      "pairs": 147,
+      "anchored": 131,
+      "unknown": 16,
+      "staticUnknown": 9,
+      "dynamicUnknown": 7
+    }
+  },
+  "replayCommand": "node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json",
+  "taxonomyVersion": "acp6-gap-taxonomy/v1",
+  "mappingVersion": "acp6-gap-mapping/v1",
+  "taxonomyContract": {
+    "repository": "Onesummer-D/Ripple",
+    "branch": "evidence/acp6-taxonomy-v1-20261029",
+    "commit": "6deb7a263fe45e45ab06bdc617f5a8be2da31a1d",
+    "path": "docs/architecture/acp6-gap-taxonomy-v1-2026-10-29.md",
+    "blob": "d99c0c6bc0699fd8980007d7aef2a8a801ae2565",
+    "taxonomyVersion": "acp6-gap-taxonomy/v1",
+    "mappingVersion": "acp6-gap-mapping/v1"
+  }
+}

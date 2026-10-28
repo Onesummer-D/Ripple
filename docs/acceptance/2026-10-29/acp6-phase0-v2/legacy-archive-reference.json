@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "acp6-v06-phase0-legacy-reference/v1",
+  "branch": "evidence/cd-acp6-phase0-20261028-final",
+  "commit": "c851bfe11e6851e01695f94246a5a571435d8faa",
+  "tree": "ffafdd15a9b90254c7b55354a35155b7ffa63381",
+  "matrixPath": "docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json",
+  "matrixSha256": "89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200",
+  "role": "preserved raw-classification witness only",
+  "rawLabels": [
+    "selector-owner-unresolved",
+    "dynamic-className",
+    "theme-cascade-ambiguity",
+    "complex-selector-normalization",
+    "candidate-without-strict-edge"
+  ],
+  "canonicalization": "Each raw label is re-evaluated against selector, AC6.4 dynamic evidence, candidate count and strict-edge count; no merged class is mechanically renamed.",
+  "canonicalTaxonomy": "acp6-gap-taxonomy/v1"
+}

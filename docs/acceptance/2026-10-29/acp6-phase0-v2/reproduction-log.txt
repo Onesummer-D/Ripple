@@ -1,0 +1,28 @@
+# AC-P6 Phase 0 v2 clean reproduction
+# Each negative case exits 0 only when the validator detects the intended mutation. shuffle-order is a positive invariance case.
+0  positive  validatorPass=true  failedChecks=none
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json
+0  duplicate-id  validatorPass=false  failedChecks=stable-id-unique,stable-id-reproducible,source-use-full-row-comparison
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=duplicate-id
+0  unknown-raw-class  validatorPass=false  failedChecks=uncovered-classifications-legal,raw-counts
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=unknown-raw-class
+0  unknown-canonical-class  validatorPass=false  failedChecks=uncovered-classifications-legal,canonical-counts
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=unknown-canonical-class
+0  deleted-classification  validatorPass=false  failedChecks=taxonomy-version,uncovered-classifications-legal,canonical-counts,raw-counts
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=deleted-classification
+0  wrong-mapping-rule  validatorPass=false  failedChecks=uncovered-classifications-legal
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=wrong-mapping-rule
+0  tampered-source-location  validatorPass=false  failedChecks=stable-id-reproducible,source-use-full-row-comparison
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=tampered-source-location
+0  tampered-input-hash  validatorPass=false  failedChecks=source-hash
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=tampered-input-hash
+0  tampered-counts  validatorPass=false  failedChecks=row-counts
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=tampered-counts
+0  graph-node-present  validatorPass=false  failedChecks=source-use-graph-node-ids-explicit-missing
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=graph-node-present
+0  offset-platform-mismatch  validatorPass=false  failedChecks=platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=offset-platform-mismatch
+0  source-row-mutation  validatorPass=false  failedChecks=source-use-full-row-comparison
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=source-row-mutation
+0  shuffle-order  validatorPass=true  failedChecks=none
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --negative=shuffle-order

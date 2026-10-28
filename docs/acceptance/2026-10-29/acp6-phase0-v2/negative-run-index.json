@@ -1,0 +1,74 @@
+[
+  {
+    "case": "duplicate-id",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-duplicate-id.json",
+    "sha256": "53f0ba4031392f317993ccfc678475949f53c1275c495c025b87aadeb0bb02e8"
+  },
+  {
+    "case": "unknown-raw-class",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-unknown-raw-class.json",
+    "sha256": "4421c3bd6ed3bc7af790fdc8705346a7652ecd3ca335850bd520024e532b115a"
+  },
+  {
+    "case": "unknown-canonical-class",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-unknown-canonical-class.json",
+    "sha256": "8e4e7cd41edfca49547fbae091b4cb6bb44e04e1abf4d50228af16baf08f6d86"
+  },
+  {
+    "case": "deleted-classification",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-deleted-classification.json",
+    "sha256": "cd9fd1491e2d1f9242d80399746cd5192265223a1aa0ca58df8ca158539e7cb8"
+  },
+  {
+    "case": "wrong-mapping-rule",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-wrong-mapping-rule.json",
+    "sha256": "499ebc59c7cfd35cd1d24ed38168b11bb5c57a412dd9e284d9108333ce239110"
+  },
+  {
+    "case": "tampered-source-location",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-tampered-source-location.json",
+    "sha256": "2cf3a21db057097f5dde84fbbad0a13109854dfee5b552afabc67114e46f3e10"
+  },
+  {
+    "case": "tampered-input-hash",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-tampered-input-hash.json",
+    "sha256": "c0d34de4ec79a61f504f27143a80a796a8b9fd78cc60e009a2f2e582cafd62b0"
+  },
+  {
+    "case": "tampered-counts",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-tampered-counts.json",
+    "sha256": "0d93dc52a79a93acd350fdcbc0462f1cd69faba71ee1b73108e76ceef58e6e61"
+  },
+  {
+    "case": "graph-node-present",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-graph-node-present.json",
+    "sha256": "ba5c30b898408ce2aeeeb33a88b0eec4af46430eedcbdb2895e015c73fa7dbd0"
+  },
+  {
+    "case": "offset-platform-mismatch",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-offset-platform-mismatch.json",
+    "sha256": "da5910e187d9ac0172771d04295b1cfff8cd80619d4f94e08fb1125c6f5f6cfe"
+  },
+  {
+    "case": "source-row-mutation",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-source-row-mutation.json",
+    "sha256": "5d9c271b32e0f5afa7341aa20c34ff6fdd9261f5a7f484e37d0ba6b7200762bc"
+  },
+  {
+    "case": "shuffle-order",
+    "exitCode": 0,
+    "file": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\validation-shuffle-order.json",
+    "sha256": "e53ca8dcc28d2a696a754343c5fa211f81a9119ee920615a22cfab41c9b99198"
+  }
+]
