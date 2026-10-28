@@ -1,6 +1,9 @@
 name: v0.6 AC-P6 Linux evidence
 
 on:
+  push:
+    branches:
+      - evidence/v06-acp6-linux-20261028
   workflow_dispatch:
     inputs:
       core_sha:
@@ -26,12 +29,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      REQUESTED_CORE_SHA: ${{ inputs.core_sha }}
+      REQUESTED_CORE_SHA: ${{ inputs.core_sha || 'ed58cfdc2892acaa9b97363a3414b1c219d07053' }}
     steps:
       - name: Checkout requested Core SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.core_sha }}
+          ref: ${{ inputs.core_sha || 'ed58cfdc2892acaa9b97363a3414b1c219d07053' }}
           path: core
           fetch-depth: 1
 
@@ -196,7 +199,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ripple-v06-acp6-linux-${{ inputs.core_sha }}-${{ github.run_id }}
+          name: ripple-v06-acp6-linux-${{ inputs.core_sha || 'ed58cfdc2892acaa9b97363a3414b1c219d07053' }}-${{ github.run_id }}
           path: core/test-results
           retention-days: 90
           if-no-files-found: error
