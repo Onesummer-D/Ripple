@@ -4,6 +4,7 @@
 
 - 旧文件：`evidence/acceptance-ed58cfd-final.json`
 - 旧文件 SHA-256：`b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4`
+- 旧文件字节数：`786443`
 - 旧文件状态：JSON.parse 在第 11201 行附近失败
 - 恢复文件：`evidence/acceptance-ed58cfd-original-recovered.json`
 - 恢复文件 SHA-256：`0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a`
