@@ -5,7 +5,7 @@
     "branch": "evidence/pr65-acp6-ed58-independent-20261028",
     "path": "evidence/acceptance-ed58cfd-final.json",
     "sha256": "b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4",
-    "bytes": null,
+    "bytes": 786443,
     "jsonParse": "FAIL",
     "failure": "SyntaxError near line 11201 column 50",
     "preserved": true
@@ -42,14 +42,32 @@
     "pending": 2,
     "error": 0,
     "items": {
-      "AC6.1": {"status": "PASS", "pass": true},
-      "AC6.2": {"status": "PENDING", "pass": false},
-      "AC6.3": {"status": "PASS", "pass": true},
-      "AC6.4": {"status": "PENDING", "pass": false},
-      "AC6.5": {"status": "PASS", "pass": true}
+      "AC6.1": {
+        "status": "PASS",
+        "pass": true
+      },
+      "AC6.2": {
+        "status": "PENDING",
+        "pass": false
+      },
+      "AC6.3": {
+        "status": "PASS",
+        "pass": true
+      },
+      "AC6.4": {
+        "status": "PENDING",
+        "pass": false
+      },
+      "AC6.5": {
+        "status": "PASS",
+        "pass": true
+      }
     },
-    "graphStats": {"nodes": 675, "edges": 5302, "unresolved": 253}
+    "graphStats": {
+      "nodes": 675,
+      "edges": 5302,
+      "unresolved": 253
+    }
   },
   "formalInput": "Use recovered JSON as the formal C+D matrix input; do not use the corrupt archived file."
 }
-
