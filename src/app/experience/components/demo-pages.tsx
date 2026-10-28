@@ -10,6 +10,26 @@ export interface DemoPageRenderProps {
   renderElement: (element: CanvasElementXp, children: ReactNode, note?: string) => ReactNode
 }
 
+/** Resolve a fixture slot to the single ViewModel element behind its target. */
+export function demoElementForSlot(model: ExperienceViewModel, slot: DemoContentSlot): CanvasElementXp | undefined {
+  return slot.selectableElement
+    ? model.elements.find(item => item.id === slot.selectableElement?.elementId)
+    : model.elements.find(item => item.demoSourceKey === slot.sourceKey)
+}
+
+/**
+ * The target strip and the Demo canvas share one target namespace. Hide only
+ * targets rendered on the current page from the strip; off-page targets stay
+ * available for selection.
+ */
+export function demoRenderedElementIds(model: ExperienceViewModel, pageRef: DemoPageRef): ReadonlySet<string> {
+  return new Set(
+    demoPage(pageRef).slots
+      .map(slot => demoElementForSlot(model, slot)?.id)
+      .filter((elementId): elementId is string => Boolean(elementId)),
+  )
+}
+
 function textFor(slot: DemoContentSlot, props: DemoPageRenderProps): { text: string; note?: string; state: string } {
   const page = props.model.pages.find(item => item.id === props.pageRef)
   const projection = projectDemoSlot(slot, props.pageRef, {
@@ -24,9 +44,7 @@ function textFor(slot: DemoContentSlot, props: DemoPageRenderProps): { text: str
 
 function renderSlot(slot: DemoContentSlot, props: DemoPageRenderProps, children: (text: string) => ReactNode): ReactNode {
   const projection = textFor(slot, props)
-  const element = slot.selectableElement
-    ? props.model.elements.find(item => item.id === slot.selectableElement?.elementId)
-    : props.model.elements.find(item => item.demoSourceKey === slot.sourceKey)
+  const element = demoElementForSlot(props.model, slot)
   const body = children(projection.text)
   if (!element) return <div key={slot.slotId} data-demo-state={projection.state}>{body}</div>
   return props.renderElement(element, body, projection.note)

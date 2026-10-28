@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CanvasElementXp, ExperienceViewModel, RealPreviewXp } from '../view-model'
 import { isCurrentEnvelope, selectionModeMessage, type PickerEnvelope } from '../real-selection'
 import { CertaintyPill } from './status-pill'
-import { renderDemoPage } from './demo-pages'
+import { demoRenderedElementIds, renderDemoPage } from './demo-pages'
 
 const CANVAS_STATE_LABEL: Record<ExperienceViewModel['canvasState'], string> = {
   ready: '', loading: '预演加载中…', failed: '预演加载失败，请重试', unavailable: '该视口暂不可用',
@@ -74,6 +74,9 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
   const currentPage = model.pages.find(page => page.id === model.currentPageRef)
   const selected = model.elements.find(item => item.id === model.selectedElementId)
   const isReal = model.dataProvenance !== 'demo'
+  const renderedDemoElementIds = model.dataProvenance === 'demo' && currentPage
+    ? demoRenderedElementIds(model, currentPage.id as Parameters<typeof demoRenderedElementIds>[1])
+    : new Set<string>()
 
   /**
    * 点选模式同步：把【当前有效状态】发给预演 iframe——进入携带 nonce、退出发
@@ -132,6 +135,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
       <div
         key={element.id}
         data-xp-demo={element.demoSelector.replace('[data-xp-demo="', '').replace('"]', '')}
+        data-demo-source-key={element.demoSourceKey}
         data-testid={`canvas-el-${element.id}`}
         role="button"
         tabIndex={0}
@@ -231,7 +235,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
       // 当前浏览页；Demo 只隐藏当前页已经渲染的元素，避免冻结 testid 重复。
       <div className="ripple-xp-target-strip" role="group" aria-label="已分析的编辑目标" data-testid="target-strip">
         {model.elements
-          .filter(element => model.dataProvenance !== 'demo' || element.demoPageRef !== currentPage?.id)
+          .filter(element => model.dataProvenance !== 'demo' || !renderedDemoElementIds.has(element.id))
           .map(element => (
           <button
             key={element.id}

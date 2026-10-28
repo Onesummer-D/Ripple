@@ -79,6 +79,41 @@ test('UI-RC2 PageRail 支持 Enter/Space 键盘导航并同步 aria-current', as
   await expect(page.getByTestId('demo-page-title')).toContainText('活动页')
 })
 
+test('UI-RC2 当前页目标唯一、共享 sourceKey 稳定且跨页状态保留', async ({ page }) => {
+  await openExperience(page)
+  const heroId = 'canvas-el-el:hero-title'
+  const sourceKey = 'campaign.hero.title'
+
+  await expect(page.getByTestId('demo-canvas').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveAttribute('data-demo-source-key', sourceKey)
+  await page.getByTestId(heroId).click()
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await page.getByTestId('demo-layer').selectOption('candidate')
+
+  for (const pageRef of ['page:products', 'page:seasonal'] as const) {
+    await page.getByTestId(`page-item-${pageRef}`).click()
+    const canvasHero = page.getByTestId('demo-canvas').getByTestId(heroId)
+    await expect(canvasHero).toHaveCount(1)
+    await expect(canvasHero).toHaveAttribute('data-demo-source-key', sourceKey)
+    await expect(page.getByTestId(heroId)).toHaveCount(1)
+    await expect(page.getByTestId('demo-layer')).toHaveValue('candidate')
+    await expect(page.getByTestId('draft-text-input')).toHaveValue('冬日茶器市集')
+    await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+    await expect(page.getByTestId(`scope-include-${pageRef}`)).toHaveAttribute('aria-pressed', 'true')
+    await canvasHero.click()
+    await expect(canvasHero).toHaveAttribute('aria-pressed', 'true')
+  }
+
+  // The current page has no shared title in its DOM, while the target strip
+  // still exposes the off-page target for intentional target switching.
+  await page.getByTestId('page-item-page:contact').click()
+  await expect(page.getByTestId('demo-canvas').getByTestId(heroId)).toHaveCount(0)
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId('demo-page-note')).toContainText('来源未证明')
+  await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+})
+
 test('选中与编辑：标题更新、候选状态推进、前后对照同步', async ({ page }) => {
   await openExperience(page)
   await page.getByTestId('canvas-el-el:hero-title').click()
