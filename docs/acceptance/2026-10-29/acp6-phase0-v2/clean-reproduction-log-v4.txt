@@ -1,5 +1,5 @@
 Phase 0 P1 clean replay (2026-10-29)
-Clean directory: _scratch/acp6-phase0-clean-replay-p1-20261029
+Clean directory: _scratch/acp6-phase0-clean-replay-p2-20261029
 Node: v24.15.0
 PowerShell: 7.6.5
 Validator: validate-acp6-v06-phase0-v2.mjs
