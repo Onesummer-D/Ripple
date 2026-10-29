@@ -51,6 +51,88 @@ const stableId = row => `acp6-gap-${sha256(`acp6-v06-phase0-row|${row.token}|${r
 const pseudo = selector => /::(?:before|after|first-letter|first-line|selection|marker|placeholder|backdrop|file-selector-button)/i.test(selector);
 const globalOrTheme = selector => /^(?:body|html|:root)(?:$|[\s>+~.#:[,])/i.test(selector.trim()) || /^\*(?:$|[\s>+~.#:[,])/i.test(selector.trim()) || /\[data-theme(?:\s*=|\])/i.test(selector);
 const expectedRows = sourceRows(source);
+const sourceSha256 = sha256(sourceBytes);
+const sourceFileName = path.basename(sourcePath);
+const platformIdentityFields = [
+  'platform', 'runnerId', 'runUrl', 'artifactId', 'artifactName', 'inputArtifactSha256',
+  'sourcePath', 'sourceFileSha256', 'targetFileSha256', 'coreSha', 'projectRevisionSha',
+  'evidenceLevel', 'observedIndependently', 'offsetsExtracted', 'availability', 'reason',
+];
+const trustedPlatformInputs = {
+  linux: {
+    platform: 'linux',
+    runnerId: '40656095611',
+    runUrl: 'https://github.com/Onesummer-D/Ripple/actions/runs/40656095611',
+    artifactId: 12801358049,
+    artifactName: 'ripple-v06-acp6-linux-ed58cfdc2892acaa9b97363a3414b1c219d07053-40656095611.zip',
+    inputArtifactSha256: '8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c',
+    sourcePath: 'test-results/acceptance.json',
+    sourceFileSha256: '7aee05647b185743663d4a4e5dee5996eea971a6de556944e8eb51d99782297b',
+    targetFileSha256: '5038b3fd088d0e51aa430a2767d6637b51daa9a712dd174b76c0e305ff238007',
+    coreSha: 'ed58cfdc2892acaa9b97363a3414b1c219d07053',
+    projectRevisionSha: 'b244f857457d2a07f118155602eef9097fd322bd',
+    evidenceLevel: 'run-artifact-metadata-only',
+    observedIndependently: true,
+    offsetsExtracted: false,
+    availability: 'unavailable',
+    reason: 'The GitHub artifact is independently identified and hashed, but its ZIP bytes are not readable in this local execution environment; no per-row Linux offsets are asserted.',
+  },
+  windows: {
+    platform: 'windows',
+    runnerId: 'windows-formal-20261028',
+    runUrl: null,
+    artifactId: null,
+    artifactName: null,
+    inputArtifactSha256: sourceSha256,
+    sourcePath: sourceFileName,
+    sourceFileSha256: null,
+    coreSha: 'ed58cfdc2892acaa9b97363a3414b1c219d07053',
+    projectRevisionSha: 'b244f857457d2a07f118155602eef9097fd322bd',
+    evidenceLevel: 'recovered-copy',
+    observedIndependently: false,
+    offsetsExtracted: true,
+    availability: 'recovered',
+    reason: 'Recovered JSON is the formal input, but the original Windows checkout cannot be independently re-opened.',
+  },
+};
+const platformInputMatchesTrusted = item => {
+  const expected = trustedPlatformInputs[item?.platform];
+  return Boolean(expected) && platformIdentityFields.every(field => {
+    if (Object.prototype.hasOwnProperty.call(expected, field)) return item?.[field] === expected[field];
+    return !Object.prototype.hasOwnProperty.call(item ?? {}, field);
+  });
+};
+const expectedSourceRefById = new Map(expectedRows.map(row => [stableId(row), row.sourceRef]));
+const expectedPlatformRowIds = new Set(expectedRows.map(row => stableId(row)));
+const platformRowSourceBytes = platform => platform === 'linux' ? 'not-read' : platform === 'windows' ? 'recovered-input' : 'verified-artifact';
+const platformRowMetadataMatchesInput = (row, input) => platformIdentityFields.every(field => row?.[field] === input?.[field]) && row?.sourceBytes === platformRowSourceBytes(input?.platform);
+const platformCheckRowSet = checks => {
+  const actualIds = checks.map(item => item?.rowId);
+  const actualSet = new Set(actualIds);
+  const missing = [...expectedPlatformRowIds].filter(rowId => !actualSet.has(rowId)).sort();
+  const extra = [...actualSet].filter(rowId => !expectedPlatformRowIds.has(rowId)).sort();
+  const duplicateIds = actualIds.filter((rowId, index) => actualIds.indexOf(rowId) !== index);
+  return {
+    pass: checks.length === expectedRows.length && actualSet.size === expectedPlatformRowIds.size && duplicateIds.length === 0 && missing.length === 0 && extra.length === 0,
+    actualCount: checks.length,
+    uniqueCount: actualSet.size,
+    expectedCount: expectedPlatformRowIds.size,
+    duplicateIds: [...new Set(duplicateIds)].sort(),
+    missing,
+    extra,
+  };
+};
+const platformRowBinding = input => {
+  const inputs = new Map((input.offsetEvidence?.platformInputs ?? []).map(item => [item.platform, item]));
+  const checks = input.offsetEvidence?.platformChecks ?? [];
+  return platformCheckRowSet(checks).pass && checks.every(item => {
+    const expectedRef = expectedSourceRefById.get(item.rowId);
+    const linux = inputs.get('linux');
+    const windows = inputs.get('windows');
+    return expectedRef && canonical(item.sourceRef) === canonical({ file: expectedRef.file, offset: expectedRef.offset, byteOffset: expectedRef.byteOffset }) &&
+      platformRowMetadataMatchesInput(item.linux, linux) && platformRowMetadataMatchesInput(item.windows, windows);
+  });
+};
 const rawClassificationRows = rawClassification.rows ?? [];
 const rawClassificationById = new Map(rawClassificationRows.map(row => [row.rowId, row]));
 const ac64 = source.acceptance.items.find(value => value.id === 'AC6.4').detail;
@@ -99,23 +181,45 @@ const expectedPairs = ac64.uncoveredConsumerPairs.map(pair => ({ pairId: pairIdF
 const expectedPairMap = new Map(expectedPairs.map(pair => [pair.pairId, pair]));
 const expectedPairSetSha256 = sha256(canonical(expectedPairs.map(pair => pair.content).sort((left, right) => canonical(left).localeCompare(canonical(right)))));
 
+function syncPlatformRowProvenance(input) {
+  const inputs = new Map((input.offsetEvidence?.platformInputs ?? []).map(item => [item.platform, item]));
+  for (const item of input.offsetEvidence?.platformChecks ?? []) {
+    for (const platform of ['linux', 'windows']) {
+      const existing = item[platform] ?? {};
+      const inputRecord = inputs.get(platform);
+      item[platform] = { ...inputRecord, offset: existing.offset, byteOffset: existing.byteOffset, sourceBytes: platformRowSourceBytes(platform) };
+    }
+  }
+}
+
 function makeIndependentDrift(input) {
   input.offsetEvidence.crossPlatformStatus = 'independent-drift-explained';
   input.offsetEvidence.proofLevel = 'proven';
-  const windows = input.offsetEvidence.platformInputs.find(item => item.platform === 'windows');
-  windows.runnerId = 'windows-independent-20261029';
-  windows.inputArtifactSha256 = '1'.repeat(64);
-  windows.sourcePath = 'windows-artifact/acceptance.json';
-  windows.evidenceLevel = 'independent-run-artifact';
-  windows.observedIndependently = true;
+  for (const platform of ['linux', 'windows']) {
+    const record = input.offsetEvidence.platformInputs.find(item => item.platform === platform);
+    Object.assign(record, {
+      runnerId: `${platform}-independent-20261029`,
+      runUrl: `https://example.invalid/${platform}/run-20261029`,
+      artifactId: platform === 'linux' ? 900001 : 900002,
+      artifactName: `${platform}-independent-20261029.zip`,
+      inputArtifactSha256: platform === 'linux' ? '1'.repeat(64) : '2'.repeat(64),
+      sourcePath: `${platform}-artifact/acceptance.json`,
+      sourceFileSha256: platform === 'linux' ? '3'.repeat(64) : '4'.repeat(64),
+      evidenceLevel: 'independent-run-artifact',
+      observedIndependently: true,
+      offsetsExtracted: true,
+      availability: 'verified',
+      reason: 'synthetic test provenance; no trusted artifact binding',
+    });
+  }
   input.offsetEvidence.driftRows = input.offsetEvidence.platformChecks.map(item => ({ rowId: item.rowId, offsetDelta: 1, byteOffsetDelta: 2 }));
   for (const item of input.offsetEvidence.platformChecks) {
     item.linux.offset = item.sourceRef.offset + 1;
     item.linux.byteOffset = item.sourceRef.byteOffset + 2;
-    item.linux.offsetsExtracted = true;
     item.windows.offsetsExtracted = true;
     item.comparison = { status: 'independent-drift-explained', offsetDelta: 1, byteOffsetDelta: 2 };
   }
+  syncPlatformRowProvenance(input);
 }
 
 function applyMutation(input, name) {
@@ -153,6 +257,8 @@ function applyMutation(input, name) {
   else if (name === 'drift-status-unobserved') { input.offsetEvidence.crossPlatformStatus = 'independent-drift-explained'; input.offsetEvidence.proofLevel = 'proven'; input.offsetEvidence.platformInputs[1].observedIndependently = false; }
   else if (name === 'drift-fake-delta') { makeIndependentDrift(input); input.offsetEvidence.platformChecks[0].comparison.offsetDelta = 999; }
   else if (name === 'drift-missing-row') { makeIndependentDrift(input); input.offsetEvidence.driftRows = input.offsetEvidence.driftRows.slice(1); }
+  else if (name === 'drift-fabricated-provenance') { makeIndependentDrift(input); const windows = input.offsetEvidence.platformInputs.find(item => item.platform === 'windows'); windows.runnerId = 'fabricated-runner'; windows.inputArtifactSha256 = 'f'.repeat(64); windows.sourcePath = 'fabricated/path/acceptance.json'; windows.observedIndependently = true; syncPlatformRowProvenance(input); }
+  else if (name === 'platform-check-row-duplicate') { const checks = input.offsetEvidence.platformChecks; checks[1] = clone(checks[0]); }
   else if (name === 'offset-reconciliation-promoted') input.offsetEvidence.externalReconciliationObservation.promotesProof = true;
   else if (name === 'shuffle-order') input.rows.reverse();
   else throw new Error(`unknown mutation: ${name}`);
@@ -178,7 +284,7 @@ function validate(input) {
   check('covered-rows-have-no-gap-fields', covered.every(row => !('rawGapClass' in row) && !('rawGapClasses' in row) && !('gapClass' in row) && !('gapClasses' in row) && !('mappingRuleId' in row) && !('taxonomyVersion' in row) && !('mappingVersion' in row) && !('secondaryReasons' in row)), {});
   check('uncovered-classifications-legal', uncovered.every(row => { const mapped = expectedMapping(row); return mapped && canonical(mapped) === canonical({ rawGapClass: row.rawGapClass, rawGapClasses: row.rawGapClasses, gapClass: row.gapClass, gapClasses: row.gapClasses, mappingRuleId: row.mappingRuleId, taxonomyVersion: row.taxonomyVersion, mappingVersion: row.mappingVersion, secondaryReasons: row.secondaryReasons }); }), {});
   check('source-use-graph-node-ids-explicit-missing', rows.every(row => row.sourceUseGraphNodeIds?.status === 'missing' && row.sourceUseGraphNodeIds.value === null), {});
-  check('source-hash', sha256(sourceBytes) === input.source?.acceptanceJsonSha256 && input.source?.acceptanceJsonSha256 === '0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a', { actual: sha256(sourceBytes), recorded: input.source?.acceptanceJsonSha256 });
+  check('source-hash', sourceSha256 === input.source?.acceptanceJsonSha256 && input.source?.acceptanceJsonSha256 === '0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a', { actual: sourceSha256, recorded: input.source?.acceptanceJsonSha256 });
   check('source-json-parse', input.source?.jsonParse === 'pass', {});
   check('source-not-overwritten', input.source?.overwritten === false, {});
   check('archive-base-identity', input.source?.archivePrBase === 'd1d26185710c8e4d80182356f760109123bdc989' && input.source?.rawClassificationSource?.commit === 'c851bfe11e6851e01695f94246a5a571435d8faa' && input.source?.rawClassificationSource?.sha256 === '89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200', {});
@@ -212,14 +318,20 @@ function validate(input) {
   check('ac64-pair-status-counts', matrixPairs.filter(pair => !pair.dynamic).length === 9 && matrixPairs.filter(pair => pair.dynamic).length === 7, {});
   const platformChecks = input.offsetEvidence?.platformChecks ?? [];
   const platformInputs = input.offsetEvidence?.platformInputs ?? [];
+  const platformRowSet = platformCheckRowSet(platformChecks);
   const requiredPlatformFields = ['platform', 'sourcePath', 'inputArtifactSha256', 'coreSha', 'projectRevisionSha', 'runnerId', 'evidenceLevel', 'observedIndependently'];
   const provenanceShape = platformInputs.length === 2 && platformInputs.every(item => requiredPlatformFields.every(field => Object.prototype.hasOwnProperty.call(item, field)));
-  const independentProvenance = provenanceShape && platformInputs.every(item => item.observedIndependently === true && typeof item.inputArtifactSha256 === 'string' && item.inputArtifactSha256.length > 0 && typeof item.sourcePath === 'string' && item.sourcePath.length > 0 && typeof item.coreSha === 'string' && typeof item.runnerId === 'string') && platformInputs[0]?.runnerId !== platformInputs[1]?.runnerId && platformInputs[0]?.inputArtifactSha256 !== platformInputs[1]?.inputArtifactSha256;
+  const trustedPlatformBinding = provenanceShape && platformInputs.every(platformInputMatchesTrusted);
+  const rowsHaveTrustedPlatformProvenance = platformRowBinding(input);
+  const independentSourceBytes = platformInputs.length === 2 && platformInputs.every(item => item.observedIndependently === true && item.availability === 'verified' && item.offsetsExtracted === true && typeof item.inputArtifactSha256 === 'string' && /^[0-9a-f]{64}$/.test(item.inputArtifactSha256) && typeof item.sourceFileSha256 === 'string' && /^[0-9a-f]{64}$/.test(item.sourceFileSha256) && typeof item.runUrl === 'string' && typeof item.artifactName === 'string' && Number.isInteger(item.artifactId));
+  const independentProvenance = trustedPlatformBinding && rowsHaveTrustedPlatformProvenance && independentSourceBytes && platformInputs[0]?.runnerId !== platformInputs[1]?.runnerId && platformInputs[0]?.inputArtifactSha256 !== platformInputs[1]?.inputArtifactSha256;
+  check('platform-source-binding', trustedPlatformBinding && rowsHaveTrustedPlatformProvenance, { trustedPlatformBinding, rowsHaveTrustedPlatformProvenance, sourceSha256 });
+  check('platform-checks-exact-row-set', platformRowSet.pass, platformRowSet);
   const reconciliation = input.offsetEvidence?.externalReconciliationObservation;
   check('offset-reconciliation-observation', reconciliation?.status === 'externally-observed-not-replayed' && reconciliation?.rowsChecked === 123 && reconciliation?.differingRows === 123 && reconciliation?.relation === 'CRLF/LF line-ending offset drift reported by independent external review' && reconciliation?.linuxArtifactId === 12801358049 && reconciliation?.linuxArtifactSha256 === '8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c' && reconciliation?.linuxReportSha256 === '7aee05647b185743663d4a4e5dee5996eea971a6de556944e8eb51d99782297b' && reconciliation?.evidenceLevel === 'external-review-report-only' && reconciliation?.promotesProof === false, {});
   let platformPass = false;
   if (input.offsetEvidence?.crossPlatformStatus === 'unavailable') {
-    platformPass = input.offsetEvidence?.proofLevel === 'not-proven' && provenanceShape && platformChecks.length === 123 && platformChecks.every(item => item.linux?.offset === null && item.linux?.byteOffset === null && item.windows?.offset === item.sourceRef?.offset && item.windows?.byteOffset === item.sourceRef?.byteOffset && item.comparison?.status === 'unavailable') && canonical([...(input.offsetEvidence?.notProvenRows ?? [])].sort()) === canonical(ids.sort());
+    platformPass = input.offsetEvidence?.proofLevel === 'not-proven' && trustedPlatformBinding && rowsHaveTrustedPlatformProvenance && platformChecks.length === 123 && platformChecks.every(item => item.linux?.offset === null && item.linux?.byteOffset === null && item.windows?.offset === item.sourceRef?.offset && item.windows?.byteOffset === item.sourceRef?.byteOffset && item.comparison?.status === 'unavailable') && canonical([...(input.offsetEvidence?.notProvenRows ?? [])].sort()) === canonical(ids.sort());
   } else if (input.offsetEvidence?.crossPlatformStatus === 'independent-equal') {
     platformPass = input.offsetEvidence?.proofLevel === 'proven' && independentProvenance && platformChecks.length === 123 && platformChecks.every(item => Number.isInteger(item.linux?.offset) && Number.isInteger(item.linux?.byteOffset) && item.linux.offset === item.windows.offset && item.linux.byteOffset === item.windows.byteOffset && item.comparison?.status === 'independent-equal' && item.comparison.offsetDelta === 0 && item.comparison.byteOffsetDelta === 0) && (input.offsetEvidence?.driftRows ?? []).length === 0;
   } else if (input.offsetEvidence?.crossPlatformStatus === 'independent-drift-explained') {
@@ -238,7 +350,7 @@ function validate(input) {
 
 const input = applyMutation(clone(matrix), negativeName);
 const validation = validate(input);
-const expectedPass = negativeName === 'shuffle-order';
+const expectedPass = negativeName ? negativeName === 'shuffle-order' : true;
 const exitPass = negativeName ? (expectedPass ? validation.pass : !validation.pass) : validation.pass;
 const result = { schemaVersion: 'acp6-v06-phase0-validation/v4', generatedAt: '2026-10-29', matrixPath, sourcePath, negativeName, expectedPass, validation, exitPass };
 console.log(JSON.stringify(result, null, 2));

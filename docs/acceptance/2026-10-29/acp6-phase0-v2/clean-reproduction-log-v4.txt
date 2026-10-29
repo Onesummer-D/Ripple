@@ -1,44 +1,50 @@
-Phase 0 v5 clean replay (2026-10-29)
-Clean directory: _scratch/acp6-phase0-clean-replay-v5-20261029
+Phase 0 P1 clean replay (2026-10-29)
+Clean directory: _scratch/acp6-phase0-clean-replay-p1-20261029
+Node: v24.15.0
+PowerShell: 7.6.5
+Validator: validate-acp6-v06-phase0-v2.mjs
 Formal input SHA-256: 0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a
-Raw classification source SHA-256: 89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200
-PR Base: d1d26185710c8e4d80182356f760109123bdc989
-Cross-platform offset status: unavailable/not-proven
-
-clean positive exit=0 pass=True
-clean duplicate-id exit=0 validationPass=False exitPass=True
-clean unknown-raw-class exit=0 validationPass=False exitPass=True
-clean unknown-canonical-class exit=0 validationPass=False exitPass=True
-clean deleted-classification exit=0 validationPass=False exitPass=True
-clean missing-row-mapping-version exit=0 validationPass=False exitPass=True
-clean wrong-row-mapping-version exit=0 validationPass=False exitPass=True
-clean wrong-mapping-rule exit=0 validationPass=False exitPass=True
-clean tampered-source-location exit=0 validationPass=False exitPass=True
-clean tampered-input-hash exit=0 validationPass=False exitPass=True
-clean tampered-counts exit=0 validationPass=False exitPass=True
-clean graph-node-present exit=0 validationPass=False exitPass=True
-clean source-row-mutation exit=0 validationPass=False exitPass=True
-clean ac64-pair-file exit=0 validationPass=False exitPass=True
-clean ac64-pair-byte-offset exit=0 validationPass=False exitPass=True
-clean ac64-pair-token exit=0 validationPass=False exitPass=True
-clean ac64-pair-component exit=0 validationPass=False exitPass=True
-clean ac64-pair-source-ref exit=0 validationPass=False exitPass=True
-clean ac64-pair-edge-count exit=0 validationPass=False exitPass=True
-clean ac64-pair-certainty exit=0 validationPass=False exitPass=True
-clean ac64-pair-id exit=0 validationPass=False exitPass=True
-clean ac64-pair-content-hash exit=0 validationPass=False exitPass=True
-clean ac64-pair-set-hash exit=0 validationPass=False exitPass=True
-clean ac64-unknown-pair-ids exit=0 validationPass=False exitPass=True
-clean covered-row-id-mutation exit=0 validationPass=False exitPass=True
-clean uncovered-row-id-mutation exit=0 validationPass=False exitPass=True
-clean copied-platform-evidence exit=0 validationPass=False exitPass=True
-clean offset-platform-mismatch exit=0 validationPass=False exitPass=True
-clean drift-status-null-linux exit=0 validationPass=False exitPass=True
-clean drift-status-unobserved exit=0 validationPass=False exitPass=True
-clean drift-fake-delta exit=0 validationPass=False exitPass=True
-clean drift-missing-row exit=0 validationPass=False exitPass=True
-clean offset-reconciliation-promoted exit=0 validationPass=False exitPass=True
-clean raw-classification-label-swap exit=0 validationPass=False exitPass=True
-clean raw-classification-source-hash exit=0 validationPass=False exitPass=True
-clean shuffle-order exit=0 validationPass=True exitPass=True
-clean negativeBad=0 totalCases=35
+Raw classification SHA-256: 89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200
+Command: node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json
+positive exit=0 validationPass=true
+negative=duplicate-id exit=0 validationPass=false exitPass=true
+negative=unknown-raw-class exit=0 validationPass=false exitPass=true
+negative=unknown-canonical-class exit=0 validationPass=false exitPass=true
+negative=deleted-classification exit=0 validationPass=false exitPass=true
+negative=missing-row-mapping-version exit=0 validationPass=false exitPass=true
+negative=wrong-row-mapping-version exit=0 validationPass=false exitPass=true
+negative=wrong-mapping-rule exit=0 validationPass=false exitPass=true
+negative=tampered-source-location exit=0 validationPass=false exitPass=true
+negative=tampered-input-hash exit=0 validationPass=false exitPass=true
+negative=tampered-counts exit=0 validationPass=false exitPass=true
+negative=graph-node-present exit=0 validationPass=false exitPass=true
+negative=source-row-mutation exit=0 validationPass=false exitPass=true
+negative=ac64-pair-file exit=0 validationPass=false exitPass=true
+negative=ac64-pair-byte-offset exit=0 validationPass=false exitPass=true
+negative=ac64-pair-token exit=0 validationPass=false exitPass=true
+negative=ac64-pair-component exit=0 validationPass=false exitPass=true
+negative=ac64-pair-source-ref exit=0 validationPass=false exitPass=true
+negative=ac64-pair-edge-count exit=0 validationPass=false exitPass=true
+negative=ac64-pair-certainty exit=0 validationPass=false exitPass=true
+negative=ac64-pair-id exit=0 validationPass=false exitPass=true
+negative=ac64-pair-content-hash exit=0 validationPass=false exitPass=true
+negative=ac64-pair-set-hash exit=0 validationPass=false exitPass=true
+negative=ac64-unknown-pair-ids exit=0 validationPass=false exitPass=true
+negative=covered-row-id-mutation exit=0 validationPass=false exitPass=true
+negative=uncovered-row-id-mutation exit=0 validationPass=false exitPass=true
+negative=copied-platform-evidence exit=0 validationPass=false exitPass=true
+negative=offset-platform-mismatch exit=0 validationPass=false exitPass=true
+negative=drift-status-null-linux exit=0 validationPass=false exitPass=true
+negative=drift-status-unobserved exit=0 validationPass=false exitPass=true
+negative=drift-fake-delta exit=0 validationPass=false exitPass=true
+negative=drift-missing-row exit=0 validationPass=false exitPass=true
+negative=offset-reconciliation-promoted exit=0 validationPass=false exitPass=true
+negative=raw-classification-label-swap exit=0 validationPass=false exitPass=true
+negative=raw-classification-source-hash exit=0 validationPass=false exitPass=true
+negative=drift-fabricated-provenance exit=0 validationPass=false exitPass=true
+negative=platform-check-row-duplicate exit=0 validationPass=false exitPass=true
+negative=shuffle-order exit=0 validationPass=true exitPass=true
+negativeBad=0 totalCases=37
+Platform status: crossPlatformStatus=unavailable proofLevel=not-proven
+Manifest validation is recorded separately after finalization; no independent Windows artifact is claimed.
+Manifest validation (clean replay): entries=53 manifestSha256=0da549feda0d393fafb879c7cf20a6d67a4d30d57711536346a899fa7ee2e5fc recordedManifestHash=0da549feda0d393fafb879c7cf20a6d67a4d30d57711536346a899fa7ee2e5fc selfHashMatch=true fileErrors=0

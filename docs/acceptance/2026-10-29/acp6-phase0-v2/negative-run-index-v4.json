@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "acp6-v06-phase0-negative-index/v5",
+  "schemaVersion": "acp6-v06-phase0-negative-index/v7",
   "generatedAt": "2026-10-29",
   "matrixSchema": "acp6-v06-phase0-gap-matrix/v4",
   "formalInputSha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a",
@@ -260,6 +260,7 @@
       "validationPass": false,
       "exitPass": true,
       "failedChecks": [
+        "platform-source-binding",
         "platform-offsets"
       ]
     },
@@ -296,6 +297,7 @@
       "validationPass": false,
       "exitPass": true,
       "failedChecks": [
+        "platform-source-binding",
         "platform-offsets"
       ]
     },
@@ -305,6 +307,7 @@
       "validationPass": false,
       "exitPass": true,
       "failedChecks": [
+        "platform-source-binding",
         "platform-offsets"
       ]
     },
@@ -337,6 +340,27 @@
       "failedChecks": [
         "archive-base-identity",
         "raw-classification-source-hash"
+      ]
+    },
+    {
+      "negative": "drift-fabricated-provenance",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "platform-source-binding",
+        "platform-offsets"
+      ]
+    },
+    {
+      "negative": "platform-check-row-duplicate",
+      "expectedPass": false,
+      "validationPass": false,
+      "exitPass": true,
+      "failedChecks": [
+        "platform-source-binding",
+        "platform-checks-exact-row-set",
+        "platform-offsets"
       ]
     },
     {

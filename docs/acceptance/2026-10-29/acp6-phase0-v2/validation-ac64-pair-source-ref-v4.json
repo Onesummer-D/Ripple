@@ -1,8 +1,8 @@
 {
   "schemaVersion": "acp6-v06-phase0-validation/v4",
   "generatedAt": "2026-10-29",
-  "matrixPath": "acp6-v06-phase0-gap-matrix-v2-20261029.json",
-  "sourcePath": "acceptance-ed58cfd-final.json",
+  "matrixPath": "Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\acp6-v06-phase0-gap-matrix-v2-20261029.json",
+  "sourcePath": "Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\acceptance-ed58cfd-final.json",
   "negativeName": "ac64-pair-source-ref",
   "expectedPass": false,
   "validation": {
@@ -201,6 +201,28 @@
         "name": "ac64-pair-status-counts",
         "pass": true,
         "details": {}
+      },
+      {
+        "name": "platform-source-binding",
+        "pass": true,
+        "details": {
+          "trustedPlatformBinding": true,
+          "rowsHaveTrustedPlatformProvenance": true,
+          "sourceSha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a"
+        }
+      },
+      {
+        "name": "platform-checks-exact-row-set",
+        "pass": true,
+        "details": {
+          "pass": true,
+          "actualCount": 123,
+          "uniqueCount": 123,
+          "expectedCount": 123,
+          "duplicateIds": [],
+          "missing": [],
+          "extra": []
+        }
       },
       {
         "name": "offset-reconciliation-observation",

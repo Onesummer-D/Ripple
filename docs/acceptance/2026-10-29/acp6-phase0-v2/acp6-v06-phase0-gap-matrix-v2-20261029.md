@@ -169,13 +169,17 @@ Offsets are measured on exact UTF-8 source bytes. No LF/CRLF normalization is pe
 
 ## Validation and negative cases
 
-Run the validator from a clean checkout with the source JSON, raw classification source, and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications or row mappingVersion, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, AC6.4 pair mutations, row-index mutations, and copied/under-proven platform evidence. A reversed row order must preserve stable IDs and all statistics.
+Run the validator from a clean checkout with the source JSON, raw classification source, and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications or row mappingVersion, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, AC6.4 pair mutations, row-index mutations, and copied/under-proven platform evidence. Platform inputs and every per-row platform copy must match the trusted artifact/run/source identity; a fabricated runner, artifact hash, path, or independent flag is rejected even when all offset deltas and driftRows are numerically self-consistent. A reversed row order must preserve stable IDs and all statistics.
 
 AC6.2 dynamic-className rows and AC6.4 dynamic UNKNOWN pairs have separate cardinalities: 9 raw source-use rows versus 7 consumer pairs. The matrix never maps them one-to-one.
 
 ## Boundary
 
 This is evidence and validation only. SourceGraph production code, B v5 matcher/probe, Runtime Identity, Candidate, Verification, Approval, Apply, Rollback and thresholds are unchanged. AC6.2 and AC6.4 remain PENDING.
+
+## Platform record-set contract
+
+`platformChecks` must contain exactly one record for every stable ID in the 123-row formal source set. The validator checks total count, uniqueness, missing IDs, and extra IDs before evaluating platform metadata or offsets. This applies to `unavailable`, `independent-equal`, and `independent-drift-explained`; replacing one valid record with a duplicate is rejected by `platform-checks-exact-row-set`.
 
 ## Clean reproduction record
 
@@ -209,15 +213,17 @@ The formal source JSON parsed successfully and matched SHA-256 `0d7e5f97d91e6985
 | ac64-unknown-pair-ids | 0 | false | ac64-unknown-pair-ids |
 | covered-row-id-mutation | 0 | false | row-indexes-exact |
 | uncovered-row-id-mutation | 0 | false | row-indexes-exact |
-| copied-platform-evidence | 0 | false | platform-offsets |
+| copied-platform-evidence | 0 | false | platform-source-binding, platform-offsets |
 | offset-platform-mismatch | 0 | false | platform-offsets |
 | drift-status-null-linux | 0 | false | platform-offsets |
 | drift-status-unobserved | 0 | false | platform-offsets |
-| drift-fake-delta | 0 | false | platform-offsets |
-| drift-missing-row | 0 | false | platform-offsets |
+| drift-fake-delta | 0 | false | platform-source-binding, platform-offsets |
+| drift-missing-row | 0 | false | platform-source-binding, platform-offsets |
 | offset-reconciliation-promoted | 0 | false | offset-reconciliation-observation |
 | raw-classification-label-swap | 0 | false | uncovered-classifications-legal, raw-classification-row-comparison, raw-counts, order-stability |
 | raw-classification-source-hash | 0 | false | archive-base-identity, raw-classification-source-hash |
+| drift-fabricated-provenance | 0 | false | platform-source-binding, platform-offsets |
+| platform-check-row-duplicate | 0 | false | platform-source-binding, platform-checks-exact-row-set, platform-offsets |
 | shuffle-order | 0 | true | none |
 
-The negative cases cover row IDs, taxonomy/mapping fields, raw classification row and source-hash binding, source locations and hashes, AC6.4 pair content and pair-set integrity, row index sets, graph node status, copied platform provenance, independent-drift status with null/unobserved inputs, fake deltas, missing drift rows, and source-row mutations. Reversing row order passes while preserving IDs, counts and classifications.
+The negative cases cover row IDs, taxonomy/mapping fields, raw classification row and source-hash binding, source locations and hashes, AC6.4 pair content and pair-set integrity, row index sets, graph node status, copied platform provenance, independent-drift status with null/unobserved inputs, fake deltas, missing drift rows, fabricated artifact/run/source provenance, and source-row mutations. Reversing row order passes while preserving IDs, counts and classifications. Independent-equal and independent-drift-explained share the same trusted platform source binding and cannot be promoted by metadata fields alone.
