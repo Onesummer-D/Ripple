@@ -1,0 +1,274 @@
+{
+  "schemaVersion": "acp6-v06-phase0-manifest/v2",
+  "generatedAt": "2026-10-29",
+  "branchIntent": "new evidence-only branch; old c851bfe archive remains intact",
+  "baseCommit": "d1d26185710c8e4d80182356f760109123bdc989",
+  "rawClassificationEvidenceCommit": "c851bfe11e6851e01695f94246a5a571435d8faa",
+  "formalInputSha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a",
+  "taxonomyVersion": "acp6-gap-taxonomy/v1",
+  "mappingVersion": "acp6-gap-mapping/v1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 4270,
+      "sha256": "6995786d2d766fe339633321fddee1417d6652620ade6b7c805ceae86d1de780"
+    },
+    {
+      "path": "acceptance-ed58cfd-final.json",
+      "bytes": 1035281,
+      "sha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a"
+    },
+    {
+      "path": "acp6-v06-phase0-gap-matrix-v2-20261029.json",
+      "bytes": 505832,
+      "sha256": "223cdfe464780a0c3c69d61bed649d55c78f03b89680657fac343d20082f6141"
+    },
+    {
+      "path": "acp6-v06-phase0-gap-matrix-v2-20261029.md",
+      "bytes": 26603,
+      "sha256": "adaaf3bcdbc3473c22cd7ff1db041f6f230475feec8479eb45e9bce8fdfc71cc"
+    },
+    {
+      "path": "build-phase0-v2.mjs",
+      "bytes": 25818,
+      "sha256": "cb2685a9ad041a44d436b9ef6b7849373520f2f89ebb90709c4385fda7b7f8cc"
+    },
+    {
+      "path": "clean-reproduction-log-v4.txt",
+      "bytes": 3378,
+      "sha256": "f53e1efa26d0b66fa1f979722087f25fcf5f5e3234a93fcb4ae3e1818328af53"
+    },
+    {
+      "path": "finalize-phase0-v2.mjs",
+      "bytes": 11488,
+      "sha256": "c62e616603900c204386d7719eff480060b227f162da1a205e852a79ed7ca16e"
+    },
+    {
+      "path": "formal-input-declaration.json",
+      "bytes": 4430,
+      "sha256": "e23e9b42e8ed3358edbe52c70fae028e4813a3adcdc0b93a368426e6b512eb69"
+    },
+    {
+      "path": "legacy-archive-reference.json",
+      "bytes": 1358,
+      "sha256": "a606caa7381bd2230af699a6b2201acc45325559946eb13d1741035d4c2e2866"
+    },
+    {
+      "path": "linux-artifact-provenance.json",
+      "bytes": 1114,
+      "sha256": "97848c8d14d89b08e4e4b07779c6a7914225e019699ba2d63bbaf1b634f53559"
+    },
+    {
+      "path": "negative-run-index-v4.json",
+      "bytes": 8756,
+      "sha256": "f711bafe5122d6f4097c630b2614752da9247814ab3e4f6e753e687280865793"
+    },
+    {
+      "path": "raw-classification-source-c851bfe.json",
+      "bytes": 163072,
+      "sha256": "89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200"
+    },
+    {
+      "path": "taxonomy-contract-reference.md",
+      "bytes": 1195,
+      "sha256": "9e977b446c042dd9b8465865854400f4ec9f7b50b523c23ea2b303743a2b19ba"
+    },
+    {
+      "path": "taxonomy-erratum-reference.md",
+      "bytes": 670,
+      "sha256": "0a153334fd250abb8b793d7dce1a31978190a608bf4bab8b3ab9f6adb777088f"
+    },
+    {
+      "path": "validate-acp6-v06-phase0-v2.mjs",
+      "bytes": 34852,
+      "sha256": "db0ceb520b706b9e51628960afa297160a8c03d1766814dfca006cc4b8da4830"
+    },
+    {
+      "path": "validation-ac64-pair-byte-offset-v4.json",
+      "bytes": 18073,
+      "sha256": "b1591912153ba8befb19b74abe42953259c13a6ac23cf254e41e00a80870e355"
+    },
+    {
+      "path": "validation-ac64-pair-certainty-v4.json",
+      "bytes": 18071,
+      "sha256": "50ae07b1bcbb0655cc9201a3ea8b822939c2365cf6211a33ab14471fc223fee9"
+    },
+    {
+      "path": "validation-ac64-pair-component-v4.json",
+      "bytes": 18071,
+      "sha256": "7e7f2610ae0872efcd98ddca4a4f8a759e18c2c1a4c6af9562fa0ebefdf15295"
+    },
+    {
+      "path": "validation-ac64-pair-content-hash-v4.json",
+      "bytes": 18074,
+      "sha256": "8ae21d04996441ea823e3b752ffecc140960f16758293105f71a8721a2dbdb6a"
+    },
+    {
+      "path": "validation-ac64-pair-edge-count-v4.json",
+      "bytes": 18072,
+      "sha256": "dd5344eee18384d903422243ffc6d97f61aa14299f0665257f2580633f6bdbaf"
+    },
+    {
+      "path": "validation-ac64-pair-file-v4.json",
+      "bytes": 18066,
+      "sha256": "158e06712bda2af9d5823ede02977323c57e0c0d971d3f6c14713b016bbe38a8"
+    },
+    {
+      "path": "validation-ac64-pair-id-v4.json",
+      "bytes": 18064,
+      "sha256": "3f43fc6720136725485ab5145a1a53d1002e94d91819cd93de86c011aaaba048"
+    },
+    {
+      "path": "validation-ac64-pair-set-hash-v4.json",
+      "bytes": 18069,
+      "sha256": "dd4ee30493783d61f77eec6a1f06c54a68eec2e429329e1344a91546ca98f385"
+    },
+    {
+      "path": "validation-ac64-pair-source-ref-v4.json",
+      "bytes": 18072,
+      "sha256": "d2e2871cd03099987be715974a837605118092bb27654eb76848eb9db2730b4d"
+    },
+    {
+      "path": "validation-ac64-pair-token-v4.json",
+      "bytes": 18067,
+      "sha256": "9a909a7c82bc8f74a53fbefad115b972d64a97608b2a43deb9c25c91d60384bc"
+    },
+    {
+      "path": "validation-ac64-unknown-pair-ids-v4.json",
+      "bytes": 18072,
+      "sha256": "8932018e46373d36afde9408266666614eb73586c40546761fcea0e20677cdfb"
+    },
+    {
+      "path": "validation-copied-platform-evidence-v4.json",
+      "bytes": 18085,
+      "sha256": "982fa402ab557bd878b433b71588a503a697e8d7653d5400e999a294d67b2195"
+    },
+    {
+      "path": "validation-covered-row-id-mutation-v4.json",
+      "bytes": 18074,
+      "sha256": "da84657ea7836c2234223a234d206fdf0454efd455c1e44bab1ae3b6d952c35e"
+    },
+    {
+      "path": "validation-deleted-classification-v4.json",
+      "bytes": 18218,
+      "sha256": "fefff15692ffdcc1aa328639e78634798f60668977d50134d433a7a23048ccb0"
+    },
+    {
+      "path": "validation-drift-fabricated-provenance-v4.json",
+      "bytes": 18108,
+      "sha256": "36788957dc87e3ef5fc7688ebeb00ec7287ef0767d12d2e055112f20a04e78e5"
+    },
+    {
+      "path": "validation-drift-fake-delta-v4.json",
+      "bytes": 18097,
+      "sha256": "b708e5cdaa1583c71ce2afe02ec6ee57d6fc5a568ae25b36557606395ebf5eb7"
+    },
+    {
+      "path": "validation-drift-missing-row-v4.json",
+      "bytes": 18098,
+      "sha256": "6651f853925aeb069b46d8c0ea44b98d3f981fc23ea97f5310f32754fa14445d"
+    },
+    {
+      "path": "validation-drift-status-null-linux-v4.json",
+      "bytes": 18102,
+      "sha256": "f98952225e5ce23e2cd17b57e0288cc6132647e98c18df7335bf757f10fb3615"
+    },
+    {
+      "path": "validation-drift-status-unobserved-v4.json",
+      "bytes": 18102,
+      "sha256": "bfe06843941ded76ae33258634c1e6a990667a356a706667c106616d2b4b1daf"
+    },
+    {
+      "path": "validation-duplicate-id-v4.json",
+      "bytes": 18067,
+      "sha256": "b7be9a5ec1c6dd75812e4fd5d8616d7a1374868048627133229732026d258f27"
+    },
+    {
+      "path": "validation-graph-node-present-v4.json",
+      "bytes": 18069,
+      "sha256": "476807164c7a722f6f64bb57cbbf1c80b6642c5f7bed71952d393691e142a40f"
+    },
+    {
+      "path": "validation-missing-row-mapping-version-v4.json",
+      "bytes": 18078,
+      "sha256": "1646e6c863b9ab74b48b2d62f67993e785dbf4177d2a503a943c706babb171a8"
+    },
+    {
+      "path": "validation-offset-platform-mismatch-v4.json",
+      "bytes": 18083,
+      "sha256": "52d8a74e7cec8f7c446eba3307072008d0b7307100d073e2639d55b6608ef7d4"
+    },
+    {
+      "path": "validation-offset-reconciliation-promoted-v4.json",
+      "bytes": 18081,
+      "sha256": "49c7a951a49d4b8b752f0d8f4dfba344aa5994416904cfd3430cb7e1186698d1"
+    },
+    {
+      "path": "validation-positive-v4.json",
+      "bytes": 18050,
+      "sha256": "d5a41db308976c63085ad5cd96d87ec2ca5a2f7d89a225cf2c4f4992963e38ab"
+    },
+    {
+      "path": "validation-raw-classification-label-swap-v4.json",
+      "bytes": 18085,
+      "sha256": "7877ee7aa662f727e0f9b38529c480a3c1bb214357157089902ab042d86fbc49"
+    },
+    {
+      "path": "validation-raw-classification-source-hash-v4.json",
+      "bytes": 18082,
+      "sha256": "f850ced2aa9c04f32cdb63cdedfc3450129236ba4a0ace253c9dd27daadd80c5"
+    },
+    {
+      "path": "validation-shuffle-order-v4.json",
+      "bytes": 18061,
+      "sha256": "0f397835c4e23a9ee5e109871fb409c1998ae2f55ac0eb1a431f1766fe99d3cd"
+    },
+    {
+      "path": "validation-source-row-mutation-v4.json",
+      "bytes": 18070,
+      "sha256": "5bb2ead283ca6f892d3276af4c990ad83f2a33cec790c9409f49d308450b54a7"
+    },
+    {
+      "path": "validation-tampered-counts-v4.json",
+      "bytes": 18066,
+      "sha256": "da0d9bcdfb24ee41c6de678a9f18eb82a523efd4524111a0a76b2374c5be458b"
+    },
+    {
+      "path": "validation-tampered-input-hash-v4.json",
+      "bytes": 18070,
+      "sha256": "fc3492d0f3c56c22dc437e16ac3333f4c56d91004e07f22b5eb7c5dc69973328"
+    },
+    {
+      "path": "validation-tampered-source-location-v4.json",
+      "bytes": 18076,
+      "sha256": "172d72be723f44c847ef44a1203fd6f596a164b492476bdf22c70d77ae5e6f43"
+    },
+    {
+      "path": "validation-uncovered-row-id-mutation-v4.json",
+      "bytes": 18076,
+      "sha256": "3f5f1bd1849465d5f9e69c38f3b63fe0f886c8383487db7579618e5395cf096b"
+    },
+    {
+      "path": "validation-unknown-canonical-class-v4.json",
+      "bytes": 18200,
+      "sha256": "b538aea3141172bef4797d78d4b75062772ec789366659e931b90cadec2124f3"
+    },
+    {
+      "path": "validation-unknown-raw-class-v4.json",
+      "bytes": 18145,
+      "sha256": "7cc22ffe788ba0058bc0e6abc5d60f31ba1987c245b0cde1e0e9b5f4f0254088"
+    },
+    {
+      "path": "validation-wrong-mapping-rule-v4.json",
+      "bytes": 18069,
+      "sha256": "28bbef29b9884dc5f5224e0c701595116116cb1af63a5667a9994b6fe2b2cbc9"
+    },
+    {
+      "path": "validation-wrong-row-mapping-version-v4.json",
+      "bytes": 18076,
+      "sha256": "91df13376afc24f4ad70739dbf42003b5a2c31f20f480cda39fb5e322ae57848"
+    }
+  ],
+  "selfHashPolicy": "manifest.json and manifest-sha256.txt are intentionally excluded from manifest entries; manifest-sha256.txt records the final manifest bytes separately.",
+  "historicalFilesRetainedInBase": "Legacy v3 validation outputs and reproduction logs remain in the d1 parent archive but are excluded from this repaired manifest because they contain stale absolute local paths."
+}

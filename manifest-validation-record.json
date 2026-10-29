@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "acp6-v06-phase0-manifest-validation/v1",
+  "generatedAt": "2026-10-29",
+  "manifestEntries": 52,
+  "manifestHash": "de3c7a305e796ca3018f138bb4e6bd3fa5ec4c11eb862a22aa69776a904ca72b",
+  "recordedManifestHash": "de3c7a305e796ca3018f138bb4e6bd3fa5ec4c11eb862a22aa69776a904ca72b",
+  "manifestSelfHashMatch": true,
+  "fileHashErrors": 0,
+  "errors": [],
+  "positive": {
+    "expectedPass": true,
+    "validationPass": true,
+    "exitPass": true
+  },
+  "negativeCases": 36,
+  "negativeBad": 0,
+  "sourceSha256": "0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a",
+  "rawClassificationSourceSha256": "89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200",
+  "platformStatus": "unavailable",
+  "proofLevel": "not-proven",
+  "trustedBindingCheck": true
+}
