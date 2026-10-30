@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "implementationCoreSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+  "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+  "contract": "Only one exact intrinsic static JSX owner may receive a semantic-candidate css-cascade edge. Unknown or custom render boundaries remain unresolved.",
+  "cases": [
+    {
+      "id": "unique-tag-only-intrinsic",
+      "selector": "dialog",
+      "fixture": "src/layouts/Boundaries.tsx",
+      "expected": "semantic-candidate",
+      "observed": "semantic-candidate",
+      "edgeCount": 1
+    },
+    {
+      "id": "global-universal",
+      "selectors": [
+        "*",
+        ":root",
+        "html",
+        "body"
+      ],
+      "fixture": "src/layouts/Boundaries.tsx",
+      "expected": "unknown/unresolved",
+      "observed": "unknown/unresolved",
+      "edgeCount": 0
+    },
+    {
+      "id": "custom-react-component-ancestor",
+      "selector": ".wrapper .target",
+      "fixture": "src/layouts/Boundaries.tsx",
+      "expected": "unknown/unresolved",
+      "observed": "unknown/unresolved",
+      "edgeCount": 0
+    },
+    {
+      "id": "portal-unknown-boundary",
+      "selector": ".portal-target",
+      "fixture": "src/layouts/Boundaries.tsx",
+      "expected": "unknown/unresolved",
+      "observed": "unknown/unresolved",
+      "edgeCount": 0,
+      "reason": "custom Portal ancestor is treated as unknownBoundary; no DOM placement proof"
+    },
+    {
+      "id": "string-substring-no-match",
+      "selector": ".targetish",
+      "fixture": "src/layouts/Boundaries.tsx",
+      "expected": "unknown/unresolved",
+      "observed": "unknown/unresolved",
+      "edgeCount": 0,
+      "reason": "class tokens are exact; not-targetish is not targetish"
+    },
+    {
+      "id": "dynamic-className",
+      "selector": ".dynamic-only",
+      "fixture": "project.test.ts existing negative fixture",
+      "expected": "unknown/unresolved",
+      "observed": "unknown/unresolved",
+      "edgeCount": 0
+    },
+    {
+      "id": "multiple-owner",
+      "selector": ".footer-tagline",
+      "fixture": "project.test.ts existing negative fixture",
+      "expected": "unknown/unresolved",
+      "observed": "unknown/unresolved",
+      "edgeCount": 0
+    },
+    {
+      "id": "pseudo-complex-attribute",
+      "selectors": [
+        ".social-icon:hover",
+        "[data-kind=\"x\"]",
+        ".target::before"
+      ],
+      "fixture": "project.test.ts existing selector parser negatives",
+      "expected": "unknown/unresolved",
+      "observed": "unknown/unresolved",
+      "edgeCount": 0
+    }
+  ],
+  "invariants": {
+    "newEdgesCertainty": "semantic-candidate only",
+    "sourceProvenUpgrade": false,
+    "authorizationTriggered": false,
+    "ancestorWalkStopsAtCustomOrUnknownBoundary": true
+  }
+}

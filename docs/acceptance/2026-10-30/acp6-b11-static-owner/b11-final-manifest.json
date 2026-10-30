@@ -1,9 +1,10 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "AC-P6 B1.1 final remediation manifest",
   "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
-  "implementationCoreSha": "25d8c45a3278ba19a4bb4548088df24f499c4ad5",
-  "implementationTree": "0758d04284e698e922ed6e3b841c0a484f041972",
+  "implementationCoreSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+  "implementationTree": "8bb685b344a8a58d5f3f26f0ae5f4f344a6fa2bd",
+  "productionPredecessorSha": "25d8c45a3278ba19a4bb4548088df24f499c4ad5",
   "preRemediationExactHead": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
   "project": {
     "repo": "allanhue/webportflio",
@@ -19,27 +20,30 @@
       "label": "exact PR #70 pre-remediation",
       "expectCoreSha": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
       "exitCode": 2,
-      "report": "b11-v5-head45555.json",
-      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 45555a3c8a4f7663b36a47c7ee0d990c88699724 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-head45555.json"
+      "report": "b11-v5-head45555.json"
+    },
+    {
+      "label": "production predecessor",
+      "expectCoreSha": "25d8c45a3278ba19a4bb4548088df24f499c4ad5",
+      "exitCode": 2,
+      "report": "b11-v5-final25d8.json"
     },
     {
       "label": "final remediation",
-      "expectCoreSha": "25d8c45a3278ba19a4bb4548088df24f499c4ad5",
+      "expectCoreSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
       "exitCode": 2,
-      "report": "b11-v5-final25d8.json",
-      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 25d8c45a3278ba19a4bb4548088df24f499c4ad5 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-final25d8.json"
+      "report": "b11-v5-final34d2.json"
     },
     {
       "label": "production base",
       "expectCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
       "exitCode": 2,
-      "report": "b11-v5-base-5b75fe.json",
-      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 5b75fe699afce98638e6fd6ad110911d83389dc8 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-base-5b75fe.json"
+      "report": "b11-v5-base-5b75fe.json"
     }
   ],
   "acceptance": {
     "final": "3 PASS / 2 PENDING / 0 ERROR",
-    "projectGraph": {
+    "graph": {
       "base": {
         "nodes": 675,
         "edges": 5302,
@@ -51,20 +55,33 @@
         "unresolved": 253
       }
     },
-    "sourceProvenRemoved": 0,
-    "sourceProvenAdded": 0,
-    "unknownUseEdges": {
+    "relationMultiset": {
+      "retained": 2886,
+      "removed": 2416,
+      "added": 160
+    },
+    "sourceProvenPayloadEqual": true,
+    "certaintyChanges": 0,
+    "endpointChanges": 0,
+    "sourceMetadataChanges": 0,
+    "unknownUsesToken": {
       "base": 252,
       "final": 252
     }
   },
   "tests": {
-    "targeted": "PASS: project.test.ts 3 passed, 32 skipped; css-token-source.test.ts 5 passed",
+    "targetedProject": "PASS: 34 passed, 1 skipped; one Windows worker timeout after assertions completed",
+    "targetedCssTokenSource": "PASS: 5 passed",
     "typecheck": "PASS",
     "build": "PASS",
-    "fullVitest": "FAIL in Windows sandbox: 849 passed, 67 failed, 68 skipped, 6 unhandled errors; failures are environment-bound symlink EPERM, missing Playwright executable, loopback EACCES and worker timeouts; Linux CI required"
+    "fullVitest": "Windows FAIL: 849 passed, 67 failed, 68 skipped, 6 unhandled errors; environment-bound symlink EPERM, missing Playwright executable, loopback EACCES and worker timeout; Linux CI required"
   },
   "artifacts": {
+    "b11-v5-final34d2.json": {
+      "bytes": 673224,
+      "sha256": "859d74b78613865d7757deff4f87e7c5fb3ac345d1046466fd8956e2753c853a",
+      "gitBlobSha": "1bdc151924620997aa8fcf67372289b59b49665d"
+    },
     "b11-v5-final25d8.json": {
       "bytes": 673224,
       "sha256": "adad4f7132823af12cf96044577e5262403e54e3e86d135f3619cf343cd003b9",
@@ -85,25 +102,31 @@
       "sha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
       "gitBlobSha": "e2f9eda6e2d7230bcce4f668ad35d4021f42c4ce"
     },
-    "b11-graph-final25d8.json": {
+    "b11-graph-final34d2.json": {
       "bytes": 2049215,
       "sha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
       "gitBlobSha": "4cc7b692b5ce888d8820756d794b7bdbbc11eb23"
     },
-    "b11-graph-diff-final25d8.json": {
-      "bytes": 3779,
-      "sha256": "7696aa208eb32a4fe42cfcbec8eceb5186b9d0fa627abba376755798f3730880",
-      "gitBlobSha": "4f46c743fdf4f74f5cceb22a9df890e438e7258c"
+    "b11-graph-diff-complete-final34d2.json": {
+      "bytes": 1888849,
+      "sha256": "384521ab5a6b15b799dee9749e74e3d4565ba7731f3e621e9e769c39275db8d9",
+      "gitBlobSha": "dfcb7f976cf7ad4610dc4dbc3793170a2527e964"
     },
     "b11-ac64-four-pair-evidence.json": {
       "bytes": 8571,
       "sha256": "239318c96f6d0b8cd0ea5ff81da23cec0c3bd20d5dd9f1fab34f8ada4aa76724",
       "gitBlobSha": "fc5857a8ff8404dfe2bf026568c10b3c8f7c6026"
+    },
+    "b11-selector-boundary-evidence.json": {
+      "bytes": 2766,
+      "sha256": "dfa998bb2ff335d92f59af2664a36a53e2a31d2a505b6f5cf7f3a11d46ef4e20",
+      "gitBlobSha": "4d1a965836ac0f237acafeac4bcbdc52587c6ee5"
     }
   },
   "notes": [
     "B v5 matcher/probe and thresholds unchanged.",
-    "The four AC6.4 pair records remain independently UNKNOWN; no strict pair proof was added.",
+    "Four AC6.4 pair records remain independently UNKNOWN with no strict pair proof.",
+    "Selector boundary evidence includes tag-only intrinsic, globals, custom component, Portal, dynamic, multiple-owner, pseudo and complex negatives.",
     "No authorization rule or Runtime Identity contract changed."
   ]
 }

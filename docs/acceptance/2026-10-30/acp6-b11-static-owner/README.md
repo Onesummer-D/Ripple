@@ -6,12 +6,15 @@ This evidence covers the A-approved B1.1 slice: conservative static JSX owner ma
 
 - Production base: `5b75fe699afce98638e6fd6ad110911d83389dc8`
 - PR #70 exact HEAD rebind: `45555a3c8a4f7663b36a47c7ee0d990c88699724` (pre-remediation evidence)
-- Remediation HEAD: `25d8c45a3278ba19a4bb4548088df24f499c4ad5`
-- Remediation tree: `0758d04284e698e922ed6e3b841c0a484f041972`
+- Remediation HEAD: `34d2a22e696c9eb1af15d5cd9800cf76b7cf7883`
+- Remediation tree: `8bb685b344a8a58d5f3f26f0ae5f4f344a6fa2bd`
+- Production predecessor: `25d8c45a3278ba19a4bb4548088df24f499c4ad5`
 - Fixed project: `allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd`
 - Draft PR: [#70](https://github.com/Onesummer-D/Ripple/pull/70)
 - Exact-head manifest: [`b11-rebind-manifest.json`](./b11-rebind-manifest.json)
 - Final remediation manifest: [`b11-final-manifest.json`](./b11-final-manifest.json)
+- Complete multiset graph diff: [`b11-graph-diff-complete-final34d2.json`](./b11-graph-diff-complete-final34d2.json)
+- Selector boundary evidence: [`b11-selector-boundary-evidence.json`](./b11-selector-boundary-evidence.json)
 
 The original dirty worktree is preserved separately. This worktree is clean except for the review remediation files before commit.
 
@@ -48,7 +51,7 @@ The same fixed project and probe version produced:
 | source-proven edges | 744 | 744 | 0 |
 | unknown `uses-token` edges | 252 | 252 | 0 |
 
-The complete pre-remediation machine diff is [`b11-graph-diff.json`](./b11-graph-diff.json); the final remediation comparison is [`b11-graph-diff-final25d8.json`](./b11-graph-diff-final25d8.json). The -2232 change is entirely within semantic-candidate token relations:
+The complete pre-remediation machine diff is [`b11-graph-diff.json`](./b11-graph-diff.json); the final remediation comparison is [`b11-graph-diff-complete-final34d2.json`](./b11-graph-diff-complete-final34d2.json). The multiset accounting is retained 2886, removed 2416, added 160; 2416 + 2886 = 5302 and 160 + 2886 = 3046. Duplicate relation IDs are preserved with `relationId#ordinal` occurrence keys. The -2256 change is entirely within semantic-candidate token relations:
 
 - `token-reference`: 964 → 684 (−280)
 - `uses-token` semantic-candidate: 2156 → 1028 (−1128)
@@ -75,7 +78,7 @@ npm run build                                          # PASS
 node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 45555a3c8a4f7663b36a47c7ee0d990c88699724 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-head45555.json  # exit 2
 ```
 
-The full Windows Vitest run completed 849 passed, 67 failed, 68 skipped with 6 unhandled errors; failures were environment-bound (symlink EPERM, missing Playwright executable, loopback EACCES, and worker timeouts). The production `project.test.ts` suite completed 34 passed and 1 skipped; `css-token-source.test.ts` completed 5 passed. Remote Linux CI for the remediation commit is UNVERIFIED because the sandbox push failed DNS; use the branch push command in the handoff.
+The full Windows Vitest run completed 849 passed, 67 failed, 68 skipped with 6 unhandled errors; failures were environment-bound (symlink EPERM, missing Playwright executable, loopback EACCES, and worker timeouts). The production `project.test.ts` suite completed 34 passed and 1 skipped with one worker timeout; `css-token-source.test.ts` completed 5 passed. Remote Linux CI for the remediation commit is UNVERIFIED because the sandbox push failed DNS; use the branch push command in the handoff.
 
 ## Files
 
