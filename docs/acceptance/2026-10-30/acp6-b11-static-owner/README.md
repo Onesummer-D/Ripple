@@ -83,3 +83,7 @@ The full Windows Vitest run completed 849 passed, 67 failed, 68 skipped with 6 u
 ## Files
 
 Allowed production/test changes are limited to `src/core/project.ts` and `src/core/project.test.ts` in this remediation. Evidence outputs are under this directory. No model, route, Runtime Identity, B v5 tool, or authorization contract was changed.
+
+## Relation ID duplicate diagnostic
+
+The read-only duplicate audit is [`b11-relation-id-duplicate-diagnostic.md`](./b11-relation-id-duplicate-diagnostic.md), with complete machine output in [`b11-relation-id-duplicate-diagnostic.json`](./b11-relation-id-duplicate-diagnostic.json). It preserves both raw graphs and reports Base `298/886` duplicate keys/extra occurrences versus Final `84/252`. All duplicate IDs are `css-selector-candidate` `css-cascade` semantic candidates with identical endpoints; payload variation is in `selectorScope`. The generator is [`diagnose-b11-relation-id-duplicates.mjs`](../../../../scripts/diagnose-b11-relation-id-duplicates.mjs). No deduplication or identity strategy change was made.
