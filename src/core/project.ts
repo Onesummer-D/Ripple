@@ -8,7 +8,7 @@ import { findPageOverrideMarkers, readPageOverrideRegistry } from './page-overri
 import type { ProjectConfigGraph } from './project-config-resolver.mjs'
 import { resolveProjectConfigGraph } from './project-config-resolver.mjs'
 import { inspectDataRouter, inspectDeclarativeRoutes } from './project-data-routes'
-import { parseCssTokenSource, selectorClassTokens as cssSelectorClassTokens } from './css-token-source'
+import { parseCssSelectorStructure, parseCssTokenSource } from './css-token-source'
 
 export class ProjectReadError extends Error {
   constructor(message: string) { super(message); this.name = 'ProjectReadError' }
@@ -300,6 +300,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const edges: Relation[] = []
   const unresolved: string[] = []
   const nodeById = new Map<string, SourceNode>()
+  const jsxOpeningById = new Map<string, ts.JsxOpeningLikeElement>()
+  const jsxIdByOpening = new Map<ts.JsxOpeningLikeElement, string>()
   const addNode = (node: SourceNode) => { if (!nodeById.has(node.id)) { nodes.push(node); nodeById.set(node.id, node) } }
   const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven', metadata: Partial<Relation> = {}) => {
     edges.push({ id, from, to, kind, certainty, evidenceRefs: [], ...metadata })
@@ -760,6 +762,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
             ...(className !== undefined ? { className } : {}), ...(dynamicClassName ? { dynamicClassName: true } : {}),
           }
           addNode(jsxNode)
+          jsxOpeningById.set(jsxNode.id, node)
+          jsxIdByOpening.set(node, jsxNode.id)
           if (ownerComponent) {
             jsxOwnerById.set(jsxNode.id, ownerComponent.id)
             addEdge(ownerComponent.id, jsxNode.id, 'renders', `component-host:${ownerComponent.id}:${jsxNode.id}`)
@@ -865,6 +869,66 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   }
 
   const hostElements = nodes.filter(node => node.kind === 'jsx-element')
+  interface StaticJsxHostFact {
+    id: string
+    tagName: string
+    classNames: string[]
+    dynamicClassName: boolean
+    parentId?: string
+  }
+  const parentOpening = (opening: ts.JsxOpeningLikeElement): ts.JsxOpeningLikeElement | undefined => {
+    let current: ts.Node | undefined = opening.parent
+    // For a normal JSX element the opening node's immediate parent is its own
+    // JsxElement container. Skip it before looking for the enclosing DOM host.
+    if (ts.isJsxElement(current) && current.openingElement === opening) current = current.parent
+    while (current) {
+      if (ts.isJsxElement(current)) return current.openingElement
+      if (ts.isJsxSelfClosingElement(current)) return current
+      current = current.parent
+    }
+    return undefined
+  }
+  const hostFacts = new Map<string, StaticJsxHostFact>()
+  for (const element of hostElements) {
+    const opening = jsxOpeningById.get(element.id)
+    if (!opening) continue
+    const tagName = jsxTagName(opening) ?? opening.tagName.getText()
+    const classNames = typeof element.className === 'string'
+      ? element.className.trim().split(/\s+/).filter(Boolean)
+      : []
+    const parent = parentOpening(opening)
+    const parentId = parent ? jsxIdByOpening.get(parent) : undefined
+    hostFacts.set(element.id, { id: element.id, tagName: tagName.toLowerCase(), classNames, dynamicClassName: Boolean(element.dynamicClassName), ...(parentId ? { parentId } : {}) })
+  }
+  const matchesSelectorPart = (fact: StaticJsxHostFact | undefined, part: ReturnType<typeof parseCssSelectorStructure>['parts'][number]): boolean => {
+    if (!fact || fact.dynamicClassName) return false
+    if (part.tagName && fact.tagName !== part.tagName) return false
+    return part.classNames.every(className => fact.classNames.includes(className))
+  }
+  const matchesSelector = (fact: StaticJsxHostFact, structure: ReturnType<typeof parseCssSelectorStructure>): boolean => {
+    if (!structure.supported || !structure.parts.length) return false
+    let current: StaticJsxHostFact | undefined = fact
+    for (let partIndex = structure.parts.length - 1; partIndex >= 0; partIndex--) {
+      if (partIndex === structure.parts.length - 1) {
+        if (!matchesSelectorPart(current, structure.parts[partIndex])) return false
+        continue
+      }
+      // A whitespace descendant combinator may cross static intrinsic hosts,
+      // but never jumps through a missing or dynamic host fact.
+      let ancestor: StaticJsxHostFact | undefined = current?.parentId ? hostFacts.get(current.parentId) : undefined
+      let found = false
+      while (ancestor) {
+        if (matchesSelectorPart(ancestor, structure.parts[partIndex])) {
+          current = ancestor
+          found = true
+          break
+        }
+        ancestor = ancestor.parentId ? hostFacts.get(ancestor.parentId) : undefined
+      }
+      if (!found) return false
+    }
+    return true
+  }
   for (const { file, node: useNode, use } of cssTokenUses) {
     const sourceUse: NonNullable<Relation['sourceUse']> = {
       path: file, charOffset: use.offset, byteOffset: use.byteOffset, offsetUnit: 'code-unit',
@@ -874,11 +938,17 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     const mediaMetadata: Partial<Relation> = mediaContext.length ? { mediaContext } : {}
     const tokenDefinitions = (tokenNodes.get(use.name) ?? [])
       .filter(token => token.tokenOrigin === 'css-custom-property')
-    const selector = cssSelectorClassTokens(use.selectorScope)
-    const matchedClassElements = selector.supported && selector.tokens.length
-      ? hostElements.filter(element => !element.dynamicClassName && typeof element.className === 'string' &&
-        element.className.trim().split(/\s+/).some(className => selector.tokens.includes(className)))
+    const selector = parseCssSelectorStructure(use.selectorScope)
+    const selectorCandidates = selector.supported
+      ? hostElements.filter(element => {
+        const fact = hostFacts.get(element.id)
+        return fact ? matchesSelector(fact, selector) : false
+      })
       : []
+    // Candidate edges require one and only one static owner. Matching a class
+    // anywhere in the project would silently attach a descendant/compound
+    // selector to the wrong element.
+    const matchedClassElements = selectorCandidates.length === 1 ? selectorCandidates : []
     const unresolvedUse = (reason: string) => {
       unresolved.push(`css-token-use-unknown:${file}#${use.offset}: var(${use.name}) ${reason}`)
       addEdge(useNode.id, `file:${file}`, 'uses-token', `css-token-unknown:${file}:${use.offset}:${use.name}`, 'unknown', {
@@ -890,15 +960,17 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       unresolvedUse('未找到已跟踪的自定义属性声明或 fallback 解析目标')
       continue
     }
-    if (!selector.supported || !selector.tokens.length) {
-      unresolvedUse('CSS selector 没有可静态匹配的 class token')
+    if (!selector.supported) {
+      unresolvedUse(`CSS selector 不在静态 owner 子集：${selector.reason ?? 'unsupported syntax'}`)
       continue
     }
     const unknownReasons: string[] = ['static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven']
     const dynamicClassCouldMatch = hostElements.some(element => element.dynamicClassName)
-    if (!matchedClassElements.length) unknownReasons.push(dynamicClassCouldMatch
-      ? 'selector class 可能出现在未解析的动态 JSX className 中'
-      : 'selector class 没有静态的 JSX className 消费锚点')
+    if (selectorCandidates.length !== 1) unknownReasons.push(selectorCandidates.length === 0
+      ? dynamicClassCouldMatch
+        ? 'selector 没有唯一静态 JSX owner，且可能出现在未解析的动态 JSX className 中'
+        : 'selector 没有唯一静态 JSX owner'
+      : `selector 匹配到 ${selectorCandidates.length} 个静态 JSX owner，无法唯一归因`)
     else if (dynamicClassCouldMatch) unknownReasons.push('其他动态 JSX className 可能引入未枚举的页面消费者')
     if (tokenDefinitions.length > 1) unknownReasons.push('同名声明可能受主题、级联、继承或媒体条件影响')
     if (unknownReasons.length) unresolvedUse(unknownReasons.join('；'))
@@ -1053,3 +1125,4 @@ export function resolveRuntimeInstance(graph: SourceGraph, selection: { sourceRe
   if (typeof verification?.fileDigest !== 'function' || !verification.page) throw new ProjectReadError('实例级身份校验需要源码版本读取器和页面上下文')
   return resolveRuntimeElement(graph, selection, runtimeMap, verification)
 }
+

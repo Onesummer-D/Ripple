@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "coreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+  "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+  "rows": [
+    {
+      "rowId": "acp6-gap-1027a7455bb3d74f",
+      "token": "--accent",
+      "file": "src/css/footer.css",
+      "offset": 952,
+      "selector": ".footer-cta",
+      "useNode": {
+        "id": "token-use:src/css/footer.css#952",
+        "label": "var(--accent)",
+        "location": {
+          "path": "src/css/footer.css",
+          "start": 952,
+          "end": 964,
+          "offset": 952
+        },
+        "byteOffset": 952,
+        "selectorScope": ".footer-cta"
+      },
+      "candidateEdges": [],
+      "owners": [],
+      "unresolved": [
+        "css-token-use-unknown:src/css/footer.css#952: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector 没有唯一静态 JSX owner，且可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响"
+      ]
+    },
+    {
+      "rowId": "acp6-gap-e5fd86b599c27aa2",
+      "token": "--text-secondary",
+      "file": "src/css/footer.css",
+      "offset": 687,
+      "selector": ".footer-tagline",
+      "useNode": {
+        "id": "token-use:src/css/footer.css#687",
+        "label": "var(--text-secondary)",
+        "location": {
+          "path": "src/css/footer.css",
+          "start": 687,
+          "end": 707,
+          "offset": 687
+        },
+        "byteOffset": 687,
+        "selectorScope": ".footer-tagline"
+      },
+      "candidateEdges": [],
+      "owners": [],
+      "unresolved": [
+        "css-token-use-unknown:src/css/footer.css#687: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector 没有唯一静态 JSX owner，且可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响"
+      ]
+    },
+    {
+      "rowId": "acp6-gap-193ee5fb755f60b5",
+      "token": "--text-secondary",
+      "file": "src/css/style.css",
+      "offset": 8978,
+      "selector": ".title",
+      "useNode": {
+        "id": "token-use:src/css/style.css#8978",
+        "label": "var(--text-secondary)",
+        "location": {
+          "path": "src/css/style.css",
+          "start": 8978,
+          "end": 8998,
+          "offset": 8978
+        },
+        "byteOffset": 8978,
+        "selectorScope": ".title"
+      },
+      "candidateEdges": [],
+      "owners": [],
+      "unresolved": [
+        "css-token-use-unknown:src/css/style.css#8978: var(--text-secondary) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector 没有唯一静态 JSX owner，且可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响"
+      ]
+    },
+    {
+      "rowId": "acp6-gap-98288a263b162995",
+      "token": "--background",
+      "file": "src/css/footer.css",
+      "offset": 977,
+      "selector": ".footer-cta",
+      "useNode": {
+        "id": "token-use:src/css/footer.css#977",
+        "label": "var(--background)",
+        "location": {
+          "path": "src/css/footer.css",
+          "start": 977,
+          "end": 993,
+          "offset": 977
+        },
+        "byteOffset": 977,
+        "selectorScope": ".footer-cta"
+      },
+      "candidateEdges": [],
+      "owners": [],
+      "unresolved": [
+        "css-token-use-unknown:src/css/footer.css#977: var(--background) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven；selector 没有唯一静态 JSX owner，且可能出现在未解析的动态 JSX className 中；同名声明可能受主题、级联、继承或媒体条件影响"
+      ]
+    }
+  ]
+}
