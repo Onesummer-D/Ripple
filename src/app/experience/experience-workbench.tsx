@@ -322,6 +322,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         pages={model.pages}
         currentPageRef={model.currentPageRef}
         onSelectPage={pageRef => apply(activeAdapter.setPage(model, pageRef) ?? model)}
+        provenance={model.dataProvenance}
         // 真实模式第一阶段：预演 iframe 不支持页面切换，导航停用并明确标注（不误导用户）
         navigationDisabled={model.dataProvenance === 'real'}
       />
@@ -329,6 +330,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         model={model}
         onSelectElement={id => apply(activeAdapter.selectElement(model, id) ?? model)}
         onViewportChange={id => apply(activeAdapter.setViewport(model, id) ?? model)}
+        onSelectPage={model.dataProvenance === 'demo' ? pageRef => apply(activeAdapter.setPage(model, pageRef) ?? model) : undefined}
         pickerActive={pickerActive}
         pickerNonce={pickerNonce}
         pickerError={pickerError}
@@ -360,7 +362,7 @@ export function ExperienceWorkbench({ adapter }: { adapter?: ExperienceAdapter }
         <button type="button" className="ripple-xp-quiet" data-testid="dismiss-feedback" onClick={() => setFeedback('')}>知道了</button>
       </div>
     )}
-    {panel === 'evidence' && <EvidenceDrawer items={model.evidence} onClose={() => setPanel(null)} />}
+    {panel === 'evidence' && <EvidenceDrawer items={model.evidence} provenance={model.dataProvenance} onClose={() => setPanel(null)} />}
     {panel === 'history' && (
       <VersionFilmstrip
         model={model}

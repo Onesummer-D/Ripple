@@ -23,8 +23,13 @@ test.beforeEach(() => { consoleErrors.length = 0 })
 test('初始页面：工程状态、页面导航、画布与演示来源说明', async ({ page }) => {
   await openExperience(page)
   await expect(page.getByTestId('project-status')).toContainText('工程就绪')
-  await expect(page.getByTestId('demo-note')).toContainText('演示预览')
+  await expect(page.getByTestId('demo-note')).toContainText('演示数据')
+  await expect(page.getByTestId('demo-note')).toContainText('不构成真实 SourceGraph 证明')
   await expect(page.getByTestId('demo-note')).not.toContainText('DEMO')
+  await expect(page.getByTestId('demo-canvas-boundary')).toContainText('不构成真实 SourceGraph 证明')
+  for (const id of ['ev:expect', 'ev:risk', 'ev:not-checked', 'ev:incomplete', 'ev:next']) {
+    await expect(page.getByTestId(`evidence-provenance-${id}`)).toHaveText('DEMO')
+  }
   await expect(page.getByTestId('page-item-page:home')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('demo-canvas')).toBeVisible()
   await expect(page.getByTestId('evidence-drawer')).toBeVisible()
@@ -42,6 +47,126 @@ test('网站概览按来源确定性分组，页面明细可展开与收起', as
   await provenToggle.click()
   await expect(provenPages).toBeVisible()
   await expect(page.getByTestId('page-item-page:home')).toBeVisible()
+})
+
+test('UI-RC2 四页可浏览：共享 TEXT 在三页联动，Contact 保留 UNKNOWN', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await page.getByTestId('demo-layer').selectOption('candidate')
+
+  for (const pageRef of ['page:home', 'page:products', 'page:seasonal'] as const) {
+    await page.getByTestId(`page-item-${pageRef}`).click()
+    await expect(page.getByTestId(`page-item-${pageRef}`)).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByTestId('demo-canvas')).toHaveAttribute('data-demo-page', pageRef)
+    await expect(page.getByTestId('demo-canvas')).toContainText('冬日茶器市集')
+    await expect(page.getByTestId('demo-provenance')).toContainText('DEMO')
+  }
+
+  await page.getByTestId('page-item-page:contact').click()
+  await expect(page.getByTestId('demo-canvas')).toHaveAttribute('data-demo-page', 'page:contact')
+  await expect(page.getByTestId('demo-page-note')).toContainText('来源未证明')
+  await expect(page.getByTestId('demo-canvas').getByTestId('canvas-el-el:hero-title')).toHaveCount(0)
+  await expect(page.getByTestId('draft-text-input')).toBeVisible()
+  await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+})
+
+test('UI-RC2 PageRail 支持 Enter/Space 键盘导航并同步 aria-current', async ({ page }) => {
+  await openExperience(page)
+  const products = page.getByTestId('page-item-page:products')
+  await products.focus()
+  await products.press('Enter')
+  await expect(products).toHaveAttribute('aria-current', 'page')
+  const seasonal = page.getByTestId('page-item-page:seasonal')
+  await seasonal.focus()
+  await seasonal.press('Space')
+  await expect(seasonal).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('demo-page-title')).toContainText('活动页')
+})
+
+test('UI-RC2 画布 SiteHeader 仅在 Demo 导航，键盘与编辑状态保持', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('canvas-el-el:hero-title').click()
+  await page.getByTestId('draft-text-input').fill('导航保持草稿')
+  const products = page.getByTestId('demo-site-nav-page:products')
+  await products.click()
+  await expect(page.getByTestId('demo-canvas')).toHaveAttribute('data-demo-page', 'page:products')
+  await expect(page.getByTestId('draft-text-input')).toHaveValue('导航保持草稿')
+  await expect(products).toHaveAttribute('aria-current', 'page')
+  const seasonal = page.getByTestId('demo-site-nav-page:seasonal')
+  await seasonal.focus()
+  await seasonal.press('Enter')
+  await expect(page.getByTestId('demo-canvas')).toHaveAttribute('data-demo-page', 'page:seasonal')
+  await expect(page.getByTestId('draft-text-input')).toHaveValue('导航保持草稿')
+  await expect(seasonal).toHaveAttribute('aria-current', 'page')
+})
+
+test('UI-RC2 历史卡片在加载失败后仍保留独立 DEMO 标识', async ({ page }) => {
+  await openExperience(page)
+  await page.getByTestId('open-history').click()
+  for (const id of ['v:1', 'v:2', 'v:3']) {
+    await expect(page.getByTestId(`film-provenance-demo-${id}`)).toHaveText('DEMO')
+  }
+  await page.getByTestId('film-shot-demo-v:2').dispatchEvent('error')
+  await expect(page.getByTestId('film-shot-failed-v:2')).toContainText('加载失败')
+  await expect(page.getByTestId('film-provenance-demo-v:2')).toHaveText('DEMO')
+})
+
+test('UI-RC2 当前页目标唯一、共享 sourceKey 稳定且跨页状态保留', async ({ page }) => {
+  await openExperience(page)
+  const heroId = 'canvas-el-el:hero-title'
+  const sourceKey = 'campaign.hero.title'
+
+  await expect(page.getByTestId('demo-canvas').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveAttribute('data-demo-source-key', sourceKey)
+  await page.getByTestId(heroId).click()
+  await page.getByTestId('draft-text-input').fill('冬日茶器市集')
+  await page.getByTestId('demo-layer').selectOption('candidate')
+
+  for (const pageRef of ['page:products', 'page:seasonal'] as const) {
+    await page.getByTestId(`page-item-${pageRef}`).click()
+    const canvasHero = page.getByTestId('demo-canvas').getByTestId(heroId)
+    await expect(canvasHero).toHaveCount(1)
+    await expect(canvasHero).toHaveAttribute('data-demo-source-key', sourceKey)
+    await expect(page.getByTestId(heroId)).toHaveCount(1)
+    await expect(page.getByTestId('demo-layer')).toHaveValue('candidate')
+    await expect(page.getByTestId('draft-text-input')).toHaveValue('冬日茶器市集')
+    await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+    await expect(page.getByTestId(`scope-include-${pageRef}`)).toHaveAttribute('aria-pressed', 'true')
+    await canvasHero.click()
+    await expect(canvasHero).toHaveAttribute('aria-pressed', 'true')
+  }
+
+  // The current page has no shared title in its DOM, while the target strip
+  // still exposes the off-page target for intentional target switching.
+  await page.getByTestId('page-item-page:contact').click()
+  await expect(page.getByTestId('demo-canvas').getByTestId(heroId)).toHaveCount(0)
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId('demo-page-note')).toContainText('来源未证明')
+  await expect(page.getByTestId('compare-candidate')).toContainText('冬日茶器市集')
+})
+
+test('UI-RC2 画布非 ready 时目标条仍可选，恢复 ready 后 testid 唯一', async ({ page }) => {
+  await openExperience(page)
+  const heroId = 'canvas-el-el:hero-title'
+
+  await page.getByTestId('demo-canvas-state').selectOption('failed')
+  await expect(page.getByTestId('canvas-state-banner')).toContainText('预演加载失败')
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+  await page.getByTestId('target-strip').getByTestId(heroId).click()
+  await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
+
+  await page.getByTestId('demo-canvas-state').selectOption('loading')
+  await expect(page.getByTestId('canvas-state-banner')).toContainText('预演加载中')
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+
+  await page.getByTestId('demo-canvas-state').selectOption('ready')
+  await expect(page.getByTestId('demo-canvas').getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId(heroId)).toHaveCount(1)
+  await expect(page.getByTestId('target-strip').getByTestId(heroId)).toHaveCount(0)
 })
 
 test('选中与编辑：标题更新、候选状态推进、前后对照同步', async ({ page }) => {
@@ -170,16 +295,19 @@ test('1440、768 与 390 宽度工作台都可操作并记录截图', async ({ p
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
   await page.getByTestId('draft-text-input').fill('桌面验收标题')
   await expect(page.getByTestId('compare-candidate')).toContainText('桌面验收标题')
-  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc1-stage2-workbench-1440x900.png'), fullPage: true })
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc2-demo-workbench-1440x900.png'), fullPage: true })
 
   await page.setViewportSize({ width: 768, height: 900 })
   await expect(page.getByTestId('scope-panel')).toBeVisible()
   await expect(page.getByTestId('canvas-stage')).toBeVisible()
   await expect(page.getByTestId('canvas-el-el:hero-title')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(768)
-  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc1-stage2-workbench-768x900.png'), fullPage: true })
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc2-demo-workbench-768x900.png'), fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByTestId('viewport-mobile-390').click()
+  await expect(page.getByTestId('viewport-mobile-390')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('viewport-mobile-390')).toContainText('验证中')
   expect(await page.evaluate(() => window.innerWidth)).toBe(390)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await expect(page.getByTestId('scope-panel')).toBeVisible()
@@ -190,7 +318,7 @@ test('1440、768 与 390 宽度工作台都可操作并记录截图', async ({ p
   await page.getByTestId('scope-exclude-page:contact').click()
   await expect(page.getByTestId('scope-exclude-page:contact')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('selection-summary')).toContainText('活动标题')
-  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc1-stage2-workbench-390x844.png'), fullPage: true })
+  await page.screenshot({ path: path.join(process.cwd(), 'test-results', 'rc2-demo-workbench-390x844.png'), fullPage: true })
 })
 
 test('任务一：切换编辑目标重建页面关系与默认范围（标题→副标题→标题）', async ({ page }) => {
@@ -216,7 +344,8 @@ test('任务一负例：partial 目标不产生已证明无关页，来源确定
   await expect(page.getByTestId('scope-row-page:products')).toContainText('未决定')
   // 整个页面导航中除当前编辑页外不允许出现"来源已证实"的页面关系
   await page.getByTestId('canvas-el-el:promo-card').click()
-  await expect(page.getByTestId('page-item-page:products')).toContainText('影响未证明')
+  await expect(page.getByTestId('page-item-page:products')).toContainText('正在修改')
+  await expect(page.getByTestId('page-item-page:products')).toContainText('未知')
   await expect(page.getByTestId('page-item-page:seasonal')).toContainText('影响未证明')
 })
 
@@ -307,6 +436,7 @@ test('REAL 模式：连接真实后端读取已分析工程（页面/目标/证�
   await expect(page.getByTestId('real-badge')).toContainText('真实工程')
   await expect(page.getByTestId('project-status')).toContainText('工程就绪')
   await expect(page.getByTestId('demo-note')).toHaveCount(0)
+  await expect(page.getByTestId('demo-canvas-boundary')).toHaveCount(0)
   await expect(page.getByTestId('page-item-page:home')).toBeVisible()
   // 真实页面导航第一阶段明确未接入：按钮停用 + 说明，不误导用户以为画布已切页
   await expect(page.getByTestId('page-nav-pending')).toContainText('尚未接入')

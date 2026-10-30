@@ -49,8 +49,9 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('演示来源用纯文字说明，真实模式不显示模拟数据提示', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('demo-note')
-    expect(text('demo-note')).toContain('演示预览')
-    expect(text('demo-note')).toContain('模拟数据')
+    expect(text('demo-note')).toContain('演示数据')
+    expect(text('demo-note')).toContain('不构成真实 SourceGraph 证明')
+    expect(text('demo-canvas-boundary')).toContain('不构成真实 SourceGraph 证明')
   })
 
   it('四步跳转只改变当前步骤，不改变审批门控或范围状态', async () => {
@@ -173,7 +174,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('candidate-status')).toContain('候选已生成')
     expect(text('compare-candidate')).toContain('冬日茶器市集')
     expect(text('compare-baseline')).toContain('秋日茶器市集')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(text('scope-summary')).toContain('包含 3')
   })
 
   it('原文与草稿分离：逐字输入后原文稳定，清空草稿后描述准确', async () => {
@@ -208,7 +209,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     // 初次选中活动标题：商品专题存在同源关系
     fireEvent.click(await screen.findByTestId('canvas-el-el:hero-title'))
     expect(text('page-item-page:products')).toContain('同源关联')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(text('scope-summary')).toContain('包含 3')
     // 修改 Scope：商品专题改为保护（旧决定，稍后不得跨目标残留）
     fireEvent.click(screen.getByTestId('scope-protect-page:products'))
     expect(screen.getByTestId('scope-protect-page:products').getAttribute('aria-pressed')).toBe('true')
@@ -225,7 +226,7 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('canvas-el-el:hero-title'))
     expect(text('page-item-page:products')).toContain('同源关联')
     expect(text('scope-row-page:products')).toContain('包含')
-    expect(text('scope-summary')).toContain('包含 2')
+    expect(text('scope-summary')).toContain('包含 3')
     // 旧草稿不串回标题
     expect(text('evidence-ev:expect')).toContain('把「秋日茶器市集」改为「（尚未输入）」')
   })
@@ -238,7 +239,9 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('scope-row-page:products')).toContain('未决定')
     // unknown 目标同样如此
     fireEvent.click(screen.getByTestId('canvas-el-el:promo-card'))
-    for (const id of ['page:products', 'page:seasonal', 'page:contact']) {
+    expect(text('page-item-page:products')).toContain('正在修改')
+    expect(text('page-item-page:products')).toContain('未知')
+    for (const id of ['page:seasonal', 'page:contact']) {
       expect(text(`page-item-${id}`)).toContain('影响未证明')
     }
   })
@@ -306,9 +309,13 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('来源未知的元素只能查看，不能进入编辑', async () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('canvas-el-el:promo-card'))
+    expect(text('page-item-page:products')).toContain('正在修改')
+    expect(text('page-item-page:products')).toContain('未知')
     expect(screen.queryByTestId('draft-text-input')).toBeNull()
     expect(screen.getByText(/来源未知：可以先查看，但不能承诺修改范围/)).not.toBeNull()
     expect(screen.getAllByTestId('certainty-unknown').length).toBeGreaterThan(0)
+    expect(text('gate-reasons')).toContain('来源未知')
+    expect(screen.queryByTestId('demo-approve')).toBeNull()
   })
 
   it('partial 来源的元素即使可编辑，排除未知页面后也不给安全审批', async () => {
@@ -318,6 +325,8 @@ describe('F 体验工作台 · 青野演示流', () => {
     fireEvent.click(screen.getByTestId('scope-exclude-page:seasonal'))
     // 选中 partial + editable 的当季横幅并输入
     fireEvent.click(screen.getByTestId('canvas-el-el:seasonal-banner'))
+    expect(text('page-item-page:seasonal')).toContain('正在修改')
+    expect(text('page-item-page:seasonal')).toContain('部分证明')
     fireEvent.change(screen.getByTestId('draft-text-input'), { target: { value: '新春限定' } })
     expect(text('gate-reasons')).toContain('未完全证明')
     expect(screen.queryByTestId('demo-approve')).toBeNull()
@@ -350,13 +359,19 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('evidence-ev:not-checked')).toContain('尚未检查')
     expect(text('evidence-ev:not-checked')).toContain('未运行')
     expect(text('evidence-ev:incomplete')).toContain('来源不完整的原因')
-    expect(text('evidence-ev:next')).toContain('AI 建议')
-    expect(text('evidence-ev:risk')).toContain('源码证实')
+    expect(text('evidence-ev:next')).toContain('Demo 建议')
+    expect(text('evidence-ev:risk')).toContain('Demo 来源示意（非 SourceGraph 证明）')
+    expect(text('evidence-provenance-ev:risk')).toContain('DEMO')
   })
 
   it('版本胶片：生命周期与证据可用性展示，点击定位页面', async () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('open-history'))
+    expect(screen.getByTestId('film-provenance-demo-v:1')).not.toBeNull()
+    expect(screen.getByTestId('film-provenance-demo-v:2')).not.toBeNull()
+    expect(screen.getByTestId('film-provenance-demo-v:3')).not.toBeNull()
+    fireEvent.error(screen.getByTestId('film-shot-demo-v:2'))
+    expect(screen.getByTestId('film-provenance-demo-v:2')).not.toBeNull()
     expect(text('version-v:3')).toContain('已回滚')
     expect(text('evidence-toggle-v:2')).toContain('证据可用')
     expect(text('version-card-v:1')).toContain('已失效')

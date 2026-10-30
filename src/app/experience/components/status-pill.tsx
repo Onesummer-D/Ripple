@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react'
 import { CERTAINTY_LABEL, EVIDENCE_STATE_LABEL, LIFECYCLE_LABEL, type EvidenceStateXp, type SourceCertainty, type CandidateLifecycleXp } from '../view-model'
 
-export function CertaintyPill({ certainty }: { certainty: SourceCertainty }) {
+const DEMO_CERTAINTY_LABEL: Record<SourceCertainty, string> = {
+  'source-proven': 'DEMO · 演示关系已设定（来源已证实）',
+  partial: 'DEMO · 演示关系部分证明',
+  unknown: 'DEMO · 演示来源未知',
+}
+
+export function CertaintyPill({ certainty, demo = false }: { certainty: SourceCertainty; demo?: boolean }) {
   return <span className={`ripple-xp-pill ripple-xp-pill-${certainty}`} data-testid={`certainty-${certainty}`}>
-    {CERTAINTY_LABEL[certainty]}
+    {demo ? DEMO_CERTAINTY_LABEL[certainty] : CERTAINTY_LABEL[certainty]}
   </span>
 }
 

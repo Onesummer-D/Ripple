@@ -88,6 +88,7 @@ export function VersionFilmstrip({ model, activeVersionId, onSelect, onClose }: 
         return (
           <li key={version.id}>
             <article className={`ripple-xp-film-card ${activeVersionId === version.id ? 'is-active' : ''}`} data-testid={`version-card-${version.id}`}>
+              {isDemo && <span className="ripple-xp-film-card-provenance" data-testid={`film-provenance-demo-${version.id}`}>DEMO</span>}
               <button type="button" className="ripple-xp-film-select" data-testid={`version-${version.id}`}
                 aria-current={activeVersionId === version.id} onClick={() => onSelect(version)}>
                 <span className="ripple-xp-film-fig">

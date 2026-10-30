@@ -24,7 +24,7 @@ export function TopBar({ model, onOpenHistory, onRefresh }: { model: ExperienceV
         {CANDIDATE_STATUS_LABEL[model.candidateStatus]}
       </span>
       {model.dataProvenance === 'demo' && (
-        <span className="ripple-xp-provenance-note" data-testid="demo-note">演示预览 · 内容为模拟数据</span>
+        <span className="ripple-xp-provenance-note" data-testid="demo-note">演示数据 · 不构成真实 SourceGraph 证明 · 不授予真实工程授权</span>
       )}
       {model.dataProvenance === 'real' && (
         <span className="ripple-xp-chip ripple-xp-chip-real" data-testid="real-badge">

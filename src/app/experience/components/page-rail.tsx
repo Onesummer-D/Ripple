@@ -1,4 +1,4 @@
-import type { PageXp } from '../view-model'
+import type { DataProvenance, PageXp } from '../view-model'
 import { CertaintyPill } from './status-pill'
 
 const RELATION_LABEL: Record<PageXp['relation'], string> = {
@@ -16,17 +16,23 @@ const CERTAINTY_GROUPS: Array<{ certainty: PageXp['relationCertainty']; label: s
  * 真实模式第一阶段：iframe 预演尚不支持页面切换，导航明确停用并标注未接入，
  * 绝不只是高亮变化而让用户误以为画布已经切页。
  */
-export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabled }: {
+export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabled, provenance = 'real' }: {
   pages: PageXp[]
   currentPageRef: string
   onSelectPage: (pageRef: string) => void
   navigationDisabled?: boolean
+  provenance?: DataProvenance
 }) {
+  const demo = provenance === 'demo'
+  const certaintyGroups = CERTAINTY_GROUPS.map(group => ({
+    ...group,
+    label: demo ? `DEMO · ${group.certainty === 'source-proven' ? '演示关系已设定（来源已证实）' : group.certainty === 'partial' ? '演示关系部分证明' : '来源未知（演示关系未证明）'}` : group.label,
+  }))
   const ordered = [...pages].sort((a, b) => {
     const rank = (page: PageXp) => page.relation === 'editing' ? 0 : page.relation === 'same-source' ? 1 : 2
     return rank(a) - rank(b) || a.label.localeCompare(b.label, 'zh')
   })
-  const grouped = CERTAINTY_GROUPS.map(group => ({
+  const grouped = certaintyGroups.map(group => ({
     ...group,
     pages: ordered.filter(page => page.relationCertainty === group.certainty),
   }))
@@ -59,7 +65,7 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
                   <span className="ripple-xp-page-label">{page.label}</span>
                   <span className="ripple-xp-page-meta">
                     <span className={`ripple-xp-relation ripple-xp-relation-${page.relation}`}>{RELATION_LABEL[page.relation]}</span>
-                    <CertaintyPill certainty={page.relationCertainty} />
+                    <CertaintyPill certainty={page.relationCertainty} demo={demo} />
                   </span>
                 </button>
               </li>
@@ -70,3 +76,4 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
     </div>
   </nav>
 }
+

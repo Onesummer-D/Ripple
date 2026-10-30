@@ -66,6 +66,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
   // 验证合同交互声明表单（本地草稿；提交时整体写入模型）
   const [interactionDraft, setInteractionDraft] = useState<{ pageRef: string; role: 'button' | 'link'; name: string; expectedText: string }>({ pageRef: '', role: 'button', name: '', expectedText: '' })
   const selected = model.elements.find(item => item.id === model.selectedElementId)
+  const isDemo = model.dataProvenance === 'demo'
   const summary = scopeSummary(model.pages)
   const gate = approvalGate({ pages: model.pages, selectedElement: selected, draftAfterText: model.draftAfterText })
   const editingPage = model.pages.find(page => page.relation === 'editing')
@@ -97,7 +98,7 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
       <div className="ripple-xp-scope-head">
         <strong>{page.label}</strong>
         <span className="ripple-xp-scope-reason">{reason}</span>
-        <CertaintyPill certainty={page.relationCertainty} />
+        <CertaintyPill certainty={page.relationCertainty} demo={isDemo} />
       </div>
       <div className="ripple-xp-scope-actions" role="group" aria-label={`${page.label} 范围`}>
         {(['include', 'protect', 'exclude'] as const).map(choice => (
@@ -137,13 +138,13 @@ export function ScopePanel({ model, onDraftText, onPageScope, onDemoApprove, onC
     </nav>
 
     <section className="ripple-xp-step" ref={element => { stepRefs.current[0] = element }} tabIndex={-1} data-testid="scope-step-target">
-    <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} />}>1 · 选择元素</SectionTitle>
+    <SectionTitle aside={selected && <CertaintyPill certainty={selected.certainty} demo={isDemo} />}>1 · 选择元素</SectionTitle>
     {selected ? (
       <div className="ripple-xp-selection-block">
         <strong>{selected.label}</strong>
-        <p>来源：{selected.sourcePath ? <code>{selected.sourcePath}</code> : '运行时内容，静态来源未定位'}</p>
+        <p>{isDemo ? '演示来源（非 SourceGraph 证明）：' : '来源：'}{selected.sourcePath ? <code>{selected.sourcePath}</code> : '运行时内容，静态来源未定位'}</p>
         {selected.unresolvedReasons.map(reason => <p key={reason} className="ripple-xp-warn">· {reason}</p>)}
-        {selected.impactPageRefs.length > 0 && <p>源码证明会影响：{selected.impactPageRefs.map(ref => model.pages.find(page => page.id === ref)?.label ?? ref).join('、')}</p>}
+        {selected.impactPageRefs.length > 0 && <p>{isDemo ? '演示关系示意会影响（非 SourceGraph 证明）：' : '源码证明会影响：'}{selected.impactPageRefs.map(ref => model.pages.find(page => page.id === ref)?.label ?? ref).join('、')}</p>}
         {!selected.editable && <p className="ripple-xp-warn">该元素来源未知：可以先查看，但不能承诺修改范围。</p>}
       </div>
     ) : <p>在左侧画布中悬停并点击想修改的位置。</p>}
