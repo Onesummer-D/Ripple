@@ -26,7 +26,7 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
   const demo = provenance === 'demo'
   const certaintyGroups = CERTAINTY_GROUPS.map(group => ({
     ...group,
-    label: demo ? `DEMO · 演示关系${group.certainty === 'source-proven' ? '已设定（来源已证实）' : group.certainty === 'partial' ? '部分证明' : '未知'}` : group.label,
+    label: demo ? `DEMO · ${group.certainty === 'source-proven' ? '演示关系已设定（来源已证实）' : group.certainty === 'partial' ? '演示关系部分证明' : '来源未知（演示关系未证明）'}` : group.label,
   }))
   const ordered = [...pages].sort((a, b) => {
     const rank = (page: PageXp) => page.relation === 'editing' ? 0 : page.relation === 'same-source' ? 1 : 2
@@ -76,3 +76,4 @@ export function PageRail({ pages, currentPageRef, onSelectPage, navigationDisabl
     </div>
   </nav>
 }
+
