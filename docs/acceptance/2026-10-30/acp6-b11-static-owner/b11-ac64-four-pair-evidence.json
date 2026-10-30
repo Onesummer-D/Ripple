@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 1,
+  "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+  "implementationCoreSha": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
+  "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+  "contract": "AC6.2 source-use coverage and AC6.4 consumer-pair proof are independent measurements; an AC6.2 candidate edge never upgrades an AC6.4 pair.",
+  "pairs": [
+    {
+      "pairId": "acp6-unknown-pair-0109278560bac3ca",
+      "original": {
+        "token": "--accent",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 952,
+            "byteOffset": 952,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "0109278560bac3cafcb7af6a431103605ed48475116b909b93671f7c33e2eec0"
+      },
+      "implementationObservation": {
+        "token": "--accent",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 952,
+            "byteOffset": 952,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN."
+    },
+    {
+      "pairId": "acp6-unknown-pair-5be818af566075f7",
+      "original": {
+        "token": "--text-secondary",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 492,
+        "matchedClass": "footer-tagline",
+        "className": "footer-tagline",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 687,
+            "byteOffset": 687,
+            "selector": ".footer-tagline"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "5be818af566075f7bca41359591e46fb2987c6e291be95c80c04f7c4191fbe4c"
+      },
+      "implementationObservation": {
+        "token": "--text-secondary",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 492,
+        "matchedClass": "footer-tagline",
+        "className": "footer-tagline",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 687,
+            "byteOffset": 687,
+            "selector": ".footer-tagline"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN."
+    },
+    {
+      "pairId": "acp6-unknown-pair-e3adaceaec850447",
+      "original": {
+        "token": "--text-secondary",
+        "file": "src/pages/Home.jsx",
+        "component": "Home",
+        "elementOffset": 4687,
+        "matchedClass": "title",
+        "className": "title",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/style.css",
+            "index": 8978,
+            "byteOffset": 8978,
+            "selector": ".title"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "e3adaceaec85044790a6732f41d948d5abbc3b9170252a66403d21950e94ac3c"
+      },
+      "implementationObservation": {
+        "token": "--text-secondary",
+        "file": "src/pages/Home.jsx",
+        "component": "Home",
+        "elementOffset": 4687,
+        "matchedClass": "title",
+        "className": "title",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/style.css",
+            "index": 8978,
+            "byteOffset": 8978,
+            "selector": ".title"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN."
+    },
+    {
+      "pairId": "acp6-unknown-pair-43362b94b7102601",
+      "original": {
+        "token": "--background",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 977,
+            "byteOffset": 977,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "43362b94b7102601afe22f5274140941a93004537f70ad526a74df99f0aaa55a"
+      },
+      "implementationObservation": {
+        "token": "--background",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 977,
+            "byteOffset": 977,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN."
+    }
+  ],
+  "summary": {
+    "count": 4,
+    "allBeforeUnknown": true,
+    "allAfterUnknown": true,
+    "strictPairProofsAdded": 0
+  }
+}

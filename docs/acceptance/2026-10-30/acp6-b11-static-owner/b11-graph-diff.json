@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+  "implementationCoreSha": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
+  "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+  "graphStats": {
+    "base": {
+      "nodes": 675,
+      "edges": 5302,
+      "unresolved": 253,
+      "edgeCounts": {
+        "imports|source-proven": 38,
+        "reads|source-proven": 456,
+        "renders|source-proven": 250,
+        "reads|semantic-candidate": 2,
+        "uses-token|unknown": 252,
+        "token-reference|semantic-candidate": 964,
+        "uses-token|semantic-candidate": 2156,
+        "css-cascade|semantic-candidate": 1184
+      }
+    },
+    "implementation": {
+      "nodes": 675,
+      "edges": 3070,
+      "unresolved": 253,
+      "edgeCounts": {
+        "imports|source-proven": 38,
+        "reads|source-proven": 456,
+        "renders|source-proven": 250,
+        "reads|semantic-candidate": 2,
+        "uses-token|unknown": 252,
+        "token-reference|semantic-candidate": 684,
+        "uses-token|semantic-candidate": 1040,
+        "css-cascade|semantic-candidate": 348
+      }
+    }
+  },
+  "exactIdDiff": {
+    "addedCount": 112,
+    "removedCount": 1718,
+    "retainedCount": 3584,
+    "addedByKindCertainty": {
+      "token-reference|semantic-candidate": 16,
+      "uses-token|semantic-candidate": 80,
+      "css-cascade|semantic-candidate": 16
+    },
+    "removedByKindCertainty": {
+      "token-reference|semantic-candidate": 296,
+      "uses-token|semantic-candidate": 1196,
+      "css-cascade|semantic-candidate": 226
+    }
+  },
+  "normalizedRelationDiff": {
+    "addedCount": 144,
+    "removedCount": 2166,
+    "retainedCount": 2833,
+    "addedByKind": {
+      "token-reference": 16,
+      "uses-token": 80,
+      "css-cascade": 48
+    },
+    "removedByKind": {
+      "token-reference": 296,
+      "uses-token": 1196,
+      "css-cascade": 674
+    }
+  },
+  "invariants": {
+    "nodeIdSetEqual": true,
+    "sourceProvenRemoved": 0,
+    "sourceProvenAdded": 0,
+    "unknownUseEdgesBase": 252,
+    "unknownUseEdgesImplementation": 252,
+    "unresolvedCountEqual": true
+  },
+  "interpretation": {
+    "edgeReduction": 2232,
+    "exactIdNote": "ID-level changes include relation IDs carrying scoped declaration IDs; normalized relation diff removes ID-only noise while retaining sourceUse and selectorScope.",
+    "semanticCandidateReduction": "The reduction is confined to semantic-candidate token-reference, uses-token, and css-cascade relations. The strict intrinsic-owner and unsupported-selector rules prune non-proven candidates; no source-proven relation was removed or added.",
+    "authorizationSafety": "No Candidate/Scope/Verification/Approval/Apply/Rollback authorization edge is modified by this graph analysis.",
+    "prefixCounts": {
+      "base": {
+        "source": 19,
+        "definition": 36,
+        "css-token-use-source": 252,
+        "import": 19,
+        "component-host": 214,
+        "render": 8,
+        "literal-read": 85,
+        "jsx-text": 78,
+        "composite-jsx-child": 7,
+        "declarative-router": 7,
+        "page-global": 21,
+        "css-token-unknown": 252,
+        "css-token-declaration-use": 964,
+        "css-token-reference": 964,
+        "css-selector-candidate": 1184,
+        "css-token-consumer": 1184,
+        "css-token-alias": 8
+      },
+      "implementation": {
+        "source": 19,
+        "definition": 36,
+        "css-token-use-source": 252,
+        "import": 19,
+        "component-host": 214,
+        "render": 8,
+        "literal-read": 85,
+        "jsx-text": 78,
+        "composite-jsx-child": 7,
+        "declarative-router": 7,
+        "page-global": 21,
+        "css-token-unknown": 252,
+        "css-token-declaration-use": 684,
+        "css-token-reference": 684,
+        "css-selector-candidate": 348,
+        "css-token-consumer": 348,
+        "css-token-alias": 8
+      }
+    }
+  }
+}

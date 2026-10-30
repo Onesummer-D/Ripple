@@ -872,6 +872,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   interface StaticJsxHostFact {
     id: string
     tagName: string
+    intrinsic: boolean
     classNames: string[]
     dynamicClassName: boolean
     parentId?: string
@@ -892,16 +893,17 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   for (const element of hostElements) {
     const opening = jsxOpeningById.get(element.id)
     if (!opening) continue
-    const tagName = jsxTagName(opening) ?? opening.tagName.getText()
+    const rawTagName = jsxTagName(opening) ?? opening.tagName.getText()
+    const tagName = rawTagName
     const classNames = typeof element.className === 'string'
       ? element.className.trim().split(/\s+/).filter(Boolean)
       : []
     const parent = parentOpening(opening)
     const parentId = parent ? jsxIdByOpening.get(parent) : undefined
-    hostFacts.set(element.id, { id: element.id, tagName: tagName.toLowerCase(), classNames, dynamicClassName: Boolean(element.dynamicClassName), ...(parentId ? { parentId } : {}) })
+    hostFacts.set(element.id, { id: element.id, tagName: tagName.toLowerCase(), intrinsic: /^[a-z]/.test(rawTagName), classNames, dynamicClassName: Boolean(element.dynamicClassName), ...(parentId ? { parentId } : {}) })
   }
   const matchesSelectorPart = (fact: StaticJsxHostFact | undefined, part: ReturnType<typeof parseCssSelectorStructure>['parts'][number]): boolean => {
-    if (!fact || fact.dynamicClassName) return false
+    if (!fact || !fact.intrinsic || fact.dynamicClassName || fact.tagName === 'html' || fact.tagName === 'body') return false
     if (part.tagName && fact.tagName !== part.tagName) return false
     return part.classNames.every(className => fact.classNames.includes(className))
   }
@@ -918,6 +920,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       let ancestor: StaticJsxHostFact | undefined = current?.parentId ? hostFacts.get(current.parentId) : undefined
       let found = false
       while (ancestor) {
+        if (!ancestor.intrinsic || ancestor.tagName === 'html' || ancestor.tagName === 'body') break
         if (matchesSelectorPart(ancestor, structure.parts[partIndex])) {
           current = ancestor
           found = true
