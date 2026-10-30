@@ -486,24 +486,27 @@ export function App() { return <HashRouter><Routes><Route path="/" element={<Hom
     fs.mkdirSync(styles, { recursive: true })
     fs.mkdirSync(layouts, { recursive: true })
     fs.writeFileSync(path.join(layouts, 'Boundaries.tsx'), `function Card({ children }: { children: React.ReactNode }) { return <section className="wrapper">{children}</section> }
-      export function Boundaries(){ return <Card><dialog>One</dialog><span className="target">Two</span></Card> }`)
+      function Portal({ children }: { children: React.ReactNode }) { return createPortal(children, document.body) }
+      export function Boundaries(){ return <><dialog>One</dialog><Card><span className="target">Two</span><Portal><span className="portal-target">Portal</span></Portal><span className="not-targetish">String</span></Card></> }`)
     fs.writeFileSync(path.join(styles, 'b11-boundaries.css'), `:root { --accent: #123; }
 dialog { color: var(--accent); }
 html { color: var(--accent); }
 body { color: var(--accent); }
 * { color: var(--accent); }
 :root { background: var(--accent); }
+.portal-target { color: var(--accent); }
+.targetish { color: var(--accent); }
 .wrapper .target { color: var(--accent); }`)
     git(root, 'add', '.')
     git(root, 'commit', '-qm', 'add B1.1 global and custom boundary fixtures')
 
     const graph = analyzeProject(root)
     const uses = graph.nodes.filter(node => node.kind === 'token-use' && node.location?.path === 'src/styles/b11-boundaries.css')
-    expect(uses).toHaveLength(6)
+    expect(uses).toHaveLength(8)
     const tagUse = uses.find(use => use.selectorScope === 'dialog')!
     expect(graph.edges.filter(edge => edge.kind === 'css-cascade' && edge.from === tagUse.id)).toHaveLength(1)
     expect(graph.edges.find(edge => edge.kind === 'css-cascade' && edge.from === tagUse.id)?.certainty).toBe('semantic-candidate')
-    for (const selector of ['html', 'body', '*', ':root', '.wrapper .target']) {
+    for (const selector of ['html', 'body', '*', ':root', '.wrapper .target', '.portal-target', '.targetish']) {
       const use = uses.find(item => item.selectorScope === selector)!
       expect(graph.edges.some(edge => edge.kind === 'css-cascade' && edge.from === use.id)).toBe(false)
       expect(graph.unresolved.some(reason => reason.includes(`src/styles/b11-boundaries.css#${use.location!.offset}`))).toBe(true)

@@ -876,6 +876,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     classNames: string[]
     dynamicClassName: boolean
     parentId?: string
+    unknownBoundary: boolean
   }
   const parentOpening = (opening: ts.JsxOpeningLikeElement): ts.JsxOpeningLikeElement | undefined => {
     let current: ts.Node | undefined = opening.parent
@@ -900,10 +901,20 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       : []
     const parent = parentOpening(opening)
     const parentId = parent ? jsxIdByOpening.get(parent) : undefined
-    hostFacts.set(element.id, { id: element.id, tagName: tagName.toLowerCase(), intrinsic: /^[a-z]/.test(rawTagName), classNames, dynamicClassName: Boolean(element.dynamicClassName), ...(parentId ? { parentId } : {}) })
+    let unknownBoundary = false
+    let boundary = parent
+    while (boundary) {
+      const boundaryTag = jsxTagName(boundary) ?? boundary.tagName.getText()
+      if (!/^[a-z]/.test(boundaryTag)) {
+        unknownBoundary = true
+        break
+      }
+      boundary = parentOpening(boundary)
+    }
+    hostFacts.set(element.id, { id: element.id, tagName: tagName.toLowerCase(), intrinsic: /^[a-z]/.test(rawTagName), classNames, dynamicClassName: Boolean(element.dynamicClassName), unknownBoundary, ...(parentId ? { parentId } : {}) })
   }
   const matchesSelectorPart = (fact: StaticJsxHostFact | undefined, part: ReturnType<typeof parseCssSelectorStructure>['parts'][number]): boolean => {
-    if (!fact || !fact.intrinsic || fact.dynamicClassName || fact.tagName === 'html' || fact.tagName === 'body') return false
+    if (!fact || !fact.intrinsic || fact.dynamicClassName || fact.unknownBoundary || fact.tagName === 'html' || fact.tagName === 'body') return false
     if (part.tagName && fact.tagName !== part.tagName) return false
     return part.classNames.every(className => fact.classNames.includes(className))
   }
