@@ -278,4 +278,3 @@ interface BrowserObservationRecord {
 - pathname/search/hash、viewport 或 state 不匹配；
 - 未经可信 executor/授权门控的伪造记录；
 - 七项 assertion 中任一非 pass 时仍试图生成 passed/approved 结果。
-
