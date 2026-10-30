@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "acp6-sourcegraph/v1",
+  "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "nodes": [
+    {
+      "id": "jsx:src/App.tsx#42",
+      "kind": "jsx-element",
+      "label": "button",
+      "location": { "path": "src/App.tsx", "start": 42, "end": 58, "byteOffset": 42 },
+      "pages": ["page:/about", "page:/"],
+      "mediaContext": ["dark", "base"]
+    },
+    {
+      "id": "file:src/App.tsx",
+      "kind": "file",
+      "label": "App.tsx",
+      "location": { "path": "src/App.tsx", "start": 0, "end": 120 },
+      "pages": ["page:/about", "page:/"]
+    },
+    {
+      "id": "token-use:src/App.tsx#42",
+      "kind": "token-use",
+      "label": "--accent",
+      "location": { "path": "src/App.tsx", "start": 42, "end": 49, "byteOffset": 42 },
+      "pages": ["page:/about", "page:/"],
+      "selectorScope": ".cta"
+    }
+  ],
+  "edges": [
+    {
+      "id": "rel:consumer",
+      "from": "jsx:src/App.tsx#42",
+      "to": "token-use:src/App.tsx#42",
+      "kind": "uses-token",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": ["ev:runtime-1", "ev:css-2", "ev:css-1"],
+      "sourceUse": { "path": "src/App.tsx", "charOffset": 42, "byteOffset": 42, "offsetUnit": "code-unit" },
+      "mediaContext": ["dark", "base"]
+    },
+    {
+      "id": "rel:file-token",
+      "from": "file:src/App.tsx",
+      "to": "token-use:src/App.tsx#42",
+      "kind": "imports",
+      "certainty": "source-proven",
+      "evidenceRefs": ["ev:import-b", "ev:import-a"]
+    }
+  ],
+  "unresolved": [
+    "dynamic-classname:src/App.tsx#42",
+    "route-coverage:/about",
+    "css-token-use-unknown:--accent"
+  ]
+}

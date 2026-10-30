@@ -1,0 +1,36 @@
+{
+  "protocol": "acp6-browser-observation/v1-draft",
+  "contractRevision": "2026-10-30-r3",
+  "cases": {
+    "G0": {
+      "fixture": null,
+      "mode": "reference",
+      "expectedDigest": "a0a7e9c7e63e94a3fc3fe3e1d5b92e256f1fed3f4153f6b0410aa0f82c402093"
+    },
+    "G1": {
+      "fixture": null,
+      "mode": "reference",
+      "expectedDigest": "a0a7e9c7e63e94a3fc3fe3e1d5b92e256f1fed3f4153f6b0410aa0f82c402093"
+    },
+    "G2": {
+      "fixture": null,
+      "mode": "reference",
+      "expectedDigest": "88b500e631d7dd302fe8f526bb9f10b682228857605184639f7a11dbde0d42f4"
+    },
+    "G3": {
+      "fixture": null,
+      "mode": "reference",
+      "expectedDigest": "a0a7e9c7e63e94a3fc3fe3e1d5b92e256f1fed3f4153f6b0410aa0f82c402093"
+    },
+    "G4": {
+      "fixture": "g4.json",
+      "mode": "executable",
+      "expectedDigest": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398"
+    },
+    "G5": {
+      "fixture": "g5.json",
+      "mode": "executable",
+      "expectedDigest": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398"
+    }
+  }
+}

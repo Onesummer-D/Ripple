@@ -1,0 +1,60 @@
+{
+  "environment": {
+    "projectId": "P-demo",
+    "runId": "run-001",
+    "runtimeFingerprint": "runtime-g5",
+    "hostOS": "test-only"
+  },
+  "schemaVersion": "acp6-sourcegraph/v1",
+  "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "nodes": [
+    {
+      "id": "token-use:src/App.tsx#42",
+      "kind": "token-use",
+      "label": "--accent",
+      "selectorScope": ".cta",
+      "pages": ["page:/about", "page:/"],
+      "location": { "byteOffset": 42, "end": 49, "path": "src/App.tsx", "start": 42 }
+    },
+    {
+      "id": "file:src/App.tsx",
+      "kind": "file",
+      "label": "App.tsx",
+      "pages": ["page:/about", "page:/"],
+      "location": { "end": 120, "path": "src/App.tsx", "start": 0 }
+    },
+    {
+      "id": "jsx:src/App.tsx#42",
+      "kind": "jsx-element",
+      "label": "button",
+      "pages": ["page:/about", "page:/"],
+      "mediaContext": ["dark", "base"],
+      "location": { "byteOffset": 42, "end": 58, "path": "src/App.tsx", "start": 42 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "rel:file-token",
+      "from": "file:src/App.tsx",
+      "to": "token-use:src/App.tsx#42",
+      "kind": "imports",
+      "certainty": "source-proven",
+      "evidenceRefs": ["ev:import-a", "ev:import-b"]
+    },
+    {
+      "id": "rel:consumer",
+      "from": "jsx:src/App.tsx#42",
+      "to": "token-use:src/App.tsx#42",
+      "kind": "uses-token",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": ["ev:css-1", "ev:css-2", "ev:runtime-1"],
+      "mediaContext": ["base", "dark"],
+      "sourceUse": { "byteOffset": 42, "charOffset": 42, "offsetUnit": "code-unit", "path": "src/App.tsx" }
+    }
+  ],
+  "unresolved": [
+    "route-coverage:/about",
+    "dynamic-classname:src/App.tsx#42",
+    "css-token-use-unknown:--accent"
+  ]
+}
