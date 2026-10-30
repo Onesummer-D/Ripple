@@ -41,8 +41,8 @@ function demoElements(): CanvasElementXp[] {
         demoSelector: selectable.selector,
         currentText: slotText(slot),
         sourceRef: `demo:${slot.sourceKey}`,
-        sourcePath: slot.sourceKey.startsWith('campaign.') ? 'src/data/campaign.ts'
-          : slot.sourceKey === 'data:seasonal-banner' ? 'src/data/seasonal.ts'
+        sourcePath: slot.sourceKey.startsWith('campaign.') ? 'Demo fixture · src/data/campaign.ts'
+          : slot.sourceKey === 'data:seasonal-banner' ? 'Demo fixture · src/data/seasonal.ts'
             : `Demo fixture · ${page.path}`,
         certainty: owner?.certainty ?? 'unknown',
         impactPageRefs,
@@ -106,7 +106,7 @@ function evidenceForSelection(element: CanvasElementXp | undefined, draftText: s
     },
     {
       id: 'ev:risk', title: '已发现的风险', state: 'risk', sourceKind: 'source-graph',
-      summary: '「联系我们」页通过条件渲染引用同一数据，当前只能部分证明；「推荐卡片」内容来自运行时接口，静态来源不完整。',
+      summary: 'Contact 页面内容可浏览，但来源关系未证明，不能编辑或纳入安全范围；「推荐卡片」内容来自运行时接口，静态来源不完整。',
       detail: 'source-graph 演示口径：消费关系逐条标注确定性，无法证明的引用如实保留为未知。',
     },
     {

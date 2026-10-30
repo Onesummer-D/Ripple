@@ -201,6 +201,10 @@
 /* ============ 中：画布 ============ */
 .ripple-xp-stage { background: none; padding: 0; min-width: 0; }
 .ripple-xp-stage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ripple-xp-demo-boundary-note {
+  margin: 10px 0 0; padding: 8px 12px; border: 1px solid var(--xp-line); color: var(--xp-stone);
+  background: var(--xp-paper); font-size: 13px;
+}
 .ripple-xp-viewport-switch { display: flex; gap: 4px; flex-wrap: wrap; }
 .ripple-xp-viewport-switch button {
   border: none; border-radius: 0; background: none;
@@ -303,8 +307,11 @@
   color: var(--xp-ink); font-size: 19px; margin-right: 10px;
   font-family: var(--xp-serif); letter-spacing: 0.14em; font-weight: 700;
 }
-.ripple-xp-demo-nav span { cursor: default; }
-.ripple-xp-demo-nav span.is-current { color: var(--xp-brand); font-weight: 700; }
+.ripple-xp-demo-nav button {
+  border: 0; padding: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;
+}
+.ripple-xp-demo-nav button:hover { color: var(--xp-ink); }
+.ripple-xp-demo-nav button.is-current { color: var(--xp-brand); font-weight: 700; }
 .ripple-xp-demo-source-badge {
   align-self: flex-end; margin: 10px 28px 0; color: var(--xp-stone); font-size: 12px;
   letter-spacing: 0.08em; font-weight: 700;
@@ -449,6 +456,10 @@
 .ripple-xp-evidence-list { list-style: none; margin: 0; padding: 0; display: grid; }
 .ripple-xp-evidence-item { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 14px 2px; }
 .ripple-xp-evidence-item + .ripple-xp-evidence-item { border-top: 1px solid var(--xp-line); }
+.ripple-xp-evidence-provenance, .ripple-xp-film-card-provenance {
+  display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px;
+  background: var(--xp-ink); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+}
 .ripple-xp-evidence-head { display: contents; border: none; background: none; text-align: left; cursor: pointer; }
 .ripple-xp-ev-head, .ripple-xp-evidence-head strong { font-size: 16px; }
 .ripple-xp-ev-summary { flex: 1; min-width: 220px; color: var(--xp-ink-soft); font-size: 15px; }
@@ -518,6 +529,7 @@
   min-width: 300px; max-width: 300px; border: 1px solid var(--xp-line);
   border-radius: 12px; overflow: hidden; background: var(--xp-surface); scroll-snap-align: start;
 }
+.ripple-xp-film-card-provenance { margin: 8px 8px 0; }
 .ripple-xp-film-card.is-active { box-shadow: 0 0 0 2px var(--xp-brand); }
 .ripple-xp-film-select { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; }
 .ripple-xp-film-select:focus-visible { outline: 2px solid var(--xp-brand); outline-offset: -2px; }

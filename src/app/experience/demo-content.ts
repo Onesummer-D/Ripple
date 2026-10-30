@@ -332,5 +332,5 @@ export function projectDemoSlot(
   if (input.scope !== 'include') {
     return { displayText: original, state: 'unproven', reason: '本页范围尚未决定，候选不替换' }
   }
-  return { displayText: input.draftText, candidateText: input.draftText, state: 'candidate', reason: 'Demo 候选：来源已证实且范围已包含' }
+  return { displayText: input.draftText, candidateText: input.draftText, state: 'candidate', reason: 'Demo 候选：演示关系已设定且范围已包含' }
 }

@@ -7,6 +7,8 @@ export interface DemoPageRenderProps {
   pageRef: DemoPageRef
   /** Demo-only preview layer. The baseline remains the default canvas view. */
   layer: 'baseline' | 'candidate'
+  /** Demo-only browsing navigation; never supplied to the Real iframe. */
+  onNavigate?: (pageRef: DemoPageRef) => void
   renderElement: (element: CanvasElementXp, children: ReactNode, note?: string) => ReactNode
 }
 
@@ -50,23 +52,38 @@ function renderSlot(slot: DemoContentSlot, props: DemoPageRenderProps, children:
   return props.renderElement(element, body, projection.note)
 }
 
-function header(page: DemoContentPage): ReactNode {
+function header(page: DemoContentPage, onNavigate?: (pageRef: DemoPageRef) => void): ReactNode {
+  const links: Array<{ pageRef: DemoPageRef; label: string }> = [
+    { pageRef: 'page:home', label: '首页' },
+    { pageRef: 'page:products', label: '商品专题' },
+    { pageRef: 'page:seasonal', label: '活动页' },
+    { pageRef: 'page:contact', label: '联系我们' },
+  ]
   return (
-    <header className="ripple-xp-demo-nav">
+    <header className="ripple-xp-demo-nav" aria-label="演示站点导航">
       <strong>青野文创</strong>
-      <span className={page.pageRef === 'page:home' ? 'is-current' : ''}>首页</span>
-      <span className={page.pageRef === 'page:products' ? 'is-current' : ''}>商品专题</span>
-      <span className={page.pageRef === 'page:seasonal' ? 'is-current' : ''}>活动页</span>
-      <span className={page.pageRef === 'page:contact' ? 'is-current' : ''}>联系我们</span>
+      {links.map(link => (
+        <button
+          key={link.pageRef}
+          type="button"
+          className={page.pageRef === link.pageRef ? 'is-current' : ''}
+          aria-current={page.pageRef === link.pageRef ? 'page' : undefined}
+          data-testid={`demo-site-nav-${link.pageRef}`}
+          onClick={() => onNavigate?.(link.pageRef)}
+        >
+          {link.label}
+        </button>
+      ))}
     </header>
   )
 }
 
-function pageShell(page: DemoContentPage, children: ReactNode): ReactNode {
-  return (
+export function renderDemoPage(props: DemoPageRenderProps): ReactNode {
+  const page = demoPage(props.pageRef)
+  const shell = (children: ReactNode): ReactNode => (
     <div className="ripple-xp-demo-page" data-testid="demo-canvas" data-demo-page={page.pageRef}>
-      <div className="ripple-xp-demo-source-badge" data-testid="demo-provenance">DEMO · SIMULATED</div>
-      {header(page)}
+      <div className="ripple-xp-demo-source-badge" data-testid="demo-provenance">DEMO · 演示数据 · 不构成真实 SourceGraph 证明或真实工程授权</div>
+      {header(page, props.onNavigate)}
       <div className="ripple-xp-demo-page-heading">
         <span className="ripple-xp-demo-kicker">{page.path}</span>
         <h2 data-testid="demo-page-title">{page.label}</h2>
@@ -74,16 +91,12 @@ function pageShell(page: DemoContentPage, children: ReactNode): ReactNode {
       {children}
     </div>
   )
-}
-
-export function renderDemoPage(props: DemoPageRenderProps): ReactNode {
-  const page = demoPage(props.pageRef)
   const slot = (slotId: string) => page.slots.find(item => item.slotId === slotId)
   if (props.pageRef === 'page:products') {
     const hero = slot('products.hero.title')
     const productTitle = slot('products.hero.copy')
     const promo = slot('products.promo')
-    return pageShell(page, <>
+    return shell(<>
       <section className="ripple-xp-demo-hero ripple-xp-demo-products-hero">
         <img className="ripple-xp-demo-hero-media" src="demo-assets/vessels.jpg" alt="商品专题器物" />
         <div className="ripple-xp-demo-hero-overlay">
@@ -103,7 +116,7 @@ export function renderDemoPage(props: DemoPageRenderProps): ReactNode {
     const hero = slot('seasonal.hero.title')
     const banner = slot('seasonal.banner')
     const story = slot('seasonal.story.copy')
-    return pageShell(page, <>
+    return shell(<>
       <section className="ripple-xp-demo-hero ripple-xp-demo-seasonal-hero">
         <img className="ripple-xp-demo-hero-media" src="demo-assets/seasonal.jpg" alt="季节活动" />
         <div className="ripple-xp-demo-hero-overlay">
@@ -120,7 +133,7 @@ export function renderDemoPage(props: DemoPageRenderProps): ReactNode {
   if (props.pageRef === 'page:contact') {
     const title = slot('contact.title')
     const copy = slot('contact.copy')
-    return pageShell(page, <>
+    return shell(<>
       <section className="ripple-xp-demo-contact-intro">
         <span className="ripple-xp-demo-kicker">来源关系 UNKNOWN</span>
         {title && renderSlot(title, props, text => <h1>{text}</h1>)}
@@ -137,7 +150,7 @@ export function renderDemoPage(props: DemoPageRenderProps): ReactNode {
   const title = slot('home.hero.title')
   const subtitle = slot('home.hero.subtitle')
   const banner = slot('home.hero.banner')
-  return pageShell(page, <>
+  return shell(<>
     <section className="ripple-xp-demo-hero">
       <img className="ripple-xp-demo-hero-media" src="demo-assets/hero-market.jpg" alt="秋日茶器市集" />
       <div className="ripple-xp-demo-hero-overlay">

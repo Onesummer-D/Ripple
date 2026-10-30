@@ -48,10 +48,12 @@ function RealPreviewFrame({ preview, width, height, frameRef, onReady }: { previ
  * 中央画布：真实网页为视觉中心。
  * 演示模式渲染模拟 DOM（data-xp-demo），真实模式由适配器换成项目预演 iframe。
  */
-export function CanvasStage({ model, onSelectElement, onViewportChange, pickerActive, pickerNonce, pickerError, onTogglePicker, onPicked }: {
+export function CanvasStage({ model, onSelectElement, onViewportChange, onSelectPage, pickerActive, pickerNonce, pickerError, onTogglePicker, onPicked }: {
   model: ExperienceViewModel
   onSelectElement: (elementId: string) => void
   onViewportChange: (viewportId: string) => void
+  /** Demo-only page browsing; Real mode leaves this undefined. */
+  onSelectPage?: (pageRef: string) => void
   /** 画布点选模式（仅真实模式有意义）。 */
   pickerActive?: boolean
   /** 当前点选令牌（空串=未激活）。 */
@@ -230,6 +232,11 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
     {isReal && pickerError && (
       <p className="ripple-xp-picker-error" role="alert" data-testid="picker-error">{pickerError}</p>
     )}
+    {!isReal && (
+      <p className="ripple-xp-demo-boundary-note" role="note" data-testid="demo-canvas-boundary">
+        DEMO · 演示画布，不构成真实 SourceGraph 证明或真实工程授权
+      </p>
+    )}
 
     {model.elements.length > 0 && (
       // 真实模式的 iframe 与 Demo 当前页都保留显式目标入口，保证目标切换不依赖
@@ -248,7 +255,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
           >
             {element.label}
             {!element.editable && ' · 仅可查看'}
-            <CertaintyPill certainty={element.certainty} />
+            <CertaintyPill certainty={element.certainty} demo={!isReal} />
           </button>
         ))}
       </div>
@@ -256,8 +263,8 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
 
     {selected && (
       <p className="ripple-xp-selection-summary" data-testid="selection-summary">
-        已选中：{selected.label} · 源码 <code>{selected.sourcePath ?? '（未定位）'}</code>
-        <CertaintyPill certainty={selected.certainty} />
+        已选中：{selected.label} · {isReal ? '源码' : '演示来源（非 SourceGraph 证明）'} <code>{selected.sourcePath ?? '（未定位）'}</code>
+        <CertaintyPill certainty={selected.certainty} demo={!isReal} />
         {selected.impactPageRefs.length > 0 && <span> · 影响 {selected.impactPageRefs.length} 个页面</span>}
       </p>
     )}
@@ -320,6 +327,7 @@ export function CanvasStage({ model, onSelectElement, onViewportChange, pickerAc
             model,
             pageRef: (currentPage?.id ?? 'page:home') as 'page:home' | 'page:products' | 'page:seasonal' | 'page:contact',
             layer: demoLayer,
+            onNavigate: onSelectPage ? pageRef => onSelectPage(pageRef) : undefined,
             renderElement,
           })
         ) : (

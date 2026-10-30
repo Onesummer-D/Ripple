@@ -49,8 +49,9 @@ describe('F 体验工作台 · 青野演示流', () => {
   it('演示来源用纯文字说明，真实模式不显示模拟数据提示', async () => {
     render(<ExperienceWorkbench />)
     await screen.findByTestId('demo-note')
-    expect(text('demo-note')).toContain('演示预览')
-    expect(text('demo-note')).toContain('模拟数据')
+    expect(text('demo-note')).toContain('演示数据')
+    expect(text('demo-note')).toContain('不构成真实 SourceGraph 证明')
+    expect(text('demo-canvas-boundary')).toContain('不构成真实 SourceGraph 证明')
   })
 
   it('四步跳转只改变当前步骤，不改变审批门控或范围状态', async () => {
@@ -358,13 +359,19 @@ describe('F 体验工作台 · 青野演示流', () => {
     expect(text('evidence-ev:not-checked')).toContain('尚未检查')
     expect(text('evidence-ev:not-checked')).toContain('未运行')
     expect(text('evidence-ev:incomplete')).toContain('来源不完整的原因')
-    expect(text('evidence-ev:next')).toContain('AI 建议')
-    expect(text('evidence-ev:risk')).toContain('源码证实')
+    expect(text('evidence-ev:next')).toContain('Demo 建议')
+    expect(text('evidence-ev:risk')).toContain('Demo 来源示意（非 SourceGraph 证明）')
+    expect(text('evidence-provenance-ev:risk')).toContain('DEMO')
   })
 
   it('版本胶片：生命周期与证据可用性展示，点击定位页面', async () => {
     render(<ExperienceWorkbench />)
     fireEvent.click(await screen.findByTestId('open-history'))
+    expect(screen.getByTestId('film-provenance-demo-v:1')).not.toBeNull()
+    expect(screen.getByTestId('film-provenance-demo-v:2')).not.toBeNull()
+    expect(screen.getByTestId('film-provenance-demo-v:3')).not.toBeNull()
+    fireEvent.error(screen.getByTestId('film-shot-demo-v:2'))
+    expect(screen.getByTestId('film-provenance-demo-v:2')).not.toBeNull()
     expect(text('version-v:3')).toContain('已回滚')
     expect(text('evidence-toggle-v:2')).toContain('证据可用')
     expect(text('version-card-v:1')).toContain('已失效')
