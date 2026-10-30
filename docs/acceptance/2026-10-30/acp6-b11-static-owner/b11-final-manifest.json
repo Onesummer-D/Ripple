@@ -8,7 +8,9 @@
   "preRemediationExactHead": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
   "project": {
     "repo": "allanhue/webportflio",
-    "sha": "b244f857457d2a07f118155602eef9097fd322bd"
+    "sha": "b244f857457d2a07f118155602eef9097fd322bd",
+    "targetFile": "src/css/style.css",
+    "targetFileSha256": "8de0b6c59beb8538534adcbd5bb20906bda6b6ca7b9e3998702a229a2506a920"
   },
   "probe": {
     "path": "scripts/b-css-token-probe.mjs",
@@ -128,5 +130,19 @@
     "Four AC6.4 pair records remain independently UNKNOWN with no strict pair proof.",
     "Selector boundary evidence includes tag-only intrinsic, globals, custom component, Portal, dynamic, multiple-owner, pseudo and complex negatives.",
     "No authorization rule or Runtime Identity contract changed."
-  ]
+  ],
+  "frozenAcceptanceContracts": {
+    "fixture": {
+      "srcCssFiles": 7,
+      "srcDefinitions": 18,
+      "srcTokenLabels": 11,
+      "srcVarUses": 126
+    },
+    "ac62": "all declaration/use/consumer links must satisfy exact path+UTF-8 byteOffset+selectorScope+JSX host/source position; otherwise PENDING",
+    "ac63": "seven unique HashRouter paths must map one-to-one after normalization; conflicts PENDING",
+    "ac64": "all expected static/dynamic pairs require exact element edge and dynamic class files keep PENDING",
+    "ac65": "undefined --accent-color fallback uses must remain explicit unknown at source positions",
+    "invalidInput": "checkout, graph, or fixture drift is ERROR/exit 1; capability pending is exit 2"
+  },
+  "archiveHead": "6a6dba09d35efc8f80ea1d0ab0875c245f0197d6"
 }
