@@ -2,6 +2,7 @@
 
 状态：**技术准备稿，未会签，不接入生产**
 协议建议版本：`acp6-browser-observation/v1-draft`
+合同修订：`r2`（原因结构、摘要规范、工件归档和只读边界整改稿）
 归档分支：`evidence/acp6-browser-observation-docs-20261030`
 归档基线：`5b75fe699afce98638e6fd6ad110911d83389dc8`
 
@@ -63,6 +64,7 @@ type ObservationProof = 'not-proven' | 'runtime-observed'
 
 interface BrowserObservationRecord {
   protocol: 'acp6-browser-observation/v1-draft'
+  contractRevision: '2026-10-30-r2'
   recordId: string
 
   // host-owned identity
@@ -122,12 +124,71 @@ interface BrowserObservationRecord {
     sizeBytes: number
   }
   status: ObservationStatus
-  reasons: string[]
+  primaryReasonCode: ObservationReasonCode
+  secondaryReasonCodes: ObservationReasonCode[]
+  diagnosticText?: string
   proof: ObservationProof
 }
 ```
 
-### 3.1 记录约束
+### 3.1 原因码、状态优先级和长度限制
+
+`reasons: string[]` 不属于合同。记录只能使用以下固定 `ObservationReasonCode`，不得出现自由文本原因码：
+
+```ts
+type ObservationReasonCode =
+  | 'complete'
+  | 'missing-side' | 'missing-artifact' | 'artifact-hash-mismatch'
+  | 'artifact-path-invalid' | 'artifact-changed-after-validation'
+  | 'cross-run' | 'cross-check' | 'side-mismatch'
+  | 'logical-project-mismatch' | 'untrusted-capture'
+  | 'required-verification-not-pass'
+  | 'source-digest-mismatch' | 'graph-digest-mismatch'
+  | 'runtime-version-stale' | 'route-namespace-stale'
+  | 'geometry-only' | 'runtime-location-conflict'
+  | 'declaration-node-not-source-use' | 'relation-not-in-graph'
+  | 'source-use-location-mismatch' | 'duplicate-record'
+  | 'duplicate-artifact-conflict' | 'page-context-mismatch'
+  | 'viewport-mismatch' | 'state-mismatch' | 'identity-not-stable'
+  | 'pseudo-element-without-host-proof' | 'non-strict-consumer-edge'
+  | 'missing-consumer-edge' | 'runtime-instance-without-edge'
+  | 'dynamic-without-runtime-map' | 'page-impact-not-proven'
+  | 'missing-cross-side-map'
+```
+
+规范约束：
+
+- 每个 code 使用小写 ASCII kebab-case，长度 `1–64` 字节；未知 code、重复 code 或超过 8 个 `secondaryReasonCodes` 直接拒绝；
+- `primaryReasonCode` 必须是该记录所有原因中按状态优先级选出的第一项；`secondaryReasonCodes` 不得包含 primary，按下方固定顺序排序，不按输入顺序保留；
+- 状态优先级固定为 `unavailable > stale > unknown > partial > complete`。同一状态内按本节枚举出现顺序选 primary，再按相同顺序排序 secondary；
+- `status=complete` 时，`primaryReasonCode` 必须为 `complete`，secondary 必须为空，所有必要证据齐全；
+- `status` 不是调用者可自由填写的结论，而是由校验器根据证据和原因码重算；调用者填写的冲突值拒绝；
+- `diagnosticText` 只能用于人类诊断，最多 1,024 个 UTF-8 字节，必须脱敏，不能承载额外授权语义、凭据、未校验路径或新的 reason code；
+- 原始失败记录保留完整结构化原因，但不得作为可信 receipt 或修改授权。
+
+固定选择顺序如下（从高到低）：
+
+```text
+unavailable: missing-side, missing-artifact, artifact-hash-mismatch,
+             artifact-path-invalid, artifact-changed-after-validation,
+             cross-run, cross-check, side-mismatch,
+             logical-project-mismatch, untrusted-capture,
+             required-verification-not-pass
+stale:       source-digest-mismatch, graph-digest-mismatch,
+             runtime-version-stale, route-namespace-stale
+unknown:     geometry-only, runtime-location-conflict,
+             declaration-node-not-source-use, relation-not-in-graph,
+             source-use-location-mismatch, duplicate-record,
+             duplicate-artifact-conflict, page-context-mismatch,
+             viewport-mismatch, state-mismatch, identity-not-stable,
+             pseudo-element-without-host-proof
+partial:     non-strict-consumer-edge, missing-consumer-edge,
+             runtime-instance-without-edge, dynamic-without-runtime-map,
+             page-impact-not-proven, missing-cross-side-map
+complete:    complete
+```
+
+### 3.2 记录约束
 
 1. `sourceDigest` 与 `graphDigest` 是 side-specific；不能只记录 candidate 侧再复制给 baseline。
 2. `sourceUseRef` 的 `path/charOffset/byteOffset` 必须与对应图中的 relation `sourceUse` 完全一致；偏移以 UTF-8 字节和现有 `offsetUnit: code-unit` 同时保留，不能做换行归一化。
@@ -135,6 +196,33 @@ interface BrowserObservationRecord {
 4. `certainty=semantic-candidate`、`runtime-observed` 或 `unknown` 的边都不是 strict consumer edge。`certainty=source-proven` 仍只是图边条件，不自动授予 PageImpact、Candidate 或 Apply 权限。
 5. `artifact.path` 必须是可信 run artifact root 下的普通文件；绝对路径、越界路径、符号链接、目录和重算 SHA-256 不一致均拒绝。
 6. 采集器不能写入审批、Candidate、Scope 或源文件；它只能向宿主提交本次 run 的记录。
+
+## 3.3 只读 sidecar 与正式身份边界
+
+观测记录只能作为绑定在既有 run artifact 上的只读 sidecar。它不具备任何生产写权限，宿主必须以独立的不可变归档保存它：
+
+```ts
+interface BrowserObservationSidecar {
+  protocol: 'acp6-browser-observation/v1-draft'
+  contractRevision: '2026-10-30-r2'
+  readonly: true
+  projectId: string
+  runId: string
+  checkId: string
+  side: ObservationSide
+  observationRecordIds: string[]
+  sourceGraphMutation: 'forbidden'
+  pageImpactMutation: 'forbidden'
+  verificationResultMutation: 'forbidden'
+  candidateScopeApprovalMutation: 'forbidden'
+  applyRollbackMutation: 'forbidden'
+}
+```
+
+- 观测器不得创建或修改 SourceGraph node、Relation、`sourceUse`、PageImpact、Candidate、ScopeDecision、VerificationRun 权威字段/状态、Approval、Apply 或 Rollback；它只能读取既有对象并提交 sidecar。
+- `sourceUseRef` 是待校验的图引用，`recordId` 是归档记录身份，二者都不能替代正式运行实例身份。DOM 坐标、selector、截图位置也不能产生身份绑定。
+- `runtimeInstanceId` 只有在宿主已验证的 Runtime Identity 归档中存在，并同时绑定项目、run/check、route namespace、source/graph digest 时，才可作为诊断关联；观测器不能自行提升其稳定性或写入 Runtime Identity。
+- 没有正式 Runtime Identity、严格消费边或 PageImpact 证明时，sidecar 仍可保留为 `unknown`/`partial`，但不得形成 `source-proven`、Candidate、Scope 或执行授权。
 
 ## 4. graphDigest 与 sourceDigest
 
@@ -144,26 +232,73 @@ interface BrowserObservationRecord {
 
 ### 4.2 `graphDigest`
 
-`graphDigest` 使用规范化 UTF-8 JSON 的 SHA-256：
+`graphDigest` 只对下列白名单对象计算规范化 UTF-8 JSON 的 SHA-256。白名单之外的字段在计算前丢弃；白名单内字段缺失或类型不符直接拒绝，不以 `null` 补默认值。
 
 ```json
 {
-  "schemaVersion": "<SourceGraph schema>",
-  "sourceDigest": "<side sourceDigest>",
-  "nodes": "<stable node records sorted by node.id>",
-  "edges": "<stable relation records sorted by relation.id>",
-  "unresolved": "<normalized unresolved records>"
+  "schemaVersion": "acp6-sourcegraph/v1",
+  "sourceDigest": "<64 lowercase hex SHA-256>",
+  "nodes": ["<CanonicalNode>"],
+  "edges": ["<CanonicalRelation>"],
+  "unresolved": ["<exact diagnostic strings>"]
 }
 ```
 
-- 节点按稳定唯一 `node.id` 排序；重复 ID 直接拒绝；
-- 边按稳定唯一 `Relation.id` 排序；重复 ID、缺端点或未知端点直接拒绝；
-- `unresolved` 以稳定 UTF-8 表示保留；规范化时不丢失原因；
-- 保留 `sourceUse`、`selectorScope`、`mediaContext`、`certainty` 等会影响来源判断的字段；
-- 排除临时 `projectId`、运行指纹、时间戳、日志、端口和临时目录；
-- baseline/candidate 分别计算，不能因为 projectId 相同而复制摘要。
+#### 白名单与值规则
+
+- `CanonicalNode` 只允许 `id`、`kind`、`label`、`location`、`page`、`routePath`、`pages`、`selector`、`selectorScope`、`byteOffset`、`mediaContext`、`className`、`dynamicClassName`、`value`、`pageOverrides`、`tokenOrigin`；`location` 只允许 `path/start/end/offset/byteOffset`；
+- `CanonicalRelation` 只允许 `id`、`from`、`to`、`kind`、`certainty`、`evidenceRefs`、`sourceUse`、`selectorScope`、`mediaContext`；`sourceUse` 只允许 `path/charOffset/byteOffset/offsetUnit`；
+- 必填标量不能为 `null`；可选字段缺失时省略，不能写显式 `null`；空集合可以写 `[]`；
+- 所有字符串保持原始 UTF-8 内容，不 trim、不换行归一化、不大小写折叠；SHA-256 必须为 64 位小写十六进制；
+- `start/end/offset/byteOffset/charOffset` 必须是有限、非负、安全整数；拒绝 `NaN`、`Infinity`、`-0`、浮点数、指数形式和超出安全整数的数字；
+- 对象键递归按 UTF-8 字节序升序排列，JSON 使用无空白 `,`/`:` 分隔和标准 JSON 字符串转义；
+- `nodes` 和 `edges` 是身份集合，输出前按 `id` 的 UTF-8 字节序排序；重复 `node.id` 或 `Relation.id` 直接拒绝；
+- `pages`、`evidenceRefs`、`mediaContext` 和 `unresolved` 是无序集合，禁止重复元素，按 UTF-8 字节序排序；不能把它们当作输入顺序数组；
+- `pageOverrides` 是按 key 排序的对象；其 key/value 必须是非空字符串；
+- 每条 relation 的 `from`/`to` 必须指向当前 `nodes` 中存在的 ID；未知端点、声明节点冒充 source-use 节点、缺失 `sourceUse` 对应位置均拒绝；
+- `unresolved` 字符串逐字保留并排序，不能为空字符串；丢失、重写或拼接 unresolved 内容均使摘要校验失败。
+
+#### 排除字段
+
+`projectId`、`runId`、`checkId`、`side`、`runtimeFingerprint`、浏览器/Playwright/collector 版本、时间戳、主机名、操作系统、PID、端口、容器 ID、临时目录、artifact path/hash、日志、截图尺寸、viewport、state、URL 和任何运行环境变量都不进入规范图。它们必须在观测信封或 run manifest 中独立绑定。
+
+#### 黄金样本
+
+以下样本使用同一最小图：两个节点、一个 `uses-token` relation、空 `unresolved`，`sourceDigest` 为 64 个 `a`。规范 JSON 的 SHA-256 结果固定为：
+
+| 样本 | 变体 | 预期结果 |
+|---|---|---|
+| G0 | 基准输入 | `a0a7e9c7e63e94a3fc3fe3e1d5b92e256f1fed3f4153f6b0410aa0f82c402093` |
+| G1 | 只交换 nodes、edges 和 set 成员输入顺序 | 与 G0 完全相同 |
+| G2 | 将 relation `certainty` 从 `semantic-candidate` 改为 `source-proven` | 摘要改变为 `88b500e631d7dd302fe8f526bb9f10b682228857605184639f7a11dbde0d42f4` |
+| G3 | 在输入中加入 `projectId`、`runId`、`runtimeFingerprint`、host OS 和 artifact path | 与 G0 完全相同；排除字段不得污染图身份 |
+
+G0/G1 必须逐字产生相同 canonical JSON；G2 的关系语义发生实质变化，必须改变 digest；G3 的运行环境变化不能改变 digest。
+
+重复 node/relation ID、未知端点、非法数字、显式 null、未知白名单字段和 unresolved 重复项都必须独立返回拒绝，不允许“先去重再计算”。
 
 图摘要不等于来源证明。图摘要相同只能说明规范化内容相同；图中若没有严格消费边、含 unresolved，或 PageImpact 不是 `source-proven`，结果仍不能进入严格来源证明。
+
+### 4.3 工件可信根与不可变归档
+
+可信根由 Verification 宿主在 run 创建时建立，形状为：
+
+```text
+<host-owned-artifact-root>/<logical-project-id>/<run-id>/<side>/
+```
+
+根目录必须在源码工程、候选 worktree 和普通临时目录之外，由宿主创建并登记 `rootDigest`。采集器只能写入 staging 子目录，不能选择或替换可信根。
+
+归档流程固定为：
+
+1. 宿主用 `lstat`/等价 no-follow API 逐级检查 root 和每个父目录；遇到符号链接、Windows reparse point、目录替代或越界路径立即产生 `artifact-path-invalid`；
+2. 输出先写入同一可信根内的唯一 staging 文件，限制大小，完整写入后 flush/fsync，再原子 rename 为最终相对路径；
+3. 宿主从同一个已打开的只读文件句柄读取并计算 SHA-256 和 size，绑定 `artifact.path + sha256 + sizeBytes + recordId`；不接受调用者单独提交的 hash；
+4. 读取前后比较文件身份、size 和 mtime/文件 ID；句柄读取期间发生替换、截断、增长或 rename 时，保留失败 bytes/诊断并返回 `artifact-changed-after-validation`；
+5. 归档完成后目录和文件进入宿主只读/不可变状态，manifest 记录相对路径、字节 SHA-256、大小、生成时间、run/check/side 和失败记录索引；后续读取必须重新校验 manifest 与实际 bytes；
+6. 任何损坏、空文件、非普通文件、越界文件、哈希不匹配或校验后变化均为 `unavailable`，原始失败记录保留供审计，不能删除后伪造成功记录。
+
+路径只能是相对 POSIX 形式，拒绝盘符、UNC、绝对路径、NUL、`..`、重复分隔符和大小写替代。校验器不能先 `realpath` 再放宽符号链接；必须在打开、读取和最终绑定全过程拒绝 TOCTOU 替换。
 
 ## 5. sourceUseRef 与消费边校验
 
@@ -191,15 +326,19 @@ interface BrowserObservationRecord {
 
 ### 6.1 单侧记录
 
-| 条件 | 单侧状态 | 原因码示例 | 是否可证明 |
-|---|---|---|---|
-| 字段齐全、图/源码/工件重算一致、页面/视口/状态匹配 | `complete` | — | 仅 `runtime-observed`，不能自动 `source-proven` |
-| 记录有效但缺少跨侧 mapping、严格边或某个可选运行字段 | `partial` | `missing-cross-side-map`, `non-strict-consumer-edge` | 否 |
-| 有可读工件但记录歧义、重复、几何-only、位置依赖或 candidate-only | `unknown` | `duplicate-record`, `geometry-only`, `semantic-candidate-edge` | 否 |
-| 工件/side/route/state 无法读取、越界、篡改、跨 run 或没有可信捕获 | `unavailable` | `missing-artifact`, `cross-run`, `artifact-hash-mismatch` | 否 |
-| 记录来自旧 sourceDigest、graphDigest、runtimeFingerprint 或已失效 route namespace | `stale` | `source-digest-mismatch`, `graph-digest-mismatch`, `runtime-version-stale` | 否 |
+状态重算优先级固定为 `unavailable > stale > unknown > partial > complete`。同一记录同时命中多个原因时，只能按第 3.1 节选择一个 primary，其余进入排序后的 secondary。
 
-`complete` 只表示观测记录完整，不表示可以授权。没有 strict consumer edge 时，如果其它字段完整优先用 `partial`；若无法判断目标或记录存在冲突则用 `unknown`。不能把这些状态改写成 `pass`。
+| 条件 | 单侧状态 | primary/secondary 示例 | 是否可证明 |
+|---|---|---|---|
+| 所有必需证据齐全且重算一致 | `complete` | `complete` / `[]` | 仅 `runtime-observed` |
+| 记录可读但缺 strict edge、跨侧 mapping 或动态映射 | `partial` | `non-strict-consumer-edge` / `missing-cross-side-map` | 否 |
+| 记录存在但有歧义、重复、几何-only 或位置依赖 | `unknown` | `duplicate-record` / `geometry-only` | 否 |
+| side/工件缺失、越界、篡改、跨 run 或未经可信执行器 | `unavailable` | `missing-artifact` / `untrusted-capture` | 否 |
+| 来源/图/运行版本或 route namespace 已过期 | `stale` | `source-digest-mismatch` / `runtime-version-stale` | 否 |
+
+`complete` 的必要证据必须全部满足：可信宿主绑定的 `projectId/runId/checkId/side`；匹配的 `sourceDigest/graphDigest`；存在且唯一的 route/page tuple、viewport、state；可信根内普通工件的路径、size、SHA-256 和不可变归档；浏览器/runtime 版本匹配；以及可重算的 `primaryReasonCode=complete`、空 secondary。即使全部满足，结论最多是 `runtime-observed`，不能产生 `source-proven`、Candidate、Scope 或修改授权。
+
+没有 strict consumer edge 时，若其它字段完整优先为 `partial`；若目标、图边或运行身份存在冲突则为 `unknown`；不能把任何状态改写成 `pass`。
 
 ### 6.2 必须的特殊行为
 
@@ -278,3 +417,12 @@ interface BrowserObservationRecord {
 - pathname/search/hash、viewport 或 state 不匹配；
 - 未经可信 executor/授权门控的伪造记录；
 - 七项 assertion 中任一非 pass 时仍试图生成 passed/approved 结果。
+
+## 11. 合同修订记录
+
+| 修订 | 日期 | 内容 | 状态 |
+|---|---|---|---|
+| `r1` | 2026-10-30 | 初版字段、双侧身份、图边消费校验和 32 项负例索引 | 被 `r2` 取代 |
+| `r2` | 2026-10-30 | 固定 reason code 与状态优先级；收紧 graphDigest 规范与黄金样本；增加可信工件根、TOCTOU 和不可变归档；明确只读 sidecar、Runtime Identity 与授权边界 | 待 A 冻结 `observation/v1` |
+
+`r2` 是本轮 evidence/docs 归档合同，不能作为生产接线授权。生产实现仍须等待 C B1.1 精确验收、A 正式冻结和独立外审复跑。
