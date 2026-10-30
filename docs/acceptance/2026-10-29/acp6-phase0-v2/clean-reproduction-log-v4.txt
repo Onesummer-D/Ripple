@@ -1,50 +1,92 @@
-Phase 0 P1 clean replay (2026-10-29)
-Clean directory: _scratch/acp6-phase0-clean-replay-p2-20261029
+AC-P6 Phase 0 v2 clean replay (2026-10-30)
+Clean directory: acp6-phase0-repair-clean-20261030
 Node: v24.15.0
 PowerShell: 7.6.5
 Validator: validate-acp6-v06-phase0-v2.mjs
 Formal input SHA-256: 0d7e5f97d91e69852f15c313522e05587a2571d61489c72274e3944b47d6527a
 Raw classification SHA-256: 89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200
-Command: node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json
-positive exit=0 validationPass=true
-negative=duplicate-id exit=0 validationPass=false exitPass=true
-negative=unknown-raw-class exit=0 validationPass=false exitPass=true
-negative=unknown-canonical-class exit=0 validationPass=false exitPass=true
-negative=deleted-classification exit=0 validationPass=false exitPass=true
-negative=missing-row-mapping-version exit=0 validationPass=false exitPass=true
-negative=wrong-row-mapping-version exit=0 validationPass=false exitPass=true
-negative=wrong-mapping-rule exit=0 validationPass=false exitPass=true
-negative=tampered-source-location exit=0 validationPass=false exitPass=true
-negative=tampered-input-hash exit=0 validationPass=false exitPass=true
-negative=tampered-counts exit=0 validationPass=false exitPass=true
-negative=graph-node-present exit=0 validationPass=false exitPass=true
-negative=source-row-mutation exit=0 validationPass=false exitPass=true
-negative=ac64-pair-file exit=0 validationPass=false exitPass=true
-negative=ac64-pair-byte-offset exit=0 validationPass=false exitPass=true
-negative=ac64-pair-token exit=0 validationPass=false exitPass=true
-negative=ac64-pair-component exit=0 validationPass=false exitPass=true
-negative=ac64-pair-source-ref exit=0 validationPass=false exitPass=true
-negative=ac64-pair-edge-count exit=0 validationPass=false exitPass=true
-negative=ac64-pair-certainty exit=0 validationPass=false exitPass=true
-negative=ac64-pair-id exit=0 validationPass=false exitPass=true
-negative=ac64-pair-content-hash exit=0 validationPass=false exitPass=true
-negative=ac64-pair-set-hash exit=0 validationPass=false exitPass=true
-negative=ac64-unknown-pair-ids exit=0 validationPass=false exitPass=true
-negative=covered-row-id-mutation exit=0 validationPass=false exitPass=true
-negative=uncovered-row-id-mutation exit=0 validationPass=false exitPass=true
-negative=copied-platform-evidence exit=0 validationPass=false exitPass=true
-negative=offset-platform-mismatch exit=0 validationPass=false exitPass=true
-negative=drift-status-null-linux exit=0 validationPass=false exitPass=true
-negative=drift-status-unobserved exit=0 validationPass=false exitPass=true
-negative=drift-fake-delta exit=0 validationPass=false exitPass=true
-negative=drift-missing-row exit=0 validationPass=false exitPass=true
-negative=offset-reconciliation-promoted exit=0 validationPass=false exitPass=true
-negative=raw-classification-label-swap exit=0 validationPass=false exitPass=true
-negative=raw-classification-source-hash exit=0 validationPass=false exitPass=true
-negative=drift-fabricated-provenance exit=0 validationPass=false exitPass=true
-negative=platform-check-row-duplicate exit=0 validationPass=false exitPass=true
-negative=shuffle-order exit=0 validationPass=true exitPass=true
-negativeBad=0 totalCases=37
-Platform status: crossPlatformStatus=unavailable proofLevel=not-proven
-Manifest validation is recorded separately after finalization; no independent Windows artifact is claimed.
-Manifest validation (clean replay): entries=53 manifestSha256=0da549feda0d393fafb879c7cf20a6d67a4d30d57711536346a899fa7ee2e5fc recordedManifestHash=0da549feda0d393fafb879c7cf20a6d67a4d30d57711536346a899fa7ee2e5fc selfHashMatch=true fileErrors=0
+Formal input bytes: 1035281 JSON.parse=pass
+Matrix bytes: 505832 JSON.parse=pass
+Raw source bytes: 163072 JSON.parse=pass
+Old corrupt archive restored blob: 0f1b0a5f0ace21856951752a42df51a743bb9feb bytes=786443 sha256=6f2503b9e86a63ab64647bf1e7e742f4e67840c0a1c0b91a8f859be3f963982f
+Platform: crossPlatformStatus=unavailable proofLevel=not-proven
+Manifest validation is recorded in manifest-validation-record.json after finalization; no independent Windows artifact is claimed.
+
+# AC-P6 Phase 0 v2 clean reproduction
+# Each negative case exits 0 only when the validator detects the intended mutation. shuffle-order is a positive invariance case.
+0  positive  validatorPass=true  failedChecks=none
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json
+0  duplicate-id  validatorPass=false  failedChecks=stable-id-unique,stable-id-reproducible,source-use-full-row-comparison,platform-offsets,order-stability
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=duplicate-id
+0  unknown-raw-class  validatorPass=false  failedChecks=uncovered-classifications-legal,raw-classification-row-comparison,raw-counts,order-stability
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=unknown-raw-class
+0  unknown-canonical-class  validatorPass=false  failedChecks=uncovered-classifications-legal,canonical-counts,order-stability
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=unknown-canonical-class
+0  deleted-classification  validatorPass=false  failedChecks=taxonomy-version,uncovered-classifications-legal,raw-classification-row-comparison,canonical-counts,raw-counts,order-stability
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=deleted-classification
+0  missing-row-mapping-version  validatorPass=false  failedChecks=uncovered-classifications-legal
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=missing-row-mapping-version
+0  wrong-row-mapping-version  validatorPass=false  failedChecks=uncovered-classifications-legal
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=wrong-row-mapping-version
+0  wrong-mapping-rule  validatorPass=false  failedChecks=uncovered-classifications-legal
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=wrong-mapping-rule
+0  tampered-source-location  validatorPass=false  failedChecks=stable-id-reproducible,source-use-full-row-comparison
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=tampered-source-location
+0  tampered-input-hash  validatorPass=false  failedChecks=source-hash
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=tampered-input-hash
+0  tampered-counts  validatorPass=false  failedChecks=row-counts
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=tampered-counts
+0  graph-node-present  validatorPass=false  failedChecks=source-use-graph-node-ids-explicit-missing
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=graph-node-present
+0  source-row-mutation  validatorPass=false  failedChecks=source-use-full-row-comparison
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=source-row-mutation
+0  ac64-pair-file  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-file
+0  ac64-pair-byte-offset  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-byte-offset
+0  ac64-pair-token  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-token
+0  ac64-pair-component  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-component
+0  ac64-pair-source-ref  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-source-ref
+0  ac64-pair-edge-count  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-edge-count
+0  ac64-pair-certainty  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-certainty
+0  ac64-pair-id  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-id
+0  ac64-pair-content-hash  validatorPass=false  failedChecks=ac64-pair-content-integrity,ac64-pair-evidence
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-content-hash
+0  ac64-pair-set-hash  validatorPass=false  failedChecks=ac64-pair-set-hash
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-pair-set-hash
+0  ac64-unknown-pair-ids  validatorPass=false  failedChecks=ac64-unknown-pair-ids
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=ac64-unknown-pair-ids
+0  covered-row-id-mutation  validatorPass=false  failedChecks=row-indexes-exact
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=covered-row-id-mutation
+0  uncovered-row-id-mutation  validatorPass=false  failedChecks=row-indexes-exact
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=uncovered-row-id-mutation
+0  copied-platform-evidence  validatorPass=false  failedChecks=platform-source-binding,platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=copied-platform-evidence
+0  offset-platform-mismatch  validatorPass=false  failedChecks=platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=offset-platform-mismatch
+0  drift-status-null-linux  validatorPass=false  failedChecks=platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=drift-status-null-linux
+0  drift-status-unobserved  validatorPass=false  failedChecks=platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=drift-status-unobserved
+0  drift-fake-delta  validatorPass=false  failedChecks=platform-source-binding,platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=drift-fake-delta
+0  drift-missing-row  validatorPass=false  failedChecks=platform-source-binding,platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=drift-missing-row
+0  offset-reconciliation-promoted  validatorPass=false  failedChecks=offset-reconciliation-observation
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=offset-reconciliation-promoted
+0  raw-classification-label-swap  validatorPass=false  failedChecks=uncovered-classifications-legal,raw-classification-row-comparison,raw-counts,order-stability
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=raw-classification-label-swap
+0  raw-classification-source-hash  validatorPass=false  failedChecks=archive-base-identity,raw-classification-source-hash
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=raw-classification-source-hash
+0  drift-fabricated-provenance  validatorPass=false  failedChecks=platform-source-binding,platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=drift-fabricated-provenance
+0  platform-check-row-duplicate  validatorPass=false  failedChecks=platform-source-binding,platform-checks-exact-row-set,platform-offsets
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=platform-check-row-duplicate
+0  shuffle-order  validatorPass=true  failedChecks=none
+    node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json --negative=shuffle-order

@@ -169,17 +169,13 @@ Offsets are measured on exact UTF-8 source bytes. No LF/CRLF normalization is pe
 
 ## Validation and negative cases
 
-Run the validator from a clean checkout with the source JSON, raw classification source, and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications or row mappingVersion, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, AC6.4 pair mutations, row-index mutations, and copied/under-proven platform evidence. Platform inputs and every per-row platform copy must match the trusted artifact/run/source identity; a fabricated runner, artifact hash, path, or independent flag is rejected even when all offset deltas and driftRows are numerically self-consistent. A reversed row order must preserve stable IDs and all statistics.
+Run the validator from a clean checkout with the source JSON, raw classification source, and matrix path as arguments. It rejects duplicate IDs, unknown raw/canonical classes, missing classifications or row mappingVersion, wrong mapping rules, source-row mutations, input-hash changes, statistic changes, invented graphNodeIds, AC6.4 pair mutations, row-index mutations, and copied/under-proven platform evidence. A reversed row order must preserve stable IDs and all statistics.
 
 AC6.2 dynamic-className rows and AC6.4 dynamic UNKNOWN pairs have separate cardinalities: 9 raw source-use rows versus 7 consumer pairs. The matrix never maps them one-to-one.
 
 ## Boundary
 
 This is evidence and validation only. SourceGraph production code, B v5 matcher/probe, Runtime Identity, Candidate, Verification, Approval, Apply, Rollback and thresholds are unchanged. AC6.2 and AC6.4 remain PENDING.
-
-## Platform record-set contract
-
-`platformChecks` must contain exactly one record for every stable ID in the 123-row formal source set. The validator checks total count, uniqueness, missing IDs, and extra IDs before evaluating platform metadata or offsets. This applies to `unavailable`, `independent-equal`, and `independent-drift-explained`; replacing one valid record with a duplicate is rejected by `platform-checks-exact-row-set`.
 
 ## Clean reproduction record
 

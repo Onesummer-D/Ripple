@@ -1,9 +1,9 @@
 {
   "schemaVersion": "acp6-v06-phase0-manifest-validation/v2",
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-10-30",
   "manifestEntries": 53,
-  "manifestHash": "09fce4adad01e471f7d2728e468552355d0e20739d2ccd9059054e67249c932e",
-  "recordedManifestHash": "09fce4adad01e471f7d2728e468552355d0e20739d2ccd9059054e67249c932e",
+  "manifestHash": "d024157fc856433b35cc26e5026f1100906972f5f89577d8ee4b2be30febbe8e",
+  "recordedManifestHash": "d024157fc856433b35cc26e5026f1100906972f5f89577d8ee4b2be30febbe8e",
   "manifestSelfHashMatch": true,
   "fileHashErrors": 0,
   "errors": [],

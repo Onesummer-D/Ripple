@@ -1,8 +1,8 @@
 {
   "schemaVersion": "acp6-v06-phase0-validation/v4",
   "generatedAt": "2026-10-29",
-  "matrixPath": "Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\acp6-v06-phase0-gap-matrix-v2-20261029.json",
-  "sourcePath": "Ripple涟漪\\_scratch\\acp6-phase0-v2-20261029\\acceptance-ed58cfd-final.json",
+  "matrixPath": "acp6-v06-phase0-gap-matrix-v2-20261029.json",
+  "sourcePath": "acceptance-ed58cfd-final.json",
   "negativeName": "offset-reconciliation-promoted",
   "expectedPass": false,
   "validation": {
