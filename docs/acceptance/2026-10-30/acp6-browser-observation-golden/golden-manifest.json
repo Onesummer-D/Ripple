@@ -1,6 +1,7 @@
 {
   "protocol": "acp6-browser-observation/v1-draft",
   "contractRevision": "2026-10-30-r3",
+  "validatorVersion": "evidence-golden-validator/2026-10-31-r1",
   "cases": {
     "G0": {
       "fixture": null,
@@ -31,6 +32,26 @@
       "fixture": "g5.json",
       "mode": "executable",
       "expectedDigest": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398"
+    }
+  },
+  "negativeCases": {
+    "duplicate-node-id": {
+      "fixture": "duplicate-node-id.json",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "producesTrustedGraphDigest": false
+    },
+    "duplicate-relation-id": {
+      "fixture": "duplicate-relation-id.json",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "producesTrustedGraphDigest": false
+    },
+    "unknown-field": {
+      "fixture": "unknown-field.json",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "producesTrustedGraphDigest": false
     }
   }
 }

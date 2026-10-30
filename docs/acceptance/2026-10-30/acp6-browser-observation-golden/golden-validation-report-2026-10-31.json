@@ -1,0 +1,65 @@
+{
+  "protocol": "acp6-browser-observation/v1-draft",
+  "contractRevision": "2026-10-30-r3",
+  "validatorVersion": "evidence-golden-validator/2026-10-31-r1",
+  "scope": "evidence-only; no production SourceGraph, VerificationRun, Runtime Identity or authorization writes",
+  "commands": [
+    "node docs/acceptance/2026-10-30/acp6-browser-observation-golden/validate-golden.mjs",
+    "node docs/acceptance/2026-10-30/acp6-browser-observation-golden/validate-golden.mjs --negative"
+  ],
+  "results": [
+    {
+      "case": "G4",
+      "kind": "positive",
+      "status": "pass",
+      "counts": { "nodes": 3, "edges": 2, "unresolved": 3 },
+      "canonicalJsonSha256": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398",
+      "graphDigest": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398"
+    },
+    {
+      "case": "G5",
+      "kind": "positive-shuffled-input",
+      "status": "pass",
+      "counts": { "nodes": 3, "edges": 2, "unresolved": 3 },
+      "canonicalJsonSha256": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398",
+      "graphDigest": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398"
+    },
+    {
+      "case": "duplicate-node-id",
+      "kind": "negative",
+      "status": "pass",
+      "reasonCode": "graph-schema-invalid",
+      "observationStatus": "unavailable",
+      "graphDigest": null,
+      "trusted": false,
+      "message": "duplicate node.id: file:src/App.tsx"
+    },
+    {
+      "case": "duplicate-relation-id",
+      "kind": "negative",
+      "status": "pass",
+      "reasonCode": "graph-schema-invalid",
+      "observationStatus": "unavailable",
+      "graphDigest": null,
+      "trusted": false,
+      "message": "duplicate Relation.id: rel:consumer"
+    },
+    {
+      "case": "unknown-field",
+      "kind": "negative",
+      "status": "pass",
+      "reasonCode": "graph-schema-invalid",
+      "observationStatus": "unavailable",
+      "graphDigest": null,
+      "trusted": false,
+      "message": "nodes[0].unexpected is an unknown graph field"
+    }
+  ],
+  "stability": {
+    "cases": ["G4", "G5"],
+    "canonicalJsonByteEqual": true,
+    "digestEqual": true,
+    "digest": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398"
+  },
+  "notExecuted": ["N01-N32", "real SourceGraph duplicate-ID governance", "production VerificationRun integration"]
+}

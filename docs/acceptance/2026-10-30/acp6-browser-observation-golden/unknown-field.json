@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "acp6-sourcegraph/v1",
+  "sourceDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "nodes": [
+    { "id": "file:src/App.tsx", "kind": "file", "label": "App.tsx", "unexpected": "reject-me" }
+  ],
+  "edges": [],
+  "unresolved": []
+}

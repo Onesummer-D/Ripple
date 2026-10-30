@@ -187,11 +187,13 @@ const requested = args.find(arg => arg.startsWith('--case='))?.slice('--case='.l
 const customInput = args.find(arg => arg.startsWith('--input='))?.slice('--input='.length)
 const customExpected = args.find(arg => arg.startsWith('--expected='))?.slice('--expected='.length)
 const executableCases = Object.entries(manifest.cases).filter(([, value]) => value.mode === 'executable')
+const negativeCases = Object.entries(manifest.negativeCases ?? {}).map(([name, value]) => [name, { ...value, mode: 'negative', expectedDigest: null, expectReject: true }])
 const selected = customInput
   ? [['CUSTOM', { fixture: customInput, mode: 'executable', expectedDigest: customExpected ?? null }]]
+  : args.includes('--negative') ? (requested ? negativeCases.filter(([name]) => name === requested) : negativeCases)
   : requested ? executableCases.filter(([name]) => name === requested) : executableCases
 if (requested && selected.length === 0) {
-  console.error(JSON.stringify({ status: 'rejected', reasonCode: 'graph-schema-invalid', message: `unknown executable case: ${requested}` }))
+  console.error(JSON.stringify({ status: 'rejected', observationStatus: 'unavailable', reasonCode: 'graph-schema-invalid', graphDigest: null, trusted: false, message: `unknown executable case: ${requested}` }))
   process.exit(1)
 }
 
@@ -200,13 +202,25 @@ for (const [name, spec] of selected) {
   try {
     const input = JSON.parse(await readFile(resolve(here, spec.fixture), 'utf8'))
     const result = canonicalGraph(input)
+    if (spec.expectReject) {
+      results.push({ case: name, status: 'unexpected-pass', reasonCode: 'graph-schema-invalid', observationStatus: 'complete', graphDigest: result.digest, trusted: true, message: 'negative fixture unexpectedly canonicalized' })
+      process.exitCode = 1
+      continue
+    }
     const passed = spec.expectedDigest == null || result.digest === spec.expectedDigest
     results.push({ case: name, status: passed ? 'pass' : 'rejected', digest: result.digest, canonicalJsonSha256: result.digest, ...(spec.expectedDigest == null ? {} : { expectedDigest: spec.expectedDigest }), counts: result.counts })
     if (!passed) process.exitCode = 1
   } catch (error) {
-    results.push({ case: name, status: 'rejected', reasonCode: error.code ?? 'graph-schema-invalid', message: error.message })
-    process.exitCode = 1
+    if (spec.expectReject) {
+      const actualReasonCode = error.code ?? 'graph-schema-invalid'
+      const passed = actualReasonCode === spec.expectedReasonCode
+      results.push({ case: name, status: passed ? 'pass' : 'rejected', observationStatus: 'unavailable', reasonCode: actualReasonCode, expectedReasonCode: spec.expectedReasonCode, graphDigest: null, trusted: false, message: error.message })
+      if (!passed) process.exitCode = 1
+    } else {
+      results.push({ case: name, status: 'rejected', observationStatus: 'unavailable', reasonCode: error.code ?? 'graph-schema-invalid', graphDigest: null, trusted: false, message: error.message })
+      process.exitCode = 1
+    }
   }
 }
 
-console.log(JSON.stringify({ protocol: manifest.protocol, contractRevision: manifest.contractRevision, results }, null, 2))
+console.log(JSON.stringify({ protocol: manifest.protocol, contractRevision: manifest.contractRevision, validatorVersion: manifest.validatorVersion, results }, null, 2))

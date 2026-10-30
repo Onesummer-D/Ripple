@@ -98,7 +98,7 @@ OBS-N05 只覆盖“实例存在、严格 consumer edge 缺失、运行身份没
 
 ### 5.2 独立归档校验
 
-已归档的 evidence-only 黄金样本验证器为 `docs/acceptance/2026-10-30/acp6-browser-observation-golden/validate-golden.mjs`，fixture 与 manifest 同目录。它只读 Graph JSON，输出每个 case 的 exit status、canonical JSON SHA-256、graphDigest 和节点/边/unresolved 数量；不得读取网络或自动下载外部 URL。G0–G3 在 manifest 中保留为 reference，G4/G5 可直接执行。
+已归档的 evidence-only 黄金样本验证器为 `docs/acceptance/2026-10-30/acp6-browser-observation-golden/validate-golden.mjs`，fixture 与 manifest 同目录。它只读 Graph JSON，输出每个 case 的 exit status、canonical JSON SHA-256、graphDigest 和节点/边/unresolved 数量；不得读取网络或自动下载外部 URL。G0–G3 在 manifest 中保留为 reference，G4/G5 可直接执行；`--negative` 会执行重复 node、重复 Relation ID 和未知字段三项拒绝样本。
 
 ### 5.3 Verification 连接测试
 
@@ -113,7 +113,7 @@ OBS-N05 只覆盖“实例存在、严格 consumer edge 缺失、运行身份没
 3. 运行 G2，仅把 certainty 改为 `source-proven`，断言摘要为 `88b500e631d7dd302fe8f526bb9f10b682228857605184639f7a11dbde0d42f4`；
 4. 运行 G3，在 graph wrapper 的 `environment` 中加入 projectId、runId、runtimeFingerprint、host OS、artifact path 等排除字段，断言摘要与 G0 相同；若把同名字段放入 graph node/relation，则必须拒绝；
 5. 运行 G4/G5，使用三节点、两 relation、多 evidenceRefs、多个 pages/mediaContext 和三条 unresolved，断言 canonical JSON 逐字相同，SHA-256 为 `a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398`；
-6. 分别输入重复 ID、未知端点、非法数字、显式 null、未知图结构字段和重复 unresolved，断言每一项独立拒绝，不先去重或静默丢弃。
+6. 运行 `--negative`，断言 duplicate node ID、duplicate Relation ID 和 unknown field 均为 `graph-schema-invalid`、`unavailable`、无 graphDigest；再分别输入未知端点、非法数字、显式 null 和重复 unresolved，断言每一项独立拒绝，不先去重或静默丢弃。
 
 复现命令为 `node docs/acceptance/2026-10-30/acp6-browser-observation-golden/validate-golden.mjs`，或用 `--case=G4`/`--case=G5` 单独运行。输出应包含 contract revision、canonical JSON SHA、digest、数量摘要和 exit code。
 
