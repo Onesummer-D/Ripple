@@ -336,7 +336,7 @@ G0/G1 必须逐字产生相同 canonical JSON；G2 的关系语义发生实质�
 | side/工件缺失、越界、篡改、跨 run 或未经可信执行器 | `unavailable` | `missing-artifact` / `untrusted-capture` | 否 |
 | 来源/图/运行版本或 route namespace 已过期 | `stale` | `source-digest-mismatch` / `runtime-version-stale` | 否 |
 
-`complete` 的必要证据必须全部满足：可信宿主绑定的 `projectId/runId/checkId/side`；匹配的 `sourceDigest/graphDigest`；存在且唯一的 route/page tuple、viewport、state；可信根内普通工件的路径、size、SHA-256 和不可变归档；浏览器/runtime 版本匹配；以及可重算的 `primaryReasonCode=complete`、空 secondary。即使全部满足，结论最多是 `runtime-observed`，不能产生 `source-proven`、Candidate、Scope 或修改授权。
+`complete` 的必要证据必须全部满足：可信宿主绑定的 `projectId/runId/checkId/side`；匹配的 `sourceDigest/graphDigest`；存在且唯一的 route/page tuple、viewport、state；可信根内普通工件的路径、size、SHA-256 和不可变归档；浏览器/runtime 版本匹配；精确可重算的 `sourceUseRef` 与唯一 strict consumer edge；目标相关的 unresolved 已清除，且检查需要跨侧结论时已有完整 cross-side map；以及可重算的 `primaryReasonCode=complete`、空 secondary。即使全部满足，结论最多是 `runtime-observed`，不能产生 `source-proven`、Candidate、Scope 或修改授权。
 
 没有 strict consumer edge 时，若其它字段完整优先为 `partial`；若目标、图边或运行身份存在冲突则为 `unknown`；不能把任何状态改写成 `pass`。
 
