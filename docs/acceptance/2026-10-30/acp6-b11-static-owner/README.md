@@ -83,3 +83,7 @@ The full Windows Vitest run completed 849 passed, 67 failed, 68 skipped with 6 u
 ## Files
 
 Allowed production/test changes are limited to `src/core/project.ts` and `src/core/project.test.ts` in this remediation. Evidence outputs are under this directory. No model, route, Runtime Identity, B v5 tool, or authorization contract was changed.
+
+## Final evidence binding revision
+
+Evidence is bound to the verified PR snapshot `6388abec96183cc28824dc2b7fa486e4e944d305` / Tree `8455bfc0c6f2ff5491dad8a418c8b8a7bc78ba2e`; the production implementation remains `34d2a22e696c9eb1af15d5cd9800cf76b7cf7883` / Tree `8bb685b344a8a58d5f3f26f0ae5f4f344a6fa2bd`. The four AC6.4 pairs remain independently UNKNOWN with strict Base/Final consumer edge counts 0. SourceGraph lookup found no executable `jsx-element` sourceRef at the recorded file/offset, so each missing sourceRef is explicit and not inferred. Final graphDigest is unavailable because the graph contains 84 duplicate Relation ID keys and 252 extra occurrences.

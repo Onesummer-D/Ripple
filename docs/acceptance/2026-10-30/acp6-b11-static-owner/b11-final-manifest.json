@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "kind": "AC-P6 B1.1 final remediation manifest",
   "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
   "implementationCoreSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
@@ -115,9 +115,9 @@
       "gitBlobSha": "dfcb7f976cf7ad4610dc4dbc3793170a2527e964"
     },
     "b11-ac64-four-pair-evidence.json": {
-      "bytes": 8571,
-      "sha256": "239318c96f6d0b8cd0ea5ff81da23cec0c3bd20d5dd9f1fab34f8ada4aa76724",
-      "gitBlobSha": "fc5857a8ff8404dfe2bf026568c10b3c8f7c6026"
+      "bytes": 26534,
+      "sha256": "6ed373f5548187745d22cd71dd19fc06d1e5117ef9d7dbe03d9a626f1a80a548",
+      "gitBlobSha": "926bf427751643746edc5ff64ab40fe6c93ad5e7"
     },
     "b11-selector-boundary-evidence.json": {
       "bytes": 2766,
@@ -129,7 +129,10 @@
     "B v5 matcher/probe and thresholds unchanged.",
     "Four AC6.4 pair records remain independently UNKNOWN with no strict pair proof.",
     "Selector boundary evidence includes tag-only intrinsic, globals, custom component, Portal, dynamic, multiple-owner, pseudo and complex negatives.",
-    "No authorization rule or Runtime Identity contract changed."
+    "No authorization rule or Runtime Identity contract changed.",
+    "PR archive head/tree are recorded separately from the production implementation SHA/tree.",
+    "AC6.4 pair sourceRefs are null when no matching jsx-element exists in Base or Final; missing evidence is explicit and no sourceRef is inferred.",
+    "Final graphDigest is unavailable because 84 Relation ID keys repeat with 252 extra occurrences."
   ],
   "frozenAcceptanceContracts": {
     "fixture": {
@@ -144,5 +147,38 @@
     "ac65": "undefined --accent-color fallback uses must remain explicit unknown at source positions",
     "invalidInput": "checkout, graph, or fixture drift is ERROR/exit 1; capability pending is exit 2"
   },
-  "archiveHead": "6a6dba09d35efc8f80ea1d0ab0875c245f0197d6"
+  "archiveHead": "6388abec96183cc28824dc2b7fa486e4e944d305",
+  "prHeadSha": "6388abec96183cc28824dc2b7fa486e4e944d305",
+  "prHeadTree": "8455bfc0c6f2ff5491dad8a418c8b8a7bc78ba2e",
+  "codeImplementationSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+  "codeImplementationTree": "8bb685b344a8a58d5f3f26f0ae5f4f344a6fa2bd",
+  "archiveTree": "8455bfc0c6f2ff5491dad8a418c8b8a7bc78ba2e",
+  "productionImplementation": {
+    "sha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+    "tree": "8bb685b344a8a58d5f3f26f0ae5f4f344a6fa2bd",
+    "role": "B1.1 production SourceGraph implementation; unchanged by this evidence revision"
+  },
+  "evidenceArchive": {
+    "sourcePrHeadSha": "6388abec96183cc28824dc2b7fa486e4e944d305",
+    "sourcePrHeadTree": "8455bfc0c6f2ff5491dad8a418c8b8a7bc78ba2e",
+    "role": "verified PR snapshot bound by this evidence revision"
+  },
+  "relationIdDuplicateKeys": 84,
+  "relationIdExtraOccurrences": 252,
+  "graphDigestStatus": "unavailable",
+  "relationIdDiagnostic": {
+    "branch": "evidence/cd-acp6-b11-relation-id-diagnostic-20261030",
+    "commit": "98ee336016c7d403e8e042f75e6e8505ad9be953",
+    "tree": "6ff0b99d187e3d42468ef3a423834683a511d500",
+    "report": "https://github.com/Onesummer-D/Ripple/blob/evidence/cd-acp6-b11-relation-id-diagnostic-20261030/docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-relation-id-duplicate-diagnostic.md",
+    "machineReport": "https://github.com/Onesummer-D/Ripple/blob/evidence/cd-acp6-b11-relation-id-diagnostic-20261030/docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-relation-id-duplicate-diagnostic.json"
+  },
+  "ac64PairEvidence": {
+    "path": "b11-ac64-four-pair-evidence.json",
+    "implementationCoreSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+    "archiveHead": "6388abec96183cc28824dc2b7fa486e4e944d305",
+    "graphDigestStatus": "unavailable",
+    "allUnknown": true,
+    "strictPairProofsAdded": 0
+  }
 }
