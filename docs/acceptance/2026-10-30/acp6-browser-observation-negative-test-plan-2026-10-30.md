@@ -33,6 +33,8 @@
 
 每行只变异一个事实。`触发方式` 是独立执行器应执行的具体变异；`证据/复现` 要求保留输入、输出和校验器版本，能在无网络环境重跑。
 
+OBS-N05 只覆盖“实例存在、严格 consumer edge 缺失、运行身份没有冲突”，因此状态为 `partial`。如果额外叠加 `runtime-location-conflict` 或 `identity-not-stable`，应按 `unknown` 优先级重算，并由对应 reason code 成为 primary；该组合不是 N05 的通过条件。
+
 | 编号 | 输入与前置条件 | 触发方式 | 预期 reasonCode | 预期状态 | 必须拒绝的下游操作 | 测试证据及复现方法 | 所属门控 |
 |---|---|---|---|---|---|---|---|
 | OBS-N01 | 合法记录有 boundingBox，无严格图边 | 删除 `sourceUseRef`，保留 DOM 坐标 | `geometry-only` | `unknown` | 不得生成 source-mapping receipt | `valid-record.json` 变异后运行 `--case OBS-N01`，断言 primary/status | SourceGraph/source-mapping |
