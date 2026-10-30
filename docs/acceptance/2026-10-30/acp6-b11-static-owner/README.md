@@ -5,11 +5,13 @@
 This evidence covers the A-approved B1.1 slice: conservative static JSX owner matching for CSS `var()` uses. It does not change public model fields, SourceGraph authorization, Runtime Identity, B v5 matcher/probe/thresholds, or Candidate/Scope/Verification/Approval/Apply/Rollback gates.
 
 - Production base: `5b75fe699afce98638e6fd6ad110911d83389dc8`
-- Exact implementation HEAD under review: `45555a3c8a4f7663b36a47c7ee0d990c88699724`
-- Implementation tree: `7fad41423cb10603bb193d74913b19259f3f4b32`
+- PR #70 exact HEAD rebind: `45555a3c8a4f7663b36a47c7ee0d990c88699724` (pre-remediation evidence)
+- Remediation HEAD: `25d8c45a3278ba19a4bb4548088df24f499c4ad5`
+- Remediation tree: `0758d04284e698e922ed6e3b841c0a484f041972`
 - Fixed project: `allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd`
 - Draft PR: [#70](https://github.com/Onesummer-D/Ripple/pull/70)
 - Exact-head manifest: [`b11-rebind-manifest.json`](./b11-rebind-manifest.json)
+- Final remediation manifest: [`b11-final-manifest.json`](./b11-final-manifest.json)
 
 The original dirty worktree is preserved separately. This worktree is clean except for the review remediation files before commit.
 
@@ -41,16 +43,16 @@ The same fixed project and probe version produced:
 | metric | Base | Exact implementation | Delta |
 | --- | ---: | ---: | ---: |
 | graph nodes | 675 | 675 | 0 |
-| graph edges | 5302 | 3070 | -2232 |
+| graph edges | 5302 | 3046 | -2256 |
 | unresolved | 253 | 253 | 0 |
 | source-proven edges | 744 | 744 | 0 |
 | unknown `uses-token` edges | 252 | 252 | 0 |
 
-The complete machine diff is [`b11-graph-diff.json`](./b11-graph-diff.json). The -2232 change is entirely within semantic-candidate token relations:
+The complete pre-remediation machine diff is [`b11-graph-diff.json`](./b11-graph-diff.json); the final remediation comparison is [`b11-graph-diff-final25d8.json`](./b11-graph-diff-final25d8.json). The -2232 change is entirely within semantic-candidate token relations:
 
 - `token-reference`: 964 → 684 (−280)
-- `uses-token` semantic-candidate: 2156 → 1040 (−1116)
-- `css-cascade` semantic-candidate: 1184 → 348 (−836)
+- `uses-token` semantic-candidate: 2156 → 1028 (−1128)
+- `css-cascade` semantic-candidate: 1184 → 336 (−848)
 
 No source-proven relation was removed or added; node IDs and unknown edge counts are unchanged. The reduction includes unsupported/ambiguous selector pruning as well as stricter intrinsic-owner matching, so it is not described as only consumer-owner pruning. No authorization relation is modified.
 
@@ -60,7 +62,7 @@ The new regression fixture covers a unique tag-only intrinsic owner (`dialog`), 
 
 ## Frozen B v5 rebind
 
-The exact-head report is [`b11-v5-head45555.json`](./b11-v5-head45555.json). It contains `aCore.sha === aCore.expectedSha === 45555a3c8a4f7663b36a47c7ee0d990c88699724`, fixed project SHA `b244f857457d2a07f118155602eef9097fd322bd`, graph `675/3070/253`, and `3 PASS / 2 PENDING / 0 ERROR` with exit code 2. The base comparison report is [`b11-v5-base-5b75fe.json`](./b11-v5-base-5b75fe.json), also exit 2 with `675/5302/253`.
+The exact PR #70 rebind report is [`b11-v5-head45555.json`](./b11-v5-head45555.json); it proves `aCore.sha === aCore.expectedSha === 45555a3c8a4f7663b36a47c7ee0d990c88699724`, fixed project SHA `b244f857457d2a07f118155602eef9097fd322bd`, graph `675/3070/253`, and `3 PASS / 2 PENDING / 0 ERROR` with exit code 2. After the conservative boundary test/source change, the final remediation report [`b11-v5-final25d8.json`](./b11-v5-final25d8.json) binds `aCore.sha === aCore.expectedSha === 25d8c45a3278ba19a4bb4548088df24f499c4ad5` and reports `675/3046/253`, still `3 PASS / 2 PENDING / 0 ERROR`, exit 2. The base report is [`b11-v5-base-5b75fe.json`](./b11-v5-base-5b75fe.json), exit 2 with `675/5302/253`.
 
 B v5 matcher/probe and thresholds were not modified. AC6.2 and AC6.4 remain PENDING.
 

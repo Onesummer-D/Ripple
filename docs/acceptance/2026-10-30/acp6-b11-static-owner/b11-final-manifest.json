@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "kind": "AC-P6 B1.1 final remediation manifest",
+  "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+  "implementationCoreSha": "25d8c45a3278ba19a4bb4548088df24f499c4ad5",
+  "implementationTree": "0758d04284e698e922ed6e3b841c0a484f041972",
+  "preRemediationExactHead": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
+  "project": {
+    "repo": "allanhue/webportflio",
+    "sha": "b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "probe": {
+    "path": "scripts/b-css-token-probe.mjs",
+    "version": "v5",
+    "gitBlobSha": "3431294c0807161432e0a7c986825ffc5263bc87"
+  },
+  "runs": [
+    {
+      "label": "exact PR #70 pre-remediation",
+      "expectCoreSha": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
+      "exitCode": 2,
+      "report": "b11-v5-head45555.json",
+      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 45555a3c8a4f7663b36a47c7ee0d990c88699724 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-head45555.json"
+    },
+    {
+      "label": "final remediation",
+      "expectCoreSha": "25d8c45a3278ba19a4bb4548088df24f499c4ad5",
+      "exitCode": 2,
+      "report": "b11-v5-final25d8.json",
+      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 25d8c45a3278ba19a4bb4548088df24f499c4ad5 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-final25d8.json"
+    },
+    {
+      "label": "production base",
+      "expectCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+      "exitCode": 2,
+      "report": "b11-v5-base-5b75fe.json",
+      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 5b75fe699afce98638e6fd6ad110911d83389dc8 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-base-5b75fe.json"
+    }
+  ],
+  "acceptance": {
+    "final": "3 PASS / 2 PENDING / 0 ERROR",
+    "projectGraph": {
+      "base": {
+        "nodes": 675,
+        "edges": 5302,
+        "unresolved": 253
+      },
+      "final": {
+        "nodes": 675,
+        "edges": 3046,
+        "unresolved": 253
+      }
+    },
+    "sourceProvenRemoved": 0,
+    "sourceProvenAdded": 0,
+    "unknownUseEdges": {
+      "base": 252,
+      "final": 252
+    }
+  },
+  "tests": {
+    "targeted": "PASS: project.test.ts 3 passed, 32 skipped; css-token-source.test.ts 5 passed",
+    "typecheck": "PASS",
+    "build": "PASS",
+    "fullVitest": "FAIL in Windows sandbox: 849 passed, 67 failed, 68 skipped, 6 unhandled errors; failures are environment-bound symlink EPERM, missing Playwright executable, loopback EACCES and worker timeouts; Linux CI required"
+  },
+  "artifacts": {
+    "b11-v5-final25d8.json": {
+      "bytes": 673224,
+      "sha256": "adad4f7132823af12cf96044577e5262403e54e3e86d135f3619cf343cd003b9",
+      "gitBlobSha": "7ce853d54edc1d258ff194c6ed9028737561aebb"
+    },
+    "b11-v5-head45555.json": {
+      "bytes": 676953,
+      "sha256": "3b36fef855dca7ae62db22c93177a35af0570b8ecd4a18b9d9a0194556328d1e",
+      "gitBlobSha": "2da046981bb8e5634f867262a2075c1279ce67ef"
+    },
+    "b11-v5-base-5b75fe.json": {
+      "bytes": 1035281,
+      "sha256": "fb7d4d77481d30fd11daf193a1b5b20fd31f7946b74100a7715bbba9f2708309",
+      "gitBlobSha": "0ab04e3ce384e1f7ab3e65d7750189b98371c2ff"
+    },
+    "b11-graph-base.json": {
+      "bytes": 3519068,
+      "sha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+      "gitBlobSha": "e2f9eda6e2d7230bcce4f668ad35d4021f42c4ce"
+    },
+    "b11-graph-final25d8.json": {
+      "bytes": 2049215,
+      "sha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+      "gitBlobSha": "4cc7b692b5ce888d8820756d794b7bdbbc11eb23"
+    },
+    "b11-graph-diff-final25d8.json": {
+      "bytes": 3779,
+      "sha256": "7696aa208eb32a4fe42cfcbec8eceb5186b9d0fa627abba376755798f3730880",
+      "gitBlobSha": "4f46c743fdf4f74f5cceb22a9df890e438e7258c"
+    },
+    "b11-ac64-four-pair-evidence.json": {
+      "bytes": 8571,
+      "sha256": "239318c96f6d0b8cd0ea5ff81da23cec0c3bd20d5dd9f1fab34f8ada4aa76724",
+      "gitBlobSha": "fc5857a8ff8404dfe2bf026568c10b3c8f7c6026"
+    }
+  },
+  "notes": [
+    "B v5 matcher/probe and thresholds unchanged.",
+    "The four AC6.4 pair records remain independently UNKNOWN; no strict pair proof was added.",
+    "No authorization rule or Runtime Identity contract changed."
+  ]
+}
