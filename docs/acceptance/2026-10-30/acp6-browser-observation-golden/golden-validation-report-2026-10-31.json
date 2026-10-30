@@ -45,6 +45,26 @@
       "message": "duplicate Relation.id: rel:consumer"
     },
     {
+      "case": "duplicate-relation-id-identical",
+      "kind": "negative-identical-payload",
+      "status": "pass",
+      "reasonCode": "graph-schema-invalid",
+      "observationStatus": "unavailable",
+      "graphDigest": null,
+      "trusted": false,
+      "message": "duplicate Relation.id: rel:duplicate"
+    },
+    {
+      "case": "unknown-relation-endpoint",
+      "kind": "negative-unknown-endpoint",
+      "status": "pass",
+      "reasonCode": "graph-schema-invalid",
+      "observationStatus": "unavailable",
+      "graphDigest": null,
+      "trusted": false,
+      "message": "unknown relation endpoint: rel:unknown-endpoint"
+    },
+    {
       "case": "unknown-field",
       "kind": "negative",
       "status": "pass",
@@ -63,3 +83,4 @@
   },
   "notExecuted": ["N01-N32", "real SourceGraph duplicate-ID governance", "production VerificationRun integration"]
 }
+

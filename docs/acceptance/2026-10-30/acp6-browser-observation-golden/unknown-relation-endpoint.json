@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "acp6-sourcegraph/v1",
+  "sourceDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "nodes": [
+    { "id": "file:src/App.tsx", "kind": "file", "label": "App.tsx" },
+    { "id": "token-use:src/App.tsx#42", "kind": "token-use", "label": "--accent" }
+  ],
+  "edges": [
+    {
+      "id": "rel:unknown-endpoint",
+      "from": "file:src/App.tsx",
+      "to": "token-use:src/Missing.tsx#9",
+      "kind": "imports",
+      "certainty": "source-proven",
+      "evidenceRefs": ["ev:missing-endpoint"]
+    }
+  ],
+  "unresolved": []
+}
+

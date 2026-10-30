@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "acp6-sourcegraph/v1",
+  "sourceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "nodes": [
+    { "id": "file:src/App.tsx", "kind": "file", "label": "App.tsx" },
+    { "id": "token-use:src/App.tsx#42", "kind": "token-use", "label": "--accent" }
+  ],
+  "edges": [
+    {
+      "id": "rel:duplicate",
+      "from": "file:src/App.tsx",
+      "to": "token-use:src/App.tsx#42",
+      "kind": "imports",
+      "certainty": "source-proven",
+      "evidenceRefs": ["ev:import-a"]
+    },
+    {
+      "id": "rel:duplicate",
+      "from": "file:src/App.tsx",
+      "to": "token-use:src/App.tsx#42",
+      "kind": "imports",
+      "certainty": "source-proven",
+      "evidenceRefs": ["ev:import-a"]
+    }
+  ],
+  "unresolved": []
+}
+

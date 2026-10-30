@@ -47,6 +47,18 @@
       "expectedObservationStatus": "unavailable",
       "producesTrustedGraphDigest": false
     },
+    "duplicate-relation-id-identical": {
+      "fixture": "duplicate-relation-id-identical.json",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "producesTrustedGraphDigest": false
+    },
+    "unknown-relation-endpoint": {
+      "fixture": "unknown-relation-endpoint.json",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "producesTrustedGraphDigest": false
+    },
     "unknown-field": {
       "fixture": "unknown-field.json",
       "expectedReasonCode": "graph-schema-invalid",
@@ -55,3 +67,4 @@
     }
   }
 }
+
