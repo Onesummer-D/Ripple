@@ -70,12 +70,12 @@ B v5 matcher/probe and thresholds were not modified. AC6.2 and AC6.4 remain PEND
 
 ```text
 npx vitest run src/core/project.test.ts -t "tag-only"  # PASS: 1 passed, 34 skipped
-npm run typecheck                                      # pending final rerun
-npm run build                                          # pending final rerun
+npm run typecheck                                      # PASS
+npm run build                                          # PASS
 node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs <fixed-project> --acceptance --expect-core-sha 45555a3c8a4f7663b36a47c7ee0d990c88699724 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-head45555.json  # exit 2
 ```
 
-Remote Linux CI for the remediation commit must be recorded after the evidence commit is pushed. Until then it is UNVERIFIED.
+The full Windows Vitest run completed 849 passed, 67 failed, 68 skipped with 6 unhandled errors; failures were environment-bound (symlink EPERM, missing Playwright executable, loopback EACCES, and worker timeouts). The production `project.test.ts` suite completed 34 passed and 1 skipped; `css-token-source.test.ts` completed 5 passed. Remote Linux CI for the remediation commit is UNVERIFIED because the sandbox push failed DNS; use the branch push command in the handoff.
 
 ## Files
 
