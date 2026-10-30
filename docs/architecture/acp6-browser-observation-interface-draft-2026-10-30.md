@@ -2,7 +2,7 @@
 
 状态：**技术准备稿，未会签，不接入生产**
 协议建议版本：`acp6-browser-observation/v1-draft`
-合同修订：`r2`（原因结构、摘要规范、工件归档和只读边界整改稿）
+合同修订：`r3`（N05 状态、复杂摘要样本和真实 Graph 兼容性审计勘误）
 归档分支：`evidence/acp6-browser-observation-docs-20261030`
 归档基线：`5b75fe699afce98638e6fd6ad110911d83389dc8`
 
@@ -64,7 +64,7 @@ type ObservationProof = 'not-proven' | 'runtime-observed'
 
 interface BrowserObservationRecord {
   protocol: 'acp6-browser-observation/v1-draft'
-  contractRevision: '2026-10-30-r2'
+  contractRevision: '2026-10-30-r3'
   recordId: string
 
   // host-owned identity
@@ -140,6 +140,7 @@ type ObservationReasonCode =
   | 'complete'
   | 'missing-side' | 'missing-artifact' | 'artifact-hash-mismatch'
   | 'artifact-path-invalid' | 'artifact-changed-after-validation'
+  | 'graph-schema-invalid'
   | 'cross-run' | 'cross-check' | 'side-mismatch'
   | 'logical-project-mismatch' | 'untrusted-capture'
   | 'required-verification-not-pass'
@@ -171,6 +172,7 @@ type ObservationReasonCode =
 ```text
 unavailable: missing-side, missing-artifact, artifact-hash-mismatch,
              artifact-path-invalid, artifact-changed-after-validation,
+             graph-schema-invalid,
              cross-run, cross-check, side-mismatch,
              logical-project-mismatch, untrusted-capture,
              required-verification-not-pass
@@ -204,7 +206,7 @@ complete:    complete
 ```ts
 interface BrowserObservationSidecar {
   protocol: 'acp6-browser-observation/v1-draft'
-  contractRevision: '2026-10-30-r2'
+  contractRevision: '2026-10-30-r3'
   readonly: true
   projectId: string
   runId: string
@@ -232,7 +234,7 @@ interface BrowserObservationSidecar {
 
 ### 4.2 `graphDigest`
 
-`graphDigest` 只对下列白名单对象计算规范化 UTF-8 JSON 的 SHA-256。白名单之外的字段在计算前丢弃；白名单内字段缺失或类型不符直接拒绝，不以 `null` 补默认值。
+`graphDigest` 只对下列白名单图对象计算规范化 UTF-8 JSON 的 SHA-256。输入先分成图结构和运行环境元数据两层：允许排除的环境字段只能出现在 sidecar、run manifest 或显式 `environment` 包装对象中，校验器在计算前移除它们；它们不会影响 digest。图 envelope、node、relation、location、`sourceUse` 和 `pageOverrides` 中出现未知结构字段时必须拒绝，不能静默丢弃。白名单字段缺失、类型不符、非法数值或显式 `null` 也必须拒绝，不以默认值补齐。
 
 ```json
 {
@@ -246,8 +248,18 @@ interface BrowserObservationSidecar {
 
 #### 白名单与值规则
 
+字段处置固定如下：
+
+| 输入字段类别 | 处置 | 说明 |
+|---|---|---|
+| 允许排除的环境字段 | 仅在 wrapper `environment`、sidecar 或 run manifest 中接受并从 digest 输入移除 | 例如 `projectId`、`runId`、runtime/browser 版本、主机、时间戳、artifact 路径/hash、viewport、state、URL；加入、删除或改值都不改变 graphDigest |
+| 未知图结构字段 | 拒绝 | 例如在 graph envelope、node、relation、location、`sourceUse` 中增加未列入白名单的 key；不得靠丢弃字段制造 digest 通过 |
+| 非法白名单字段 | 拒绝 | 缺失必填字段、显式 `null`、错误类型、非法数字、重复集合成员、未知 relation 端点和重复 ID 都属于此类 |
+
 - `CanonicalNode` 只允许 `id`、`kind`、`label`、`location`、`page`、`routePath`、`pages`、`selector`、`selectorScope`、`byteOffset`、`mediaContext`、`className`、`dynamicClassName`、`value`、`pageOverrides`、`tokenOrigin`；`location` 只允许 `path/start/end/offset/byteOffset`；
 - `CanonicalRelation` 只允许 `id`、`from`、`to`、`kind`、`certainty`、`evidenceRefs`、`sourceUse`、`selectorScope`、`mediaContext`；`sourceUse` 只允许 `path/charOffset/byteOffset/offsetUnit`；
+- `node.id`、`node.label`、`Relation.id`、`Relation.from`、`Relation.to` 和所有 path/selector 字段必须是非空字符串；`node.kind` 只能是 `file`、`symbol`、`component`、`route`、`data`、`media`、`token`、`token-use`、`jsx-element` 或 `state`；`Relation.kind` 只能是 `imports`、`reads`、`renders`、`uses-token`、`token-reference`、`asset-consumer`、`css-cascade`、`same-copy` 或 `semantic-link`；`certainty` 只能是 `source-proven`、`runtime-observed`、`semantic-candidate` 或 `unknown`；
+- `evidenceRefs`、`pages`、`mediaContext` 必须是字符串集合；`sourceUse.offsetUnit` 必须为 `code-unit`；`dynamicClassName` 只能是布尔值；`tokenOrigin` 只能是 `css-custom-property` 或 `tailwind-palette`；
 - 必填标量不能为 `null`；可选字段缺失时省略，不能写显式 `null`；空集合可以写 `[]`；
 - 所有字符串保持原始 UTF-8 内容，不 trim、不换行归一化、不大小写折叠；SHA-256 必须为 64 位小写十六进制；
 - `start/end/offset/byteOffset/charOffset` 必须是有限、非负、安全整数；拒绝 `NaN`、`Infinity`、`-0`、浮点数、指数形式和超出安全整数的数字；
@@ -271,15 +283,37 @@ interface BrowserObservationSidecar {
 | G0 | 基准输入 | `a0a7e9c7e63e94a3fc3fe3e1d5b92e256f1fed3f4153f6b0410aa0f82c402093` |
 | G1 | 只交换 nodes、edges 和 set 成员输入顺序 | 与 G0 完全相同 |
 | G2 | 将 relation `certainty` 从 `semantic-candidate` 改为 `source-proven` | 摘要改变为 `88b500e631d7dd302fe8f526bb9f10b682228857605184639f7a11dbde0d42f4` |
-| G3 | 在输入中加入 `projectId`、`runId`、`runtimeFingerprint`、host OS 和 artifact path | 与 G0 完全相同；排除字段不得污染图身份 |
+| G3 | 在 graph wrapper 的 `environment` 中加入 `projectId`、`runId`、`runtimeFingerprint`、host OS 和 artifact path | 与 G0 完全相同；排除字段不得污染图身份 |
 
 G0/G1 必须逐字产生相同 canonical JSON；G2 的关系语义发生实质变化，必须改变 digest；G3 的运行环境变化不能改变 digest。
 
-重复 node/relation ID、未知端点、非法数字、显式 null、未知白名单字段和 unresolved 重复项都必须独立返回拒绝，不允许“先去重再计算”。
+为覆盖多个集合和关系的排序，追加复杂样本 G4/G5。二者使用同一三节点、两 relation 输入；每条 relation 有多个 `evidenceRefs`，节点和 relation 含多个 `pages`/`mediaContext`，并有三条 `unresolved`。G5 只将 nodes、edges、pages、mediaContext、evidenceRefs 和 unresolved 的输入顺序全部打乱。规范化后的 canonical JSON 必须逐字相同，预期 SHA-256 为：
+
+```text
+{"edges":[{"certainty":"semantic-candidate","evidenceRefs":["ev:css-1","ev:css-2","ev:runtime-1"],"from":"jsx:src/App.tsx#42","id":"rel:consumer","kind":"uses-token","mediaContext":["base","dark"],"sourceUse":{"byteOffset":42,"charOffset":42,"offsetUnit":"code-unit","path":"src/App.tsx"},"to":"token-use:src/App.tsx#42"},{"certainty":"source-proven","evidenceRefs":["ev:import-a","ev:import-b"],"from":"file:src/App.tsx","id":"rel:file-token","kind":"imports","to":"token-use:src/App.tsx#42"}],"nodes":[{"id":"file:src/App.tsx","kind":"file","label":"App.tsx","location":{"end":120,"path":"src/App.tsx","start":0},"pages":["page:/","page:/about"]},{"id":"jsx:src/App.tsx#42","kind":"jsx-element","label":"button","location":{"byteOffset":42,"end":58,"path":"src/App.tsx","start":42},"mediaContext":["base","dark"],"pages":["page:/","page:/about"]},{"id":"token-use:src/App.tsx#42","kind":"token-use","label":"--accent","location":{"byteOffset":42,"end":49,"path":"src/App.tsx","start":42},"pages":["page:/","page:/about"],"selectorScope":".cta"}],"schemaVersion":"acp6-sourcegraph/v1","sourceDigest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","unresolved":["css-token-use-unknown:--accent","dynamic-classname:src/App.tsx#42","route-coverage:/about"]}
+```
+
+G4 与 G5 的 canonical JSON SHA-256 和 graphDigest 都必须为 `a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398`。该样本只证明规范排序和字节稳定性，不改变 unresolved 或 relation certainty 的来源证明语义。
+
+重复 node/relation ID、未知端点、非法数字、显式 null、未知图结构字段和 unresolved 重复项都必须独立返回拒绝，不允许“先去重再计算”。允许排除的环境字段只在规定 wrapper 位置被移除；如果同名字段出现在图结构对象内，则按未知图结构字段拒绝。
 
 图摘要不等于来源证明。图摘要相同只能说明规范化内容相同；图中若没有严格消费边、含 unresolved，或 PageImpact 不是 `source-proven`，结果仍不能进入严格来源证明。
 
-### 4.3 工件可信根与不可变归档
+### 4.3 真实 SourceGraph 兼容性审计
+
+重复 ID 规则必须先在真实 Graph 上审计，再冻结合同。当前 evidence/docs 分支可独立读取的 `docs/acceptance/2026-10-27/acp6-pr61-ac62-ac64-detail.json` 只保存统计摘要：`nodes=675`、`edges=5302`、`unresolved=253`，没有 node、Relation 或 unresolved 的原始数组，因此这些数字不能证明唯一性。C 提供的整改版 `edges=3046` 也必须以原始 Graph 导出或内容寻址 manifest 交付后才能核对；本轮不把摘要数字当作审计通过。
+
+冻结前由 A/B/C 提供两份只读输入：Base Graph 和整改 Graph。独立审计器必须逐项输出：
+
+1. node 数量、Relation 数量、unresolved 数量及各自输入 SHA-256；
+2. `node.id` 重复列表、`Relation.id` 重复列表、unresolved 重复列表；
+3. Relation `from`/`to` 的未知端点列表；
+4. 每个 node、Relation、location、`sourceUse`、`pageOverrides` 的 canonical 类型/白名单错误；
+5. 不重复、不重编号、不忽略字段前提下的 canonical JSON 和 graphDigest。
+
+审计通过条件是所有重复列表和未知端点为空、所有字段满足第 4.2 节类型规则，并且 canonical 输出能由原始输入重算。缺少原始 Graph 导出或 manifest 时，结果为 `missing-artifact`/`unavailable`；发现重复 node ID、重复 Relation ID、重复 unresolved、未知端点或类型错误时，结果为 `graph-schema-invalid`/`unavailable`，不得生成 graphDigest、trusted receipt 或来源证明。禁止自动去重、重新编号、忽略边或吞掉 unresolved；上游必须修复并重新导出后才能复审。
+
+### 4.4 工件可信根与不可变归档
 
 可信根由 Verification 宿主在 run 创建时建立，形状为：
 
@@ -331,9 +365,9 @@ G0/G1 必须逐字产生相同 canonical JSON；G2 的关系语义发生实质�
 | 条件 | 单侧状态 | primary/secondary 示例 | 是否可证明 |
 |---|---|---|---|
 | 所有必需证据齐全且重算一致 | `complete` | `complete` / `[]` | 仅 `runtime-observed` |
-| 记录可读但缺 strict edge、跨侧 mapping 或动态映射 | `partial` | `non-strict-consumer-edge` / `missing-cross-side-map` | 否 |
+| 记录可读但缺 strict edge、跨侧 mapping、动态映射或 consumer edge 仅缺失而运行身份无冲突 | `partial` | `non-strict-consumer-edge` / `runtime-instance-without-edge` / `missing-cross-side-map` | 否 |
 | 记录存在但有歧义、重复、几何-only 或位置依赖 | `unknown` | `duplicate-record` / `geometry-only` | 否 |
-| side/工件缺失、越界、篡改、跨 run 或未经可信执行器 | `unavailable` | `missing-artifact` / `untrusted-capture` | 否 |
+| side/工件/原始 Graph 缺失、越界、篡改、跨 run、Graph schema 无效或未经可信执行器 | `unavailable` | `missing-artifact` / `graph-schema-invalid` / `untrusted-capture` | 否 |
 | 来源/图/运行版本或 route namespace 已过期 | `stale` | `source-digest-mismatch` / `runtime-version-stale` | 否 |
 
 `complete` 的必要证据必须全部满足：可信宿主绑定的 `projectId/runId/checkId/side`；匹配的 `sourceDigest/graphDigest`；存在且唯一的 route/page tuple、viewport、state；可信根内普通工件的路径、size、SHA-256 和不可变归档；浏览器/runtime 版本匹配；精确可重算的 `sourceUseRef` 与唯一 strict consumer edge；目标相关的 unresolved 已清除，且检查需要跨侧结论时已有完整 cross-side map；以及可重算的 `primaryReasonCode=complete`、空 secondary。即使全部满足，结论最多是 `runtime-observed`，不能产生 `source-proven`、Candidate、Scope 或修改授权。
@@ -349,6 +383,7 @@ G0/G1 必须逐字产生相同 canonical JSON；G2 的关系语义发生实质�
 | duplicate record/artifact | 同一 tuple 出现多个不等价记录时整体 `unknown` | 不选 first/last、不按时间戳裁决 |
 | cross-run/check/side | 记录 `unavailable`；污染的 pair 不可形成证据 | 不把 baseline 的记录借给 candidate |
 | no strict consumer edge | 有运行事实则 `partial`，无可定位目标则 `unknown` | 不由几何、静态候选或 selector 生成 strict edge |
+| graph schema invalid or raw Graph unavailable | `unavailable`；不生成 graphDigest | 不去重、不重编号、不忽略边或把摘要统计当作唯一性证明 |
 | artifact/hash/path 失败 | `unavailable` | 不信任调用者提供的 SHA-256 |
 | route/viewport/state 不匹配 | `unknown` 或 `unavailable`（按是否仍能确定目标） | 不把相邻 viewport/状态视为同一 check |
 
@@ -424,5 +459,6 @@ G0/G1 必须逐字产生相同 canonical JSON；G2 的关系语义发生实质�
 |---|---|---|---|
 | `r1` | 2026-10-30 | 初版字段、双侧身份、图边消费校验和 32 项负例索引 | 被 `r2` 取代 |
 | `r2` | 2026-10-30 | 固定 reason code 与状态优先级；收紧 graphDigest 规范与黄金样本；增加可信工件根、TOCTOU 和不可变归档；明确只读 sidecar、Runtime Identity 与授权边界 | 待 A 冻结 `observation/v1` |
+| `r3` | 2026-10-30 | 统一 `runtime-instance-without-edge` 为 `partial`；补充 G4/G5 复杂集合排序黄金样本；区分环境字段排除、未知图字段拒绝和非法白名单字段拒绝；增加 `graph-schema-invalid` 与真实 SourceGraph 唯一性审计处置 | 待 A 字段级会签和真实 Graph 审计 |
 
-`r2` 是本轮 evidence/docs 归档合同，不能作为生产接线授权。生产实现仍须等待 C B1.1 精确验收、A 正式冻结和独立外审复跑。
+`r3` 是本轮 evidence/docs 归档合同，不能作为生产接线授权。生产实现仍须等待 C B1.1 精确验收、A 正式冻结、真实 Graph 唯一性审计和独立外审复跑。

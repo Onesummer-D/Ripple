@@ -1,7 +1,7 @@
 # AC-P6 浏览器观测独立负例测试计划
 
 状态：**计划稿，未执行**
-依赖：`acp6-browser-observation/v1-draft`、A 的 `acp6-gap-taxonomy/v1` 第 8 节、Phase 0 ACCEPT 归档。
+依赖：`acp6-browser-observation/v1-draft` r3、A 的 `acp6-gap-taxonomy/v1` 第 8 节、Phase 0 ACCEPT 归档。
 边界：只规划契约验证和证据校验，不修改生产 SourceGraph，不创建正式 VerificationRun。
 
 ## 1. 测试目标
@@ -39,7 +39,7 @@
 | OBS-N02 | 两个 sourceUse 共享坐标，图边均有效 | 交换一个 `relationId` | `runtime-location-conflict` | `unknown` | 不得用坐标恢复精确来源 | 固定双边 fixture，断言 relation 与位置冲突被保留 | SourceGraph/source-mapping |
 | OBS-N03 | consumer edge 存在且其它字段合法 | 将 certainty 改为 `semantic-candidate` | `non-strict-consumer-edge` | `partial` | 不得升级为 strict consumer edge | 修改单字段并重算 envelope，断言 proof=`not-proven` | SourceGraph/source-mapping |
 | OBS-N04 | 只有静态 css-cascade candidate | 移除所有 consumer relation | `missing-consumer-edge` | `partial` | 不得由 selector 或静态候选形成来源证明 | 图快照删除 edge，运行边存在性检查 | SourceGraph/source-mapping |
-| OBS-N05 | 有 DOM `runtimeInstanceId`，无 consumer edge | 删除 edge，保留实例 ID | `runtime-instance-without-edge` | `unknown` | 不得把 DOM instance 当消费边 | 对比删除前后 sidecar，断言无 edge 写入 | SourceGraph/source-mapping |
+| OBS-N05 | 有 DOM `runtimeInstanceId`，无 consumer edge，且运行身份本身没有冲突 | 删除 edge，保留实例 ID | `runtime-instance-without-edge` | `partial` | 不得把 DOM instance 当消费边 | 对比删除前后 sidecar，断言无 edge 写入且状态重算为 partial | SourceGraph/source-mapping |
 | OBS-N06 | 图含 declaration node 与 token-use node | 把 `graphNodeId` 改为 declaration node | `declaration-node-not-source-use` | `unknown` | 不得把声明位置冒充 sourceUseRef | 图节点类型校验失败且无 receipt | SourceGraph/source-mapping |
 | OBS-N07 | relationId 在另一 side 存在，在当前 side 不存在 | 改写 `sourceUseRef.relationId` | `relation-not-in-graph` | `unknown` | 不得接受调用者字符串指定的图边 | 使用 side-specific graph，断言查找返回空 | graphDigest/source binding |
 | OBS-N08 | relation 有精确 sourceUse 位置 | 改写 path 或 charOffset 或 byteOffset 任一值 | `source-use-location-mismatch` | `unknown` | 不得以部分位置匹配通过 | 单字段 mutation，断言位置逐字节比较失败 | graphDigest/source binding |
@@ -74,12 +74,13 @@
 
 边界例需要覆盖：
 
-1. `source-proven` graph edge 存在但 `sourceProvenPageImpact()` 返回 `partial`：保留 `partial`；
-2. 两侧均有完整 DOM 位置但只有 `semantic-candidate` edge：保留 `partial`；
-3. one side complete、另一侧 missing strict edge：pair 为 `partial`；
-4. 一侧 stale、另一侧 complete：pair 为 `stale`；
-5. 两侧都有记录但有重复：pair 为 `unknown`，不选记录；
-6. 正常页面截图通过但 `source-mapping` assertion 未通过：不得生成可审批 receipt。
+1. 只有 `runtimeInstanceId`、没有 consumer edge 且运行身份无冲突：单侧为 `partial`；
+2. `source-proven` graph edge 存在但 `sourceProvenPageImpact()` 返回 `partial`：保留 `partial`；
+3. 两侧均有完整 DOM 位置但只有 `semantic-candidate` edge：保留 `partial`；
+4. one side complete、另一侧 missing strict edge：pair 为 `partial`；
+5. 一侧 stale、另一侧 complete：pair 为 `stale`；
+6. 两侧都有记录但有重复：pair 为 `unknown`，不选记录；
+7. 正常页面截图通过但 `source-mapping` assertion 未通过：不得生成可审批 receipt。
 
 ## 5. 建议的执行层次（后续实现时）
 
@@ -113,8 +114,9 @@
 1. 运行 G0，断言摘要为 `a0a7e9c7e63e94a3fc3fe3e1d5b92e256f1fed3f4153f6b0410aa0f82c402093`；
 2. 运行 G1，仅交换 nodes、edges 和 set 成员输入顺序，断言摘要和 canonical JSON 与 G0 完全相同；
 3. 运行 G2，仅把 certainty 改为 `source-proven`，断言摘要为 `88b500e631d7dd302fe8f526bb9f10b682228857605184639f7a11dbde0d42f4`；
-4. 运行 G3，加入 projectId、runId、runtimeFingerprint、host OS、artifact path 等排除字段，断言摘要与 G0 相同；
-5. 分别输入重复 ID、未知端点、非法数字、显式 null、未知白名单字段和重复 unresolved，断言每一项独立拒绝，不先去重或静默丢弃。
+4. 运行 G3，在 graph wrapper 的 `environment` 中加入 projectId、runId、runtimeFingerprint、host OS、artifact path 等排除字段，断言摘要与 G0 相同；若把同名字段放入 graph node/relation，则必须拒绝；
+5. 运行 G4/G5，使用三节点、两 relation、多 evidenceRefs、多个 pages/mediaContext 和三条 unresolved，断言 canonical JSON 逐字相同，SHA-256 为 `a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398`；
+6. 分别输入重复 ID、未知端点、非法数字、显式 null、未知图结构字段和重复 unresolved，断言每一项独立拒绝，不先去重或静默丢弃。
 
 复现命令由未来实现提供，但必须是无网络命令，例如 `node scripts/validation/validate-acp6-browser-observation.mjs --golden G0`。输出应包含输入 fixture SHA、canonical JSON SHA、digest、validator version 和 exit code。
 
@@ -126,11 +128,27 @@
 
 为每个负例记录变异前后的 SourceGraph、PageImpact、Candidate、ScopeDecision、VerificationRun、Approval、Apply 和 Rollback 快照摘要。执行器只应写入 sidecar artifact；对生产对象的写入尝试应被拒绝并记录 `untrusted-capture`。测试必须断言 `sourceUseRef`、`recordId`、DOM 坐标和普通 `runtimeInstanceId` 都不能替代正式 Runtime Identity 或授权结果。
 
+### 5.7 真实 SourceGraph 唯一性审计
+
+冻结前必须由 A/B/C 提供 Base Graph 与整改 Graph 的原始 JSON 或内容寻址 manifest。只读审计命令规划为：
+
+```text
+node scripts/validation/audit-sourcegraph-identity.mjs \
+  --base <base-graph.json> \
+  --rectified <rectified-graph.json> \
+  --out <graph-identity-audit.json>
+```
+
+审计输出必须包含输入 SHA-256、node/relation/unresolved 数量、重复 `node.id`、重复 `Relation.id`、重复 unresolved、未知端点、canonical 类型错误和是否生成 digest。当前归档中的 `acp6-pr61-ac62-ac64-detail.json` 只有 `nodes=675`、`edges=5302`、`unresolved=253` 统计，没有原始数组；C 提供的 3046 条边整改快照尚未进入本 evidence 分支。因此当前状态是“审计证据不足”，不能声称唯一性已确认。
+
+审计失败处理固定为：原始 Graph 缺失为 `missing-artifact`/`unavailable`；重复 ID、重复 unresolved、未知端点或 canonical 类型错误为 `graph-schema-invalid`/`unavailable`。两者都不生成 graphDigest，不自动去重、重编号、忽略边或吞掉 unresolved。
+
 ## 6. 通过标准
 
 - 正例结构校验通过，但 `proof` 不超过 `runtime-observed`；
 - N01–N32 每个负例独立失败，且 reason code 与状态表一致；
 - 任意 sourceDigest/graphDigest、run/check/side、route、viewport、state 或 artifact 不匹配都不会生成可信 receipt；
+- 真实 Graph 未提供原始数组或唯一性审计失败时，不生成 graphDigest，不能进入 source-mapping receipt；
 - 几何、静态 candidate、DOM instance、Scope includedRefs 都不能单独形成 strict consumer edge；
 - 七项 Verification 和授权门控结果不被 observation payload 改写；
 - 测试运行不修改生产 SourceGraph，不接线正式 VerificationRun，不写入 Approval/Apply 权限。
