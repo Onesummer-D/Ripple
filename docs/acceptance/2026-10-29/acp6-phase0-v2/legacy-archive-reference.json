@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "acp6-v06-phase0-legacy-reference/v1",
+  "schemaVersion": "acp6-v06-phase0-legacy-reference/v2",
   "branch": "evidence/cd-acp6-phase0-20261028-final",
   "commit": "c851bfe11e6851e01695f94246a5a571435d8faa",
   "tree": "ffafdd15a9b90254c7b55354a35155b7ffa63381",
@@ -14,5 +14,14 @@
     "candidate-without-strict-edge"
   ],
   "canonicalization": "Each raw label is re-evaluated against selector, AC6.4 dynamic evidence, candidate count and strict-edge count; no merged class is mechanically renamed.",
-  "canonicalTaxonomy": "acp6-gap-taxonomy/v1"
+  "canonicalTaxonomy": "acp6-gap-taxonomy/v1",
+  "taxonomyVersion": "acp6-gap-taxonomy/v1",
+  "mappingVersion": "acp6-gap-mapping/v1",
+  "mappingVersionPerUncoveredRow": true,
+  "historicalInputCorrection": {
+    "recordedSha256": "b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4",
+    "correctedSha256": "6f2503b9e86a63ab64647bf1e7e742f4e67840c0a1c0b91a8f859be3f963982f",
+    "correctedGitBlob": "0f1b0a5f0ace21856951752a42df51a743bb9feb",
+    "correctionCommit": "998b3d18bb6c42dd59b96bae6d203f8514c9c56b"
+  }
 }

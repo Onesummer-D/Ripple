@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "acp6-v06-phase0-formal-input/v1",
+  "schemaVersion": "acp6-v06-phase0-formal-input/v2",
   "declaration": "The recovered ed58cfd B v5 JSON is the only formal input for this Phase 0 rebuild.",
   "source": {
     "repository": "Onesummer-D/Ripple",
@@ -19,10 +19,14 @@
   "historicalCorruptArchive": {
     "branch": "evidence/pr65-acp6-ed58-independent-20261028",
     "path": "evidence/acceptance-ed58cfd-final.json",
-    "sha256": "b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4",
+    "recordedSha256": "b7500c9d5fc1b4c99bea8b889fa195915172abe8bc7ed9ccada52c64a3d037a4",
+    "sha256": "6f2503b9e86a63ab64647bf1e7e742f4e67840c0a1c0b91a8f859be3f963982f",
+    "correctedGitBlob": "0f1b0a5f0ace21856951752a42df51a743bb9feb",
+    "correctedBytes": 786443,
+    "correctionCommit": "998b3d18bb6c42dd59b96bae6d203f8514c9c56b",
     "jsonParse": "fail",
     "preserved": true,
-    "role": "historical record only; never used as formal input and never overwritten"
+    "role": "historical record only; corrected SHA is recorded from B erratum; neither corrupt byte sequence is formal input and neither is overwritten"
   },
   "expectedEvidence": {
     "ac62": {
@@ -40,9 +44,19 @@
       "dynamicUnknown": 7
     }
   },
-  "replayCommand": "node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json",
+  "replayCommand": "node validate-acp6-v06-phase0-v2.mjs acp6-v06-phase0-gap-matrix-v2-20261029.json acceptance-ed58cfd-final.json --raw=raw-classification-source-c851bfe.json",
+  "archivePrBase": "d1d26185710c8e4d80182356f760109123bdc989",
+  "rawClassificationSource": {
+    "commit": "c851bfe11e6851e01695f94246a5a571435d8faa",
+    "path": "docs/acceptance/2026-10-28/acp6-phase0/acp6-v06-phase0-gap-matrix-20261028.json",
+    "localPath": "raw-classification-source-c851bfe.json",
+    "blob": "0716de01663f1a7efc370242c5809bf0990978fa",
+    "sha256": "89b1c30eb320c3074bf1d445f2a1628026a4f9c08e54b6879e3cc5ed1bfe3200",
+    "role": "row-level raw classification witness; not the formal B input"
+  },
   "taxonomyVersion": "acp6-gap-taxonomy/v1",
   "mappingVersion": "acp6-gap-mapping/v1",
+  "mappingVersionRequiredPerUncoveredRow": true,
   "taxonomyContract": {
     "repository": "Onesummer-D/Ripple",
     "branch": "evidence/acp6-taxonomy-v1-20261029",
@@ -51,5 +65,31 @@
     "blob": "d99c0c6bc0699fd8980007d7aef2a8a801ae2565",
     "taxonomyVersion": "acp6-gap-taxonomy/v1",
     "mappingVersion": "acp6-gap-mapping/v1"
+  },
+  "taxonomyErratum": {
+    "branch": "evidence/acp6-taxonomy-v1-erratum-20261029",
+    "commit": "fe9c97b4648ce8d4b7e817ecd9635412ee0d9d51",
+    "path": "docs/architecture/acp6-gap-taxonomy-v1-2026-10-29-erratum.md",
+    "blob": "00425159972df0952338080ab7f142c648e0eabe",
+    "mappingVersionRequiredPerUncoveredRow": true,
+    "crossPlatformStatusWhenLinuxOffsetsUnavailable": "unavailable",
+    "pairIntegrity": "pairContentSha256 and ac64PairSetSha256 required"
+  },
+  "linuxIndependentRun": {
+    "runId": 40656095611,
+    "runUrl": "https://github.com/Onesummer-D/Ripple/actions/runs/40656095611",
+    "artifactId": 12801358049,
+    "artifactSha256": "8074527bc50fe7400f79a4dbe9c556634b1298cf39ab3ea83dcf1a591e5fb42c",
+    "coreSha": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
+    "coreTree": "24de55f8bc1d8146b12b42b8bfdd4b24d5f41f6c",
+    "fixedProject": "b244f857457d2a07f118155602eef9097fd322bd",
+    "reportSha256": "7aee05647b185743663d4a4e5dee5996eea971a6de556944e8eb51d99782297b",
+    "exitCode": 2,
+    "acceptance": {
+      "passed": 3,
+      "pending": 2,
+      "error": 0
+    },
+    "provenance": "independent Linux run artifact metadata; ZIP contents unavailable to local replay, so per-row offsets are not-proven"
   }
 }
