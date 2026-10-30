@@ -82,4 +82,3 @@ Production and tests are limited to:
 - `src/core/project.test.ts`
 
 The JSON files in this directory are evidence outputs only. No model, route, Runtime Identity, gate, B v5 tool, or authorization contract was changed.
-

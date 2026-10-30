@@ -50,4 +50,3 @@ describe('CSS Token source anchors', () => {
     expect(parseCssSelectorStructure('.a, .b').supported).toBe(false)
   })
 })
-

@@ -210,4 +210,3 @@ export function parseCssSelectorStructure(selector: string): CssSelectorStructur
   }
   return { supported: true, parts }
 }
-
