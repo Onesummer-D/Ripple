@@ -237,4 +237,3 @@ Production work remains blocked until:
 4. A provides the explicit production file whitelist.
 
 No production code, public Schema, B v5 threshold, Relation ID strategy, sourceRef semantics, or Runtime Identity contract is changed by this document.
-
