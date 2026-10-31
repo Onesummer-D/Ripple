@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "sha256-manifest/v1",
+  "generatedAt": "2026-10-31",
+  "scope": "SourceGraph source-use type and identity independent evidence; manifest excludes itself",
+  "binding": {
+    "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+    "implementationSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+    "sourceSnapshotSha": "6388abec96183cc28824dc2b7fa486e4e944d305",
+    "archiveHead": "fb2efe35c447eadf262d55f1d9755bb26cecabda",
+    "archiveTree": "e942bf8d12e3c7224b79d673705fdc253c0cf552",
+    "fixedProjectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+    "probeBlob": "3431294c0807161432e0a7c986825ffc5263bc87",
+    "matcherBlob": "3a04ab896b40500b2c314b710b4cb1c3a3893dcb"
+  },
+  "artifacts": [
+    {
+      "path": "sourcegraph-node-type-evidence-20261031.json",
+      "bytes": 9179,
+      "sha256": "56e3f4c8f665505087bc4c191b77d1134866acdd2624f654729436f84f4ba339"
+    },
+    {
+      "path": "sourcegraph-source-binding-matrix-20261031.json",
+      "bytes": 10599,
+      "sha256": "66fad57870fcaca904151efa8b9d23132923343a554481e0ab3c78416e214016"
+    },
+    {
+      "path": "sourcegraph-source-use-identity-audit.json",
+      "bytes": 25191,
+      "sha256": "dc03d66b2c1400d7e2b3f60589b662c5eaa6316d11def1f5cacff108002392e1"
+    },
+    {
+      "path": "sourcegraph-source-use-identity-independent-review-20261031.md",
+      "bytes": 7799,
+      "sha256": "18d38a7a07f81db0545a7b748eb2954f442d9fa2b41afd288fff7c74c330e002"
+    }
+  ],
+  "externalInputs": [
+    {
+      "path": "base-graph.json",
+      "location": "_acp6-a-review-tmp-20261030/pr70-b11-final-independent-20261031",
+      "bytes": 3519068,
+      "sha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f"
+    },
+    {
+      "path": "head-graph.json",
+      "location": "_acp6-a-review-tmp-20261030/pr70-b11-final-independent-20261031",
+      "bytes": 2049214,
+      "sha256": "0ae3eaf5ead0a8bd8b87c158349b7d9f7980adad94cab2ed5fafbb07a9a2de76"
+    },
+    {
+      "path": "base-acceptance.json",
+      "location": "_acp6-a-review-tmp-20261030/pr70-b11-final-independent-20261031",
+      "bytes": 1035281,
+      "sha256": "fb7d4d77481d30fd11daf193a1b5b20fd31f7946b74100a7715bbba9f2708309"
+    },
+    {
+      "path": "head-acceptance.json",
+      "location": "_acp6-a-review-tmp-20261030/pr70-b11-final-independent-20261031",
+      "bytes": 673224,
+      "sha256": "086ccfc77ca439008dd55fa50ad9f641f1f315e61aea48c70fb8222695c5fd89"
+    }
+  ]
+}

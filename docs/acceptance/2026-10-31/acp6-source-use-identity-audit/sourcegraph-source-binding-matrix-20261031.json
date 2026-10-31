@@ -1,0 +1,312 @@
+{
+  "schemaVersion": "sourcegraph-source-binding-matrix/v1",
+  "binding": {
+    "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+    "implementationSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+    "sourceSnapshotSha": "6388abec96183cc28824dc2b7fa486e4e944d305",
+    "archiveHead": "fb2efe35c447eadf262d55f1d9755bb26cecabda",
+    "fixedProjectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+    "probeBlob": "3431294c0807161432e0a7c986825ffc5263bc87",
+    "matcherBlob": "3a04ab896b40500b2c314b710b4cb1c3a3893dcb",
+    "archiveTree": "e942bf8d12e3c7224b79d673705fdc253c0cf552",
+    "mergeBase": "5b75fe699afce98638e6fd6ad110911d83389dc8"
+  },
+  "relationFieldSet": [
+    "id",
+    "from",
+    "to",
+    "kind",
+    "certainty",
+    "evidenceRefs",
+    "sourceUse?",
+    "selectorScope?",
+    "mediaContext?"
+  ],
+  "absentIdentityFields": [
+    "sourceIdentity",
+    "sourceRef",
+    "sourceUseRef"
+  ],
+  "graphSummary": {
+    "base": {
+      "nodes": 675,
+      "edges": 5302,
+      "unresolved": 253,
+      "sourceUseEdges": 4808,
+      "allSourceUseLocationsMatchTokenUseNode": true,
+      "allSourceUseOffsetUnitCodeUnit": true,
+      "tokenUseNodeLocationsUnique": true
+    },
+    "final": {
+      "nodes": 675,
+      "edges": 3046,
+      "unresolved": 253,
+      "sourceUseEdges": 2552,
+      "allSourceUseLocationsMatchTokenUseNode": true,
+      "allSourceUseOffsetUnitCodeUnit": true,
+      "tokenUseNodeLocationsUnique": true
+    }
+  },
+  "baseMatrix": {
+    "reads|source-proven|file->token-use|full-source-use-origin": 252,
+    "uses-token|unknown|token-use->file|unknown": 252,
+    "token-reference|semantic-candidate|token->token-use|partial-candidate-token-use-linked": 964,
+    "uses-token|semantic-candidate|token-use->token|partial-candidate-token-use-linked": 964,
+    "css-cascade|semantic-candidate|token-use->jsx-element|partial-candidate-token-use-linked": 1184,
+    "uses-token|semantic-candidate|jsx-element->token|partial-metadata-no-token-use-endpoint": 1184,
+    "uses-token|semantic-candidate|token->token|partial-metadata-no-token-use-endpoint": 8
+  },
+  "finalMatrix": {
+    "reads|source-proven|file->token-use|full-source-use-origin": 252,
+    "uses-token|unknown|token-use->file|unknown": 252,
+    "token-reference|semantic-candidate|token->token-use|partial-candidate-token-use-linked": 684,
+    "uses-token|semantic-candidate|token-use->token|partial-candidate-token-use-linked": 684,
+    "css-cascade|semantic-candidate|token-use->jsx-element|partial-candidate-token-use-linked": 336,
+    "uses-token|semantic-candidate|jsx-element->token|partial-metadata-no-token-use-endpoint": 336,
+    "uses-token|semantic-candidate|token->token|partial-metadata-no-token-use-endpoint": 8
+  },
+  "exactSourceUseBindingRule": {
+    "locationKey": "sourceUse.path + # + sourceUse.byteOffset",
+    "tokenUseEndpoint": "endpoint ID must equal the unique token-use node at that location for direct token-use binding",
+    "full": "file -> token-use / reads / source-proven",
+    "candidate": "token-reference, uses-token, css-cascade remain semantic-candidate",
+    "unknown": "unknown certainty remains unknown",
+    "forbiddenInference": [
+      "DOM selector or selectorScope",
+      "ordinary node ID",
+      "opposite relation endpoint",
+      "runtime sourceRef",
+      "opaque sourceRef without sourceIdentity"
+    ]
+  },
+  "examples": [
+    {
+      "case": "positive-token-use-source",
+      "node": {
+        "id": "token-use:dist/assets/index-hJgMd1dF.css#702",
+        "kind": "token-use",
+        "label": "var(--background)",
+        "location": {
+          "path": "dist/assets/index-hJgMd1dF.css",
+          "start": 702,
+          "end": 718,
+          "offset": 702
+        },
+        "selectorScope": "body",
+        "byteOffset": 702,
+        "tokenOrigin": null,
+        "className": null,
+        "dynamicClassName": false
+      },
+      "relation": {
+        "id": "css-token-use-source:dist/assets/index-hJgMd1dF.css:702",
+        "from": "file:dist/assets/index-hJgMd1dF.css",
+        "to": "token-use:dist/assets/index-hJgMd1dF.css#702",
+        "kind": "reads",
+        "certainty": "source-proven",
+        "sourceUse": {
+          "path": "dist/assets/index-hJgMd1dF.css",
+          "charOffset": 702,
+          "byteOffset": 702,
+          "offsetUnit": "code-unit"
+        },
+        "selectorScope": "body",
+        "evidenceRefs": [
+          "css-token-use:dist/assets/index-hJgMd1dF.css:702"
+        ]
+      },
+      "why": "dedicated token-use endpoint, exact path+byteOffset sourceUse, reads/file->token-use and source-proven"
+    },
+    {
+      "case": "negative-token-declaration",
+      "node": {
+        "id": "token:dist/assets/index-hJgMd1dF.css#170",
+        "kind": "token",
+        "label": "--background",
+        "location": {
+          "path": "dist/assets/index-hJgMd1dF.css",
+          "start": 170,
+          "end": 191,
+          "offset": 156
+        },
+        "selectorScope": ":root",
+        "byteOffset": 156,
+        "tokenOrigin": "css-custom-property",
+        "className": null,
+        "dynamicClassName": false
+      },
+      "relation": {
+        "id": "definition:token:dist/assets/index-hJgMd1dF.css#170",
+        "from": "file:dist/assets/index-hJgMd1dF.css",
+        "to": "token:dist/assets/index-hJgMd1dF.css#170",
+        "kind": "reads",
+        "certainty": "source-proven",
+        "sourceUse": null,
+        "selectorScope": null,
+        "evidenceRefs": []
+      },
+      "why": "token is a declaration node; no sourceUse field on relation"
+    },
+    {
+      "case": "candidate-css-consumer",
+      "node": {
+        "id": "jsx:src/pages/Cert.jsx#1510",
+        "kind": "jsx-element",
+        "label": "<motion.div>",
+        "location": {
+          "path": "src/pages/Cert.jsx",
+          "start": 1510,
+          "end": 3028,
+          "offset": 1510
+        },
+        "selectorScope": null,
+        "byteOffset": null,
+        "tokenOrigin": null,
+        "className": "card",
+        "dynamicClassName": false
+      },
+      "relation": {
+        "id": "css-selector-candidate:token-use:dist/assets/index-hJgMd1dF.css#1609:jsx:src/pages/Cert.jsx#1510",
+        "from": "token-use:dist/assets/index-hJgMd1dF.css#1609",
+        "to": "jsx:src/pages/Cert.jsx#1510",
+        "kind": "css-cascade",
+        "certainty": "semantic-candidate",
+        "sourceUse": {
+          "path": "dist/assets/index-hJgMd1dF.css",
+          "charOffset": 1609,
+          "byteOffset": 1609,
+          "offsetUnit": "code-unit"
+        },
+        "selectorScope": ":root",
+        "evidenceRefs": [
+          "css-token-use:dist/assets/index-hJgMd1dF.css:1609",
+          "token-use:dist/assets/index-hJgMd1dF.css#1609"
+        ]
+      },
+      "why": "jsx-element consumer is semantic-candidate; sourceUse metadata does not prove DOM/cascade"
+    },
+    {
+      "case": "negative-unknown-consumer",
+      "node": {
+        "id": "token-use:dist/assets/index-hJgMd1dF.css#702",
+        "kind": "token-use",
+        "label": "var(--background)",
+        "location": {
+          "path": "dist/assets/index-hJgMd1dF.css",
+          "start": 702,
+          "end": 718,
+          "offset": 702
+        },
+        "selectorScope": "body",
+        "byteOffset": 702,
+        "tokenOrigin": null,
+        "className": null,
+        "dynamicClassName": false
+      },
+      "relation": {
+        "id": "css-token-unknown:dist/assets/index-hJgMd1dF.css:702:--background",
+        "from": "token-use:dist/assets/index-hJgMd1dF.css#702",
+        "to": "file:dist/assets/index-hJgMd1dF.css",
+        "kind": "uses-token",
+        "certainty": "unknown",
+        "sourceUse": {
+          "path": "dist/assets/index-hJgMd1dF.css",
+          "charOffset": 702,
+          "byteOffset": 702,
+          "offsetUnit": "code-unit"
+        },
+        "selectorScope": "body",
+        "evidenceRefs": [
+          "css-token-use:dist/assets/index-hJgMd1dF.css:702"
+        ]
+      },
+      "why": "unknown certainty and unresolved target; no trusted source identity"
+    },
+    {
+      "case": "negative-component-owner",
+      "node": {
+        "id": "component:src/App.jsx#717",
+        "kind": "component",
+        "label": "App",
+        "location": {
+          "path": "src/App.jsx",
+          "start": 717,
+          "end": 1612
+        },
+        "selectorScope": null,
+        "byteOffset": null,
+        "tokenOrigin": null,
+        "className": null,
+        "dynamicClassName": false
+      },
+      "relation": {
+        "id": "component-host:component:src/App.jsx#717:jsx:src/App.jsx#751",
+        "from": "component:src/App.jsx#717",
+        "to": "jsx:src/App.jsx#751",
+        "kind": "renders",
+        "certainty": "source-proven",
+        "sourceUse": null,
+        "selectorScope": null,
+        "evidenceRefs": []
+      },
+      "why": "component is an owner/renderer, never token-use"
+    },
+    {
+      "case": "negative-route-node",
+      "node": {
+        "id": "page:/",
+        "kind": "route",
+        "label": "/",
+        "location": {
+          "path": "src/App.jsx",
+          "start": 1035
+        },
+        "selectorScope": null,
+        "byteOffset": null,
+        "tokenOrigin": null,
+        "className": null,
+        "dynamicClassName": false
+      },
+      "relation": {
+        "id": "declarative-router:src/App.jsx:1035:component:src/pages/Home.jsx#1893:/",
+        "from": "page:/",
+        "to": "component:src/pages/Home.jsx#1893",
+        "kind": "renders",
+        "certainty": "source-proven",
+        "sourceUse": null,
+        "selectorScope": null,
+        "evidenceRefs": []
+      },
+      "why": "route identity is page routing metadata, not token-use"
+    },
+    {
+      "case": "negative-data-node",
+      "node": {
+        "id": "literal:src/components/ContactForm.jsx#1253",
+        "kind": "data",
+        "label": "Name",
+        "location": {
+          "path": "src/components/ContactForm.jsx",
+          "start": 1253,
+          "end": 1257
+        },
+        "selectorScope": null,
+        "byteOffset": null,
+        "tokenOrigin": null,
+        "className": null,
+        "dynamicClassName": false
+      },
+      "relation": {
+        "id": "literal-read:literal:src/components/ContactForm.jsx#1253",
+        "from": "component:src/components/ContactForm.jsx#44",
+        "to": "literal:src/components/ContactForm.jsx#1253",
+        "kind": "reads",
+        "certainty": "source-proven",
+        "sourceUse": null,
+        "selectorScope": null,
+        "evidenceRefs": []
+      },
+      "why": "data literal is ordinary source node, not token-use"
+    }
+  ]
+}
