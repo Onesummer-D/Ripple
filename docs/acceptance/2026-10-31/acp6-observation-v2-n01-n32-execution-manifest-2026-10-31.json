@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "protocol": "acp6-browser-observation/v2-execution-prep",
+  "status": "prepared-not-executed",
+  "scope": "evidence-only; no production SourceGraph, VerificationRun, Runtime Identity or authorization writes",
+  "contractInputs": {
+    "dR3": "docs/architecture/acp6-browser-observation-interface-draft-2026-10-30.md",
+    "negativePlan": "docs/acceptance/2026-10-30/acp6-browser-observation-negative-test-plan-2026-10-30.md",
+    "goldenValidator": "docs/acceptance/2026-10-30/acp6-browser-observation-golden/validate-golden.mjs",
+    "goldenValidatorStatus": "G4/G5 and five graph-schema negative cases passed; not a substitute for N01-N32"
+  },
+  "identityInputs": {
+    "projectId": "host-bound-pending-A-freeze",
+    "runId": "trusted-verification-run-pending",
+    "checkId": "trusted-verification-check-pending",
+    "sides": ["baseline", "candidate"],
+    "sourceDigest": "side-specific-required",
+    "graphDigest": "side-specific-required",
+    "graphSchemaVersion": "sourcegraph-identity/v2-pending-freeze",
+    "relationIdentityVersion": "A-governed-pending-freeze",
+    "observationBindingDigest": "canonical-static-plus-capture-pending-freeze"
+  },
+  "executionRootTemplate": "<host-owned-artifact-root>/<logical-project-id>/<run-id>/<side>/",
+  "archiveLayout": {
+    "inputs": "inputs/<caseId>/",
+    "outputs": "results/<caseId>.json",
+    "logs": "logs/<caseId>.stdout.txt and logs/<caseId>.stderr.txt",
+    "hashes": "sha256-manifest.json",
+    "sidecarOnly": true,
+    "productionWrites": false
+  },
+  "preconditions": [
+    "A freezes GraphObservationBindingV2 field placement and canonical binding digest",
+    "E signs off side-specific sourceDigest/graphDigest, sourceRef/sourceUse, full pathname/search/hash, viewport and state semantics",
+    "B/C provide Base and rectified Graph raw arrays or content-addressed manifests under the new identity version",
+    "Relation ID uniqueness audit reports no duplicate node.id, Relation.id, unresolved or unknown endpoints",
+    "Trusted run/check manifests and both side artifacts are available under the host-owned root",
+    "Execution harness proves it only writes evidence/docs sidecars and cannot call production mutation APIs"
+  ],
+  "cases": [
+    {"id":"N01","status":"not-executed","trigger":"remove sourceUseRef but retain boundingBox","expected":{"primaryReasonCode":"geometry-only","observationStatus":"unknown","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N02","status":"not-executed","trigger":"swap one sourceUse relationId while coordinates are shared","expected":{"primaryReasonCode":"runtime-location-conflict","observationStatus":"unknown","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N03","status":"not-executed","trigger":"change consumer edge certainty to semantic-candidate","expected":{"primaryReasonCode":"non-strict-consumer-edge","observationStatus":"partial","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N04","status":"not-executed","trigger":"remove all consumer relations and retain static css-cascade candidate","expected":{"primaryReasonCode":"missing-consumer-edge","observationStatus":"partial","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N05","status":"not-executed","trigger":"retain runtimeInstanceId after removing consumer edge with no identity conflict","expected":{"primaryReasonCode":"runtime-instance-without-edge","observationStatus":"partial","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N06","status":"not-executed","trigger":"replace token-use graphNodeId with declaration node","expected":{"primaryReasonCode":"declaration-node-not-source-use","observationStatus":"unknown","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N07","status":"not-executed","trigger":"use relationId present only on the other side","expected":{"primaryReasonCode":"relation-not-in-graph","observationStatus":"unknown","proof":"not-proven"},"gate":"graphDigest/source binding"},
+    {"id":"N08","status":"not-executed","trigger":"mutate sourceUse path or charOffset or byteOffset","expected":{"primaryReasonCode":"source-use-location-mismatch","observationStatus":"unknown","proof":"not-proven"},"gate":"graphDigest/source binding"},
+    {"id":"N09","status":"not-executed","trigger":"bind candidate record to an old sourceDigest","expected":{"primaryReasonCode":"source-digest-mismatch","observationStatus":"stale","proof":"not-proven"},"gate":"source binding"},
+    {"id":"N10","status":"not-executed","trigger":"retain sourceDigest but use an old graphDigest","expected":{"primaryReasonCode":"graph-digest-mismatch","observationStatus":"stale","proof":"not-proven"},"gate":"graph binding"},
+    {"id":"N11","status":"not-executed","trigger":"replace runtimeFingerprint or collectorVersion with an old value","expected":{"primaryReasonCode":"runtime-version-stale","observationStatus":"stale","proof":"not-proven"},"gate":"Runtime Identity"},
+    {"id":"N12","status":"not-executed","trigger":"delete baseline record and artifact while candidate remains","expected":{"primaryReasonCode":"missing-side","observationStatus":"unavailable","proof":"not-proven"},"gate":"dual-side Verification"},
+    {"id":"N13","status":"not-executed","trigger":"delete artifact or replace it with zero bytes","expected":{"primaryReasonCode":"missing-artifact","observationStatus":"unavailable","proof":"not-proven"},"gate":"artifact integrity"},
+    {"id":"N14","status":"not-executed","trigger":"mutate manifest or record SHA-256","expected":{"primaryReasonCode":"artifact-hash-mismatch","observationStatus":"unavailable","proof":"not-proven"},"gate":"artifact integrity"},
+    {"id":"N15","status":"not-executed","trigger":"use traversal, absolute, symlink or directory artifact path","expected":{"primaryReasonCode":"artifact-path-invalid","observationStatus":"unavailable","proof":"not-proven"},"gate":"artifact integrity"},
+    {"id":"N16","status":"not-executed","trigger":"replace, truncate or grow artifact after hashing begins","expected":{"primaryReasonCode":"artifact-changed-after-validation","observationStatus":"unavailable","proof":"not-proven"},"gate":"artifact integrity"},
+    {"id":"N17","status":"not-executed","trigger":"add a second non-equivalent record for the same project/run/check/side/page tuple","expected":{"primaryReasonCode":"duplicate-record","observationStatus":"unknown","proof":"not-proven"},"gate":"run/check uniqueness"},
+    {"id":"N18","status":"not-executed","trigger":"reuse an artifact path for different bytes or hash","expected":{"primaryReasonCode":"duplicate-artifact-conflict","observationStatus":"unknown","proof":"not-proven"},"gate":"artifact integrity"},
+    {"id":"N19","status":"not-executed","trigger":"change runId from run-001 to run-002","expected":{"primaryReasonCode":"cross-run","observationStatus":"unavailable","proof":"not-proven"},"gate":"VerificationRun binding"},
+    {"id":"N20","status":"not-executed","trigger":"change candidate checkId to another check","expected":{"primaryReasonCode":"cross-check","observationStatus":"unavailable","proof":"not-proven"},"gate":"VerificationCheck binding"},
+    {"id":"N21","status":"not-executed","trigger":"swap side or mark both records as the same side","expected":{"primaryReasonCode":"side-mismatch","observationStatus":"unavailable","proof":"not-proven"},"gate":"dual-side binding"},
+    {"id":"N22","status":"not-executed","trigger":"mutate or delete pathname/search/hash","expected":{"primaryReasonCode":"page-context-mismatch","observationStatus":"unknown","proof":"not-proven"},"gate":"route/page identity"},
+    {"id":"N23","status":"not-executed","trigger":"mutate viewport width, height or deviceScaleFactor","expected":{"primaryReasonCode":"viewport-mismatch","observationStatus":"unknown","proof":"not-proven"},"gate":"responsive-layout"},
+    {"id":"N24","status":"not-executed","trigger":"mutate state id or state digest","expected":{"primaryReasonCode":"state-mismatch","observationStatus":"unknown","proof":"not-proven"},"gate":"interaction/state"},
+    {"id":"N25","status":"not-executed","trigger":"use a runtime instance from an old route namespace","expected":{"primaryReasonCode":"route-namespace-stale","observationStatus":"stale","proof":"not-proven"},"gate":"Runtime Identity"},
+    {"id":"N26","status":"not-executed","trigger":"mark a position-dependent instance as stable-keyed-instance","expected":{"primaryReasonCode":"identity-not-stable","observationStatus":"unknown","proof":"not-proven"},"gate":"Runtime Identity"},
+    {"id":"N27","status":"not-executed","trigger":"mark ::before or ::after as a strict ordinary host","expected":{"primaryReasonCode":"pseudo-element-without-host-proof","observationStatus":"unknown","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N28","status":"not-executed","trigger":"remove runtime map while one static dynamic-class candidate remains","expected":{"primaryReasonCode":"dynamic-without-runtime-map","observationStatus":"partial","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
+    {"id":"N29","status":"not-executed","trigger":"replace host-bound projectId with a temporary worktree name","expected":{"primaryReasonCode":"logical-project-mismatch","observationStatus":"unavailable","proof":"not-proven"},"gate":"project identity"},
+    {"id":"N30","status":"not-executed","trigger":"submit payload without a trusted executor receipt and add source-proven fields","expected":{"primaryReasonCode":"untrusted-capture","observationStatus":"unavailable","proof":"not-proven"},"gate":"trusted executor/authorization"},
+    {"id":"N31","status":"not-executed","trigger":"retain Scope includedRefs but remove source-proven PageImpact","expected":{"primaryReasonCode":"page-impact-not-proven","observationStatus":"partial","proof":"not-proven"},"gate":"Scope/source mapping"},
+    {"id":"N32","status":"not-executed","trigger":"mutate risk/unknown/not-run/failed-to-run/stale assertion to passed or approved","expected":{"primaryReasonCode":"required-verification-not-pass","observationStatus":"unavailable","proof":"not-proven"},"gate":"Verification/Approval"}
+  ],
+  "notExecutedReason": [
+    "A GraphObservationBindingV2 field-level freeze is pending",
+    "E side-specific digest/sourceUse/page tuple review is pending",
+    "B/C Relation ID identity governance and a new canonical real Graph are pending",
+    "The manifest intentionally contains no execution result and cannot be read as N01-N32 pass evidence"
+  ]
+}
+
