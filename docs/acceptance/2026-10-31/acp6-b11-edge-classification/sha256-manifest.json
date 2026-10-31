@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "kind": "Ripple B AC-P6 evidence-only archive manifest",
+  "archive": {
+    "branch": "evidence/b11-edge-classification-20261031",
+    "base": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+    "implementation": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+    "originalEvidenceSnapshot": "6388abec96183cc28824dc2b7fa486e4e944d305",
+    "archiveDocumentationHead": "fb2efe35c447eadf262d55f1d9755bb26cecabda",
+    "projectRepo": "allanhue/webportflio",
+    "projectSha": "b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "frozenTools": {
+    "probeVersion": "v5",
+    "probeGitBlob": "3431294c0807161432e0a7c986825ffc5263bc87",
+    "matcherUnchanged": true,
+    "thresholdsUnchanged": true
+  },
+  "classification": {
+    "sourceMatrixInput": {
+      "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+      "finalCoreSha": "6388abec96183cc28824dc2b7fa486e4e944d305",
+      "projectSha": "b244f857457d2a07f118155602eef9097fd322bd"
+    },
+    "rows": 148,
+    "ac62": {
+      "rows": 51,
+      "counts": {
+        "valid-semantic-candidate": 8,
+        "unsafe-old-association": 10,
+        "unsupported-unknown": 33,
+        "implementation-regression": 0
+      }
+    },
+    "ac64": {
+      "rows": 97,
+      "counts": {
+        "valid-semantic-candidate": 13,
+        "unsafe-old-association": 25,
+        "unsupported-unknown": 59,
+        "implementation-regression": 0
+      }
+    },
+    "sourceProvenNeverUpgraded": true
+  },
+  "statuses": {
+    "b11StaticSlice": "ACCEPT WITH SCOPE",
+    "ac62": "PENDING",
+    "ac64": "PENDING",
+    "relationIdUniqueness": "REJECT",
+    "graphDigest": "LOCKED",
+    "lifecyclePermissions": "unchanged"
+  },
+  "graphSummary": {
+    "base": {
+      "nodes": 675,
+      "edges": 5302,
+      "unresolved": 253
+    },
+    "final": {
+      "nodes": 675,
+      "edges": 3046,
+      "unresolved": 253
+    },
+    "sourceProvenPayloadEqual": true,
+    "relationId": {
+      "baseDuplicateKeys": 298,
+      "baseExtraOccurrences": 886,
+      "finalDuplicateKeys": 84,
+      "finalExtraOccurrences": 252
+    }
+  },
+  "committedFiles": [
+    {
+      "path": "docs/acceptance/2026-10-31/acp6-b11-edge-classification/edge-classification-20261031.json",
+      "bytes": 2355161,
+      "sha256": "9718cca7375a1d5837193ecb9b9e20f6030d1a95080a9490794f43a61adb76d3",
+      "gitBlobSha": "210f271dc0f850eb0a450e30fe574d035b41e346",
+      "role": "148-row classification artifact"
+    },
+    {
+      "path": "docs/acceptance/2026-10-31/acp6-b11-edge-classification/edge-classification-20261031.md",
+      "bytes": 69679,
+      "sha256": "d7d15a4c2f0d558d5dc8fec1553d2e5aaa9a9ccf495b7be48b15fcdb7a438d94",
+      "gitBlobSha": "8d34a113da7f2da44a8d54155923a8289548113b",
+      "role": "148-row classification artifact"
+    },
+    {
+      "path": "docs/acceptance/2026-10-31/acp6-b11-edge-classification/b11-edge-classification-independent-review-20261031.md",
+      "bytes": 3330,
+      "sha256": "96fb7be465e3dbbd61e6d505336b072f0aceb53799cba0b2013ed62007687c2b",
+      "gitBlobSha": "c3709c08e55e82cb912425ba7c5a529380715b0f",
+      "role": "independent review report"
+    }
+  ],
+  "sourceEvidence": [
+    {
+      "path": "independent-run/base-acceptance.json",
+      "bytes": 1035281,
+      "sha256": "fb7d4d77481d30fd11daf193a1b5b20fd31f7946b74100a7715bbba9f2708309",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    },
+    {
+      "path": "independent-run/head-acceptance.json",
+      "bytes": 673224,
+      "sha256": "086ccfc77ca439008dd55fa50ad9f641f1f315e61aea48c70fb8222695c5fd89",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    },
+    {
+      "path": "independent-run/base-graph.json",
+      "bytes": 3519068,
+      "sha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    },
+    {
+      "path": "independent-run/head-graph.json",
+      "bytes": 2049214,
+      "sha256": "0ae3eaf5ead0a8bd8b87c158349b7d9f7980adad94cab2ed5fafbb07a9a2de76",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    },
+    {
+      "path": "independent-run/graph-diff-final.json",
+      "bytes": 1927769,
+      "sha256": "bb90c85798ec9533f1265e253c1feb3d28d8fbe0096143b91386199d70619ccb",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    },
+    {
+      "path": "independent-run/coverage-disposition-20261031.json",
+      "bytes": 201218,
+      "sha256": "cdf50a035a3487c73a9d166edef2284614bda456acc339dd975bccda1e214a46",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    },
+    {
+      "path": "independent-run/head-relation-id-duplicates.json",
+      "bytes": 343453,
+      "sha256": "9f10de82882db6ffdddd3d0a373045d5a9e845c84b29b6ea5c58f2c448d95e63",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    },
+    {
+      "path": "independent-run/binding-v2-audit-20261031.json",
+      "bytes": 2219,
+      "sha256": "f223f77102423225809584a365bb58a2078af8edb2392925df5e3bcbab5e3a24",
+      "role": "raw independent source evidence (not relabeled as archive execution)"
+    }
+  ],
+  "manifestSelfHash": "intentionally excluded to avoid self-referential digest"
+}
