@@ -24,6 +24,8 @@
     "relationIdentityVersion": "A-governed-opaque-value-required",
     "observationBindingVersion": "sourcegraph-observation-binding/v1",
     "graphIdentityFields": ["graphIdentityVersion", "projectId", "sourceRef", "sourceDigest", "graphDigest", "graphSchemaVersion", "relationIdentityVersion"],
+    "relationIdentityFields": ["Relation.id", "Relation.sourceIdentity", "relationIdentityVersion"],
+    "sourceUseFields": ["path", "charOffset", "byteOffset", "offsetUnit"],
     "captureFields": ["runId", "checkId", "side", "page.pathname", "page.search", "page.hash", "viewport", "state"],
     "observationBindingDigestInput": ["observationBindingVersion", "graphIdentity", "capture"],
     "sides": {
@@ -33,6 +35,16 @@
     "capture": {"runId": "trusted-verification-run-pending", "checkId": "trusted-verification-check-pending", "page": ["pathname", "search", "hash"], "viewport": "check-plan-required", "state": "check-plan-required"},
     "observationBindingDigest": "must be recomputed from A/E canonical envelope; no golden value issued"
   },
+  "eFindingsMapping": [
+    {"id":"E-OBS-01","finding":"sourceRef lacks a real side-graph mapping","testIds":["N07"],"subcase":"source-ref-not-in-side-graph","status":"not-executed","expected":{"primaryReasonCode":"source-ref-not-in-graph","observationStatus":"unknown","proof":"not-proven"},"reject":"no cross-side, DOM-coordinate or selector substitution"},
+    {"id":"E-OBS-02","finding":"Relation.sourceIdentity is missing","testIds":["N07"],"subcase":"relation-source-identity-missing","fixture":"vectors/negative-missing-relation-source-identity.json","status":"not-executed","expected":{"primaryReasonCode":"graph-schema-invalid","observationStatus":"unavailable","proof":"not-proven"},"reject":"no Relation.id, sourceRef or recordId substitution; current evidence validator leaves this pending because the field is optional"},
+    {"id":"E-OBS-03","finding":"graphNodeId points to a declaration node","testIds":["N06"],"subcase":"declaration-node-reference","status":"not-executed","expected":{"primaryReasonCode":"declaration-node-not-source-use","observationStatus":"unknown","proof":"not-proven"},"reject":"no declaration position as source-use"},
+    {"id":"E-OBS-04","finding":"sourceUseRef points to the wrong node type","testIds":["N06"],"subcase":"source-use-ref-wrong-node-kind","status":"not-executed","expected":{"primaryReasonCode":"declaration-node-not-source-use","observationStatus":"unknown","proof":"not-proven"},"reject":"no coordinate or label inference"},
+    {"id":"E-OBS-05","finding":"sourceUse differs from Relation.sourceUse","testIds":["N08"],"subcase":"relation-source-use-mismatch","status":"not-executed","expected":{"primaryReasonCode":"source-use-location-mismatch","observationStatus":"unknown","proof":"not-proven"},"reject":"no partial-field match"},
+    {"id":"E-OBS-06","finding":"baseline and candidate sourceRef are cross-referenced","testIds":["N21"],"subcase":"cross-side-source-ref","status":"not-executed","expected":{"primaryReasonCode":"side-mismatch","observationStatus":"unavailable","proof":"not-proven"},"reject":"no side swapping or copying"},
+    {"id":"E-OBS-07","finding":"ObservationReasonCode is undeclared or illegal","testIds":["N30"],"subcase":"illegal-observation-reason-code","status":"not-executed","expected":{"primaryReasonCode":"untrusted-capture","observationStatus":"unavailable","proof":"not-proven"},"reject":"no free-text or caller-assigned status"},
+    {"id":"E-OBS-08","finding":"Graph Schema and Validator enums disagree","testIds":["N10"],"subcase":"graph-schema-validator-enum-mismatch","status":"not-executed","expected":{"primaryReasonCode":"graph-schema-invalid","observationStatus":"unavailable","proof":"not-proven"},"reject":"no silent field drop, enum coercion or digest"}
+  ],
   "executionRootTemplate": "<host-owned-artifact-root>/<logical-project-id>/<run-id>/<side>/",
   "archiveLayout": {
     "inputs": "inputs/<caseId>/",
@@ -87,8 +99,8 @@
   "notExecutedReason": [
     "A sourcegraph-identity/v2 and sourcegraph-observation-binding/v1 canonical envelope freeze is pending",
     "E side-specific digest/sourceUse/page tuple review is pending",
+    "E-OBS-01 through E-OBS-08 are mapped subcases only and remain not-executed; E-OBS-02 has a fixture but no execution result",
     "B/C Relation ID identity governance and a new canonical real Graph are pending",
     "The manifest intentionally contains no execution result and cannot be read as N01-N32 pass evidence"
   ]
 }
-

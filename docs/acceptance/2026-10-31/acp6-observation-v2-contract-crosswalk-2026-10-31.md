@@ -49,6 +49,23 @@
 
 `sourceUseRef` 是否作为 `observationBindingDigest` 的直接成员，只能由 A/E canonical envelope 明确决定；本 evidence 文档不自行扩展 digest 输入。无论是否纳入 digest，以上逐字段 Graph reference 校验都不可省略。
 
+## 2.3 E ADJUST REQUIRED 负例映射
+
+E 的八项发现均作为后续 N01–N32 的未执行子案例登记。它们不改变 N01–N32 的总数，也不把任何准备项标记为通过。
+
+| E 编号 | 发现 | 对应 N | 预期拒绝/降级 | 禁止动作 |
+|---|---|---|---|---|
+| E-OBS-01 | `sourceRef` 缺少真实 side Graph 映射 | N07 | `source-ref-not-in-graph` / `unknown` / `not-proven` | 不由另一 side、DOM 坐标或 selector 补映射 |
+| E-OBS-02 | `Relation.sourceIdentity` 缺失 | N07 | `graph-schema-invalid` / `unavailable` / `not-proven` | 不以 `Relation.id`、sourceRef 或普通 recordId 替代；独立 fixture 待 A/E 冻结后执行 |
+| E-OBS-03 | `graphNodeId` 指向 declaration 节点 | N06 | `declaration-node-not-source-use` / `unknown` / `not-proven` | 不把 declaration 位置冒充 source-use |
+| E-OBS-04 | `sourceUseRef` 指向错误节点类型 | N06 | `declaration-node-not-source-use` / `unknown` / `not-proven` | 不按坐标或 label 猜测 token-use 节点 |
+| E-OBS-05 | `sourceUse` 与 `Relation.sourceUse` 不一致 | N08 | `source-use-location-mismatch` / `unknown` / `not-proven` | 不接受部分字段匹配 |
+| E-OBS-06 | baseline/candidate `sourceRef` 交叉引用 | N21 | `side-mismatch` / `unavailable` / `not-proven` | 不交换或复制另一侧 sourceRef |
+| E-OBS-07 | `ObservationReasonCode` 未声明或为非法值 | N30 | `untrusted-capture` / `unavailable` / `not-proven` | 不接受自由文本、未知 code 或调用者自授予状态 |
+| E-OBS-08 | Graph Schema 与 Validator 枚举不一致 | N10 | `graph-schema-invalid` / `unavailable` / `not-proven` | 不静默丢弃字段、自动转换枚举或生成 digest |
+
+`Relation.sourceIdentity` 的最终字段形状、是否参与 Graph canonical payload 及其与 `relationIdentityVersion` 的组合方式，必须以 A 冻结 schema 为准。本轮只登记缺失时的 fail-closed 预期，不修改 D r3 validator 白名单或真实 Graph。对应 fixture 为 `vectors/negative-missing-relation-source-identity.json`，当前 validator 对该 fixture 不执行拒绝判定，避免把可选字段误报为已完成的 E 验收。
+
 ## 2.2 canonical envelope 与测试向量
 
 V2 的 digest 输入边界固定为两层：
@@ -95,7 +112,7 @@ V2 的 digest 输入边界固定为两层：
 - 当前状态：所有条目 `not-executed`；没有把 G4/G5 或真实 Graph 摘要冒充 N01–N32 结果。
 - 允许写入：本 evidence/docs 目录下的 sidecar、输入快照、输出、SHA-256 manifest 和运行日志。
 - 禁止写入：`src/`、SourceGraph、VerificationRun 权威字段、Runtime Identity、Candidate、Scope、Approval、Apply、Rollback、生产 collector。
-- 执行前置：A 冻结 V2 字段与 canonical binding、B/C 提供新身份版本真实 Graph、Relation ID 唯一性审计通过、E 完成 side-specific/page tuple 复审。
+- 执行前置：A 冻结 V2 字段与 canonical binding、B/C 提供新身份版本真实 Graph、Relation ID 唯一性审计通过、E 完成 side-specific/page tuple 与上述八项负例复审。
 
 ## 5. 当前停点
 

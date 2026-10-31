@@ -1,0 +1,82 @@
+{
+  "protocol": "acp6-sourcegraph-observation-v2-final",
+  "status": "A/E final-review candidate; not frozen",
+  "base": "002df5e5b91ef387fd96f537cbd8093f641f6491",
+  "productionChange": false,
+  "contract": {
+    "graphIdentityVersion": "sourcegraph-identity/v2",
+    "graphSchemaVersion": "acp6-sourcegraph/v1",
+    "relationIdentityVersion": "relation-id/v1",
+    "observationBindingVersion": "sourcegraph-observation-binding/v1",
+    "offsetUnit": "code-unit",
+    "domainSeparated": true,
+    "observationReasonNamespace": "observation/"
+  },
+  "legacyQuarantineSchema": "acp6-observation-v2-legacy-input.schema.json",
+  "legacyNegativeFixture": "vectors/legacy-v5.json",
+  "tools": {
+    "node": "node docs/acceptance/2026-10-31/run-final-observation-vectors.mjs",
+    "powershell": "pwsh -NoProfile -File docs/acceptance/2026-10-31/canonical-observation-digest.ps1",
+    "dualCompare": "node docs/acceptance/2026-10-31/compare-final-reports.mjs",
+    "schemaParity": "node docs/acceptance/2026-10-31/validate-final-schemas.mjs"
+  },
+  "reports": [
+    "acp6-observation-v2-final-digest-report.json",
+    "acp6-observation-v2-final-powershell-report.json",
+    "acp6-observation-v2-final-dual-report.json",
+    "acp6-observation-v2-final-schema-report.json"
+  ],
+  "vectors": {
+    "g0": {"path": "vectors/g0.json", "expectedDigest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe"},
+    "g1-shuffled": {"path": "vectors/g1-shuffled.json", "expected": "same digest as g0"},
+    "g2-byte-offset-changed": {"path": "vectors/g2-byte-offset-changed.json", "expectedDigest": "b4c30037e7ddfb236b41b6af674c89a5ebe4b6a6c1df878b793986686076639a"},
+    "g4-nonascii": {"path": "vectors/g4-nonascii.json", "expectedDigest": "04355c49b4382cb16624b259a48e726c2a869dafd1f3e20dced632470aa8d2de"},
+    "g5-candidate-side": {"path": "vectors/g5-candidate-side.json", "expected": "side-local sourceRef negative fixture"},
+    "g3-duplicate-relation": {"path": "vectors/g3-duplicate-relation.json", "expectedReasonCode": "graph-schema-invalid"},
+    "b0-observation": {"path": "vectors/b0-observation.json", "expectedDigest": "cb6e383888f1d9255a9612a3866b6ce4b6339517b94b92916d320ca2b4f08f56"},
+    "b1-partial-no-relation": {"path": "vectors/b1-partial-no-relation.json", "expectedDigest": "2382cddcb7f942b368f1bc162c65e1f8b104d790586a5263fdf1008a111bb0ad", "expected": "accepted as partial; relationId may be absent"},
+    "b2-complete-no-relation": {"derivedFrom": "b1-partial-no-relation", "expectedReasonCode": "relation-not-in-graph"}
+  },
+  "negativeCases": {
+    "duplicate-relation-id": "graph-schema-invalid",
+    "unknown-location-field": "graph-schema-invalid",
+    "nested-page-overrides": "graph-schema-invalid",
+    "missing-evidence-refs": "graph-schema-invalid",
+    "invalid-node-kind": "graph-schema-invalid",
+    "unsafe-integer": "graph-schema-invalid",
+    "empty-page-overrides-key": "graph-schema-invalid",
+    "invalid-route": "observation-tuple-mismatch",
+    "unsafe-artifact-path": "artifact-path-invalid",
+    "legacy-v5": "graph-schema-invalid",
+    "source-ref-mismatch": "source-ref-mismatch",
+    "graph-node-missing": "source-ref-not-in-graph",
+    "source-use-mismatch": "source-use-ref-mismatch",
+    "opaque-source-ref": "source-ref-not-in-graph",
+    "missing-relation-source-identity": "graph-schema-invalid",
+    "declaration-node-not-source-use": "declaration-node-not-source-use",
+    "cross-side-source-ref": "source-ref-not-in-graph"
+  },
+  "requiredChecks": [
+    "Node and PowerShell digests are byte-for-byte equal",
+    "G1 permutation is stable",
+    "G2 source span mutation changes graphDigest",
+    "G3 duplicate Relation.id is rejected before hashing",
+    "observationBindingDigest self-field mutation does not change digest",
+    "artifact.sha256 mutation changes binding digest",
+    "offsetUnit is exactly code-unit",
+    "partial relationId may be absent; complete relationId must resolve uniquely",
+    "sourceRef must equal the selected side token-use graphNodeId",
+    "declaration nodes are rejected as observation source-use nodes",
+    "edge.evidenceRefs, node/edge enums, safe-integer maximum and pageOverrides key rules match Schema/Node/PowerShell",
+    "ObservationReasonCode values use observation/ namespace",
+    "legacy input remains quarantined and is never converted"
+  ],
+  "pendingNegativeCases": {
+    "missing-relation-source-identity": {
+      "status": "not-executed",
+      "expectedObservationStatus": "unavailable",
+      "reason": "A/E must freeze Relation.sourceIdentity presence; current evidence validator treats the field as optional"
+    }
+  },
+  "evidenceOnly": true
+}

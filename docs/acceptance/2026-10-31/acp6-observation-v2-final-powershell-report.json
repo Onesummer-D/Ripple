@@ -1,0 +1,222 @@
+{
+  "status": "pass",
+  "G0": {
+    "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+    "canonicalBytesSha256": "7670bc338a3b26ced964761dde0131c603f9b7c08c1ae1ff5e21b79fe1bd94d8",
+    "canonicalBytesBase64": "eyJlZGdlcyI6W3siY2VydGFpbnR5Ijoic291cmNlLXByb3ZlbiIsImV2aWRlbmNlUmVmcyI6WyJlMSIsImUyIl0sImZyb20iOiJub2RlOmEiLCJpZCI6InJlbDphIiwia2luZCI6InJlYWRzIiwic291cmNlVXNlIjp7ImJ5dGVPZmZzZXQiOjQsImNoYXJPZmZzZXQiOjQsIm9mZnNldFVuaXQiOiJjb2RlLXVuaXQiLCJwYXRoIjoic3JjL2EuY3NzIn0sInRvIjoibm9kZTpiIn1dLCJncmFwaElkZW50aXR5VmVyc2lvbiI6InNvdXJjZWdyYXBoLWlkZW50aXR5L3YyIiwiZ3JhcGhTY2hlbWFWZXJzaW9uIjoiYWNwNi1zb3VyY2VncmFwaC92MSIsIm5vZGVzIjpbeyJpZCI6Im5vZGU6YSIsImtpbmQiOiJ0b2tlbi11c2UiLCJsYWJlbCI6InZhcigtLXgpIiwibG9jYXRpb24iOnsiYnl0ZU9mZnNldCI6NCwib2Zmc2V0Ijo0LCJwYXRoIjoic3JjL2EuY3NzIn19LHsiaWQiOiJub2RlOmIiLCJraW5kIjoidG9rZW4iLCJsYWJlbCI6Ii0teCJ9XSwicmVsYXRpb25JZGVudGl0eVZlcnNpb24iOiJyZWxhdGlvbi1pZC92MSIsInNvdXJjZURpZ2VzdCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJ1bnJlc29sdmVkIjpbXX0="
+  },
+  "G1": {
+    "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+    "equalTo": "G0"
+  },
+  "G2": {
+    "digest": "b4c30037e7ddfb236b41b6af674c89a5ebe4b6a6c1df878b793986686076639a"
+  },
+  "G4": {
+    "digest": "04355c49b4382cb16624b259a48e726c2a869dafd1f3e20dced632470aa8d2de",
+    "canonicalBytesSha256": "fd0cf41ab51f6c9f627eefb45ceb11aa8fa255b8104178ab7911527ab7b50cc8",
+    "canonicalBytesBase64": "eyJlZGdlcyI6W3siY2VydGFpbnR5Ijoic291cmNlLXByb3ZlbiIsImV2aWRlbmNlUmVmcyI6WyLor4Hmja46ZcyBIiwi6K+B5o2uOsOpIl0sImZyb20iOiLoioLngrk6ZcyBIiwiaWQiOiJyZWw6w6kiLCJraW5kIjoicmVhZHMiLCJzb3VyY2VVc2UiOnsiYnl0ZU9mZnNldCI6MiwiY2hhck9mZnNldCI6MSwib2Zmc2V0VW5pdCI6ImNvZGUtdW5pdCIsInBhdGgiOiJzcmMvw6kuY3NzIn0sInRvIjoi6IqC54K5OsOpIn1dLCJncmFwaElkZW50aXR5VmVyc2lvbiI6InNvdXJjZWdyYXBoLWlkZW50aXR5L3YyIiwiZ3JhcGhTY2hlbWFWZXJzaW9uIjoiYWNwNi1zb3VyY2VncmFwaC92MSIsIm5vZGVzIjpbeyJpZCI6IuiKgueCuTplzIEiLCJraW5kIjoidG9rZW4tdXNlIiwibGFiZWwiOiJlzIEifSx7ImlkIjoi6IqC54K5OsOpIiwia2luZCI6InRva2VuIiwibGFiZWwiOiLDqSJ9XSwicmVsYXRpb25JZGVudGl0eVZlcnNpb24iOiJyZWxhdGlvbi1pZC92MSIsInNvdXJjZURpZ2VzdCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJ1bnJlc29sdmVkIjpbIuacquino+aekDplzIEiLCLmnKrop6PmnpA6w6kiXX0="
+  },
+  "B0": {
+    "digest": "cb6e383888f1d9255a9612a3866b6ce4b6339517b94b92916d320ca2b4f08f56",
+    "canonicalBytesSha256": "06d1ed123e1a8ff2396ce28effc7188f915a901592a733c13e05caeb59e93888",
+    "canonicalBytesBase64": "eyJhcnRpZmFjdCI6eyJraW5kIjoib2JzZXJ2YXRpb24tanNvbiIsInBhdGgiOiJydW5zL3J1bi0xL2NoZWNrLWhvbWUtMzkwL2Jhc2VsaW5lLmpzb24iLCJzaGEyNTYiOiIxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIiwic2l6ZUJ5dGVzIjoxMjh9LCJjaGVja0lkIjoiY2hlY2staG9tZS0zOTAiLCJncmFwaCI6eyJncmFwaERpZ2VzdCI6ImZmODczNWVkNmUzZmYxZjgzMjFmNjZjMjI2M2QzN2MyNDNhZDdlYzM2NjE2ZjI4Yjk4NDA2ZmRjNmViY2I5ZmUiLCJncmFwaElkZW50aXR5VmVyc2lvbiI6InNvdXJjZWdyYXBoLWlkZW50aXR5L3YyIiwiZ3JhcGhTY2hlbWFWZXJzaW9uIjoiYWNwNi1zb3VyY2VncmFwaC92MSIsInByb2plY3RJZCI6InByb2plY3QtZGVtbyIsInJlbGF0aW9uSWRlbnRpdHlWZXJzaW9uIjoicmVsYXRpb24taWQvdjEiLCJzb3VyY2VEaWdlc3QiOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0sIm9ic2VydmF0aW9uQmluZGluZ1ZlcnNpb24iOiJzb3VyY2VncmFwaC1vYnNlcnZhdGlvbi1iaW5kaW5nL3YxIiwicGFnZSI6eyJoYXNoIjoiI2hlcm8iLCJwYXRobmFtZSI6Ii9ob21lIiwic2VhcmNoIjoiP3g9MSJ9LCJyb3V0ZSI6Ii9ob21lP3g9MSNoZXJvIiwicnVuSWQiOiJydW4tMSIsInNpZGUiOiJiYXNlbGluZSIsInNvdXJjZVJlZiI6Im5vZGU6YSIsInNvdXJjZVVzZVJlZiI6eyJncmFwaE5vZGVJZCI6Im5vZGU6YSIsInJlbGF0aW9uSWQiOiJyZWw6YSIsInNvdXJjZVJlZiI6Im5vZGU6YSIsInNvdXJjZVVzZSI6eyJieXRlT2Zmc2V0Ijo0LCJjaGFyT2Zmc2V0Ijo0LCJvZmZzZXRVbml0IjoiY29kZS11bml0IiwicGF0aCI6InNyYy9hLmNzcyJ9fSwic3RhdGUiOnsiaWQiOiJkZWZhdWx0In0sInZpZXdwb3J0Ijp7ImRldmljZVNjYWxlRmFjdG9yIjoxLCJoZWlnaHQiOjg0NCwid2lkdGgiOjM5MH19"
+  },
+  "artifactPathCases": [
+    {
+      "path": "../escape.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "/absolute.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "//server/share.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "runs//duplicate.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "runs/./dot.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "runs/../escape.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "C:/drive.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "runs\\backslash.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    },
+    {
+      "path": "runs/\u0000nul.json",
+      "pass": true,
+      "reasonCode": "artifact-path-invalid"
+    }
+  ],
+  "captureFormatCases": [
+    {
+      "name": "route",
+      "pass": true,
+      "reasonCode": "observation-tuple-mismatch"
+    },
+    {
+      "name": "search",
+      "pass": true,
+      "reasonCode": "observation-tuple-mismatch"
+    },
+    {
+      "name": "hash",
+      "pass": true,
+      "reasonCode": "observation-tuple-mismatch"
+    },
+    {
+      "name": "width",
+      "pass": true,
+      "reasonCode": "observation-tuple-mismatch"
+    }
+  ],
+  "reasonCodeClosedSet": {
+    "pass": true,
+    "observed": [
+      "artifact-path-invalid",
+      "declaration-node-not-source-use",
+      "duplicate-relation-id",
+      "graph-schema-invalid",
+      "observation-tuple-mismatch",
+      "source-ref-mismatch",
+      "source-ref-not-in-graph",
+      "source-use-ref-mismatch"
+    ],
+    "allowedCount": 48
+  },
+  "negative": {
+    "G3": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "negative-unknown-location": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "negative-page-overrides": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "missing-evidence-refs": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "invalid-node-kind": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "unsafe-integer": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "empty-page-overrides-key": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "negative-route": {
+      "pass": true,
+      "expectedReasonCode": "observation-tuple-mismatch",
+      "reasonCode": "observation-tuple-mismatch",
+      "observationReasonCode": "observation/observation-tuple-mismatch"
+    },
+    "negative-artifact-path": {
+      "pass": true,
+      "expectedReasonCode": "artifact-path-invalid",
+      "reasonCode": "artifact-path-invalid",
+      "observationReasonCode": "observation/artifact-path-invalid"
+    },
+    "legacy-v5": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid"
+    },
+    "source-ref-mismatch": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-mismatch",
+      "reasonCode": "source-ref-mismatch",
+      "observationReasonCode": "observation/source-ref-mismatch"
+    },
+    "graph-node-missing": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-not-in-graph",
+      "reasonCode": "source-ref-not-in-graph",
+      "observationReasonCode": "observation/source-ref-not-in-graph"
+    },
+    "source-use-mismatch": {
+      "pass": true,
+      "expectedReasonCode": "source-use-ref-mismatch",
+      "reasonCode": "source-use-ref-mismatch",
+      "observationReasonCode": "observation/source-use-ref-mismatch"
+    },
+    "duplicate-relation-id": {
+      "pass": true,
+      "expectedReasonCode": "duplicate-relation-id",
+      "reasonCode": "duplicate-relation-id",
+      "observationReasonCode": "observation/duplicate-relation-id"
+    },
+    "opaque-source-ref": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-not-in-graph",
+      "reasonCode": "source-ref-not-in-graph",
+      "observationReasonCode": "observation/source-ref-not-in-graph"
+    },
+    "declaration-node-not-source-use": {
+      "pass": true,
+      "expectedReasonCode": "declaration-node-not-source-use",
+      "reasonCode": "declaration-node-not-source-use",
+      "observationReasonCode": "observation/declaration-node-not-source-use"
+    },
+    "cross-side-source-ref": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-not-in-graph",
+      "reasonCode": "source-ref-not-in-graph",
+      "observationReasonCode": "observation/source-ref-not-in-graph"
+    }
+  },
+  "pending": {
+    "missing-relation-source-identity": {
+      "status": "not-executed",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "trusted": false,
+      "fixture": "negative-missing-relation-source-identity.json",
+      "message": "A/E must freeze Relation.sourceIdentity presence before this case can be executed; current evidence validator treats the field as optional"
+    }
+  }
+}

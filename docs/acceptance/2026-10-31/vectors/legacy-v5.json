@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 5,
+  "protocol": "legacy-runtime-identity-v5",
+  "graph": {"schemaVersion": "legacy-sourcegraph", "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000", "nodes": [], "edges": []},
+  "runId": "run-legacy",
+  "side": "baseline"
+}

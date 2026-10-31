@@ -1,0 +1,14 @@
+{
+  "graphIdentityVersion": "sourcegraph-identity/v2",
+  "graphSchemaVersion": "acp6-sourcegraph/v1",
+  "relationIdentityVersion": "relation-id/v1",
+  "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "nodes": [
+    {"id": "candidate:node:b", "kind": "token", "label": "--x"},
+    {"id": "candidate:node:a", "kind": "token-use", "label": "var(--x)", "location": {"path": "src/a.css", "offset": 4, "byteOffset": 4}}
+  ],
+  "edges": [
+    {"id": "candidate:rel:a", "from": "candidate:node:a", "to": "candidate:node:b", "kind": "reads", "certainty": "source-proven", "evidenceRefs": ["e1"], "sourceUse": {"path": "src/a.css", "charOffset": 4, "byteOffset": 4, "offsetUnit": "code-unit"}}
+  ],
+  "unresolved": []
+}

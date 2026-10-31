@@ -1,0 +1,38 @@
+{
+  "contractCandidate": "sourcegraph-observation-binding/v1",
+  "graphIdentityVersion": "sourcegraph-identity/v2",
+  "observationReasonNamespace": "observation/",
+  "observationReasonCodes": [
+    "observation/complete", "observation/missing-side", "observation/missing-artifact", "observation/artifact-hash-mismatch",
+    "observation/artifact-path-invalid", "observation/artifact-changed-after-validation", "observation/graph-schema-invalid",
+    "observation/cross-run", "observation/cross-check", "observation/side-mismatch", "observation/logical-project-mismatch",
+    "observation/untrusted-capture", "observation/required-verification-not-pass", "observation/source-digest-mismatch",
+    "observation/graph-digest-mismatch", "observation/runtime-version-stale", "observation/route-namespace-stale",
+    "observation/geometry-only", "observation/runtime-location-conflict", "observation/declaration-node-not-source-use",
+    "observation/relation-not-in-graph", "observation/source-use-location-mismatch", "observation/duplicate-record",
+    "observation/duplicate-artifact-conflict", "observation/page-context-mismatch", "observation/viewport-mismatch",
+    "observation/state-mismatch", "observation/identity-not-stable", "observation/pseudo-element-without-host-proof",
+    "observation/non-strict-consumer-edge", "observation/missing-consumer-edge", "observation/runtime-instance-without-edge",
+    "observation/dynamic-without-runtime-map", "observation/page-impact-not-proven", "observation/missing-cross-side-map",
+    "observation/missing-source-ref", "observation/missing-source-use-ref", "observation/missing-source-use",
+    "observation/source-ref-mismatch", "observation/graph-node-not-unique", "observation/source-ref-not-in-graph",
+    "observation/missing-relation-id", "observation/duplicate-relation-id", "observation/source-use-ref-mismatch",
+    "observation/page-context-unverified", "observation/artifact-missing", "observation/artifact-digest-mismatch",
+    "observation/observation-tuple-mismatch"
+  ],
+  "legacyQuarantineSchema": "acp6-observation-v2-legacy-input.schema.json",
+  "rows": [
+    {"artifact": "legacy B v5 report", "graphIdentityVersion": "legacy/unversioned", "graphSchemaVersion": "legacy/unversioned", "relationIdentityVersion": "legacy/unversioned", "observationBindingVersion": null, "read": true, "upgrade": false, "strictProof": false},
+    {"artifact": "B1.1 structural evidence", "graphIdentityVersion": "candidate", "graphSchemaVersion": "candidate", "relationIdentityVersion": "pending", "observationBindingVersion": null, "read": true, "upgrade": false, "strictProof": false},
+    {"artifact": "v2 static graph", "graphIdentityVersion": "sourcegraph-identity/v2", "graphSchemaVersion": "acp6-sourcegraph/v1", "relationIdentityVersion": "relation-id/v1", "observationBindingVersion": null, "read": true, "upgrade": false, "strictProof": false},
+    {"artifact": "v1 observation envelope", "graphIdentityVersion": "sourcegraph-identity/v2", "graphSchemaVersion": "acp6-sourcegraph/v1", "relationIdentityVersion": "relation-id/v1", "observationBindingVersion": "sourcegraph-observation-binding/v1", "read": true, "upgrade": false, "strictProof": false},
+    {"artifact": "Runtime Identity v1.2", "graphIdentityVersion": "unchanged", "graphSchemaVersion": "unchanged", "relationIdentityVersion": "unchanged", "observationBindingVersion": "unchanged", "read": true, "upgrade": false, "strictProof": false}
+  ],
+  "frozenBoundaries": [
+    "Runtime Identity v1.2",
+    "RuntimeIdentityReason",
+    "VerificationRun",
+    "E pairing semantics",
+    "Scope/Candidate/Approval/Apply/Rollback gates"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "graphIdentityVersion": "sourcegraph-identity/v2",
+  "graphSchemaVersion": "acp6-sourcegraph/v1",
+  "relationIdentityVersion": "relation-id/v1",
+  "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "nodes": [{"id": "node:a", "kind": "token-use", "label": "x", "byteOffset": 9007199254740992}],
+  "edges": [],
+  "unresolved": []
+}

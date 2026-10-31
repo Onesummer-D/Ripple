@@ -1,0 +1,18 @@
+{
+  "status": "pass",
+  "checks": {
+    "G0Digest": true,
+    "G0CanonicalBytes": true,
+    "G4Digest": true,
+    "G4CanonicalBytes": true,
+    "B0Digest": true,
+    "B0CanonicalBytes": true,
+    "NegativeCases": true,
+    "ReasonCodeClosedSet": true,
+    "SchemaParity": true,
+    "ArtifactPathCases": true,
+    "CaptureFormatCases": true
+  },
+  "nodeHeadIndependent": true,
+  "powershellDotNetIndependent": true
+}

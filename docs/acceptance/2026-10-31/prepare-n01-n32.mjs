@@ -28,9 +28,29 @@ const expectedGraphFields = ['graphIdentityVersion', 'projectId', 'sourceRef', '
 if (JSON.stringify(identity.graphIdentityFields) !== JSON.stringify(expectedGraphFields)) errors.push('graph identity field separation is incomplete')
 const expectedCaptureFields = ['runId', 'checkId', 'side', 'page.pathname', 'page.search', 'page.hash', 'viewport', 'state']
 if (JSON.stringify(identity.captureFields) !== JSON.stringify(expectedCaptureFields)) errors.push('capture tuple field set is incomplete')
+const expectedRelationFields = ['Relation.id', 'Relation.sourceIdentity', 'relationIdentityVersion']
+if (JSON.stringify(identity.relationIdentityFields) !== JSON.stringify(expectedRelationFields)) errors.push('relation identity field set is incomplete')
+const expectedSourceUseFields = ['path', 'charOffset', 'byteOffset', 'offsetUnit']
+if (JSON.stringify(identity.sourceUseFields) !== JSON.stringify(expectedSourceUseFields)) errors.push('sourceUse field set is incomplete')
 for (const side of ['baseline', 'candidate']) {
   const binding = identity.sides?.[side]
   if (!binding?.sourceRef || !binding?.sourceDigest || !binding?.graphDigest) errors.push(`${side}: side-specific identity fields are incomplete`)
+}
+const expectedEFindingIds = Array.from({ length: 8 }, (_, index) => `E-OBS-${String(index + 1).padStart(2, '0')}`)
+const eFindings = manifest.eFindingsMapping ?? []
+if (JSON.stringify(eFindings.map(item => item.id)) !== JSON.stringify(expectedEFindingIds)) errors.push('E finding IDs must be ordered E-OBS-01 through E-OBS-08')
+for (const finding of eFindings) {
+  if (finding.status !== 'not-executed') errors.push(`${finding.id}: E finding must remain not-executed`)
+  if (!finding.testIds?.length || !finding.expected?.primaryReasonCode || !finding.expected?.observationStatus || finding.expected?.proof !== 'not-proven') {
+    errors.push(`${finding.id}: mapping lacks test ID or expected rejection fields`)
+  }
+  if (finding.fixture) {
+    try {
+      JSON.parse(await readFile(join(here, finding.fixture), 'utf8'))
+    } catch (error) {
+      errors.push(`${finding.id}: evidence fixture is missing or invalid JSON`)
+    }
+  }
 }
 if (!Array.isArray(manifest.cases) || manifest.cases.length !== expectedIds.length) errors.push('case count must be exactly 32')
 const ids = (manifest.cases ?? []).map(item => item.id)
@@ -52,6 +72,7 @@ const result = {
   protocol: manifest.protocol,
   status: errors.length === 0 ? 'prepared-not-executed' : 'rejected',
   caseCount: manifest.cases?.length ?? 0,
+  eFindingCount: eFindings.length,
   ids: { first: ids[0] ?? null, last: ids.at(-1) ?? null },
   productionWrites: false,
   errors,
@@ -62,4 +83,3 @@ const outArg = process.argv.find(arg => arg.startsWith('--out='))?.slice('--out=
 if (outArg) await writeFile(resolve(outArg), `${JSON.stringify(result, null, 2)}\n`, 'utf8')
 console.log(JSON.stringify(result, null, 2))
 if (errors.length) process.exitCode = 1
-

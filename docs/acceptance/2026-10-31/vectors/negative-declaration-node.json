@@ -1,0 +1,31 @@
+{
+  "observationBindingVersion": "sourcegraph-observation-binding/v1",
+  "graph": {
+    "graphIdentityVersion": "sourcegraph-identity/v2",
+    "graphSchemaVersion": "acp6-sourcegraph/v1",
+    "relationIdentityVersion": "relation-id/v1",
+    "projectId": "project-demo",
+    "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "graphDigest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe"
+  },
+  "sourceRef": "node:b",
+  "sourceUseRef": {
+    "sourceRef": "node:b",
+    "graphNodeId": "node:b",
+    "relationId": "rel:a",
+    "sourceUse": {"path": "src/a.css", "charOffset": 4, "byteOffset": 4, "offsetUnit": "code-unit"}
+  },
+  "runId": "run-1",
+  "checkId": "check-home-390",
+  "side": "baseline",
+  "route": "/home?x=1#hero",
+  "page": {"pathname": "/home", "search": "?x=1", "hash": "#hero"},
+  "viewport": {"width": 390, "height": 844, "deviceScaleFactor": 1},
+  "state": {"id": "default"},
+  "artifact": {"kind": "observation-json", "path": "runs/run-1/check-home-390/baseline.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "sizeBytes": 128},
+  "status": "complete",
+  "proof": "not-proven",
+  "primaryReasonCode": "observation/complete",
+  "secondaryReasonCodes": [],
+  "observationBindingDigest": "cb6e383888f1d9255a9612a3866b6ce4b6339517b94b92916d320ca2b4f08f56"
+}

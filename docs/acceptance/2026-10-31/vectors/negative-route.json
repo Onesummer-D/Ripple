@@ -1,0 +1,5 @@
+{
+  "observationBindingVersion": "sourcegraph-observation-binding/v1",
+  "graph": {"graphIdentityVersion": "sourcegraph-identity/v2", "graphSchemaVersion": "acp6-sourcegraph/v1", "relationIdentityVersion": "relation-id/v1", "projectId": "project-demo", "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000", "graphDigest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe"},
+  "runId": "run-1", "checkId": "check-home-390", "side": "baseline", "route": "home", "page": {"pathname": "/home", "search": "", "hash": ""}, "viewport": {"width": 390, "height": 844}, "state": {"id": "default"}, "artifact": {"kind": "observation-json", "path": "runs/run-1/check.json", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "sizeBytes": 1}, "status": "partial", "proof": "not-proven", "primaryReasonCode": "observation/missing-source-ref", "secondaryReasonCodes": [], "observationBindingDigest": "not-computed"
+}

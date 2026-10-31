@@ -1,0 +1,289 @@
+{
+  "protocol": "acp6-sourcegraph-observation-v2-final",
+  "status": "pass",
+  "vectors": {
+    "G0": {
+      "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "canonicalJson": "{\"edges\":[{\"certainty\":\"source-proven\",\"evidenceRefs\":[\"e1\",\"e2\"],\"from\":\"node:a\",\"id\":\"rel:a\",\"kind\":\"reads\",\"sourceUse\":{\"byteOffset\":4,\"charOffset\":4,\"offsetUnit\":\"code-unit\",\"path\":\"src/a.css\"},\"to\":\"node:b\"}],\"graphIdentityVersion\":\"sourcegraph-identity/v2\",\"graphSchemaVersion\":\"acp6-sourcegraph/v1\",\"nodes\":[{\"id\":\"node:a\",\"kind\":\"token-use\",\"label\":\"var(--x)\",\"location\":{\"byteOffset\":4,\"offset\":4,\"path\":\"src/a.css\"}},{\"id\":\"node:b\",\"kind\":\"token\",\"label\":\"--x\"}],\"relationIdentityVersion\":\"relation-id/v1\",\"sourceDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"unresolved\":[]}",
+      "canonicalBytesSha256": "7670bc338a3b26ced964761dde0131c603f9b7c08c1ae1ff5e21b79fe1bd94d8",
+      "canonicalBytesBase64": "eyJlZGdlcyI6W3siY2VydGFpbnR5Ijoic291cmNlLXByb3ZlbiIsImV2aWRlbmNlUmVmcyI6WyJlMSIsImUyIl0sImZyb20iOiJub2RlOmEiLCJpZCI6InJlbDphIiwia2luZCI6InJlYWRzIiwic291cmNlVXNlIjp7ImJ5dGVPZmZzZXQiOjQsImNoYXJPZmZzZXQiOjQsIm9mZnNldFVuaXQiOiJjb2RlLXVuaXQiLCJwYXRoIjoic3JjL2EuY3NzIn0sInRvIjoibm9kZTpiIn1dLCJncmFwaElkZW50aXR5VmVyc2lvbiI6InNvdXJjZWdyYXBoLWlkZW50aXR5L3YyIiwiZ3JhcGhTY2hlbWFWZXJzaW9uIjoiYWNwNi1zb3VyY2VncmFwaC92MSIsIm5vZGVzIjpbeyJpZCI6Im5vZGU6YSIsImtpbmQiOiJ0b2tlbi11c2UiLCJsYWJlbCI6InZhcigtLXgpIiwibG9jYXRpb24iOnsiYnl0ZU9mZnNldCI6NCwib2Zmc2V0Ijo0LCJwYXRoIjoic3JjL2EuY3NzIn19LHsiaWQiOiJub2RlOmIiLCJraW5kIjoidG9rZW4iLCJsYWJlbCI6Ii0teCJ9XSwicmVsYXRpb25JZGVudGl0eVZlcnNpb24iOiJyZWxhdGlvbi1pZC92MSIsInNvdXJjZURpZ2VzdCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJ1bnJlc29sdmVkIjpbXX0="
+    },
+    "G1": {
+      "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "equalTo": "G0",
+      "stable": true
+    },
+    "G2": {
+      "digest": "b4c30037e7ddfb236b41b6af674c89a5ebe4b6a6c1df878b793986686076639a",
+      "differsFrom": "G0",
+      "changed": true
+    },
+    "G4": {
+      "digest": "04355c49b4382cb16624b259a48e726c2a869dafd1f3e20dced632470aa8d2de",
+      "nonAscii": true,
+      "canonicalBytesSha256": "fd0cf41ab51f6c9f627eefb45ceb11aa8fa255b8104178ab7911527ab7b50cc8",
+      "canonicalBytesBase64": "eyJlZGdlcyI6W3siY2VydGFpbnR5Ijoic291cmNlLXByb3ZlbiIsImV2aWRlbmNlUmVmcyI6WyLor4Hmja46ZcyBIiwi6K+B5o2uOsOpIl0sImZyb20iOiLoioLngrk6ZcyBIiwiaWQiOiJyZWw6w6kiLCJraW5kIjoicmVhZHMiLCJzb3VyY2VVc2UiOnsiYnl0ZU9mZnNldCI6MiwiY2hhck9mZnNldCI6MSwib2Zmc2V0VW5pdCI6ImNvZGUtdW5pdCIsInBhdGgiOiJzcmMvw6kuY3NzIn0sInRvIjoi6IqC54K5OsOpIn1dLCJncmFwaElkZW50aXR5VmVyc2lvbiI6InNvdXJjZWdyYXBoLWlkZW50aXR5L3YyIiwiZ3JhcGhTY2hlbWFWZXJzaW9uIjoiYWNwNi1zb3VyY2VncmFwaC92MSIsIm5vZGVzIjpbeyJpZCI6IuiKgueCuTplzIEiLCJraW5kIjoidG9rZW4tdXNlIiwibGFiZWwiOiJlzIEifSx7ImlkIjoi6IqC54K5OsOpIiwia2luZCI6InRva2VuIiwibGFiZWwiOiLDqSJ9XSwicmVsYXRpb25JZGVudGl0eVZlcnNpb24iOiJyZWxhdGlvbi1pZC92MSIsInNvdXJjZURpZ2VzdCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJ1bnJlc29sdmVkIjpbIuacquino+aekDplzIEiLCLmnKrop6PmnpA6w6kiXX0="
+    },
+    "B0": {
+      "graphDigest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "digest": "cb6e383888f1d9255a9612a3866b6ce4b6339517b94b92916d320ca2b4f08f56",
+      "canonicalJson": "{\"artifact\":{\"kind\":\"observation-json\",\"path\":\"runs/run-1/check-home-390/baseline.json\",\"sha256\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"sizeBytes\":128},\"checkId\":\"check-home-390\",\"graph\":{\"graphDigest\":\"ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe\",\"graphIdentityVersion\":\"sourcegraph-identity/v2\",\"graphSchemaVersion\":\"acp6-sourcegraph/v1\",\"projectId\":\"project-demo\",\"relationIdentityVersion\":\"relation-id/v1\",\"sourceDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"observationBindingVersion\":\"sourcegraph-observation-binding/v1\",\"page\":{\"hash\":\"#hero\",\"pathname\":\"/home\",\"search\":\"?x=1\"},\"route\":\"/home?x=1#hero\",\"runId\":\"run-1\",\"side\":\"baseline\",\"sourceRef\":\"node:a\",\"sourceUseRef\":{\"graphNodeId\":\"node:a\",\"relationId\":\"rel:a\",\"sourceRef\":\"node:a\",\"sourceUse\":{\"byteOffset\":4,\"charOffset\":4,\"offsetUnit\":\"code-unit\",\"path\":\"src/a.css\"}},\"state\":{\"id\":\"default\"},\"viewport\":{\"deviceScaleFactor\":1,\"height\":844,\"width\":390}}",
+      "canonicalBytesSha256": "06d1ed123e1a8ff2396ce28effc7188f915a901592a733c13e05caeb59e93888",
+      "canonicalBytesBase64": "eyJhcnRpZmFjdCI6eyJraW5kIjoib2JzZXJ2YXRpb24tanNvbiIsInBhdGgiOiJydW5zL3J1bi0xL2NoZWNrLWhvbWUtMzkwL2Jhc2VsaW5lLmpzb24iLCJzaGEyNTYiOiIxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIiwic2l6ZUJ5dGVzIjoxMjh9LCJjaGVja0lkIjoiY2hlY2staG9tZS0zOTAiLCJncmFwaCI6eyJncmFwaERpZ2VzdCI6ImZmODczNWVkNmUzZmYxZjgzMjFmNjZjMjI2M2QzN2MyNDNhZDdlYzM2NjE2ZjI4Yjk4NDA2ZmRjNmViY2I5ZmUiLCJncmFwaElkZW50aXR5VmVyc2lvbiI6InNvdXJjZWdyYXBoLWlkZW50aXR5L3YyIiwiZ3JhcGhTY2hlbWFWZXJzaW9uIjoiYWNwNi1zb3VyY2VncmFwaC92MSIsInByb2plY3RJZCI6InByb2plY3QtZGVtbyIsInJlbGF0aW9uSWRlbnRpdHlWZXJzaW9uIjoicmVsYXRpb24taWQvdjEiLCJzb3VyY2VEaWdlc3QiOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0sIm9ic2VydmF0aW9uQmluZGluZ1ZlcnNpb24iOiJzb3VyY2VncmFwaC1vYnNlcnZhdGlvbi1iaW5kaW5nL3YxIiwicGFnZSI6eyJoYXNoIjoiI2hlcm8iLCJwYXRobmFtZSI6Ii9ob21lIiwic2VhcmNoIjoiP3g9MSJ9LCJyb3V0ZSI6Ii9ob21lP3g9MSNoZXJvIiwicnVuSWQiOiJydW4tMSIsInNpZGUiOiJiYXNlbGluZSIsInNvdXJjZVJlZiI6Im5vZGU6YSIsInNvdXJjZVVzZVJlZiI6eyJncmFwaE5vZGVJZCI6Im5vZGU6YSIsInJlbGF0aW9uSWQiOiJyZWw6YSIsInNvdXJjZVJlZiI6Im5vZGU6YSIsInNvdXJjZVVzZSI6eyJieXRlT2Zmc2V0Ijo0LCJjaGFyT2Zmc2V0Ijo0LCJvZmZzZXRVbml0IjoiY29kZS11bml0IiwicGF0aCI6InNyYy9hLmNzcyJ9fSwic3RhdGUiOnsiaWQiOiJkZWZhdWx0In0sInZpZXdwb3J0Ijp7ImRldmljZVNjYWxlRmFjdG9yIjoxLCJoZWlnaHQiOjg0NCwid2lkdGgiOjM5MH19"
+    },
+    "B1": {
+      "digest": "2382cddcb7f942b368f1bc162c65e1f8b104d790586a5263fdf1008a111bb0ad",
+      "status": "partial",
+      "relationId": "omitted"
+    },
+    "rootRouteAccepted": true,
+    "selfReferenceIgnored": true,
+    "artifactMutationChanges": true,
+    "graphReferencePass": true,
+    "referenceCases": {
+      "sourceRefMismatch": {
+        "pass": true,
+        "expectedReasonCode": "source-ref-mismatch",
+        "reasonCode": "source-ref-mismatch",
+        "message": "sourceRef and sourceUseRef.sourceRef differ"
+      },
+      "sourceUseMismatch": {
+        "pass": true,
+        "expectedReasonCode": "source-use-ref-mismatch",
+        "reasonCode": "source-use-ref-mismatch",
+        "message": "relation sourceUse or endpoint differs from sourceUseRef"
+      },
+      "graphNodeMissing": {
+        "pass": true,
+        "expectedReasonCode": "source-ref-not-in-graph",
+        "reasonCode": "source-ref-not-in-graph",
+        "message": "graphNodeId is absent from selected side graph"
+      },
+      "duplicateRelation": {
+        "pass": true,
+        "expectedReasonCode": "duplicate-relation-id",
+        "reasonCode": "duplicate-relation-id",
+        "message": "relationId is not unique in selected side graph"
+      }
+    },
+    "sourceRefMismatchRejected": true,
+    "sourceUseMismatchRejected": true,
+    "graphNodeMissingRejected": true,
+    "duplicateRelationRejected": true,
+    "opaqueSourceRefRejected": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-not-in-graph",
+      "reasonCode": "source-ref-not-in-graph",
+      "message": "sourceRef has no side-local node mapping"
+    },
+    "declarationNodeRejected": {
+      "pass": true,
+      "expectedReasonCode": "declaration-node-not-source-use",
+      "reasonCode": "declaration-node-not-source-use",
+      "message": "graphNodeId does not resolve to a source-use node"
+    },
+    "crossSideSourceRefRejected": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-not-in-graph",
+      "reasonCode": "source-ref-not-in-graph",
+      "message": "graphNodeId is absent from selected side graph"
+    },
+    "partialWithoutRelationRemainsPartial": true,
+    "missingSourceRefRemainsPartial": true,
+    "missingSourceUseRefRemainsPartial": true,
+    "artifactPathCases": [
+      {
+        "path": "../escape.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "/absolute.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "//server/share.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "runs//duplicate.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "runs/./dot.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "runs/../escape.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "C:/drive.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "runs\\backslash.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      },
+      {
+        "path": "runs/\u0000nul.json",
+        "pass": true,
+        "reasonCode": "artifact-path-invalid"
+      }
+    ],
+    "artifactPathCasesPass": true,
+    "captureFormatCases": [
+      {
+        "field": "route",
+        "pass": true,
+        "reasonCode": "observation-tuple-mismatch"
+      },
+      {
+        "field": "search",
+        "pass": true,
+        "reasonCode": "observation-tuple-mismatch"
+      },
+      {
+        "field": "hash",
+        "pass": true,
+        "reasonCode": "observation-tuple-mismatch"
+      },
+      {
+        "field": "width",
+        "pass": true,
+        "reasonCode": "observation-tuple-mismatch"
+      }
+    ],
+    "captureFormatCasesPass": true
+  },
+  "negative": {
+    "G3": {
+      "pass": true,
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "duplicate Relation.id: rel:a"
+    },
+    "B2": {
+      "pass": true,
+      "reasonCode": "relation-not-in-graph",
+      "observationReasonCode": "observation/relation-not-in-graph",
+      "message": "complete source-use observation requires one relationId"
+    },
+    "negative-unknown-location.json": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "nodes[0].location.line is not allowed"
+    },
+    "negative-page-overrides.json": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "nodes[0].pageOverrides./home must be a non-empty string"
+    },
+    "negative-route.json": {
+      "pass": true,
+      "expectedReasonCode": "observation-tuple-mismatch",
+      "reasonCode": "observation-tuple-mismatch",
+      "observationReasonCode": "observation/observation-tuple-mismatch",
+      "message": "route.pathname must be a non-empty pathname"
+    },
+    "negative-artifact-path.json": {
+      "pass": true,
+      "expectedReasonCode": "artifact-path-invalid",
+      "reasonCode": "artifact-path-invalid",
+      "observationReasonCode": "observation/artifact-path-invalid",
+      "message": "artifact.path must be a relative POSIX path inside trusted archive"
+    },
+    "legacy-v5.json": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "graph.schemaVersion is not allowed"
+    },
+    "negative-opaque-source-ref.json": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-not-in-graph",
+      "reasonCode": "source-ref-not-in-graph",
+      "observationReasonCode": "observation/source-ref-not-in-graph",
+      "message": "sourceRef has no side-local node mapping"
+    },
+    "negative-declaration-node.json": {
+      "pass": true,
+      "expectedReasonCode": "declaration-node-not-source-use",
+      "reasonCode": "declaration-node-not-source-use",
+      "observationReasonCode": "observation/declaration-node-not-source-use",
+      "message": "graphNodeId does not resolve to a source-use node"
+    },
+    "negative-cross-side-source-ref.json": {
+      "pass": true,
+      "expectedReasonCode": "source-ref-not-in-graph",
+      "reasonCode": "source-ref-not-in-graph",
+      "observationReasonCode": "observation/source-ref-not-in-graph",
+      "message": "graphNodeId is absent from selected side graph"
+    },
+    "negative-missing-evidence-refs.json": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "edges[0].evidenceRefs is required"
+    },
+    "negative-kind.json": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "nodes[0].kind is not canonical"
+    },
+    "negative-unsafe-integer.json": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "nodes[0].byteOffset must be a non-negative safe integer"
+    },
+    "negative-empty-page-key.json": {
+      "pass": true,
+      "expectedReasonCode": "graph-schema-invalid",
+      "reasonCode": "graph-schema-invalid",
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "message": "nodes[0].pageOverrides key must be a non-empty string"
+    }
+  },
+  "pending": {
+    "missingRelationSourceIdentity": {
+      "status": "not-executed",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "trusted": false,
+      "fixture": "negative-missing-relation-source-identity.json",
+      "message": "A/E must freeze Relation.sourceIdentity presence before this case can be executed; current evidence validator treats the field as optional"
+    }
+  },
+  "reasonCodeClosedSet": {
+    "pass": true,
+    "observed": [
+      "artifact-path-invalid",
+      "declaration-node-not-source-use",
+      "duplicate-relation-id",
+      "graph-schema-invalid",
+      "observation-tuple-mismatch",
+      "relation-not-in-graph",
+      "source-ref-mismatch",
+      "source-ref-not-in-graph",
+      "source-use-ref-mismatch"
+    ],
+    "allowedCount": 48
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ripple.local/schemas/acp6-observation-v2-legacy-input.schema.json",
+  "title": "Legacy input quarantine (never converted by V2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["legacyKind", "legacyVersion", "payload"],
+  "properties": {
+    "legacyKind": {"enum": ["b-v5-report", "legacy-sourcegraph", "legacy-relation-id"]},
+    "legacyVersion": {"type": "string", "minLength": 1},
+    "payload": {}
+  }
+}

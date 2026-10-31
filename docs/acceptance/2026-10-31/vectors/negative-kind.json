@@ -1,0 +1,9 @@
+{
+  "graphIdentityVersion": "sourcegraph-identity/v2",
+  "graphSchemaVersion": "acp6-sourcegraph/v1",
+  "relationIdentityVersion": "relation-id/v1",
+  "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "nodes": [{"id": "node:a", "kind": "not-a-sourcegraph-kind", "label": "x"}],
+  "edges": [],
+  "unresolved": []
+}

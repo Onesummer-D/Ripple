@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ripple.local/schemas/acp6-sourcegraph-v2-graph.schema.json",
+  "title": "AC-P6 SourceGraph Identity v2 canonical graph input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["graphIdentityVersion", "graphSchemaVersion", "relationIdentityVersion", "sourceDigest", "nodes", "edges", "unresolved"],
+  "properties": {
+    "graphIdentityVersion": {"const": "sourcegraph-identity/v2"},
+    "graphSchemaVersion": {"type": "string", "minLength": 1},
+    "relationIdentityVersion": {"type": "string", "minLength": 1},
+    "sourceDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+    "unresolved": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+  },
+  "$defs": {
+    "sourceUse": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "charOffset", "byteOffset", "offsetUnit"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "charOffset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "byteOffset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "offsetUnit": {"const": "code-unit"}
+      }
+    },
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["file", "symbol", "component", "route", "data", "media", "token", "token-use", "jsx-element", "state"]},
+        "label": {"type": "string", "minLength": 1},
+        "location": {"$ref": "#/$defs/location"},
+        "page": {"type": "string"},
+        "routePath": {"type": "string"},
+        "pages": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "selector": {"type": "string"},
+        "selectorScope": {"type": "string"},
+        "byteOffset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "mediaContext": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "className": {"type": "string"},
+        "dynamicClassName": {"type": "boolean"},
+        "value": {"type": "string"},
+        "pageOverrides": {"$ref": "#/$defs/pageOverrides"},
+        "tokenOrigin": {"type": "string"}
+      }
+    },
+    "edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "from", "to", "kind", "certainty", "evidenceRefs"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "from": {"type": "string", "minLength": 1},
+        "to": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["imports", "reads", "renders", "uses-token", "token-reference", "asset-consumer", "css-cascade", "same-copy", "semantic-link"]},
+        "certainty": {"enum": ["source-proven", "runtime-observed", "semantic-candidate", "unknown"]},
+        "evidenceRefs": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 0, "uniqueItems": true},
+        "sourceUse": {"$ref": "#/$defs/sourceUse"},
+        "selectorScope": {"type": "string"},
+        "mediaContext": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "producerIdentity": {"type": "string", "minLength": 1},
+        "sourceIdentity": {"type": "string", "minLength": 1}
+      }
+    },
+    "location": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "start": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "end": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "offset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "byteOffset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+      }
+    },
+    "pageOverrides": {
+      "type": "object",
+      "propertyNames": {"type": "string", "minLength": 1},
+      "additionalProperties": {"type": "string", "minLength": 1}
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ripple.local/schemas/acp6-observation-v2-final.schema.json",
+  "title": "AC-P6 SourceGraph Observation Binding v1",
+  "type": "object",
+  "required": ["observationBindingVersion", "graph", "runId", "checkId", "side", "route", "page", "viewport", "state", "artifact", "status", "proof", "primaryReasonCode", "secondaryReasonCodes", "observationBindingDigest"],
+  "additionalProperties": false,
+  "properties": {
+    "observationBindingVersion": {"const": "sourcegraph-observation-binding/v1"},
+    "graph": {"$ref": "#/$defs/graphIdentityV2"},
+    "sourceRef": {"type": "string", "minLength": 1},
+    "sourceUseRef": {"$ref": "#/$defs/sourceUseRef"},
+    "runId": {"type": "string", "minLength": 1},
+    "checkId": {"type": "string", "minLength": 1},
+    "side": {"enum": ["baseline", "candidate"]},
+    "route": {"type": "string", "pattern": "^/[^\\u0000-\\u0020\\u007f\\\\?#]*(?:\\?[^#\\u0000-\\u0020\\u007f\\\\]+)?(?:#[^\\u0000-\\u0020\\u007f\\\\]+)?$"},
+    "page": {"$ref": "#/$defs/page"},
+    "viewport": {"$ref": "#/$defs/viewport"},
+    "state": {"$ref": "#/$defs/state"},
+    "artifact": {"$ref": "#/$defs/artifact"},
+    "status": {"enum": ["complete", "partial", "unknown", "unavailable", "stale"]},
+    "proof": {"enum": ["not-proven", "runtime-observed"]},
+    "primaryReasonCode": {"$ref": "#/$defs/reasonCode"},
+    "secondaryReasonCodes": {"type": "array", "items": {"$ref": "#/$defs/reasonCode"}, "uniqueItems": true},
+    "observationBindingDigest": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "complete"}}},
+      "then": {
+        "if": {"required": ["sourceUseRef"]},
+        "then": {"properties": {"sourceUseRef": {"required": ["relationId"]}}}
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sourceUse": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "charOffset", "byteOffset", "offsetUnit"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+      "charOffset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "byteOffset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "offsetUnit": {"const": "code-unit"}
+      }
+    },
+    "sourceUseRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceRef", "graphNodeId", "sourceUse"],
+      "properties": {
+        "sourceRef": {"type": "string", "minLength": 1},
+        "graphNodeId": {"type": "string", "minLength": 1},
+        "relationId": {"type": "string", "minLength": 1},
+        "sourceUse": {"$ref": "#/$defs/sourceUse"}
+      }
+    },
+    "graphIdentityV2": {
+      "type": "object", "additionalProperties": false,
+      "required": ["graphIdentityVersion", "graphSchemaVersion", "relationIdentityVersion", "projectId", "sourceDigest", "graphDigest"],
+      "properties": {
+        "graphIdentityVersion": {"const": "sourcegraph-identity/v2"},
+        "graphSchemaVersion": {"type": "string", "minLength": 1},
+        "relationIdentityVersion": {"type": "string", "minLength": 1},
+        "projectId": {"type": "string", "minLength": 1},
+        "sourceDigest": {"$ref": "#/$defs/sha256"},
+        "graphDigest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pathname", "search", "hash"],
+      "properties": {
+        "pathname": {"type": "string", "pattern": "^/[^\\u0000-\\u0020\\u007f?#]*$"},
+        "search": {"type": "string", "pattern": "^(?:|\\?[^#\\u0000-\\u0020\\u007f]+)$"},
+        "hash": {"type": "string", "pattern": "^(?:|#[^\\u0000-\\u0020\\u007f]+)$"}
+      }
+    },
+    "viewport": {
+      "type": "object", "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "height": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "deviceScaleFactor": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "state": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "digest": {"$ref": "#/$defs/sha256"}}
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "path", "sha256", "sizeBytes"],
+      "properties": {
+        "kind": {"enum": ["observation-json", "runtime-snapshot", "mapping"]},
+        "path": {"type": "string", "pattern": "^(?!/)(?!//)(?![A-Za-z]:)(?!.*\\\\)(?!.*//)(?!.*(?:^|/)\\.?(?:/|$))(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\u0000).+"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "sizeBytes": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+      }
+    },
+    "reasonCode": {
+      "pattern": "^observation/(?:complete|missing-side|missing-artifact|artifact-hash-mismatch|artifact-path-invalid|artifact-changed-after-validation|graph-schema-invalid|cross-run|cross-check|side-mismatch|logical-project-mismatch|untrusted-capture|required-verification-not-pass|source-digest-mismatch|graph-digest-mismatch|runtime-version-stale|route-namespace-stale|geometry-only|runtime-location-conflict|declaration-node-not-source-use|relation-not-in-graph|source-use-location-mismatch|duplicate-record|duplicate-artifact-conflict|page-context-mismatch|viewport-mismatch|state-mismatch|identity-not-stable|pseudo-element-without-host-proof|non-strict-consumer-edge|missing-consumer-edge|runtime-instance-without-edge|dynamic-without-runtime-map|page-impact-not-proven|missing-cross-side-map|missing-source-ref|missing-source-use-ref|missing-source-use|source-ref-mismatch|graph-node-not-unique|source-ref-not-in-graph|missing-relation-id|duplicate-relation-id|source-use-ref-mismatch|page-context-unverified|artifact-missing|artifact-digest-mismatch|observation-tuple-mismatch)$"
+    }
+  }
+}

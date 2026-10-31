@@ -2,6 +2,7 @@
   "protocol": "acp6-browser-observation/v2-execution-prep",
   "status": "prepared-not-executed",
   "caseCount": 32,
+  "eFindingCount": 8,
   "ids": {
     "first": "N01",
     "last": "N32"
@@ -10,4 +11,3 @@
   "errors": [],
   "manifest": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\acp6-browser-observation-docs-20261030\\docs\\acceptance\\2026-10-31\\acp6-observation-v2-n01-n32-execution-manifest-2026-10-31.json"
 }
-

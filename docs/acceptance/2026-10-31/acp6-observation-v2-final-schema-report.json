@@ -1,0 +1,105 @@
+{
+  "protocol": "acp6-sourcegraph-observation-v2-schema-parity/v1",
+  "status": "pass",
+  "checks": {
+    "nodeKinds": true,
+    "edgeKinds": true,
+    "edgeEvidenceRefsRequired": true,
+    "pageOverridesNonEmptyKeys": true,
+    "graphIntegersBounded": true,
+    "observationIntegersBounded": true,
+    "reasonPatternClosed": true
+  },
+  "cases": [
+    {
+      "name": "g0.json",
+      "expected": "accept",
+      "actual": "accept",
+      "pass": true
+    },
+    {
+      "name": "g4-nonascii.json",
+      "expected": "accept",
+      "actual": "accept",
+      "pass": true
+    },
+    {
+      "name": "b0-observation.json",
+      "expected": "accept",
+      "actual": "accept",
+      "pass": true
+    },
+    {
+      "name": "negative-unknown-location.json",
+      "expected": "graph-schema-invalid",
+      "actual": "graph-schema-invalid",
+      "pass": true
+    },
+    {
+      "name": "negative-page-overrides.json",
+      "expected": "graph-schema-invalid",
+      "actual": "graph-schema-invalid",
+      "pass": true
+    },
+    {
+      "name": "negative-missing-evidence-refs.json",
+      "expected": "graph-schema-invalid",
+      "actual": "graph-schema-invalid",
+      "pass": true
+    },
+    {
+      "name": "negative-kind.json",
+      "expected": "graph-schema-invalid",
+      "actual": "graph-schema-invalid",
+      "pass": true
+    },
+    {
+      "name": "negative-unsafe-integer.json",
+      "expected": "graph-schema-invalid",
+      "actual": "graph-schema-invalid",
+      "pass": true
+    },
+    {
+      "name": "negative-empty-page-key.json",
+      "expected": "graph-schema-invalid",
+      "actual": "graph-schema-invalid",
+      "pass": true
+    },
+    {
+      "name": "negative-route.json",
+      "expected": "observation-tuple-mismatch",
+      "actual": "observation-tuple-mismatch",
+      "pass": true
+    },
+    {
+      "name": "negative-artifact-path.json",
+      "expected": "artifact-path-invalid",
+      "actual": "artifact-path-invalid",
+      "pass": true
+    },
+    {
+      "name": "legacy-v5.json",
+      "expected": "graph-schema-invalid",
+      "actual": "graph-schema-invalid",
+      "pass": true
+    },
+    {
+      "name": "negative-opaque-source-ref.json",
+      "expected": "source-ref-not-in-graph",
+      "actual": "source-ref-not-in-graph",
+      "pass": true
+    },
+    {
+      "name": "negative-declaration-node.json",
+      "expected": "declaration-node-not-source-use",
+      "actual": "declaration-node-not-source-use",
+      "pass": true
+    },
+    {
+      "name": "negative-cross-side-source-ref.json",
+      "expected": "source-ref-not-in-graph",
+      "actual": "source-ref-not-in-graph",
+      "pass": true
+    }
+  ]
+}
