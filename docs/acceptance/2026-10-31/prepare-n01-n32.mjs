@@ -14,6 +14,24 @@ if (manifest.status !== 'prepared-not-executed') errors.push('manifest status mu
 if (manifest.scope !== 'evidence-only; no production SourceGraph, VerificationRun, Runtime Identity or authorization writes') {
   errors.push('manifest scope is not evidence-only')
 }
+const identity = manifest.identityInputs ?? {}
+if (identity.graphIdentityVersion !== 'sourcegraph-identity/v2') errors.push('graphIdentityVersion must be sourcegraph-identity/v2')
+if (identity.graphSchemaVersion === identity.graphIdentityVersion) errors.push('graphSchemaVersion must not equal graphIdentityVersion')
+if (!identity.graphSchemaVersion) errors.push('graphSchemaVersion is missing')
+if (!identity.relationIdentityVersion || identity.relationIdentityVersion === identity.graphSchemaVersion || identity.relationIdentityVersion === identity.graphIdentityVersion) {
+  errors.push('relationIdentityVersion must be independently bound')
+}
+if (identity.observationBindingVersion !== 'sourcegraph-observation-binding/v1') errors.push('observationBindingVersion must be sourcegraph-observation-binding/v1')
+const expectedBindingInput = ['observationBindingVersion', 'graphIdentity', 'capture']
+if (JSON.stringify(identity.observationBindingDigestInput) !== JSON.stringify(expectedBindingInput)) errors.push('observationBindingDigest input must be the frozen envelope layers')
+const expectedGraphFields = ['graphIdentityVersion', 'projectId', 'sourceRef', 'sourceDigest', 'graphDigest', 'graphSchemaVersion', 'relationIdentityVersion']
+if (JSON.stringify(identity.graphIdentityFields) !== JSON.stringify(expectedGraphFields)) errors.push('graph identity field separation is incomplete')
+const expectedCaptureFields = ['runId', 'checkId', 'side', 'page.pathname', 'page.search', 'page.hash', 'viewport', 'state']
+if (JSON.stringify(identity.captureFields) !== JSON.stringify(expectedCaptureFields)) errors.push('capture tuple field set is incomplete')
+for (const side of ['baseline', 'candidate']) {
+  const binding = identity.sides?.[side]
+  if (!binding?.sourceRef || !binding?.sourceDigest || !binding?.graphDigest) errors.push(`${side}: side-specific identity fields are incomplete`)
+}
 if (!Array.isArray(manifest.cases) || manifest.cases.length !== expectedIds.length) errors.push('case count must be exactly 32')
 const ids = (manifest.cases ?? []).map(item => item.id)
 if (JSON.stringify(ids) !== JSON.stringify(expectedIds)) errors.push('case IDs must be ordered N01 through N32')

@@ -7,18 +7,31 @@
     "dR3": "docs/architecture/acp6-browser-observation-interface-draft-2026-10-30.md",
     "negativePlan": "docs/acceptance/2026-10-30/acp6-browser-observation-negative-test-plan-2026-10-30.md",
     "goldenValidator": "docs/acceptance/2026-10-30/acp6-browser-observation-golden/validate-golden.mjs",
-    "goldenValidatorStatus": "G4/G5 and five graph-schema negative cases passed; not a substitute for N01-N32"
+    "goldenValidatorStatus": "G4/G5 and five graph-schema negative cases passed; not a substitute for N01-N32",
+    "bClassification": {"valid": 21, "unsafe": 35, "unknown": 92, "regression": 0},
+    "canonicalGraphVectors": {
+      "G4G5": "a75ccff69fbae29ed069721d8d82eb2ff07bfc85d306c81ecca99ff35c45f398",
+      "G0G1": "historical vector retained; raw G0-G3 payload not archived",
+      "G2": "historical vector retained; relation semantic mutation must change digest",
+      "G3": "historical vector retained; environment wrapper must not change digest",
+      "observationBindingDigest": "not-issued; do not fabricate"
+    }
   },
   "identityInputs": {
+    "graphIdentityVersion": "sourcegraph-identity/v2",
     "projectId": "host-bound-pending-A-freeze",
-    "runId": "trusted-verification-run-pending",
-    "checkId": "trusted-verification-check-pending",
-    "sides": ["baseline", "candidate"],
-    "sourceDigest": "side-specific-required",
-    "graphDigest": "side-specific-required",
-    "graphSchemaVersion": "sourcegraph-identity/v2-pending-freeze",
-    "relationIdentityVersion": "A-governed-pending-freeze",
-    "observationBindingDigest": "canonical-static-plus-capture-pending-freeze"
+    "graphSchemaVersion": "acp6-sourcegraph/v1",
+    "relationIdentityVersion": "A-governed-opaque-value-required",
+    "observationBindingVersion": "sourcegraph-observation-binding/v1",
+    "graphIdentityFields": ["graphIdentityVersion", "projectId", "sourceRef", "sourceDigest", "graphDigest", "graphSchemaVersion", "relationIdentityVersion"],
+    "captureFields": ["runId", "checkId", "side", "page.pathname", "page.search", "page.hash", "viewport", "state"],
+    "observationBindingDigestInput": ["observationBindingVersion", "graphIdentity", "capture"],
+    "sides": {
+      "baseline": {"sourceRef": "side-local-required", "sourceDigest": "side-specific-required", "graphDigest": "side-specific-required"},
+      "candidate": {"sourceRef": "side-local-required", "sourceDigest": "side-specific-required", "graphDigest": "side-specific-required"}
+    },
+    "capture": {"runId": "trusted-verification-run-pending", "checkId": "trusted-verification-check-pending", "page": ["pathname", "search", "hash"], "viewport": "check-plan-required", "state": "check-plan-required"},
+    "observationBindingDigest": "must be recomputed from A/E canonical envelope; no golden value issued"
   },
   "executionRootTemplate": "<host-owned-artifact-root>/<logical-project-id>/<run-id>/<side>/",
   "archiveLayout": {
@@ -30,7 +43,7 @@
     "productionWrites": false
   },
   "preconditions": [
-    "A freezes GraphObservationBindingV2 field placement and canonical binding digest",
+    "A freezes the sourcegraph-identity/v2 and sourcegraph-observation-binding/v1 canonical envelope and serializer",
     "E signs off side-specific sourceDigest/graphDigest, sourceRef/sourceUse, full pathname/search/hash, viewport and state semantics",
     "B/C provide Base and rectified Graph raw arrays or content-addressed manifests under the new identity version",
     "Relation ID uniqueness audit reports no duplicate node.id, Relation.id, unresolved or unknown endpoints",
@@ -72,7 +85,7 @@
     {"id":"N32","status":"not-executed","trigger":"mutate risk/unknown/not-run/failed-to-run/stale assertion to passed or approved","expected":{"primaryReasonCode":"required-verification-not-pass","observationStatus":"unavailable","proof":"not-proven"},"gate":"Verification/Approval"}
   ],
   "notExecutedReason": [
-    "A GraphObservationBindingV2 field-level freeze is pending",
+    "A sourcegraph-identity/v2 and sourcegraph-observation-binding/v1 canonical envelope freeze is pending",
     "E side-specific digest/sourceUse/page tuple review is pending",
     "B/C Relation ID identity governance and a new canonical real Graph are pending",
     "The manifest intentionally contains no execution result and cannot be read as N01-N32 pass evidence"
