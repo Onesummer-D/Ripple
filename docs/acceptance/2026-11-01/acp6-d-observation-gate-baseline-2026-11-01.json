@@ -1,0 +1,57 @@
+{
+  "protocol": "acp6-d-observation-gate-prep/v1",
+  "scope": "evidence-only; no production SourceGraph, collector, Runtime Identity, VerificationRun or authorization writes",
+  "dBaseline": {
+    "remoteCommit": "459b332f4d2b0749d125090332921223090b8526",
+    "remoteTree": "b2462d4c6df94b206a82c7f3dc3a74c6f612d95e",
+    "remoteBranch": "evidence/acp6-browser-observation-docs-20261030",
+    "localEquivalentCommit": "5a203b31d81ca640402a560ab4cde668a8e8a721",
+    "localWorktree": "acp6-d-observation-gate-prep-20261101",
+    "preservedStatuses": {
+      "E-OBS-02": "blocked",
+      "dualReport": "blocked",
+      "N01-N32": "not-executed",
+      "productionWrites": false
+    }
+  },
+  "aCandidate": {
+    "commit": "329028d8226dad1a637b1a5d4cd232457b3374d0",
+    "branch": "evidence/a-v2-source-mapping-remediation-20261101",
+    "remoteArchive": "not-confirmed",
+    "eReview": "not-signed-off",
+    "historyAction": "do-not-rewrite-or-overwrite"
+  },
+  "eObs02VersionedMapping": {
+    "status": "pending-a-e-freeze",
+    "fixture": "docs/acceptance/2026-10-31/vectors/negative-missing-relation-source-identity.json",
+    "nCase": "N07",
+    "expectedReasonCode": "graph-schema-invalid",
+    "expectedObservationStatus": "unavailable",
+    "expectedProof": "not-proven",
+    "trusted": false,
+    "graphDigest": null,
+    "requiredSourceMappingFields": ["sourceRef", "sourceIdentity", "graphNodeId", "sourceAnchorRelationId", "sourceUse", "sourceDigest"],
+    "versionTupleFromAMatrix": {
+      "graphIdentityVersion": "sourcegraph-identity/v2",
+      "graphSchemaVersion": "acp6-sourcegraph/v1",
+      "relationIdentityVersion": "relation-id/v1",
+      "sourceMappingVersion": "sourcegraph-source-mapping/v1",
+      "observationBindingVersion": "sourcegraph-observation-binding/v1"
+    },
+    "versionConflictToResolve": {
+      "aExecutionManifest": "relationIdentityVersion=A-governed-required; sourceMappingVersion absent from versionBasis",
+      "aCompatibilityMatrix": "relationIdentityVersion=relation-id/v1; sourceMappingVersion=sourcegraph-source-mapping/v1",
+      "resolution": "E/A must sign one tuple before any result is upgraded from blocked"
+    },
+    "forbiddenFallbacks": ["sourceRef string equality", "graphNodeId string equality", "Relation.id string equality", "DOM coordinates", "static candidate edge", "raw Relation without host mapping"]
+  },
+  "executionGate": {
+    "requiredACommit": "329028d8226dad1a637b1a5d4cd232457b3374d0",
+    "requiredNegativeMustExecute": true,
+    "requiredNegativeMustPass": true,
+    "runnerSet": ["Node", "PowerShell", "Schema parity", "Dual report"],
+    "currentState": "not-authorized",
+    "passPromotionRule": "only after A independent archive, E explicit sign-off, exact SHA check and all four required checks pass",
+    "n01N32Promotion": "never inferred from offline safety negative results"
+  }
+}
