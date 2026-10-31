@@ -117,4 +117,3 @@ V2 的 digest 输入边界固定为两层：
 ## 5. 当前停点
 
 本记录只完成双层合同对照、旧输入隔离规则和 N01–N32 执行准备。A canonical envelope artifact、E 正式复审、真实 Graph 身份治理、B 新身份版本复验和正式授权完成前，D 不建立生产实现分支、不接线 collector、不触发真实 VerificationRun、Bolt 或四视口全链。
-

@@ -355,4 +355,3 @@ $resultJson = $resultJson -replace "`r`n", "`n"
 [System.IO.File]::WriteAllText((Join-Path $root 'acp6-observation-v2-final-powershell-report.json'), $resultJson + "`n", [System.Text.UTF8Encoding]::new($false))
 $resultJson
 if ($result.status -ne 'pass') { exit 1 }
-
