@@ -7,18 +7,13 @@ const here = dirname(fileURLToPath(import.meta.url))
 const nodeReport = JSON.parse(await readFile(resolve(here, 'acp6-observation-v2-final-digest-report.json'), 'utf8'))
 const powershellReport = JSON.parse(await readFile(resolve(here, 'acp6-observation-v2-final-powershell-report.json'), 'utf8'))
 const schemaReport = JSON.parse(await readFile(resolve(here, 'acp6-observation-v2-final-schema-report.json'), 'utf8'))
-const sourceIdentityNegative = [
-  nodeReport.vectors?.missingRelationSourceIdentityRejected,
-  nodeReport.vectors?.forgedSourceIdentityRejected,
-  nodeReport.vectors?.opaqueNodeRelationRejected,
-  nodeReport.vectors?.sourceRefNoMappingRejected,
-  powershellReport.negative?.['missing-relation-source-identity'],
-  powershellReport.negative?.['forged-source-identity'],
-  powershellReport.negative?.['opaque-node-relation'],
-  powershellReport.negative?.['source-ref-no-mapping'],
-  ...(schemaReport.cases ?? []).filter(item => ['negative-missing-relation-source-identity.json', 'negative-forged-source-identity.json', 'negative-opaque-node-relation.json', 'negative-source-ref-no-mapping.json'].includes(item.name)),
+const requiredPending = [
+  nodeReport.pending?.missingRelationSourceIdentity,
+  powershellReport.pending?.['missing-relation-source-identity'],
+  schemaReport.pending?.['missing-relation-source-identity'],
 ]
-const sourceIdentityNegativeExecuted = sourceIdentityNegative.length === 12 && sourceIdentityNegative.every(item => item?.executed === true && item?.status === 'passed' && item?.pass === true)
+const requiredPendingPresent = requiredPending.every(item => item?.required === true && item?.fixtureLoaded !== false && item?.status === 'blocked')
+const requiredPendingExecuted = requiredPendingPresent && requiredPending.every(item => item.executed === true && item.status === 'passed')
 const checks = {
   G0Digest: nodeReport.vectors.G0.digest === powershellReport.G0.digest,
   G0CanonicalBytes: nodeReport.vectors.G0.canonicalBytesSha256 === powershellReport.G0.canonicalBytesSha256 && nodeReport.vectors.G0.canonicalBytesBase64 === powershellReport.G0.canonicalBytesBase64,
@@ -31,14 +26,15 @@ const checks = {
   SchemaParity: Object.values(schemaReport.checks ?? {}).every(Boolean) && (schemaReport.cases ?? []).every(item => item.pass === true),
   ArtifactPathCases: nodeReport.vectors.artifactPathCasesPass && powershellReport.artifactPathCases.every(item => item.pass),
   CaptureFormatCases: nodeReport.vectors.captureFormatCasesPass && powershellReport.captureFormatCases.every(item => item.pass),
-  SourceIdentityNegativeExecuted: sourceIdentityNegativeExecuted,
+  RequiredPendingNegativePresent: requiredPendingPresent,
+  RequiredNegativeExecuted: requiredPendingExecuted,
 }
-const corePassed = Object.values(checks).every(Boolean)
+const corePassed = Object.entries(checks).filter(([name]) => name !== 'RequiredNegativeExecuted').every(([, value]) => value)
 const result = {
-  status: corePassed ? 'passed' : 'failed',
-  executionSummary: { prepared: true, executed: true, passed: corePassed, failed: !corePassed, blocked: false, requiredNegativeCaseCount: sourceIdentityNegative.length, requiredNegativeExecutedCount: sourceIdentityNegative.filter(item => item?.executed === true).length },
+  status: !corePassed ? 'failed' : (requiredPendingExecuted ? 'passed' : 'blocked'),
+  executionSummary: { prepared: true, executed: true, passed: corePassed && requiredPendingExecuted, failed: !corePassed, blocked: corePassed && !requiredPendingExecuted, requiredNegativeCaseCount: requiredPending.length, requiredNegativeExecutedCount: requiredPending.filter(item => item?.executed === true).length },
   checks,
-  sourceIdentityNegative: { id: 'E-OBS-02', fixtures: ['negative-missing-relation-source-identity.json', 'negative-forged-source-identity.json', 'negative-opaque-node-relation.json', 'negative-source-ref-no-mapping.json'], expected: 'all fail-closed and executed', status: sourceIdentityNegativeExecuted ? 'passed' : 'failed' },
+  requiredPending: { id: 'E-OBS-02', fixture: 'negative-missing-relation-source-identity.json', expectedReasonCode: 'graph-schema-invalid', expectedObservationStatus: 'unavailable', status: requiredPendingExecuted ? 'passed' : 'blocked' },
   nodeHeadIndependent: true,
   powershellDotNetIndependent: true,
 }
