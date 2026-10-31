@@ -39,11 +39,14 @@ for (const side of ['baseline', 'candidate']) {
 const expectedEFindingIds = Array.from({ length: 8 }, (_, index) => `E-OBS-${String(index + 1).padStart(2, '0')}`)
 const eFindings = manifest.eFindingsMapping ?? []
 if (JSON.stringify(eFindings.map(item => item.id)) !== JSON.stringify(expectedEFindingIds)) errors.push('E finding IDs must be ordered E-OBS-01 through E-OBS-08')
+if (manifest.safetyGate?.status !== 'blocked' || !manifest.safetyGate?.requiredNegativeCases?.includes('E-OBS-02')) errors.push('safetyGate must block on required E-OBS-02')
 for (const finding of eFindings) {
-  if (finding.status !== 'not-executed') errors.push(`${finding.id}: E finding must remain not-executed`)
+  const allowedFindingStatus = finding.id === 'E-OBS-02' ? ['blocked'] : ['not-executed']
+  if (!allowedFindingStatus.includes(finding.status)) errors.push(`${finding.id}: unexpected E finding status`)
   if (!finding.testIds?.length || !finding.expected?.primaryReasonCode || !finding.expected?.observationStatus || finding.expected?.proof !== 'not-proven') {
     errors.push(`${finding.id}: mapping lacks test ID or expected rejection fields`)
   }
+  if (finding.id === 'E-OBS-02' && (finding.required !== true || finding.safetyBlocker !== true || !finding.versionBasis?.relationIdentityVersion)) errors.push('E-OBS-02: required safety blocker/version basis is incomplete')
   if (finding.fixture) {
     try {
       JSON.parse(await readFile(join(here, finding.fixture), 'utf8'))
@@ -73,6 +76,7 @@ const result = {
   status: errors.length === 0 ? 'prepared-not-executed' : 'rejected',
   caseCount: manifest.cases?.length ?? 0,
   eFindingCount: eFindings.length,
+  blockedSafetyFindingCount: eFindings.filter(item => item.status === 'blocked').length,
   ids: { first: ids[0] ?? null, last: ids.at(-1) ?? null },
   productionWrites: false,
   errors,

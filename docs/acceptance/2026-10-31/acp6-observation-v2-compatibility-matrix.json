@@ -20,6 +20,11 @@
     "observation/page-context-unverified", "observation/artifact-missing", "observation/artifact-digest-mismatch",
     "observation/observation-tuple-mismatch"
   ],
+  "safetyNegativeGate": {
+    "requiredCases": [{"id":"E-OBS-02","nCase":"N07","fixture":"vectors/negative-missing-relation-source-identity.json","expectedReasonCode":"graph-schema-invalid","expectedObservationStatus":"unavailable","status":"blocked","versionBasis":{"graphIdentityVersion":"sourcegraph-identity/v2","graphSchemaVersion":"acp6-sourcegraph/v1","relationIdentityVersion":"A-governed-required","observationBindingVersion":"sourcegraph-observation-binding/v1"}}],
+    "overallPassAllowed": false,
+    "reason": "A/E have not frozen/enforced Relation.sourceIdentity presence; Relation ID uniqueness alone cannot establish source proof"
+  },
   "legacyQuarantineSchema": "acp6-observation-v2-legacy-input.schema.json",
   "rows": [
     {"artifact": "legacy B v5 report", "graphIdentityVersion": "legacy/unversioned", "graphSchemaVersion": "legacy/unversioned", "relationIdentityVersion": "legacy/unversioned", "observationBindingVersion": null, "read": true, "upgrade": false, "strictProof": false},

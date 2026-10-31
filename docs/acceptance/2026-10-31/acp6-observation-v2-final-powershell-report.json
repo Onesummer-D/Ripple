@@ -1,5 +1,14 @@
 {
-  "status": "pass",
+  "status": "blocked",
+  "executionSummary": {
+    "prepared": true,
+    "executed": true,
+    "passed": false,
+    "failed": false,
+    "blocked": true,
+    "requiredNegativeCaseCount": 1,
+    "requiredNegativeExecutedCount": 0
+  },
   "G0": {
     "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
     "canonicalBytesSha256": "7670bc338a3b26ced964761dde0131c603f9b7c08c1ae1ff5e21b79fe1bd94d8",
@@ -26,69 +35,147 @@
     {
       "path": "../escape.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "/absolute.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "//server/share.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "runs//duplicate.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "runs/./dot.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "runs/../escape.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "C:/drive.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "runs\\backslash.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "path": "runs/\u0000nul.json",
       "pass": true,
-      "reasonCode": "artifact-path-invalid"
+      "reasonCode": "artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     }
   ],
   "captureFormatCases": [
     {
       "name": "route",
       "pass": true,
-      "reasonCode": "observation-tuple-mismatch"
+      "reasonCode": "observation-tuple-mismatch",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "search",
       "pass": true,
-      "reasonCode": "observation-tuple-mismatch"
+      "reasonCode": "observation-tuple-mismatch",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "hash",
       "pass": true,
-      "reasonCode": "observation-tuple-mismatch"
+      "reasonCode": "observation-tuple-mismatch",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "width",
       "pass": true,
-      "reasonCode": "observation-tuple-mismatch"
+      "reasonCode": "observation-tuple-mismatch",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     }
   ],
   "reasonCodeClosedSet": {
@@ -110,112 +197,222 @@
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-unknown-location": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-page-overrides": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "missing-evidence-refs": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "invalid-node-kind": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "unsafe-integer": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "empty-page-overrides-key": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-route": {
       "pass": true,
       "expectedReasonCode": "observation-tuple-mismatch",
       "reasonCode": "observation-tuple-mismatch",
-      "observationReasonCode": "observation/observation-tuple-mismatch"
+      "observationReasonCode": "observation/observation-tuple-mismatch",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-artifact-path": {
       "pass": true,
       "expectedReasonCode": "artifact-path-invalid",
       "reasonCode": "artifact-path-invalid",
-      "observationReasonCode": "observation/artifact-path-invalid"
+      "observationReasonCode": "observation/artifact-path-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "legacy-v5": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
-      "observationReasonCode": "observation/graph-schema-invalid"
+      "observationReasonCode": "observation/graph-schema-invalid",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "source-ref-mismatch": {
       "pass": true,
       "expectedReasonCode": "source-ref-mismatch",
       "reasonCode": "source-ref-mismatch",
-      "observationReasonCode": "observation/source-ref-mismatch"
+      "observationReasonCode": "observation/source-ref-mismatch",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "graph-node-missing": {
       "pass": true,
       "expectedReasonCode": "source-ref-not-in-graph",
       "reasonCode": "source-ref-not-in-graph",
-      "observationReasonCode": "observation/source-ref-not-in-graph"
+      "observationReasonCode": "observation/source-ref-not-in-graph",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "source-use-mismatch": {
       "pass": true,
       "expectedReasonCode": "source-use-ref-mismatch",
       "reasonCode": "source-use-ref-mismatch",
-      "observationReasonCode": "observation/source-use-ref-mismatch"
+      "observationReasonCode": "observation/source-use-ref-mismatch",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "duplicate-relation-id": {
       "pass": true,
       "expectedReasonCode": "duplicate-relation-id",
       "reasonCode": "duplicate-relation-id",
-      "observationReasonCode": "observation/duplicate-relation-id"
+      "observationReasonCode": "observation/duplicate-relation-id",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "opaque-source-ref": {
       "pass": true,
       "expectedReasonCode": "source-ref-not-in-graph",
       "reasonCode": "source-ref-not-in-graph",
-      "observationReasonCode": "observation/source-ref-not-in-graph"
+      "observationReasonCode": "observation/source-ref-not-in-graph",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "declaration-node-not-source-use": {
       "pass": true,
       "expectedReasonCode": "declaration-node-not-source-use",
       "reasonCode": "declaration-node-not-source-use",
-      "observationReasonCode": "observation/declaration-node-not-source-use"
+      "observationReasonCode": "observation/declaration-node-not-source-use",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "cross-side-source-ref": {
       "pass": true,
       "expectedReasonCode": "source-ref-not-in-graph",
       "reasonCode": "source-ref-not-in-graph",
-      "observationReasonCode": "observation/source-ref-not-in-graph"
+      "observationReasonCode": "observation/source-ref-not-in-graph",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     }
   },
   "pending": {
     "missing-relation-source-identity": {
-      "status": "not-executed",
+      "status": "blocked",
+      "required": true,
+      "safetyBlocker": true,
+      "prepared": true,
+      "executed": false,
+      "passed": false,
+      "failed": false,
+      "blocked": true,
       "expectedReasonCode": "graph-schema-invalid",
       "expectedObservationStatus": "unavailable",
       "trusted": false,
       "fixture": "negative-missing-relation-source-identity.json",
+      "fixtureLoaded": true,
       "message": "A/E must freeze Relation.sourceIdentity presence before this case can be executed; current evidence validator treats the field as optional"
     }
   }

@@ -60,6 +60,23 @@ function Validate-SourceUse($value) {
   Assert-SafeInteger $value.byteOffset 'sourceUse.byteOffset'
   if ($value.offsetUnit -cne 'code-unit') { throw 'graph-schema-invalid' }
 }
+function Validate-SourceIdentity($value) {
+  Assert-NonEmptyString $value 'sourceIdentity'
+  if ([string]$value -cnotmatch '^source:[0-9a-f]{64}:[^:]+:[0-9]+:[0-9]+$') { throw 'graph-schema-invalid' }
+}
+function Expected-SourceIdentity($graph, $mapping) {
+  return "source:$($graph.sourceDigest):$($mapping.sourceUse.path):$($mapping.sourceUse.charOffset):$($mapping.sourceUse.byteOffset)"
+}
+function Validate-SourceMapping($mapping, $graph, $nodeIds, $edgeIds) {
+  Assert-Keys $mapping @('sourceRef','graphNodeId','sourceAnchorRelationId','sourceIdentity','sourceUse') 'sourceMapping'
+  foreach ($key in @('sourceRef','graphNodeId','sourceAnchorRelationId','sourceIdentity','sourceUse')) { if (-not (Has-Key $mapping $key)) { throw 'graph-schema-invalid' } }
+  Assert-NonEmptyString $mapping.sourceRef 'sourceMapping.sourceRef'; Assert-NonEmptyString $mapping.graphNodeId 'sourceMapping.graphNodeId'; Assert-NonEmptyString $mapping.sourceAnchorRelationId 'sourceMapping.sourceAnchorRelationId'; Validate-SourceIdentity $mapping.sourceIdentity; Validate-SourceUse $mapping.sourceUse
+  if (-not $nodeIds.Contains([string]$mapping.graphNodeId)) { throw 'graph-schema-invalid' }
+  $node = @($graph.nodes | Where-Object { $_.id -ceq $mapping.graphNodeId }); if ($node.Count -ne 1 -or $node[0].kind -cne 'token-use') { throw 'graph-schema-invalid' }
+  $anchor = @($graph.edges | Where-Object { $_.id -ceq $mapping.sourceAnchorRelationId }); if ($anchor.Count -ne 1) { throw 'graph-schema-invalid' }
+  if ($anchor[0].kind -cne 'reads' -or $anchor[0].certainty -cne 'source-proven' -or $anchor[0].to -cne $mapping.graphNodeId -or -not (Source-UseEqual $anchor[0].sourceUse $mapping.sourceUse)) { throw 'graph-schema-invalid' }
+  if ($mapping.sourceIdentity -cne (Expected-SourceIdentity $graph $mapping)) { throw 'graph-schema-invalid' }
+}
 function Validate-Location($value) {
   Assert-Keys $value @('path','start','end','offset','byteOffset') 'location'
   if (-not (Has-Key $value 'path')) { throw 'graph-schema-invalid' }
@@ -74,11 +91,12 @@ function Validate-PageOverrides($value) {
   }
 }
 function Validate-Graph($graph) {
-  Assert-Keys $graph @('graphIdentityVersion','graphSchemaVersion','relationIdentityVersion','sourceDigest','nodes','edges','unresolved') 'graph'
-  foreach ($key in @('graphIdentityVersion','graphSchemaVersion','relationIdentityVersion','sourceDigest','nodes','edges','unresolved')) { if (-not (Has-Key $graph $key)) { throw 'graph-schema-invalid' } }
+  Assert-Keys $graph @('graphIdentityVersion','graphSchemaVersion','relationIdentityVersion','sourceMappingVersion','sourceMappings','sourceDigest','nodes','edges','unresolved') 'graph'
+  foreach ($key in @('graphIdentityVersion','graphSchemaVersion','relationIdentityVersion','sourceMappingVersion','sourceMappings','sourceDigest','nodes','edges','unresolved')) { if (-not (Has-Key $graph $key)) { throw 'graph-schema-invalid' } }
   if ($graph.graphIdentityVersion -cne 'sourcegraph-identity/v2') { throw 'graph-schema-invalid' }
   Assert-NonEmptyString $graph.graphSchemaVersion 'graphSchemaVersion'
   Assert-NonEmptyString $graph.relationIdentityVersion 'relationIdentityVersion'
+  if ($graph.sourceMappingVersion -cne 'sourcegraph-source-mapping/v1') { throw 'graph-schema-invalid' }
   if ($graph.sourceDigest -isnot [string] -or $graph.sourceDigest -cnotmatch '^[0-9a-f]{64}$') { throw 'graph-schema-invalid' }
   if ($graph.nodes -isnot [System.Collections.IList] -or $graph.edges -isnot [System.Collections.IList] -or $graph.unresolved -isnot [System.Collections.IList]) { throw 'graph-schema-invalid' }
   Assert-StringArray $graph.unresolved 'graph.unresolved'
@@ -108,6 +126,11 @@ function Validate-Graph($graph) {
     if (Has-Key $edge 'sourceUse') { Validate-SourceUse $edge.sourceUse }
     foreach ($key in @('selectorScope','producerIdentity','sourceIdentity')) { if (Has-Key $edge $key) { Assert-NonEmptyString $edge[$key] "edge.$key" } }
     if (Has-Key $edge 'mediaContext') { Assert-StringArray $edge.mediaContext 'edge.mediaContext' }
+  }
+  $mappingRefs = [System.Collections.Generic.HashSet[string]]::new(); $mappingNodes = [System.Collections.Generic.HashSet[string]]::new(); $mappingAnchors = [System.Collections.Generic.HashSet[string]]::new()
+  foreach ($mapping in @($graph.sourceMappings)) {
+    Validate-SourceMapping $mapping $graph $nodeIds $edgeIds
+    if (-not $mappingRefs.Add([string]$mapping.sourceRef) -or -not $mappingNodes.Add([string]$mapping.graphNodeId) -or -not $mappingAnchors.Add([string]$mapping.sourceAnchorRelationId)) { throw 'graph-schema-invalid' }
   }
 }
 
@@ -148,6 +171,12 @@ function Sort-ById($items) {
   [Array]::Sort($values, $comparison)
   return ,$values
 }
+function Sort-BySourceRef($items) {
+  $values = [object[]]@($items)
+  $comparison = [System.Comparison[object]]{ param($a, $b) $utf8Comparer.Compare([string]$a['sourceRef'], [string]$b['sourceRef']) }
+  [Array]::Sort($values, $comparison)
+  return ,$values
+}
 
 function Normalize-Graph($g) {
   $nodes = @($g.nodes | ForEach-Object {
@@ -168,6 +197,8 @@ function Normalize-Graph($g) {
     graphIdentityVersion = $g.graphIdentityVersion
     graphSchemaVersion = $g.graphSchemaVersion
     relationIdentityVersion = $g.relationIdentityVersion
+    sourceMappingVersion = $g.sourceMappingVersion
+    sourceMappings = Sort-BySourceRef $g.sourceMappings
     sourceDigest = $g.sourceDigest
     nodes = $nodes
     edges = $edges
@@ -218,7 +249,7 @@ function Validate-Binding($binding) {
 function Validate-Negative($name, $expected) {
   try {
     $input = Read-Json $name
-    if ($name -in @('g3-duplicate-relation.json','negative-unknown-location.json','negative-page-overrides.json','negative-missing-evidence-refs.json','negative-kind.json','negative-unsafe-integer.json','negative-empty-page-key.json','legacy-v5.json')) {
+    if ($name -in @('g3-duplicate-relation.json','negative-unknown-location.json','negative-page-overrides.json','negative-missing-evidence-refs.json','negative-kind.json','negative-unsafe-integer.json','negative-empty-page-key.json','legacy-v5.json','negative-missing-relation-source-identity.json','negative-forged-source-identity.json')) {
       Validate-Graph $input
     } elseif ($name -eq 'negative-route.json') {
       Validate-Route $input.route
@@ -232,11 +263,23 @@ function Validate-Negative($name, $expected) {
   }
 }
 
+function Add-ExecutedStatus($result) {
+  $passed = [bool]$result.pass
+  $result.status = if ($passed) { 'passed' } else { 'failed' }
+  $result.prepared = $true
+  $result.executed = $true
+  $result.passed = $passed
+  $result.failed = -not $passed
+  $result.blocked = $false
+  return $result
+}
+
 function Source-UseEqual($a, $b) {
   return $a.path -ceq $b.path -and $a.charOffset -eq $b.charOffset -and $a.byteOffset -eq $b.byteOffset -and $a.offsetUnit -ceq $b.offsetUnit
 }
 
 function Validate-GraphReference($binding, $graph) {
+  Validate-Graph $graph
   if ($binding.sourceUseRef -and $null -eq $binding.sourceRef) { throw 'missing-source-ref' }
   if ($binding.sourceUseRef -and $binding.sourceRef -cne $binding.sourceUseRef.sourceRef) { throw 'source-ref-mismatch' }
   if ($null -eq $binding.sourceUseRef) { return }
@@ -245,12 +288,17 @@ function Validate-GraphReference($binding, $graph) {
   if ($nodes.Count -ne 1) { throw 'graph-node-not-unique' }
   if ($sourceUseNodeKinds -cnotcontains $nodes[0].kind) { throw 'declaration-node-not-source-use' }
   if ($nodes[0].id -cne $binding.sourceRef -or $nodes[0].id -cne $binding.sourceUseRef.sourceRef) { throw 'source-ref-not-in-graph' }
+  $mappings = @($graph.sourceMappings | Where-Object { $_.sourceRef -ceq $binding.sourceRef -and $_.graphNodeId -ceq $binding.sourceUseRef.graphNodeId })
+  if ($mappings.Count -ne 1) { throw 'source-ref-not-in-graph' }
+  if ($mappings[0].sourceIdentity -cne (Expected-SourceIdentity $graph $mappings[0])) { throw 'source-ref-not-in-graph' }
+  if (-not (Source-UseEqual $mappings[0].sourceUse $binding.sourceUseRef.sourceUse)) { throw 'source-use-location-mismatch' }
   if ($null -eq $binding.sourceUseRef.relationId) { return }
   $edges = @($graph.edges | Where-Object { $_.id -ceq $binding.sourceUseRef.relationId })
   if ($edges.Count -eq 0) { throw 'relation-not-in-graph' }
   if ($edges.Count -ne 1) { throw 'duplicate-relation-id' }
   if ($edges[0].from -cne $binding.sourceUseRef.graphNodeId -or -not (Source-UseEqual $edges[0].sourceUse $binding.sourceUseRef.sourceUse)) { throw 'source-use-ref-mismatch' }
-  if ($edges[0].Contains('sourceIdentity') -and $edges[0].sourceIdentity -cne $binding.sourceRef) { throw 'source-ref-mismatch' }
+  if ($edges[0].kind -notin @('reads','token-reference','uses-token','css-cascade') -or $edges[0].certainty -cne 'source-proven') { throw 'relation-not-in-graph' }
+  if ($edges[0].Contains('sourceIdentity') -and $edges[0].sourceIdentity -cne $mappings[0].sourceIdentity) { throw 'source-ref-mismatch' }
 }
 
 function Validate-GraphReferenceNegative($binding, $graph, $field, $expected) {
@@ -283,39 +331,36 @@ Validate-Binding $b0
 $bc = Convert-Canonical $binding
 $bd = Digest "ripple/sourcegraph-observation-binding/v1/observationBindingDigest`0" $bc
 $negative = [ordered]@{}
-$negative['G3'] = Validate-Negative 'g3-duplicate-relation.json' 'graph-schema-invalid'
-$negative['negative-unknown-location'] = Validate-Negative 'negative-unknown-location.json' 'graph-schema-invalid'
-$negative['negative-page-overrides'] = Validate-Negative 'negative-page-overrides.json' 'graph-schema-invalid'
-$negative['missing-evidence-refs'] = Validate-Negative 'negative-missing-evidence-refs.json' 'graph-schema-invalid'
-$negative['invalid-node-kind'] = Validate-Negative 'negative-kind.json' 'graph-schema-invalid'
-$negative['unsafe-integer'] = Validate-Negative 'negative-unsafe-integer.json' 'graph-schema-invalid'
-$negative['empty-page-overrides-key'] = Validate-Negative 'negative-empty-page-key.json' 'graph-schema-invalid'
-$negative['negative-route'] = Validate-Negative 'negative-route.json' 'observation-tuple-mismatch'
-$negative['negative-artifact-path'] = Validate-Negative 'negative-artifact-path.json' 'artifact-path-invalid'
-$negative['legacy-v5'] = Validate-Negative 'legacy-v5.json' 'graph-schema-invalid'
-$negative['source-ref-mismatch'] = Validate-GraphReferenceNegative $b0 $g0 'sourceRef' 'source-ref-mismatch'
-$negative['graph-node-missing'] = Validate-GraphReferenceNegative $b0 $g0 'graphNodeId' 'source-ref-not-in-graph'
-$negative['source-use-mismatch'] = Validate-GraphReferenceNegative $b0 $g0 'sourceUse' 'source-use-ref-mismatch'
-$negative['duplicate-relation-id'] = Validate-GraphReferenceNegative $b0 $g0 'duplicateRelation' 'duplicate-relation-id'
+$negative['G3'] = Add-ExecutedStatus (Validate-Negative 'g3-duplicate-relation.json' 'graph-schema-invalid')
+$negative['negative-unknown-location'] = Add-ExecutedStatus (Validate-Negative 'negative-unknown-location.json' 'graph-schema-invalid')
+$negative['negative-page-overrides'] = Add-ExecutedStatus (Validate-Negative 'negative-page-overrides.json' 'graph-schema-invalid')
+$negative['missing-evidence-refs'] = Add-ExecutedStatus (Validate-Negative 'negative-missing-evidence-refs.json' 'graph-schema-invalid')
+$negative['invalid-node-kind'] = Add-ExecutedStatus (Validate-Negative 'negative-kind.json' 'graph-schema-invalid')
+$negative['unsafe-integer'] = Add-ExecutedStatus (Validate-Negative 'negative-unsafe-integer.json' 'graph-schema-invalid')
+$negative['empty-page-overrides-key'] = Add-ExecutedStatus (Validate-Negative 'negative-empty-page-key.json' 'graph-schema-invalid')
+$negative['negative-route'] = Add-ExecutedStatus (Validate-Negative 'negative-route.json' 'observation-tuple-mismatch')
+$negative['negative-artifact-path'] = Add-ExecutedStatus (Validate-Negative 'negative-artifact-path.json' 'artifact-path-invalid')
+$negative['legacy-v5'] = Add-ExecutedStatus (Validate-Negative 'legacy-v5.json' 'graph-schema-invalid')
+$negative['source-ref-mismatch'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $b0 $g0 'sourceRef' 'source-ref-mismatch')
+$negative['graph-node-missing'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $b0 $g0 'graphNodeId' 'source-ref-not-in-graph')
+$negative['source-use-mismatch'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $b0 $g0 'sourceUse' 'source-use-ref-mismatch')
+$negative['duplicate-relation-id'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $b0 $g0 'duplicateRelation' 'duplicate-relation-id')
 $opaque = Read-Json 'negative-opaque-source-ref.json'
 $declaration = Read-Json 'negative-declaration-node.json'
 $crossSide = Read-Json 'negative-cross-side-source-ref.json'; $g5 = Read-Json 'g5-candidate-side.json'; Validate-Graph $g5
-$negative['opaque-source-ref'] = Validate-GraphReferenceNegative $opaque $g0 'none' 'source-ref-not-in-graph'
-$negative['declaration-node-not-source-use'] = Validate-GraphReferenceNegative $declaration $g0 'none' 'declaration-node-not-source-use'
-$negative['cross-side-source-ref'] = Validate-GraphReferenceNegative $crossSide $g5 'none' 'source-ref-not-in-graph'
-$pending = [ordered]@{
-  'missing-relation-source-identity' = [ordered]@{
-    status = 'not-executed'
-    expectedReasonCode = 'graph-schema-invalid'
-    expectedObservationStatus = 'unavailable'
-    trusted = $false
-    fixture = 'negative-missing-relation-source-identity.json'
-    message = 'A/E must freeze Relation.sourceIdentity presence before this case can be executed; current evidence validator treats the field as optional'
-  }
-}
+$negative['opaque-source-ref'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $opaque $g0 'none' 'source-ref-not-in-graph')
+$negative['declaration-node-not-source-use'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $declaration $g0 'none' 'declaration-node-not-source-use')
+$negative['cross-side-source-ref'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $crossSide $g5 'none' 'source-ref-not-in-graph')
+$negative['missing-relation-source-identity'] = Add-ExecutedStatus (Validate-Negative 'negative-missing-relation-source-identity.json' 'graph-schema-invalid')
+$negative['forged-source-identity'] = Add-ExecutedStatus (Validate-Negative 'negative-forged-source-identity.json' 'graph-schema-invalid')
+$opaqueNode = Read-Json 'negative-opaque-node-relation.json'
+$sourceRefNoMapping = Read-Json 'negative-source-ref-no-mapping.json'
+$negative['opaque-node-relation'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $opaqueNode $g0 'none' 'source-ref-not-in-graph')
+$negative['source-ref-no-mapping'] = Add-ExecutedStatus (Validate-GraphReferenceNegative $sourceRefNoMapping $g0 'none' 'source-ref-not-in-graph')
+$pending = [ordered]@{}
 $artifactPathCases = @('../escape.json','/absolute.json','//server/share.json','runs//duplicate.json','runs/./dot.json','runs/../escape.json','C:/drive.json','runs\backslash.json',("runs/" + [char]0 + "nul.json")) | ForEach-Object {
   $pathValue = [string]$_
-  try { Validate-ArtifactPath $pathValue; [ordered]@{ path = $pathValue; pass = $false; reasonCode = 'unexpected-pass' } } catch { [ordered]@{ path = $pathValue; pass = ($_.Exception.Message -eq 'artifact-path-invalid'); reasonCode = $_.Exception.Message } }
+  try { Validate-ArtifactPath $pathValue; Add-ExecutedStatus ([ordered]@{ path = $pathValue; pass = $false; reasonCode = 'unexpected-pass' }) } catch { Add-ExecutedStatus ([ordered]@{ path = $pathValue; pass = ($_.Exception.Message -eq 'artifact-path-invalid'); reasonCode = $_.Exception.Message }) }
 }
 $captureFormatCases = @(
   [ordered]@{ name = 'route'; value = 'home' },
@@ -329,16 +374,21 @@ $captureFormatCases = @(
     elseif ($case.name -eq 'width') { if ([int]$case.value -lt 1) { throw 'observation-tuple-mismatch' } }
     elseif ($case.name -eq 'search' -and $case.value -eq '?') { throw 'observation-tuple-mismatch' }
     elseif ($case.name -eq 'hash' -and $case.value -eq '#') { throw 'observation-tuple-mismatch' }
-    [ordered]@{ name = $case.name; pass = $false; reasonCode = 'unexpected-pass' }
-  } catch { [ordered]@{ name = $case.name; pass = ($_.Exception.Message -eq 'observation-tuple-mismatch'); reasonCode = $_.Exception.Message } }
+    Add-ExecutedStatus ([ordered]@{ name = $case.name; pass = $false; reasonCode = 'unexpected-pass' })
+  } catch { Add-ExecutedStatus ([ordered]@{ name = $case.name; pass = ($_.Exception.Message -eq 'observation-tuple-mismatch'); reasonCode = $_.Exception.Message }) }
 }
 $observedReasonNames = [System.Collections.Generic.HashSet[string]]::new()
 foreach ($item in @($negative.Values)) { if ($item.reasonCode) { [void]$observedReasonNames.Add([string]$item.reasonCode) } }
 foreach ($item in @($artifactPathCases)) { if ($item.reasonCode) { [void]$observedReasonNames.Add([string]$item.reasonCode) } }
 foreach ($item in @($captureFormatCases)) { if ($item.reasonCode) { [void]$observedReasonNames.Add([string]$item.reasonCode) } }
 $reasonCodeClosedSet = @($observedReasonNames | Where-Object { $observationReasonNames -notcontains $_ }).Count -eq 0
+$corePassed = $d0 -eq $d1 -and $d0 -ne $d2 -and $reasonCodeClosedSet -and ($negative.Values | Where-Object { -not $_.pass }).Count -eq 0 -and (@($artifactPathCases | Where-Object { -not $_.pass }).Count -eq 0) -and (@($captureFormatCases | Where-Object { -not $_.pass }).Count -eq 0)
+$requiredSafetyCases = @($negative.Values | Where-Object { $_.executed -eq $true })
+$requiredSafetyExecuted = @($negative['missing-relation-source-identity'],$negative['forged-source-identity'],$negative['opaque-node-relation'],$negative['source-ref-no-mapping'] | Where-Object { $_.executed -ne $true -or $_.status -ne 'passed' }).Count -eq 0
+$requiredSafetyFailed = @($negative['missing-relation-source-identity'],$negative['forged-source-identity'],$negative['opaque-node-relation'],$negative['source-ref-no-mapping'] | Where-Object { $_.status -eq 'failed' }).Count -gt 0
 $result = [ordered]@{
-  status = if ($d0 -eq $d1 -and $d0 -ne $d2 -and $reasonCodeClosedSet -and ($negative.Values | Where-Object { -not $_.pass }).Count -eq 0 -and (@($artifactPathCases | Where-Object { -not $_.pass }).Count -eq 0) -and (@($captureFormatCases | Where-Object { -not $_.pass }).Count -eq 0)) { 'pass' } else { 'fail' }
+  status = if (-not $corePassed -or $requiredSafetyFailed) { 'failed' } else { 'passed' }
+  executionSummary = [ordered]@{ prepared = $true; executed = $true; passed = $corePassed -and $requiredSafetyExecuted; failed = (-not $corePassed) -or $requiredSafetyFailed; blocked = $false; requiredNegativeCaseCount = 4; requiredNegativeExecutedCount = 4 }
   G0 = [ordered]@{ digest = $d0; canonicalBytesSha256 = CanonicalBytesSha $c0; canonicalBytesBase64 = CanonicalBytesBase64 $c0 }
   G1 = [ordered]@{ digest = $d1; equalTo = 'G0' }
   G2 = [ordered]@{ digest = $d2 }
@@ -354,4 +404,4 @@ $resultJson = $result | ConvertTo-Json -Depth 10
 $resultJson = $resultJson -replace "`r`n", "`n"
 [System.IO.File]::WriteAllText((Join-Path $root 'acp6-observation-v2-final-powershell-report.json'), $resultJson + "`n", [System.Text.UTF8Encoding]::new($false))
 $resultJson
-if ($result.status -ne 'pass') { exit 1 }
+if ($result.status -ne 'passed') { exit 1 }

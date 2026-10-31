@@ -147,7 +147,7 @@ E 的八项发现作为 N01–N32 的子案例登记，不增加执行编号，�
 | E 编号 | 对应 N | 子案例 | 预期 reason/status | 备注 |
 |---|---|---|---|---|
 | E-OBS-01 | N07 | sourceRef 无当前 side Graph 映射 | `source-ref-not-in-graph` / `unknown` | 不跨侧、按坐标或 selector 补映射 |
-| E-OBS-02 | N07 | Relation.sourceIdentity 缺失 | `graph-schema-invalid` / `unavailable` | 不以 Relation.id 或 sourceRef 代替；独立 fixture 待 A/E 冻结后执行 |
+| E-OBS-02 | N07 | Relation.sourceIdentity 缺失 | `graph-schema-invalid` / `unavailable` | **正式安全阻断项，当前 `blocked`**；不以 Relation.id、sourceRef、graphNodeId 或普通 recordId 代替；A/E 冻结 presence 后才可执行 |
 | E-OBS-03 | N06 | graphNodeId 指向 declaration 节点 | `declaration-node-not-source-use` / `unknown` | 不把声明位置当 source-use |
 | E-OBS-04 | N06 | sourceUseRef 指向错误节点类型 | `declaration-node-not-source-use` / `unknown` | 不按坐标或 label 推断 |
 | E-OBS-05 | N08 | sourceUse 与 Relation.sourceUse 不一致 | `source-use-location-mismatch` / `unknown` | 不接受部分字段匹配 |
@@ -155,9 +155,9 @@ E 的八项发现作为 N01–N32 的子案例登记，不增加执行编号，�
 | E-OBS-07 | N30 | ObservationReasonCode 未声明或非法 | `untrusted-capture` / `unavailable` | 不接受自由文本或调用者状态 |
 | E-OBS-08 | N10 | Graph Schema 与 Validator 枚举不一致 | `graph-schema-invalid` / `unavailable` | 不静默丢字段、转换枚举或生成 digest |
 
-以上均为准备项，全部保持 `not-executed`；不得将 G0/G1/G2/G4、黄金样本或真实 Graph 摘要作为这些子案例的执行结果。
+N01–N32 正式执行项全部保持 `not-executed`；E-OBS-02 单独标记为 required safety blocker (`blocked`)。不得将 G0/G1/G2/G4、黄金样本或真实 Graph 摘要作为该子案例的执行结果。任何要求执行的安全负例未执行，整体结果只能是 `blocked`，不能标记 `PASS`。
 
-E-OBS-02 的 fixture 已单独归档为 `docs/acceptance/2026-10-31/vectors/negative-missing-relation-source-identity.json`。当前 evidence validator 仍将 `Relation.sourceIdentity` 视为可选，因此该 fixture 只登记预期的 fail-closed 判定，不运行、不计入任何通过数。
+E-OBS-02 的原始 fixture 保留在 `docs/acceptance/2026-10-31/vectors/negative-missing-relation-source-identity.json`。它进入后续 Node、PowerShell、Schema parity 和 Dual report 的 required negative 集合；当前仅 `prepared/blocked`，不执行、不计入通过数。缺少 `sourceIdentity` 时不能由 sourceRef、graphNodeId、relationId 字符串等值关系恢复可信度。
 
 ## 6. 通过标准
 

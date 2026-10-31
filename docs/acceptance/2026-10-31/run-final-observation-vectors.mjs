@@ -29,14 +29,18 @@ const digestFieldMutation = canonicalObservationBinding({ ...b0, observationBind
 const artifactMutation = canonicalObservationBinding({ ...b0, artifact: { ...b0.artifact, sha256: '2'.repeat(64) } })
 const sideGraph = JSON.parse(JSON.stringify(g0))
 const referencePass = validateGraphReference(b0, sideGraph)
+const executedCase = result => {
+  const passed = result.pass === true
+  return { ...result, status: passed ? 'passed' : 'failed', prepared: true, executed: true, passed, failed: !passed, blocked: false }
+}
 const graphReferenceNegative = (binding, graph, expectedReasonCode, extra = {}) => {
-  try { validateGraphReference(binding, graph); return { ...extra, pass: false, expectedReasonCode, reasonCode: 'unexpected-pass', message: 'reference was accepted' } }
-  catch (error) { return { ...extra, pass: error.code === expectedReasonCode, expectedReasonCode, reasonCode: error.code, message: error.message } }
+  try { validateGraphReference(binding, graph); return executedCase({ ...extra, pass: false, expectedReasonCode, reasonCode: 'unexpected-pass', message: 'reference was accepted' }) }
+  catch (error) { return executedCase({ ...extra, pass: error.code === expectedReasonCode, expectedReasonCode, reasonCode: error.code, message: error.message }) }
 }
 const referenceMismatchCase = graphReferenceNegative({ ...b0, sourceRef: 'node:other' }, sideGraph, 'source-ref-mismatch')
-const sourceUseMismatchCase = graphReferenceNegative({ ...b0, sourceUseRef: { ...b0.sourceUseRef, sourceUse: { ...b0.sourceUseRef.sourceUse, byteOffset: 99 } } }, sideGraph, 'source-use-ref-mismatch')
+const sourceUseMismatchCase = graphReferenceNegative({ ...b0, sourceUseRef: { ...b0.sourceUseRef, sourceUse: { ...b0.sourceUseRef.sourceUse, byteOffset: 99 } } }, sideGraph, 'source-use-location-mismatch')
 const graphNodeMissingCase = graphReferenceNegative({ ...b0, sourceUseRef: { ...b0.sourceUseRef, graphNodeId: 'node:missing' } }, sideGraph, 'source-ref-not-in-graph')
-const duplicateRelationCase = graphReferenceNegative(b0, { ...sideGraph, edges: [...sideGraph.edges, sideGraph.edges[0]] }, 'duplicate-relation-id')
+const duplicateRelationCase = graphReferenceNegative(b0, { ...sideGraph, edges: [...sideGraph.edges, sideGraph.edges[0]] }, 'graph-schema-invalid')
 const referenceMismatch = referenceMismatchCase.pass
 const sourceUseMismatch = sourceUseMismatchCase.pass
 const graphNodeMissing = graphNodeMissingCase.pass
@@ -45,14 +49,14 @@ const opaqueSourceRef = await readJson('negative-opaque-source-ref.json')
 const declarationNode = await readJson('negative-declaration-node.json')
 const crossSideSourceRef = await readJson('negative-cross-side-source-ref.json')
 const opaqueSourceRefRejected = graphReferenceNegative(opaqueSourceRef, sideGraph, 'source-ref-not-in-graph')
-const missingRelationSourceIdentityPending = {
-  status: 'not-executed',
-  expectedReasonCode: 'graph-schema-invalid',
-  expectedObservationStatus: 'unavailable',
-  trusted: false,
-  fixture: 'negative-missing-relation-source-identity.json',
-  message: 'A/E must freeze Relation.sourceIdentity presence before this case can be executed; current evidence validator treats the field as optional',
-}
+const missingRelationSourceIdentity = await readJson('negative-missing-relation-source-identity.json')
+const forgedSourceIdentity = await readJson('negative-forged-source-identity.json')
+const opaqueNodeRelation = await readJson('negative-opaque-node-relation.json')
+const sourceRefNoMapping = await readJson('negative-source-ref-no-mapping.json')
+const missingRelationSourceIdentityRejected = (() => { try { canonicalGraph(missingRelationSourceIdentity); return executedCase({ pass: false, expectedReasonCode: 'graph-schema-invalid', reasonCode: 'unexpected-pass' }) } catch (error) { return executedCase({ pass: error.code === 'graph-schema-invalid', expectedReasonCode: 'graph-schema-invalid', reasonCode: error.code, message: error.message }) } })()
+const forgedSourceIdentityRejected = (() => { try { canonicalGraph(forgedSourceIdentity); return executedCase({ pass: false, expectedReasonCode: 'graph-schema-invalid', reasonCode: 'unexpected-pass' }) } catch (error) { return executedCase({ pass: error.code === 'graph-schema-invalid', expectedReasonCode: 'graph-schema-invalid', reasonCode: error.code, message: error.message }) } })()
+const opaqueNodeRelationRejected = graphReferenceNegative(opaqueNodeRelation, sideGraph, 'source-ref-not-in-graph')
+const sourceRefNoMappingRejected = graphReferenceNegative(sourceRefNoMapping, sideGraph, 'source-ref-not-in-graph')
 const declarationNodeRejected = graphReferenceNegative(declarationNode, sideGraph, 'declaration-node-not-source-use')
 const crossSideSourceRefRejected = graphReferenceNegative(crossSideSourceRef, g5, 'source-ref-not-in-graph')
 const partialReference = validateGraphReference(b1, sideGraph)
@@ -61,14 +65,14 @@ const missingSourceUseRefPartial = validateGraphReference({ ...b0, status: 'part
 const artifactPathCases = [
   '../escape.json', '/absolute.json', '//server/share.json', 'runs//duplicate.json', 'runs/./dot.json', 'runs/../escape.json', 'C:/drive.json', 'runs\\backslash.json', `runs/${String.fromCharCode(0)}nul.json`,
 ].map(path => {
-  try { canonicalObservationBinding({ ...b0, artifact: { ...b0.artifact, path } }); return { path, pass: false, reasonCode: 'unexpected-pass' } } catch (error) { return { path, pass: error.code === 'artifact-path-invalid', reasonCode: error.code } }
+  try { canonicalObservationBinding({ ...b0, artifact: { ...b0.artifact, path } }); return executedCase({ path, pass: false, reasonCode: 'unexpected-pass' }) } catch (error) { return executedCase({ path, pass: error.code === 'artifact-path-invalid', reasonCode: error.code }) }
 })
 const captureFormatCases = [
   ['route', { ...b0, route: 'home' }],
   ['search', { ...b0, page: { ...b0.page, search: '?' } }],
   ['hash', { ...b0, page: { ...b0.page, hash: '#' } }],
   ['width', { ...b0, viewport: { ...b0.viewport, width: 0 } }],
-].map(([field, value]) => { try { canonicalObservationBinding(value); return { field, pass: false, reasonCode: 'unexpected-pass' } } catch (error) { return { field, pass: error.code === 'observation-tuple-mismatch', reasonCode: error.code } } })
+].map(([field, value]) => { try { canonicalObservationBinding(value); return executedCase({ field, pass: false, reasonCode: 'unexpected-pass' }) } catch (error) { return executedCase({ field, pass: error.code === 'observation-tuple-mismatch', reasonCode: error.code }) } })
 const negativeFiles = [
   ['negative-unknown-location.json', 'graph-schema-invalid', 'graph'],
   ['negative-page-overrides.json', 'graph-schema-invalid', 'graph'],
@@ -78,6 +82,10 @@ const negativeFiles = [
   ['negative-opaque-source-ref.json', 'source-ref-not-in-graph', 'reference'],
   ['negative-declaration-node.json', 'declaration-node-not-source-use', 'reference'],
   ['negative-cross-side-source-ref.json', 'source-ref-not-in-graph', 'cross-side-reference'],
+  ['negative-missing-relation-source-identity.json', 'graph-schema-invalid', 'graph'],
+  ['negative-forged-source-identity.json', 'graph-schema-invalid', 'graph'],
+  ['negative-opaque-node-relation.json', 'source-ref-not-in-graph', 'reference'],
+  ['negative-source-ref-no-mapping.json', 'source-ref-not-in-graph', 'reference'],
   ['negative-missing-evidence-refs.json', 'graph-schema-invalid', 'graph'],
   ['negative-kind.json', 'graph-schema-invalid', 'graph'],
   ['negative-unsafe-integer.json', 'graph-schema-invalid', 'graph'],
@@ -112,6 +120,10 @@ const results = {
     opaqueSourceRefRejected,
     declarationNodeRejected,
     crossSideSourceRefRejected,
+    missingRelationSourceIdentityRejected,
+    forgedSourceIdentityRejected,
+    opaqueNodeRelationRejected,
+    sourceRefNoMappingRejected,
     partialWithoutRelationRemainsPartial: partialReference.status === 'partial' && partialReference.trusted === false,
     missingSourceRefRemainsPartial: missingSourceRefPartial.reasonCode === 'observation/missing-source-ref' && missingSourceRefPartial.status === 'partial',
     missingSourceUseRefRemainsPartial: missingSourceUseRefPartial.reasonCode === 'observation/missing-source-use-ref' && missingSourceUseRefPartial.status === 'partial',
@@ -121,28 +133,26 @@ const results = {
     captureFormatCasesPass: captureFormatCases.every(item => item.pass),
   },
   negative: {},
-  pending: {
-    missingRelationSourceIdentity: missingRelationSourceIdentityPending,
-  },
+  pending: {},
 }
 try {
   canonicalGraph(g3)
   results.status = 'fail'
-  results.negative.G3 = { pass: false, expected: 'graph-schema-invalid', message: 'duplicate Relation.id was accepted' }
+  results.negative.G3 = executedCase({ pass: false, expected: 'graph-schema-invalid', message: 'duplicate Relation.id was accepted' })
 } catch (error) {
-    results.negative.G3 = { pass: error.code === 'graph-schema-invalid', reasonCode: error.code, observationReasonCode: observationCode(error.code), message: error.message }
+    results.negative.G3 = executedCase({ pass: error.code === 'graph-schema-invalid', reasonCode: error.code, observationReasonCode: observationCode(error.code), message: error.message })
   if (!results.negative.G3.pass) results.status = 'fail'
 }
 try {
   canonicalObservationBinding({ ...b1, status: 'complete', primaryReasonCode: 'complete' })
   results.status = 'fail'
-  results.negative.B2 = { pass: false, expected: 'relation-not-in-graph', message: 'complete record without relationId was accepted' }
+  results.negative.B2 = executedCase({ pass: false, expected: 'relation-not-in-graph', message: 'complete record without relationId was accepted' })
 } catch (error) {
-    results.negative.B2 = { pass: error.code === 'relation-not-in-graph', reasonCode: error.code, observationReasonCode: observationCode(error.code), message: error.message }
+    results.negative.B2 = executedCase({ pass: error.code === 'relation-not-in-graph', reasonCode: error.code, observationReasonCode: observationCode(error.code), message: error.message })
   if (!results.negative.B2.pass) results.status = 'fail'
 }
 if (!results.vectors.G1.stable || !results.vectors.G2.changed || !results.vectors.selfReferenceIgnored || !results.vectors.artifactMutationChanges || !results.vectors.graphReferencePass || !results.vectors.sourceRefMismatchRejected || !results.vectors.sourceUseMismatchRejected || !results.vectors.graphNodeMissingRejected || !results.vectors.duplicateRelationRejected || !results.vectors.partialWithoutRelationRemainsPartial || !results.vectors.missingSourceRefRemainsPartial || !results.vectors.missingSourceUseRefRemainsPartial || !results.vectors.rootRouteAccepted || !results.vectors.artifactPathCasesPass || !results.vectors.captureFormatCasesPass) results.status = 'fail'
-if (!results.vectors.opaqueSourceRefRejected.pass || !results.vectors.declarationNodeRejected.pass || !results.vectors.crossSideSourceRefRejected.pass) results.status = 'fail'
+if (!results.vectors.opaqueSourceRefRejected.pass || !results.vectors.declarationNodeRejected.pass || !results.vectors.crossSideSourceRefRejected.pass || !results.vectors.missingRelationSourceIdentityRejected.pass || !results.vectors.forgedSourceIdentityRejected.pass || !results.vectors.opaqueNodeRelationRejected.pass || !results.vectors.sourceRefNoMappingRejected.pass) results.status = 'fail'
 for (const [file, expectedCode, kind] of negativeFiles) {
   try {
     const input = await readJson(file)
@@ -150,9 +160,9 @@ for (const [file, expectedCode, kind] of negativeFiles) {
     else if (kind === 'reference') validateGraphReference(input, sideGraph)
     else if (kind === 'cross-side-reference') validateGraphReference(input, g5)
     else canonicalObservationBinding(input)
-    results.status = 'fail'; results.negative[file] = { pass: false, expectedReasonCode: expectedCode, reasonCode: 'unexpected-pass' }
+    results.status = 'fail'; results.negative[file] = executedCase({ pass: false, expectedReasonCode: expectedCode, reasonCode: 'unexpected-pass' })
   } catch (error) {
-    results.negative[file] = { pass: error.code === expectedCode, expectedReasonCode: expectedCode, reasonCode: error.code, observationReasonCode: observationCode(error.code), message: error.message }
+    results.negative[file] = executedCase({ pass: error.code === expectedCode, expectedReasonCode: expectedCode, reasonCode: error.code, observationReasonCode: observationCode(error.code), message: error.message })
     if (error.code !== expectedCode) results.status = 'fail'
   }
 }
@@ -168,9 +178,24 @@ const reasonCodeClosedSet = [...observedReasonNames].every(name => OBSERVATION_R
 results.reasonCodeClosedSet = { pass: reasonCodeClosedSet, observed: [...observedReasonNames].sort(), allowedCount: OBSERVATION_REASON_NAMES.length }
 if (!reasonCodeClosedSet) results.status = 'fail'
 
+const corePassed = results.status !== 'fail'
+const requiredSafetyCases = [missingRelationSourceIdentityRejected, forgedSourceIdentityRejected, opaqueNodeRelationRejected, sourceRefNoMappingRejected]
+const requiredSafetyExecuted = requiredSafetyCases.every(item => item.executed === true && item.status === 'passed')
+const requiredSafetyFailed = requiredSafetyCases.some(item => item.status === 'failed')
+results.executionSummary = {
+  prepared: true,
+  executed: true,
+  passed: corePassed && requiredSafetyExecuted,
+  failed: !corePassed || requiredSafetyFailed,
+  blocked: corePassed && !requiredSafetyExecuted,
+  requiredNegativeCaseCount: requiredSafetyCases.length,
+  requiredNegativeExecutedCount: requiredSafetyCases.filter(item => item.executed === true).length,
+}
+results.status = !corePassed ? 'failed' : (requiredSafetyFailed ? 'failed' : 'passed')
+
 // The placeholders are replaced only in this evidence copy; source fixtures remain reusable.
 const fixture = { ...b0, graph: { ...b0.graph, graphDigest: graph0.digest }, observationBindingDigest: binding0.digest }
 await writeFile(resolve(vectorDir, 'b0-observation-resolved.json'), `${JSON.stringify(fixture, null, 2)}\n`)
 await writeFile(resolve(here, 'acp6-observation-v2-final-digest-report.json'), `${JSON.stringify(results, null, 2)}\n`)
 console.log(JSON.stringify({ status: results.status, G0: graph0.digest, G1: graph1.digest, G2: graph2.digest, G4: graph4.digest, B0: binding0.digest, G3: results.negative.G3 }, null, 2))
-if (results.status !== 'pass') process.exitCode = 1
+if (results.status !== 'passed') process.exitCode = 1

@@ -15,6 +15,10 @@ const g4 = await read(resolve(vectors, 'g4-nonascii.json'))
 const b0 = await read(resolve(vectors, 'b0-observation.json'))
 const sideGraph = structuredClone(g0)
 const g5 = await read(resolve(vectors, 'g5-candidate-side.json'))
+const missingRelationSourceIdentity = await read(resolve(vectors, 'negative-missing-relation-source-identity.json'))
+const forgedSourceIdentity = await read(resolve(vectors, 'negative-forged-source-identity.json'))
+const opaqueNodeRelation = await read(resolve(vectors, 'negative-opaque-node-relation.json'))
+const sourceRefNoMapping = await read(resolve(vectors, 'negative-source-ref-no-mapping.json'))
 
 const expectedNodeKinds = ['file', 'symbol', 'component', 'route', 'data', 'media', 'token', 'token-use', 'jsx-element', 'state']
 const expectedEdgeKinds = ['imports', 'reads', 'renders', 'uses-token', 'token-reference', 'asset-consumer', 'css-cascade', 'same-copy', 'semantic-link']
@@ -23,6 +27,7 @@ const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 checks.nodeKinds = equal(graphSchema.$defs.node.properties.kind.enum, expectedNodeKinds)
 checks.edgeKinds = equal(graphSchema.$defs.edge.properties.kind.enum, expectedEdgeKinds)
 checks.edgeEvidenceRefsRequired = graphSchema.$defs.edge.required.includes('evidenceRefs')
+checks.sourceMappingRequired = graphSchema.required.includes('sourceMappingVersion') && graphSchema.required.includes('sourceMappings') && graphSchema.$defs.sourceMapping.required.includes('sourceIdentity')
 checks.pageOverridesNonEmptyKeys = graphSchema.$defs.pageOverrides.propertyNames?.minLength === 1
 checks.graphIntegersBounded = [graphSchema.$defs.sourceUse.properties.charOffset, graphSchema.$defs.sourceUse.properties.byteOffset, graphSchema.$defs.node.properties.byteOffset, graphSchema.$defs.location.properties.start, graphSchema.$defs.location.properties.end, graphSchema.$defs.location.properties.offset, graphSchema.$defs.location.properties.byteOffset].every(item => item.maximum === 9007199254740991)
 checks.observationIntegersBounded = [observationSchema.$defs.sourceUse.properties.charOffset, observationSchema.$defs.sourceUse.properties.byteOffset, observationSchema.$defs.viewport.properties.width, observationSchema.$defs.viewport.properties.height, observationSchema.$defs.artifact.properties.sizeBytes].every(item => item.maximum === 9007199254740991)
@@ -30,12 +35,12 @@ checks.reasonPatternClosed = OBSERVATION_REASON_NAMES.every(name => observationS
 
 const cases = []
 const accept = (name, input, validator) => {
-  try { validator(input); cases.push({ name, expected: 'accept', actual: 'accept', pass: true }) }
-  catch (error) { cases.push({ name, expected: 'accept', actual: error.code ?? error.message, pass: false }) }
+  try { validator(input); cases.push({ name, expected: 'accept', actual: 'accept', pass: true, status: 'passed', prepared: true, executed: true, passed: true, failed: false, blocked: false }) }
+  catch (error) { cases.push({ name, expected: 'accept', actual: error.code ?? error.message, pass: false, status: 'failed', prepared: true, executed: true, passed: false, failed: true, blocked: false }) }
 }
 const reject = (name, input, validator, expected) => {
-  try { validator(input); cases.push({ name, expected, actual: 'unexpected-pass', pass: false }) }
-  catch (error) { cases.push({ name, expected, actual: error.code ?? error.message, pass: (error.code ?? error.message) === expected }) }
+  try { validator(input); cases.push({ name, expected, actual: 'unexpected-pass', pass: false, status: 'failed', prepared: true, executed: true, passed: false, failed: true, blocked: false }) }
+  catch (error) { const passed = (error.code ?? error.message) === expected; cases.push({ name, expected, actual: error.code ?? error.message, pass: passed, status: passed ? 'passed' : 'failed', prepared: true, executed: true, passed, failed: !passed, blocked: false }) }
 }
 accept('g0.json', g0, canonicalGraph)
 accept('g4-nonascii.json', g4, canonicalGraph)
@@ -52,8 +57,25 @@ reject('legacy-v5.json', await read(resolve(vectors, 'legacy-v5.json')), canonic
 reject('negative-opaque-source-ref.json', await read(resolve(vectors, 'negative-opaque-source-ref.json')), input => validateGraphReference(input, sideGraph), 'source-ref-not-in-graph')
 reject('negative-declaration-node.json', await read(resolve(vectors, 'negative-declaration-node.json')), input => validateGraphReference(input, sideGraph), 'declaration-node-not-source-use')
 reject('negative-cross-side-source-ref.json', await read(resolve(vectors, 'negative-cross-side-source-ref.json')), input => validateGraphReference(input, g5), 'source-ref-not-in-graph')
+reject('negative-missing-relation-source-identity.json', missingRelationSourceIdentity, canonicalGraph, 'graph-schema-invalid')
+reject('negative-forged-source-identity.json', forgedSourceIdentity, canonicalGraph, 'graph-schema-invalid')
+reject('negative-opaque-node-relation.json', opaqueNodeRelation, input => validateGraphReference(input, sideGraph), 'source-ref-not-in-graph')
+reject('negative-source-ref-no-mapping.json', sourceRefNoMapping, input => validateGraphReference(input, sideGraph), 'source-ref-not-in-graph')
 
-const result = { protocol: 'acp6-sourcegraph-observation-v2-schema-parity/v1', status: Object.values(checks).every(Boolean) && cases.every(item => item.pass) ? 'pass' : 'fail', checks, cases }
+const pending = {}
+const corePassed = Object.values(checks).every(Boolean) && cases.every(item => item.pass)
+const requiredSafetyCases = cases.filter(item => item.name.includes('source-identity') || item.name.includes('opaque-node-relation') || item.name.includes('source-ref-no-mapping'))
+const requiredSafetyExecuted = requiredSafetyCases.every(item => item.executed === true && item.status === 'passed')
+const requiredSafetyFailed = requiredSafetyCases.some(item => item.status === 'failed')
+
+const result = {
+  protocol: 'acp6-sourcegraph-observation-v2-schema-parity/v1',
+  status: !corePassed ? 'failed' : (requiredSafetyFailed ? 'failed' : 'passed'),
+  executionSummary: { prepared: true, executed: true, passed: corePassed && requiredSafetyExecuted, failed: !corePassed || requiredSafetyFailed, blocked: false, requiredNegativeCaseCount: requiredSafetyCases.length, requiredNegativeExecutedCount: requiredSafetyCases.filter(item => item.executed === true).length },
+  checks,
+  cases,
+  pending,
+}
 await writeFile(resolve(here, 'acp6-observation-v2-final-schema-report.json'), `${JSON.stringify(result, null, 2)}\n`)
 console.log(JSON.stringify(result, null, 2))
-if (result.status !== 'pass') process.exitCode = 1
+if (result.status !== 'passed') process.exitCode = 1

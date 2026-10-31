@@ -1,6 +1,6 @@
 {
   "protocol": "acp6-sourcegraph-observation-v2-final",
-  "status": "pass",
+  "status": "blocked",
   "vectors": {
     "G0": {
       "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
@@ -45,25 +45,49 @@
         "pass": true,
         "expectedReasonCode": "source-ref-mismatch",
         "reasonCode": "source-ref-mismatch",
-        "message": "sourceRef and sourceUseRef.sourceRef differ"
+        "message": "sourceRef and sourceUseRef.sourceRef differ",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       "sourceUseMismatch": {
         "pass": true,
         "expectedReasonCode": "source-use-ref-mismatch",
         "reasonCode": "source-use-ref-mismatch",
-        "message": "relation sourceUse or endpoint differs from sourceUseRef"
+        "message": "relation sourceUse or endpoint differs from sourceUseRef",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       "graphNodeMissing": {
         "pass": true,
         "expectedReasonCode": "source-ref-not-in-graph",
         "reasonCode": "source-ref-not-in-graph",
-        "message": "graphNodeId is absent from selected side graph"
+        "message": "graphNodeId is absent from selected side graph",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       "duplicateRelation": {
         "pass": true,
         "expectedReasonCode": "duplicate-relation-id",
         "reasonCode": "duplicate-relation-id",
-        "message": "relationId is not unique in selected side graph"
+        "message": "relationId is not unique in selected side graph",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       }
     },
     "sourceRefMismatchRejected": true,
@@ -74,19 +98,37 @@
       "pass": true,
       "expectedReasonCode": "source-ref-not-in-graph",
       "reasonCode": "source-ref-not-in-graph",
-      "message": "sourceRef has no side-local node mapping"
+      "message": "sourceRef has no side-local node mapping",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "declarationNodeRejected": {
       "pass": true,
       "expectedReasonCode": "declaration-node-not-source-use",
       "reasonCode": "declaration-node-not-source-use",
-      "message": "graphNodeId does not resolve to a source-use node"
+      "message": "graphNodeId does not resolve to a source-use node",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "crossSideSourceRefRejected": {
       "pass": true,
       "expectedReasonCode": "source-ref-not-in-graph",
       "reasonCode": "source-ref-not-in-graph",
-      "message": "graphNodeId is absent from selected side graph"
+      "message": "graphNodeId is absent from selected side graph",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "partialWithoutRelationRemainsPartial": true,
     "missingSourceRefRemainsPartial": true,
@@ -95,47 +137,101 @@
       {
         "path": "../escape.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "/absolute.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "//server/share.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "runs//duplicate.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "runs/./dot.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "runs/../escape.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "C:/drive.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "runs\\backslash.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "path": "runs/\u0000nul.json",
         "pass": true,
-        "reasonCode": "artifact-path-invalid"
+        "reasonCode": "artifact-path-invalid",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       }
     ],
     "artifactPathCasesPass": true,
@@ -143,22 +239,46 @@
       {
         "field": "route",
         "pass": true,
-        "reasonCode": "observation-tuple-mismatch"
+        "reasonCode": "observation-tuple-mismatch",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "field": "search",
         "pass": true,
-        "reasonCode": "observation-tuple-mismatch"
+        "reasonCode": "observation-tuple-mismatch",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "field": "hash",
         "pass": true,
-        "reasonCode": "observation-tuple-mismatch"
+        "reasonCode": "observation-tuple-mismatch",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       },
       {
         "field": "width",
         "pass": true,
-        "reasonCode": "observation-tuple-mismatch"
+        "reasonCode": "observation-tuple-mismatch",
+        "status": "passed",
+        "prepared": true,
+        "executed": true,
+        "passed": true,
+        "failed": false,
+        "blocked": false
       }
     ],
     "captureFormatCasesPass": true
@@ -168,106 +288,198 @@
       "pass": true,
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "duplicate Relation.id: rel:a"
+      "message": "duplicate Relation.id: rel:a",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "B2": {
       "pass": true,
       "reasonCode": "relation-not-in-graph",
       "observationReasonCode": "observation/relation-not-in-graph",
-      "message": "complete source-use observation requires one relationId"
+      "message": "complete source-use observation requires one relationId",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-unknown-location.json": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "nodes[0].location.line is not allowed"
+      "message": "nodes[0].location.line is not allowed",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-page-overrides.json": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "nodes[0].pageOverrides./home must be a non-empty string"
+      "message": "nodes[0].pageOverrides./home must be a non-empty string",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-route.json": {
       "pass": true,
       "expectedReasonCode": "observation-tuple-mismatch",
       "reasonCode": "observation-tuple-mismatch",
       "observationReasonCode": "observation/observation-tuple-mismatch",
-      "message": "route.pathname must be a non-empty pathname"
+      "message": "route.pathname must be a non-empty pathname",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-artifact-path.json": {
       "pass": true,
       "expectedReasonCode": "artifact-path-invalid",
       "reasonCode": "artifact-path-invalid",
       "observationReasonCode": "observation/artifact-path-invalid",
-      "message": "artifact.path must be a relative POSIX path inside trusted archive"
+      "message": "artifact.path must be a relative POSIX path inside trusted archive",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "legacy-v5.json": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "graph.schemaVersion is not allowed"
+      "message": "graph.schemaVersion is not allowed",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-opaque-source-ref.json": {
       "pass": true,
       "expectedReasonCode": "source-ref-not-in-graph",
       "reasonCode": "source-ref-not-in-graph",
       "observationReasonCode": "observation/source-ref-not-in-graph",
-      "message": "sourceRef has no side-local node mapping"
+      "message": "sourceRef has no side-local node mapping",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-declaration-node.json": {
       "pass": true,
       "expectedReasonCode": "declaration-node-not-source-use",
       "reasonCode": "declaration-node-not-source-use",
       "observationReasonCode": "observation/declaration-node-not-source-use",
-      "message": "graphNodeId does not resolve to a source-use node"
+      "message": "graphNodeId does not resolve to a source-use node",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-cross-side-source-ref.json": {
       "pass": true,
       "expectedReasonCode": "source-ref-not-in-graph",
       "reasonCode": "source-ref-not-in-graph",
       "observationReasonCode": "observation/source-ref-not-in-graph",
-      "message": "graphNodeId is absent from selected side graph"
+      "message": "graphNodeId is absent from selected side graph",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-missing-evidence-refs.json": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "edges[0].evidenceRefs is required"
+      "message": "edges[0].evidenceRefs is required",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-kind.json": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "nodes[0].kind is not canonical"
+      "message": "nodes[0].kind is not canonical",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-unsafe-integer.json": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "nodes[0].byteOffset must be a non-negative safe integer"
+      "message": "nodes[0].byteOffset must be a non-negative safe integer",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     "negative-empty-page-key.json": {
       "pass": true,
       "expectedReasonCode": "graph-schema-invalid",
       "reasonCode": "graph-schema-invalid",
       "observationReasonCode": "observation/graph-schema-invalid",
-      "message": "nodes[0].pageOverrides key must be a non-empty string"
+      "message": "nodes[0].pageOverrides key must be a non-empty string",
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     }
   },
   "pending": {
     "missingRelationSourceIdentity": {
-      "status": "not-executed",
+      "status": "blocked",
+      "required": true,
+      "safetyBlocker": true,
+      "prepared": true,
+      "executed": false,
+      "passed": false,
+      "failed": false,
+      "blocked": true,
       "expectedReasonCode": "graph-schema-invalid",
       "expectedObservationStatus": "unavailable",
       "trusted": false,
       "fixture": "negative-missing-relation-source-identity.json",
+      "fixtureLoaded": true,
       "message": "A/E must freeze Relation.sourceIdentity presence before this case can be executed; current evidence validator treats the field as optional"
     }
   },
@@ -285,5 +497,14 @@
       "source-use-ref-mismatch"
     ],
     "allowedCount": 48
+  },
+  "executionSummary": {
+    "prepared": true,
+    "executed": true,
+    "passed": false,
+    "failed": false,
+    "blocked": true,
+    "requiredNegativeCaseCount": 1,
+    "requiredNegativeExecutedCount": 0
   }
 }

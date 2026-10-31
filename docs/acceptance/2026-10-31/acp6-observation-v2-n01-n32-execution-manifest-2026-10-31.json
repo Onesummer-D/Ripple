@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "protocol": "acp6-browser-observation/v2-execution-prep",
   "status": "prepared-not-executed",
+  "safetyGate": {"status":"blocked","requiredNegativeCases":["E-OBS-02"],"reason":"E-OBS-02 is a required safety negative; any required safety negative that is not executed cannot produce PASS"},
   "scope": "evidence-only; no production SourceGraph, VerificationRun, Runtime Identity or authorization writes",
   "contractInputs": {
     "dR3": "docs/architecture/acp6-browser-observation-interface-draft-2026-10-30.md",
@@ -37,7 +38,7 @@
   },
   "eFindingsMapping": [
     {"id":"E-OBS-01","finding":"sourceRef lacks a real side-graph mapping","testIds":["N07"],"subcase":"source-ref-not-in-side-graph","status":"not-executed","expected":{"primaryReasonCode":"source-ref-not-in-graph","observationStatus":"unknown","proof":"not-proven"},"reject":"no cross-side, DOM-coordinate or selector substitution"},
-    {"id":"E-OBS-02","finding":"Relation.sourceIdentity is missing","testIds":["N07"],"subcase":"relation-source-identity-missing","fixture":"vectors/negative-missing-relation-source-identity.json","status":"not-executed","expected":{"primaryReasonCode":"graph-schema-invalid","observationStatus":"unavailable","proof":"not-proven"},"reject":"no Relation.id, sourceRef or recordId substitution; current evidence validator leaves this pending because the field is optional"},
+    {"id":"E-OBS-02","finding":"Relation.sourceIdentity is missing","testIds":["N07"],"subcase":"relation-source-identity-missing","fixture":"vectors/negative-missing-relation-source-identity.json","status":"blocked","required":true,"safetyBlocker":true,"expected":{"primaryReasonCode":"graph-schema-invalid","observationStatus":"unavailable","proof":"not-proven"},"versionBasis":{"graphIdentityVersion":"sourcegraph-identity/v2","graphSchemaVersion":"acp6-sourcegraph/v1","relationIdentityVersion":"A-governed-required","observationBindingVersion":"sourcegraph-observation-binding/v1"},"reject":"no Relation.id, sourceRef, graphNodeId or recordId substitution; missing host source mapping is rejected before digest"},
     {"id":"E-OBS-03","finding":"graphNodeId points to a declaration node","testIds":["N06"],"subcase":"declaration-node-reference","status":"not-executed","expected":{"primaryReasonCode":"declaration-node-not-source-use","observationStatus":"unknown","proof":"not-proven"},"reject":"no declaration position as source-use"},
     {"id":"E-OBS-04","finding":"sourceUseRef points to the wrong node type","testIds":["N06"],"subcase":"source-use-ref-wrong-node-kind","status":"not-executed","expected":{"primaryReasonCode":"declaration-node-not-source-use","observationStatus":"unknown","proof":"not-proven"},"reject":"no coordinate or label inference"},
     {"id":"E-OBS-05","finding":"sourceUse differs from Relation.sourceUse","testIds":["N08"],"subcase":"relation-source-use-mismatch","status":"not-executed","expected":{"primaryReasonCode":"source-use-location-mismatch","observationStatus":"unknown","proof":"not-proven"},"reject":"no partial-field match"},
@@ -69,7 +70,7 @@
     {"id":"N04","status":"not-executed","trigger":"remove all consumer relations and retain static css-cascade candidate","expected":{"primaryReasonCode":"missing-consumer-edge","observationStatus":"partial","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
     {"id":"N05","status":"not-executed","trigger":"retain runtimeInstanceId after removing consumer edge with no identity conflict","expected":{"primaryReasonCode":"runtime-instance-without-edge","observationStatus":"partial","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
     {"id":"N06","status":"not-executed","trigger":"replace token-use graphNodeId with declaration node","expected":{"primaryReasonCode":"declaration-node-not-source-use","observationStatus":"unknown","proof":"not-proven"},"gate":"SourceGraph/source-mapping"},
-    {"id":"N07","status":"not-executed","trigger":"use relationId present only on the other side","expected":{"primaryReasonCode":"relation-not-in-graph","observationStatus":"unknown","proof":"not-proven"},"gate":"graphDigest/source binding"},
+    {"id":"N07","status":"not-executed","trigger":"use relationId present only on the other side; or omit Relation.sourceIdentity from the selected side graph","expected":{"primaryReasonCode":"graph-schema-invalid","observationStatus":"unavailable","proof":"not-proven"},"versionBasis":{"graphIdentityVersion":"sourcegraph-identity/v2","graphSchemaVersion":"acp6-sourcegraph/v1","relationIdentityVersion":"A-governed-required","observationBindingVersion":"sourcegraph-observation-binding/v1"},"gate":"graphDigest/source binding"},
     {"id":"N08","status":"not-executed","trigger":"mutate sourceUse path or charOffset or byteOffset","expected":{"primaryReasonCode":"source-use-location-mismatch","observationStatus":"unknown","proof":"not-proven"},"gate":"graphDigest/source binding"},
     {"id":"N09","status":"not-executed","trigger":"bind candidate record to an old sourceDigest","expected":{"primaryReasonCode":"source-digest-mismatch","observationStatus":"stale","proof":"not-proven"},"gate":"source binding"},
     {"id":"N10","status":"not-executed","trigger":"retain sourceDigest but use an old graphDigest","expected":{"primaryReasonCode":"graph-digest-mismatch","observationStatus":"stale","proof":"not-proven"},"gate":"graph binding"},
@@ -99,7 +100,7 @@
   "notExecutedReason": [
     "A sourcegraph-identity/v2 and sourcegraph-observation-binding/v1 canonical envelope freeze is pending",
     "E side-specific digest/sourceUse/page tuple review is pending",
-    "E-OBS-01 through E-OBS-08 are mapped subcases only and remain not-executed; E-OBS-02 has a fixture but no execution result",
+    "E-OBS-01 through E-OBS-08 are mapped subcases only and remain not-executed; E-OBS-02 is a required safety blocker with a preserved fixture but no execution result",
     "B/C Relation ID identity governance and a new canonical real Graph are pending",
     "The manifest intentionally contains no execution result and cannot be read as N01-N32 pass evidence"
   ]

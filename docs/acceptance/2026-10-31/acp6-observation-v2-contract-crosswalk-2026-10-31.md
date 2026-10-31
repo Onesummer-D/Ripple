@@ -56,7 +56,7 @@ E 的八项发现均作为后续 N01–N32 的未执行子案例登记。它们�
 | E 编号 | 发现 | 对应 N | 预期拒绝/降级 | 禁止动作 |
 |---|---|---|---|---|
 | E-OBS-01 | `sourceRef` 缺少真实 side Graph 映射 | N07 | `source-ref-not-in-graph` / `unknown` / `not-proven` | 不由另一 side、DOM 坐标或 selector 补映射 |
-| E-OBS-02 | `Relation.sourceIdentity` 缺失 | N07 | `graph-schema-invalid` / `unavailable` / `not-proven` | 不以 `Relation.id`、sourceRef 或普通 recordId 替代；独立 fixture 待 A/E 冻结后执行 |
+| E-OBS-02 | `Relation.sourceIdentity` 缺失 | N07 | `graph-schema-invalid` / `unavailable` / `not-proven` | **正式安全阻断项，当前 `blocked`**；不以 `Relation.id`、sourceRef、graphNodeId 或普通 recordId 替代 |
 | E-OBS-03 | `graphNodeId` 指向 declaration 节点 | N06 | `declaration-node-not-source-use` / `unknown` / `not-proven` | 不把 declaration 位置冒充 source-use |
 | E-OBS-04 | `sourceUseRef` 指向错误节点类型 | N06 | `declaration-node-not-source-use` / `unknown` / `not-proven` | 不按坐标或 label 猜测 token-use 节点 |
 | E-OBS-05 | `sourceUse` 与 `Relation.sourceUse` 不一致 | N08 | `source-use-location-mismatch` / `unknown` / `not-proven` | 不接受部分字段匹配 |
@@ -64,7 +64,7 @@ E 的八项发现均作为后续 N01–N32 的未执行子案例登记。它们�
 | E-OBS-07 | `ObservationReasonCode` 未声明或为非法值 | N30 | `untrusted-capture` / `unavailable` / `not-proven` | 不接受自由文本、未知 code 或调用者自授予状态 |
 | E-OBS-08 | Graph Schema 与 Validator 枚举不一致 | N10 | `graph-schema-invalid` / `unavailable` / `not-proven` | 不静默丢弃字段、自动转换枚举或生成 digest |
 
-`Relation.sourceIdentity` 的最终字段形状、是否参与 Graph canonical payload 及其与 `relationIdentityVersion` 的组合方式，必须以 A 冻结 schema 为准。本轮只登记缺失时的 fail-closed 预期，不修改 D r3 validator 白名单或真实 Graph。对应 fixture 为 `vectors/negative-missing-relation-source-identity.json`，当前 validator 对该 fixture 不执行拒绝判定，避免把可选字段误报为已完成的 E 验收。
+`Relation.sourceIdentity` 的最终字段形状、是否参与 Graph canonical payload 及其与 `relationIdentityVersion` 的组合方式，必须以 A 冻结 schema 为准。本轮只登记缺失时的 fail-closed 预期，不修改 D r3 validator 白名单或真实 Graph。对应原始 fixture 为 `vectors/negative-missing-relation-source-identity.json`，当前状态是 `prepared/blocked`，不执行拒绝判定。A 修订后，该 fixture 必须同时进入 Node、PowerShell、Schema parity 和 Dual report 的 required negative 集合；任一 required safety case 未执行，整体不能 PASS。
 
 ## 2.2 canonical envelope 与测试向量
 

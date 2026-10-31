@@ -51,11 +51,19 @@ and the selected side graph must contain exactly one node whose `id` equals
 that value. The node must have the frozen SourceGraph kind `token-use`. This
 is the only node-level sourceRef mapping used by this contract; an opaque
 caller string, matching label, DOM selector or array position is not a source
-mapping. `Relation.sourceIdentity` is an E-OBS-02 contract question for the
-current SourceGraph schema; the evidence validator does not yet enforce its
-presence. When present it must equal `sourceRef` exactly. Its absence remains
-a pending `graph-schema-invalid` / `unavailable` case and never overrides a
-missing node mapping. A declaration node (`token`, `file`,
+mapping. The production `Relation` type currently has no `sourceIdentity`,
+`sourceRef` or `sourceUseRef` field. V2 therefore requires an evidence-only,
+host-built `sourceMappings[]` input constructed from independently verified
+SourceGraph bytes and the trusted source snapshot. Each mapping contains
+`sourceRef`, `graphNodeId`, `sourceAnchorRelationId`, a host-derived
+`sourceIdentity`, and the exact `sourceUse`. It is valid only when its anchor
+is a unique file-to-`token-use` `reads` / `source-proven` edge on the selected
+side. The source identity is
+`source:<sourceDigest>:<path>:<charOffset>:<byteOffset>` and is included in the
+graph canonical payload. A caller-provided opaque string never creates a
+mapping. If the host mapping is absent, malformed, cross-side, or not backed by
+the selected graph, the graph is `graph-schema-invalid` / unavailable and no
+digest or trusted observation is produced. A declaration node (`token`, `file`,
 `component`, `jsx-element` or any other non-`token-use` kind) is rejected with
 `observation/declaration-node-not-source-use`.
 
@@ -65,7 +73,7 @@ graph and must provide `relationId`.
 
 The host verifies, in order:
 
-1. `sourceRef` resolves to the expected source entity in the selected side;
+1. `sourceRef` resolves to one host mapping in the selected side;
 2. `graphNodeId` resolves to the source-use/token-use node, never only a declaration node;
 3. if present, `relationId` resolves to exactly one relation in that side graph;
 4. relation endpoints and `sourceUse.path/charOffset/byteOffset/offsetUnit` equal the submitted values;
@@ -75,7 +83,7 @@ Missing `sourceRef` or `sourceUseRef` is not repaired from `recordId`, DOM
 coordinates, selector text, source order or array position.
 
 The field checks are exact and side-local. `sourceRef` must identify the same
-source entity used by the selected graph, `graphNodeId` must identify the
+source entity used by the selected host mapping, `graphNodeId` must identify the
 source-use node, `relationId` (when present) must resolve to one relation, and
 the relation's `from`, `to`, `sourceUse.path`, `charOffset`, `byteOffset` and
 `offsetUnit` must equal the submitted reference. A relation with the same
@@ -264,6 +272,7 @@ browser payload cannot establish project equivalence.
 | `relationId` absent on a partial record | `observation/missing-relation-id` | `partial` |
 | `relationId` missing on a complete claim | `observation/relation-not-in-graph` | `unknown` |
 | relation resolves more than once | `observation/duplicate-relation-id` | `unavailable` |
+| required `Relation.sourceIdentity` absent | `observation/graph-schema-invalid` | `unavailable` |
 | sourceUse fields differ from graph relation | `observation/source-use-ref-mismatch` | `unknown` |
 | source/graph digest differs from host recomputation | `observation/source-digest-mismatch` or `observation/graph-digest-mismatch` | `stale` |
 

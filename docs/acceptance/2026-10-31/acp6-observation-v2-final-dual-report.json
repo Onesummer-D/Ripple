@@ -1,5 +1,14 @@
 {
-  "status": "pass",
+  "status": "blocked",
+  "executionSummary": {
+    "prepared": true,
+    "executed": true,
+    "passed": false,
+    "failed": false,
+    "blocked": true,
+    "requiredNegativeCaseCount": 3,
+    "requiredNegativeExecutedCount": 0
+  },
   "checks": {
     "G0Digest": true,
     "G0CanonicalBytes": true,
@@ -11,7 +20,16 @@
     "ReasonCodeClosedSet": true,
     "SchemaParity": true,
     "ArtifactPathCases": true,
-    "CaptureFormatCases": true
+    "CaptureFormatCases": true,
+    "RequiredPendingNegativePresent": true,
+    "RequiredNegativeExecuted": false
+  },
+  "requiredPending": {
+    "id": "E-OBS-02",
+    "fixture": "negative-missing-relation-source-identity.json",
+    "expectedReasonCode": "graph-schema-invalid",
+    "expectedObservationStatus": "unavailable",
+    "status": "blocked"
   },
   "nodeHeadIndependent": true,
   "powershellDotNetIndependent": true

@@ -1,6 +1,15 @@
 {
   "protocol": "acp6-sourcegraph-observation-v2-schema-parity/v1",
-  "status": "pass",
+  "status": "blocked",
+  "executionSummary": {
+    "prepared": true,
+    "executed": true,
+    "passed": false,
+    "failed": false,
+    "blocked": true,
+    "requiredNegativeCaseCount": 1,
+    "requiredNegativeExecutedCount": 0
+  },
   "checks": {
     "nodeKinds": true,
     "edgeKinds": true,
@@ -15,91 +24,198 @@
       "name": "g0.json",
       "expected": "accept",
       "actual": "accept",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "g4-nonascii.json",
       "expected": "accept",
       "actual": "accept",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "b0-observation.json",
       "expected": "accept",
       "actual": "accept",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-unknown-location.json",
       "expected": "graph-schema-invalid",
       "actual": "graph-schema-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-page-overrides.json",
       "expected": "graph-schema-invalid",
       "actual": "graph-schema-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-missing-evidence-refs.json",
       "expected": "graph-schema-invalid",
       "actual": "graph-schema-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-kind.json",
       "expected": "graph-schema-invalid",
       "actual": "graph-schema-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-unsafe-integer.json",
       "expected": "graph-schema-invalid",
       "actual": "graph-schema-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-empty-page-key.json",
       "expected": "graph-schema-invalid",
       "actual": "graph-schema-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-route.json",
       "expected": "observation-tuple-mismatch",
       "actual": "observation-tuple-mismatch",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-artifact-path.json",
       "expected": "artifact-path-invalid",
       "actual": "artifact-path-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "legacy-v5.json",
       "expected": "graph-schema-invalid",
       "actual": "graph-schema-invalid",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-opaque-source-ref.json",
       "expected": "source-ref-not-in-graph",
       "actual": "source-ref-not-in-graph",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-declaration-node.json",
       "expected": "declaration-node-not-source-use",
       "actual": "declaration-node-not-source-use",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     },
     {
       "name": "negative-cross-side-source-ref.json",
       "expected": "source-ref-not-in-graph",
       "actual": "source-ref-not-in-graph",
-      "pass": true
+      "pass": true,
+      "status": "passed",
+      "prepared": true,
+      "executed": true,
+      "passed": true,
+      "failed": false,
+      "blocked": false
     }
-  ]
+  ],
+  "pending": {
+    "missing-relation-source-identity": {
+      "name": "negative-missing-relation-source-identity.json",
+      "required": true,
+      "safetyBlocker": true,
+      "status": "blocked",
+      "prepared": true,
+      "executed": false,
+      "passed": false,
+      "failed": false,
+      "blocked": true,
+      "expected": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "actual": "blocked: Relation.sourceIdentity presence is not frozen/enforced",
+      "fixtureLoaded": true
+    }
+  }
 }

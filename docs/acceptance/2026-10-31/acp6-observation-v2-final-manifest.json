@@ -73,8 +73,13 @@
   ],
   "pendingNegativeCases": {
     "missing-relation-source-identity": {
-      "status": "not-executed",
+      "status": "blocked",
+      "required": true,
+      "safetyBlocker": true,
       "expectedObservationStatus": "unavailable",
+      "expectedReasonCode": "graph-schema-invalid",
+      "fixture": "vectors/negative-missing-relation-source-identity.json",
+      "versionBasis": {"graphIdentityVersion":"sourcegraph-identity/v2","graphSchemaVersion":"acp6-sourcegraph/v1","relationIdentityVersion":"A-governed-required","observationBindingVersion":"sourcegraph-observation-binding/v1"},
       "reason": "A/E must freeze Relation.sourceIdentity presence; current evidence validator treats the field as optional"
     }
   },
