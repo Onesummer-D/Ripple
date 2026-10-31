@@ -399,6 +399,120 @@ export function App() { return <HashRouter><Routes><Route path="/" element={<Hom
     expect(sourceProvenPageImpact(graph, token.id).certainty).toBe('unknown')
   })
 
+  it('creates B1.1 candidates only for one exact static JSX owner and preserves each use anchor', () => {
+    const { root } = sampleProject()
+    const styles = path.join(root, 'src', 'styles')
+    const layouts = path.join(root, 'src', 'layouts')
+    fs.mkdirSync(styles, { recursive: true })
+    fs.mkdirSync(layouts, { recursive: true })
+    const footer = `export function Footer(){
+  return <footer><p className="footer-tagline">Tagline</p><a className="footer-cta">Call to action</a></footer>
+}`
+    fs.writeFileSync(path.join(layouts, 'Footer.tsx'), footer)
+    const homePath = path.join(root, 'src', 'pages', 'HomePage.tsx')
+    fs.writeFileSync(homePath, fs.readFileSync(homePath, 'utf8').replace('className="text-ink-900"', 'className="title"'))
+    const css = `:root { --accent: #123; --text-secondary: #456; --background: #789; }
+.footer-tagline { color: var(--text-secondary); }
+.footer-cta { color: var(--accent); background: var(--background); }
+.title { color: var(--text-secondary); }`
+    fs.writeFileSync(path.join(styles, 'b11.css'), css)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add B1.1 static owner fixture')
+
+    const graph = analyzeProject(root)
+    const expected = [
+      { token: '--accent', selector: '.footer-cta', file: 'src/layouts/Footer.tsx', className: 'footer-cta' },
+      { token: '--text-secondary', selector: '.footer-tagline', file: 'src/layouts/Footer.tsx', className: 'footer-tagline' },
+      { token: '--text-secondary', selector: '.title', file: 'src/pages/HomePage.tsx', className: 'title' },
+      { token: '--background', selector: '.footer-cta', file: 'src/layouts/Footer.tsx', className: 'footer-cta' },
+    ]
+    const cssUses = graph.nodes.filter(node => node.kind === 'token-use' && node.location?.path === 'src/styles/b11.css')
+    expect(cssUses).toHaveLength(4)
+    for (const item of expected) {
+      const use = cssUses.find(node => node.selectorScope === item.selector && node.label === `var(${item.token})`)
+      expect(use).toBeDefined()
+      const cascade = graph.edges.filter(edge => edge.kind === 'css-cascade' && edge.from === use!.id)
+      expect(cascade).toHaveLength(1)
+      expect(cascade[0]).toMatchObject({ certainty: 'semantic-candidate', sourceUse: {
+        path: 'src/styles/b11.css', charOffset: use!.location!.offset, byteOffset: use!.byteOffset,
+      } })
+      const owner = graph.nodes.find(node => node.id === cascade[0].to)!
+      expect(owner).toMatchObject({ kind: 'jsx-element', className: item.className, location: { path: item.file } })
+      expect(graph.unresolved.some(reason => reason.includes(`src/styles/b11.css#${use!.location!.offset}`) && reason.includes('没有唯一静态 JSX owner'))).toBe(false)
+    }
+    const footerUses = cssUses.filter(node => node.selectorScope === '.footer-cta')
+    expect(new Set(graph.edges.filter(edge => edge.kind === 'css-cascade' && footerUses.some(use => use.id === edge.from)).map(edge => edge.to)).size).toBe(1)
+    expect(graph.edges.filter(edge => edge.kind === 'css-cascade' && footerUses.some(use => use.id === edge.from)).every(edge => edge.certainty === 'semantic-candidate')).toBe(true)
+  })
+
+  it('keeps B1.1 fail-closed for duplicate, missing, dynamic, and incomplete compound owners', () => {
+    const { root } = sampleProject()
+    const styles = path.join(root, 'src', 'styles')
+    const layouts = path.join(root, 'src', 'layouts')
+    fs.mkdirSync(styles, { recursive: true })
+    fs.mkdirSync(layouts, { recursive: true })
+    fs.writeFileSync(path.join(layouts, 'Footer.tsx'), `export function Footer(){
+      const dynamic = true
+      return <footer><p className="footer-tagline">One</p><p className="footer-tagline">Two</p><p className={dynamic ? 'dynamic-only' : 'other'}>Dynamic</p><a className="footer-cta">Call</a></footer>
+    }`)
+    const css = `:root { --accent: #123; }
+.footer-tagline { color: var(--accent); }
+.footer-cta span { color: var(--accent); }
+.missing-owner { color: var(--accent); }
+.dynamic-only { color: var(--accent); }`
+    fs.writeFileSync(path.join(styles, 'b11-negative.css'), css)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add B1.1 negative owner fixtures')
+
+    const graph = analyzeProject(root)
+    const uses = graph.nodes.filter(node => node.kind === 'token-use' && node.location?.path === 'src/styles/b11-negative.css')
+    expect(uses).toHaveLength(4)
+    for (const use of uses) {
+      expect(graph.edges.some(edge => edge.kind === 'css-cascade' && edge.from === use.id)).toBe(false)
+      const reasons = graph.unresolved.filter(reason => reason.includes(`src/styles/b11-negative.css#${use.location!.offset}`))
+      if (use.selectorScope === '.footer-tagline') {
+        expect(reasons.some(reason => reason.includes('匹配到 2 个静态 JSX owner'))).toBe(true)
+      } else {
+        expect(reasons.some(reason => reason.includes('没有唯一静态 JSX owner'))).toBe(true)
+      }
+    }
+    expect(graph.edges.filter(edge => edge.kind === 'css-cascade' && uses.some(use => use.id === edge.from))).toEqual([])
+  })
+
+  it('only accepts tag-only intrinsic owners and refuses global or custom-component boundaries', () => {
+    const { root } = sampleProject()
+    const styles = path.join(root, 'src', 'styles')
+    const layouts = path.join(root, 'src', 'layouts')
+    fs.mkdirSync(styles, { recursive: true })
+    fs.mkdirSync(layouts, { recursive: true })
+    fs.writeFileSync(path.join(layouts, 'Boundaries.tsx'), `function Card({ children }: { children: React.ReactNode }) { return <section className="wrapper">{children}</section> }
+      function Portal({ children }: { children: React.ReactNode }) { return createPortal(children, document.body) }
+      export function Boundaries(){ return <><dialog>One</dialog><Card><span className="target">Two</span><Portal><span className="portal-target">Portal</span></Portal><span className="not-targetish">String</span></Card></> }`)
+    fs.writeFileSync(path.join(styles, 'b11-boundaries.css'), `:root { --accent: #123; }
+dialog { color: var(--accent); }
+html { color: var(--accent); }
+body { color: var(--accent); }
+* { color: var(--accent); }
+:root { background: var(--accent); }
+.portal-target { color: var(--accent); }
+.targetish { color: var(--accent); }
+.wrapper .target { color: var(--accent); }`)
+    git(root, 'add', '.')
+    git(root, 'commit', '-qm', 'add B1.1 global and custom boundary fixtures')
+
+    const graph = analyzeProject(root)
+    const uses = graph.nodes.filter(node => node.kind === 'token-use' && node.location?.path === 'src/styles/b11-boundaries.css')
+    expect(uses).toHaveLength(8)
+    const tagUse = uses.find(use => use.selectorScope === 'dialog')!
+    expect(graph.edges.filter(edge => edge.kind === 'css-cascade' && edge.from === tagUse.id)).toHaveLength(1)
+    expect(graph.edges.find(edge => edge.kind === 'css-cascade' && edge.from === tagUse.id)?.certainty).toBe('semantic-candidate')
+    for (const selector of ['html', 'body', '*', ':root', '.wrapper .target', '.portal-target', '.targetish']) {
+      const use = uses.find(item => item.selectorScope === selector)!
+      expect(graph.edges.some(edge => edge.kind === 'css-cascade' && edge.from === use.id)).toBe(false)
+      expect(graph.unresolved.some(reason => reason.includes(`src/styles/b11-boundaries.css#${use.location!.offset}`))).toBe(true)
+    }
+  })
+
   it('keeps missing fallback variables as exact unknown source evidence', () => {
     const { root } = sampleProject()
     const styles = path.join(root, 'src', 'styles')

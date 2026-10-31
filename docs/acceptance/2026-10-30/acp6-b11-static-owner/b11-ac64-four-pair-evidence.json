@@ -1,0 +1,572 @@
+{
+  "schemaVersion": 2,
+  "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+  "implementationCoreSha": "34d2a22e696c9eb1af15d5cd9800cf76b7cf7883",
+  "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+  "contract": "AC6.2 source-use coverage and AC6.4 consumer-pair proof are independent measurements; an AC6.2 candidate edge never upgrades an AC6.4 pair.",
+  "pairs": [
+    {
+      "pairId": "acp6-unknown-pair-0109278560bac3ca",
+      "original": {
+        "token": "--accent",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 952,
+            "byteOffset": 952,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "0109278560bac3cafcb7af6a431103605ed48475116b909b93671f7c33e2eec0",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "implementationObservation": {
+        "token": "--accent",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 952,
+            "byteOffset": 952,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4. SourceGraph lookup found no jsx-element sourceRef at the recorded file/offset in either Base or Final graph; sourceRef remains missing and is not inferred. Source-use-only edges are retained as non-consumer evidence; strict css-cascade pair edges remain absent. graphDigest is unavailable because Final contains 84 duplicate Relation ID keys and 252 extra occurrences.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN.",
+      "baseGraph": {
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/layouts/Footer.jsx",
+          "locationOffset": 557,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/footer.css:952",
+          "css-token-unknown:src/css/footer.css:952:--accent",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#252:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:dist/assets/index-hJgMd1dF.css#252",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#601:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:dist/assets/index-hJgMd1dF.css#601",
+          "css-token-declaration-use:token:src/css/style.css#297:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:src/css/style.css#297",
+          "css-token-declaration-use:token:src/css/style.css#840:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:src/css/style.css#840"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "finalGraph": {
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/layouts/Footer.jsx",
+          "locationOffset": 557,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/footer.css:952",
+          "css-token-unknown:src/css/footer.css:952:--accent",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#252:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:dist/assets/index-hJgMd1dF.css#252",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#601:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:dist/assets/index-hJgMd1dF.css#601",
+          "css-token-declaration-use:token:src/css/style.css#297:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:src/css/style.css#297",
+          "css-token-declaration-use:token:src/css/style.css#840:token-use:src/css/footer.css#952",
+          "css-token-reference:token-use:src/css/footer.css#952:token:src/css/style.css#840"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      }
+    },
+    {
+      "pairId": "acp6-unknown-pair-5be818af566075f7",
+      "original": {
+        "token": "--text-secondary",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 492,
+        "matchedClass": "footer-tagline",
+        "className": "footer-tagline",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 687,
+            "byteOffset": 687,
+            "selector": ".footer-tagline"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "5be818af566075f7bca41359591e46fb2987c6e291be95c80c04f7c4191fbe4c",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "implementationObservation": {
+        "token": "--text-secondary",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 492,
+        "matchedClass": "footer-tagline",
+        "className": "footer-tagline",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 687,
+            "byteOffset": 687,
+            "selector": ".footer-tagline"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4. SourceGraph lookup found no jsx-element sourceRef at the recorded file/offset in either Base or Final graph; sourceRef remains missing and is not inferred. Source-use-only edges are retained as non-consumer evidence; strict css-cascade pair edges remain absent. graphDigest is unavailable because Final contains 84 duplicate Relation ID keys and 252 extra occurrences.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN.",
+      "baseGraph": {
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/layouts/Footer.jsx",
+          "locationOffset": 492,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/footer.css:687",
+          "css-token-unknown:src/css/footer.css:687:--text-secondary",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#234:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:dist/assets/index-hJgMd1dF.css#234",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#583:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:dist/assets/index-hJgMd1dF.css#583",
+          "css-token-declaration-use:token:src/css/style.css#251:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:src/css/style.css#251",
+          "css-token-declaration-use:token:src/css/style.css#818:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:src/css/style.css#818"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "finalGraph": {
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/layouts/Footer.jsx",
+          "locationOffset": 492,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/footer.css:687",
+          "css-token-unknown:src/css/footer.css:687:--text-secondary",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#234:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:dist/assets/index-hJgMd1dF.css#234",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#583:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:dist/assets/index-hJgMd1dF.css#583",
+          "css-token-declaration-use:token:src/css/style.css#251:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:src/css/style.css#251",
+          "css-token-declaration-use:token:src/css/style.css#818:token-use:src/css/footer.css#687",
+          "css-token-reference:token-use:src/css/footer.css#687:token:src/css/style.css#818"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      }
+    },
+    {
+      "pairId": "acp6-unknown-pair-e3adaceaec850447",
+      "original": {
+        "token": "--text-secondary",
+        "file": "src/pages/Home.jsx",
+        "component": "Home",
+        "elementOffset": 4687,
+        "matchedClass": "title",
+        "className": "title",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/style.css",
+            "index": 8978,
+            "byteOffset": 8978,
+            "selector": ".title"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "e3adaceaec85044790a6732f41d948d5abbc3b9170252a66403d21950e94ac3c",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "implementationObservation": {
+        "token": "--text-secondary",
+        "file": "src/pages/Home.jsx",
+        "component": "Home",
+        "elementOffset": 4687,
+        "matchedClass": "title",
+        "className": "title",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/style.css",
+            "index": 8978,
+            "byteOffset": 8978,
+            "selector": ".title"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4. SourceGraph lookup found no jsx-element sourceRef at the recorded file/offset in either Base or Final graph; sourceRef remains missing and is not inferred. Source-use-only edges are retained as non-consumer evidence; strict css-cascade pair edges remain absent. graphDigest is unavailable because Final contains 84 duplicate Relation ID keys and 252 extra occurrences.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN.",
+      "baseGraph": {
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/pages/Home.jsx",
+          "locationOffset": 4687,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/style.css:8978",
+          "css-token-unknown:src/css/style.css:8978:--text-secondary",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#234:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:dist/assets/index-hJgMd1dF.css#234",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#583:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:dist/assets/index-hJgMd1dF.css#583",
+          "css-token-declaration-use:token:src/css/style.css#251:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:src/css/style.css#251",
+          "css-token-declaration-use:token:src/css/style.css#818:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:src/css/style.css#818"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "finalGraph": {
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/pages/Home.jsx",
+          "locationOffset": 4687,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/style.css:8978",
+          "css-token-unknown:src/css/style.css:8978:--text-secondary",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#234:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:dist/assets/index-hJgMd1dF.css#234",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#583:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:dist/assets/index-hJgMd1dF.css#583",
+          "css-token-declaration-use:token:src/css/style.css#251:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:src/css/style.css#251",
+          "css-token-declaration-use:token:src/css/style.css#818:token-use:src/css/style.css#8978",
+          "css-token-reference:token-use:src/css/style.css#8978:token:src/css/style.css#818"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      }
+    },
+    {
+      "pairId": "acp6-unknown-pair-43362b94b7102601",
+      "original": {
+        "token": "--background",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 977,
+            "byteOffset": 977,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "pairContentSha256": "43362b94b7102601afe22f5274140941a93004537f70ad526a74df99f0aaa55a",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "implementationObservation": {
+        "token": "--background",
+        "file": "src/layouts/Footer.jsx",
+        "component": "Footer",
+        "elementOffset": 557,
+        "matchedClass": "footer-cta",
+        "className": "footer-cta",
+        "dynamic": false,
+        "certainty": "source-positioned-static-classname",
+        "sourceUses": [
+          {
+            "file": "src/css/footer.css",
+            "index": 977,
+            "byteOffset": 977,
+            "selector": ".footer-cta"
+          }
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-base-and-final-graph",
+        "sourceRefEvidence": {
+          "baseNodeMatches": 0,
+          "finalNodeMatches": 0,
+          "note": "No matching jsx-element node exists at recorded file/offset; sourceRef intentionally not inferred."
+        }
+      },
+      "before": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f"
+      },
+      "after": {
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN",
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad"
+      },
+      "unknownReason": "The fixed project contains the apparent JSX owner only in a source comment, so the implementation has no executable AST host/source edge for this pair. Static CSS candidate evidence remains unresolved and cannot prove AC6.4. SourceGraph lookup found no jsx-element sourceRef at the recorded file/offset in either Base or Final graph; sourceRef remains missing and is not inferred. Source-use-only edges are retained as non-consumer evidence; strict css-cascade pair edges remain absent. graphDigest is unavailable because Final contains 84 duplicate Relation ID keys and 252 extra occurrences.",
+      "ac62Relation": "Do not infer AC6.4 from the separate AC6.2 row; this pair remains independently UNKNOWN.",
+      "baseGraph": {
+        "graphArtifactSha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/layouts/Footer.jsx",
+          "locationOffset": 557,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/footer.css:977",
+          "css-token-unknown:src/css/footer.css:977:--background",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#170:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:dist/assets/index-hJgMd1dF.css#170",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#533:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:dist/assets/index-hJgMd1dF.css#533",
+          "css-token-declaration-use:token:src/css/style.css#129:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:src/css/style.css#129",
+          "css-token-declaration-use:token:src/css/style.css#760:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:src/css/style.css#760"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      },
+      "finalGraph": {
+        "graphArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+        "sourceRef": null,
+        "sourceRefStatus": "missing-from-graph",
+        "sourceRefLookup": {
+          "kind": "jsx-element",
+          "path": "src/layouts/Footer.jsx",
+          "locationOffset": 557,
+          "matchingNodeCount": 0
+        },
+        "sourceUseEdgeCount": 10,
+        "sourceUseEdgeIds": [
+          "css-token-use-source:src/css/footer.css:977",
+          "css-token-unknown:src/css/footer.css:977:--background",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#170:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:dist/assets/index-hJgMd1dF.css#170",
+          "css-token-declaration-use:token:dist/assets/index-hJgMd1dF.css#533:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:dist/assets/index-hJgMd1dF.css#533",
+          "css-token-declaration-use:token:src/css/style.css#129:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:src/css/style.css#129",
+          "css-token-declaration-use:token:src/css/style.css#760:token-use:src/css/footer.css#977",
+          "css-token-reference:token-use:src/css/footer.css#977:token:src/css/style.css#760"
+        ],
+        "edgeCount": 0,
+        "edgeIds": [],
+        "anchored": false,
+        "status": "UNKNOWN"
+      }
+    }
+  ],
+  "summary": {
+    "count": 4,
+    "allBeforeUnknown": true,
+    "allAfterUnknown": true,
+    "strictPairProofsAdded": 0,
+    "sourceRefsMissing": 4
+  },
+  "prArchiveHead": "6388abec96183cc28824dc2b7fa486e4e944d305",
+  "prArchiveTree": "8455bfc0c6f2ff5491dad8a418c8b8a7bc78ba2e",
+  "codeImplementationTree": "8bb685b344a8a58d5f3f26f0ae5f4f344a6fa2bd",
+  "graphArtifacts": {
+    "base": {
+      "path": "b11-graph-base.json",
+      "sha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+      "nodes": 675,
+      "edges": 5302,
+      "unresolved": 253
+    },
+    "final": {
+      "path": "b11-graph-final34d2.json",
+      "sha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+      "nodes": 675,
+      "edges": 3046,
+      "unresolved": 253
+    }
+  },
+  "graphDigest": {
+    "status": "unavailable",
+    "reason": "Final graph has 84 duplicate Relation ID keys and 252 extra occurrences; no strict digest proof is claimed."
+  },
+  "sourceRefPolicy": "sourceRef is taken only from an actual jsx-element node at the recorded file/offset. Missing matches stay null with evidence status missing-from-graph."
+}

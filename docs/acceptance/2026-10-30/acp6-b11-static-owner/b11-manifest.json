@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-30",
+  "baseSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+  "baseTree": "ede999bd2eb1507ac03b55762c94d489b93d9965",
+  "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+  "files": [
+    {
+      "path": "docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-four-row-sourcegraph.json",
+      "bytes": 3938,
+      "sha256": "62a392e0bc5b61288d618172ca214228909bf9556d932cb27bbc7bbf7f809486"
+    },
+    {
+      "path": "docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-comparison.json",
+      "bytes": 160482,
+      "sha256": "dee8e9a09ba830cc463ee2bd1ace0d545dce8f2e70c604a75dccd2876cf5ac1f"
+    },
+    {
+      "path": "docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-current.json",
+      "bytes": 676915,
+      "sha256": "d27d5c1feae0cf59b66e7173470ea32a86cd5e1eaebd9ac44c8766fdeaa94ee5"
+    },
+    {
+      "path": "docs/acceptance/2026-10-30/acp6-b11-static-owner/README.md",
+      "bytes": 5461,
+      "sha256": "cc54cae2b01e498acaac8d305267eb4ccbc06e32181ffaa1c0507f70296321d0"
+    }
+  ],
+  "checks": {
+    "filteredVitest": "PASS: 2 files, 3 passed, 36 skipped",
+    "fullDirectedVitest": "38 passed, 1 skipped, worker onTaskUpdate timeout, exit 1 on Windows",
+    "typecheck": "PASS",
+    "build": "PASS",
+    "gitDiffCheck": "PASS",
+    "linuxCi": "UNVERIFIED",
+    "dockerChromium": "UNVERIFIED",
+    "bV5": "exit 2, 3 PASS / 2 PENDING / 0 ERROR"
+  },
+  "implementationCommit": "ea38c442d5c0ac3e709ea82a8c3d2a893d47b449",
+  "implementationTree": "5fa2596517abf289880c18b259c33592ebf2413d",
+  "finalCommit": "assigned after manifest commit"
+}

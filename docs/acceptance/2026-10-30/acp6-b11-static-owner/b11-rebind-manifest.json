@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "kind": "AC-P6 B1.1 exact-head evidence manifest",
+  "implementationCoreSha": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
+  "implementationTree": "7fad41423cb10603bb193d74913b19259f3f4b32",
+  "baseCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+  "project": {
+    "name": "allanhue/webportflio",
+    "sha": "b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "probe": {
+    "path": "scripts/b-css-token-probe.mjs",
+    "version": "v5",
+    "gitBlobSha": "3431294c0807161432e0a7c986825ffc5263bc87"
+  },
+  "runs": [
+    {
+      "label": "implementation",
+      "expectCoreSha": "45555a3c8a4f7663b36a47c7ee0d990c88699724",
+      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs \"D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/webportflio-b244f85\" --acceptance --expect-core-sha 45555a3c8a4f7663b36a47c7ee0d990c88699724 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-head45555.json",
+      "exitCode": 2,
+      "report": "b11-v5-head45555.json"
+    },
+    {
+      "label": "base",
+      "expectCoreSha": "5b75fe699afce98638e6fd6ad110911d83389dc8",
+      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs scripts/b-css-token-probe.mjs \"D:/Onesummer_D/Learning/Competitons/ShuMei_QG/Ripple涟漪/_scratch/webportflio-b244f85\" --acceptance --expect-core-sha 5b75fe699afce98638e6fd6ad110911d83389dc8 --json docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-v5-base-5b75fe.json",
+      "exitCode": 2,
+      "report": "b11-v5-base-5b75fe.json"
+    }
+  ],
+  "artifacts": {
+    "b11-v5-head45555.json": {
+      "bytes": 676953,
+      "sha256": "3b36fef855dca7ae62db22c93177a35af0570b8ecd4a18b9d9a0194556328d1e",
+      "gitBlobSha": "2da046981bb8e5634f867262a2075c1279ce67ef"
+    },
+    "b11-v5-base-5b75fe.json": {
+      "bytes": 1035281,
+      "sha256": "fb7d4d77481d30fd11daf193a1b5b20fd31f7946b74100a7715bbba9f2708309",
+      "gitBlobSha": "0ab04e3ce384e1f7ab3e65d7750189b98371c2ff"
+    },
+    "b11-graph-base.json": {
+      "bytes": 3519068,
+      "sha256": "30047feae2d45f00ae39b8661048e6ccd1f2ad455dfa317df75cbedfe2e5c19f",
+      "gitBlobSha": "e2f9eda6e2d7230bcce4f668ad35d4021f42c4ce"
+    },
+    "b11-graph-head45555.json": {
+      "bytes": 2064490,
+      "sha256": "97c8ecae91a091d11413c163fb1ec7fd1046455e85353fb63babf3cbd5da3789",
+      "gitBlobSha": "0aef10d847b44208fee6783f5141db2c388549d4"
+    },
+    "b11-graph-diff.json": {
+      "bytes": 3916,
+      "sha256": "6ec6496cfb142415a3ff3e77e899addbb7c76f29ecf32e3178aab1c826ac092d",
+      "gitBlobSha": "40d3949a01e2dd34cf2aef2cf4d0b85c5b1b3597"
+    },
+    "b11-ac64-four-pair-evidence.json": {
+      "bytes": 8571,
+      "sha256": "239318c96f6d0b8cd0ea5ff81da23cec0c3bd20d5dd9f1fab34f8ada4aa76724",
+      "gitBlobSha": "fc5857a8ff8404dfe2bf026568c10b3c8f7c6026"
+    }
+  },
+  "acceptance": {
+    "implementation": "3 PASS / 2 PENDING / 0 ERROR; exit 2 is expected while AC6.2/6.4 remain pending",
+    "base": "3 PASS / 2 PENDING / 0 ERROR; exit 2",
+    "edgeStats": {
+      "base": 5302,
+      "implementation": 3070,
+      "delta": -2232
+    },
+    "sourceProvenEdgesRemoved": 0,
+    "sourceProvenEdgesAdded": 0
+  },
+  "notes": [
+    "B v5 matcher/probe and thresholds were not modified.",
+    "The fixed project SHA is identical for both runs.",
+    "AC6.4 four-pair evidence is independently recorded in b11-ac64-four-pair-evidence.json."
+  ]
+}

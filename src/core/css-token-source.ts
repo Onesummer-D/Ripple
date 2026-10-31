@@ -161,3 +161,52 @@ export function selectorClassTokens(selector: string): { tokens: string[]; suppo
   }
   return { tokens: [...tokens], supported }
 }
+
+export interface CssSelectorPart {
+  tagName?: string
+  classNames: string[]
+}
+
+export interface CssSelectorStructure {
+  supported: boolean
+  parts: CssSelectorPart[]
+  reason?: string
+}
+
+/**
+ * Parses the conservative selector subset used for static JSX owner matching.
+ *
+ * A selector list, attribute/id selector, combinator other than descendant
+ * whitespace, escaped identifier, and pseudo state/generated-content selector
+ * is deliberately left unsupported. The original selectorScope remains on
+ * the SourceNode; this structure is only a comparison aid.
+ */
+export function parseCssSelectorStructure(selector: string): CssSelectorStructure {
+  const input = selector.trim()
+  const unsupported = (reason: string): CssSelectorStructure => ({ supported: false, parts: [], reason })
+  if (!input) return unsupported('empty selector')
+  if (input.includes(',')) return unsupported('selector list is ambiguous')
+  if (/[\\[\]#,:+~>*]/.test(input)) return unsupported('selector requires unsupported syntax')
+
+  const parts: CssSelectorPart[] = []
+  for (const rawPart of input.split(/\s+/)) {
+    let cursor = 0
+    let tagName: string | undefined
+    const tag = /^[A-Za-z][\w-]*/.exec(rawPart)
+    if (tag) {
+      tagName = tag[0].toLowerCase()
+      cursor = tag[0].length
+    }
+    const classNames: string[] = []
+    while (cursor < rawPart.length) {
+      if (rawPart[cursor] !== '.') return unsupported('compound selector contains unsupported syntax')
+      const className = /^[\w-]+/.exec(rawPart.slice(cursor + 1))
+      if (!className) return unsupported('class selector is not a static identifier')
+      classNames.push(className[0])
+      cursor += className[0].length + 1
+    }
+    if (!tagName && !classNames.length) return unsupported('selector part has no static tag or class')
+    parts.push({ ...(tagName ? { tagName } : {}), classNames })
+  }
+  return { supported: true, parts }
+}
