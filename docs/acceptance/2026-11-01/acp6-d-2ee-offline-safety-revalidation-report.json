@@ -1,6 +1,6 @@
 {
   "protocol": "acp6-d-2ee-offline-safety-revalidation/v1",
-  "status": "passed-offline; formal acceptance HOLD",
+  "status": "completed; waiting",
   "testSha": "2ee08975c891abb1df5ff38881326e78ead28076",
   "testTree": "60e397f075f8a1d62226d6a736993580b48df9ad",
   "detachedWorktree": "acp6-d-observation-v2-replay-20261101",
@@ -60,5 +60,21 @@
     "relabelled": false
   },
   "evidenceHead": "b6c8efcf4b1e093f8b31b74a362967cab273cb1b",
-  "evidenceTree": "a104e03ff7394516aba82bcfd0fc84ced78bd12e"
+  "evidenceTree": "a104e03ff7394516aba82bcfd0fc84ced78bd12e",
+  "completion": {
+    "offlineRevalidation": "completed",
+    "waiting": true,
+    "formalAcceptance": "HOLD",
+    "completedOn": "2026-11-01"
+  },
+  "evidenceIdentity": {
+    "kind": "historical-local-evidence-snapshot",
+    "isFinalRemoteHead": false,
+    "finalRemoteArchive": {
+      "branch": "evidence/d-observation-v2-a2ee-revalidation-20261101",
+      "head": "544fbdcc4fdc9b090301d6a57b59443f0c42e053",
+      "tree": "a3703be4ce16a325203b9fb6d46fbe9962c37237"
+    },
+    "relationship": "evidenceHead/evidenceTree identify the local snapshot used to produce this report; the final remote archive is the delivery snapshot and must not be confused with the local evidence identity"
+  }
 }
