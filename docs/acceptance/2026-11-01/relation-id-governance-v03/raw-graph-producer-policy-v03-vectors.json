@@ -1,0 +1,180 @@
+{
+  "vectorVersion": "relation-id-v03-binding-v1",
+  "contractDocument": "RAW-GRAPH-PRODUCER-DIGEST-CONTRACT-V0.3.md",
+  "graphIdentityVersion": "sourcegraph-identity/v2",
+  "relationIdentityVersion": "relation-id/v1",
+  "hashAlgorithm": "sha256",
+  "canonicalization": {
+    "json": "RFC8785-JCS",
+    "encoding": "UTF-8",
+    "unicodeNormalization": "none",
+    "finiteNumbersOnly": true,
+    "arraySort": {
+      "nodes": ["id", "kind", "sourceRef", "payloadSha256"],
+      "edges": ["relationId", "kind", "from", "to", "certainty", "payloadSha256", "sourceUse.path", "sourceUse.byteOffset", "sourceUse.charOffset", "selectorScope.raw", "mediaContext"],
+      "unresolved": ["id", "reason", "sourceRef", "byteOffset", "charOffset"],
+      "sourceBindings": ["role", "path", "sourceFileSha256"],
+      "producerPolicies": ["policyId"],
+      "relationKinds": "lexicographic",
+      "certaintySet": "lexicographic"
+    },
+    "occurrenceOrdinal": "zero-based position after canonical edge sorting; audit locator only"
+  },
+  "fixtures": {
+    "rawGraphBase": {
+      "artifactVersion": "raw-sourcegraph/v1",
+      "nodes": [
+        {"id": "jsx:Footer", "kind": "jsx-element", "sourceRef": "src/Footer.tsx:10", "payloadSha256": "node-footer"},
+        {"id": "css:accent", "kind": "token-definition", "sourceRef": "src/theme.css:2", "payloadSha256": "node-accent"}
+      ],
+      "edges": [
+        {"relationId": "legacy:imports:1", "kind": "imports", "from": "jsx:Footer", "to": "css:accent", "certainty": "source-proven", "payloadSha256": "edge-import", "sourceUse": null, "selectorScope": null, "mediaContext": null},
+        {"relationId": "candidate:old", "kind": "css-cascade", "from": "css:accent", "to": "jsx:Footer", "certainty": "semantic-candidate", "payloadSha256": "edge-cascade", "sourceUse": {"path": "src/theme.css", "byteOffset": 28, "charOffset": 28}, "selectorScope": {"raw": ".footer-cta", "canonical": ".footer-cta"}, "mediaContext": "default"}
+      ],
+      "unresolved": [],
+      "sourceBindings": [
+        {"role": "definition", "path": "src/theme.css", "sourceFileSha256": "css-sha"},
+        {"role": "consumer-source", "path": "src/Footer.tsx", "sourceFileSha256": "tsx-sha"}
+      ]
+    },
+    "rawGraphReordered": {
+      "artifactVersion": "raw-sourcegraph/v1",
+      "sourceBindings": [
+        {"sourceFileSha256": "tsx-sha", "path": "src/Footer.tsx", "role": "consumer-source"},
+        {"sourceFileSha256": "css-sha", "path": "src/theme.css", "role": "definition"}
+      ],
+      "unresolved": [],
+      "edges": [
+        {"mediaContext": "default", "selectorScope": {"canonical": ".footer-cta", "raw": ".footer-cta"}, "sourceUse": {"charOffset": 28, "byteOffset": 28, "path": "src/theme.css"}, "payloadSha256": "edge-cascade", "certainty": "semantic-candidate", "to": "jsx:Footer", "from": "css:accent", "kind": "css-cascade", "relationId": "candidate:old"},
+        {"mediaContext": null, "selectorScope": null, "sourceUse": null, "payloadSha256": "edge-import", "certainty": "source-proven", "to": "css:accent", "from": "jsx:Footer", "kind": "imports", "relationId": "legacy:imports:1"}
+      ],
+      "nodes": [
+        {"payloadSha256": "node-accent", "sourceRef": "src/theme.css:2", "kind": "token-definition", "id": "css:accent"},
+        {"payloadSha256": "node-footer", "sourceRef": "src/Footer.tsx:10", "kind": "jsx-element", "id": "jsx:Footer"}
+      ]
+    },
+    "producerEvidenceComplete": {
+      "evidenceVersion": "producer-evidence/v1",
+      "graphIdentityVersion": "sourcegraph-identity/v2",
+      "rawGraphArtifactSha256": "RAW_BASE",
+      "analyzerBuild": {"implementationSha": "impl-123", "implementationTree": "tree-123", "relevantBlobs": [{"path": "src/core/project.ts", "blobSha": "blob-project"}], "toolVersion": "tool-1", "lockfileSha256": "lock-1"},
+      "edgeOccurrences": [
+        {"occurrenceOrdinal": 0, "relationId": "candidate:old", "payloadSha256": "edge-cascade", "producerPolicyId": "governed-css-selector-candidate-v1", "producerIdentity": "css-selector-candidate", "producerContractVersion": "relation-id/v1", "policyVersion": "policy-1"},
+        {"occurrenceOrdinal": 1, "relationId": "legacy:imports:1", "payloadSha256": "edge-import", "producerPolicyId": "legacy-default-v1", "producerIdentity": "legacy-default", "producerContractVersion": "legacy", "policyVersion": "policy-1"}
+      ]
+    },
+    "policyManifestComplete": {
+      "policyManifestVersion": "producer-policy/v1",
+      "graphIdentityVersion": "sourcegraph-identity/v2",
+      "rawGraphArtifactSha256": "RAW_BASE",
+      "producerEvidenceSha256": "PRODUCER_COMPLETE",
+      "producerPolicies": [
+        {"policyId": "governed-css-selector-candidate-v1", "producerIdentity": "css-selector-candidate", "relationIdentityVersion": "relation-id/v1", "relationKinds": ["css-cascade"], "certaintySet": ["semantic-candidate"], "mode": "governed", "producerEvidenceRef": "producer-evidence.json"},
+        {"policyId": "legacy-default-v1", "producerIdentity": "legacy-default", "relationIdentityVersion": "legacy", "relationKinds": ["imports"], "mode": "legacy", "producerEvidenceRef": "producer-evidence.json"}
+      ]
+    }
+  },
+  "vectors": [
+    {
+      "id": "raw-order-stable",
+      "category": "rawGraphArtifactSha256",
+      "inputs": ["rawGraphBase", "rawGraphReordered"],
+      "assert": {"rawHashEqual": true, "finalDigestInputOrderIndependent": true}
+    },
+    {
+      "id": "raw-content-change",
+      "category": "rawGraphArtifactSha256",
+      "mutation": "change edge-cascade payloadSha256 only",
+      "assert": {"rawHashEqual": false, "producerEvidenceMustRegenerate": true, "finalDigestEqual": false}
+    },
+    {
+      "id": "producer-exact-build",
+      "category": "producerEvidence",
+      "assert": {"implementationSha": "required", "implementationTree": "required", "relevantBlobs": "required", "toolVersion": "required", "lockfileSha256": "required"}
+    },
+    {
+      "id": "producer-build-mismatch",
+      "category": "producerEvidence",
+      "mutation": "replace implementationTree without changing edge records",
+      "assert": {"producerEvidenceStatus": "rejected", "graphDigestStatus": "unavailable"}
+    },
+    {
+      "id": "producer-missing-occurrence",
+      "category": "producerEvidence",
+      "mutation": "remove occurrenceOrdinal=1",
+      "assert": {"producerEvidenceStatus": "rejected", "graphDigestStatus": "unavailable"}
+    },
+    {
+      "id": "producer-duplicate-occurrence",
+      "category": "producerEvidence",
+      "mutation": "duplicate occurrenceOrdinal=0",
+      "assert": {"producerEvidenceStatus": "rejected", "graphDigestStatus": "unavailable"}
+    },
+    {
+      "id": "producer-conflicting-policy",
+      "category": "producerEvidence",
+      "mutation": "assign one edge occurrence to two policy IDs",
+      "assert": {"producerEvidenceStatus": "rejected", "graphDigestStatus": "unavailable"}
+    },
+    {
+      "id": "policy-order-stable",
+      "category": "policyManifestSha256",
+      "mutation": "reverse producerPolicies and relationKinds arrays",
+      "assert": {"policyHashEqual": true}
+    },
+    {
+      "id": "policy-version-change",
+      "category": "graphDigestSha256",
+      "mutation": "change relationIdentityVersion for governed policy",
+      "assert": {"rawHashEqual": true, "producerEvidenceHashEqual": true, "policyHashEqual": false, "finalDigestEqual": false}
+    },
+    {
+      "id": "same-id-same-payload",
+      "category": "relationUniqueness",
+      "mutation": "duplicate relationId and identical payload",
+      "assert": {"uniqueness": "reject", "silentDeduplication": false}
+    },
+    {
+      "id": "same-id-different-payload",
+      "category": "relationUniqueness",
+      "mutation": "duplicate relationId with different endpoint or payload",
+      "assert": {"uniqueness": "reject", "payloadConflict": true}
+    },
+    {
+      "id": "selector-scope-separated",
+      "category": "relationIdentity",
+      "mutation": "same endpoint, different raw selectorScope or mediaContext",
+      "assert": {"relationIdsEqual": false, "merge": false}
+    },
+    {
+      "id": "migration-retained",
+      "category": "migration",
+      "input": {"oldRelationId": "candidate:old", "oldOccurrenceOrdinal": 0, "newRelationId": "candidate:old", "payloadCompatible": true, "uniqueCandidate": true},
+      "assert": {"status": "retained"}
+    },
+    {
+      "id": "migration-renamed",
+      "category": "migration",
+      "input": {"oldRelationId": "candidate:old", "oldOccurrenceOrdinal": 0, "newRelationId": "candidate:new", "payloadCompatible": true, "uniqueCandidate": true},
+      "assert": {"status": "renamed"}
+    },
+    {
+      "id": "migration-split",
+      "category": "migration",
+      "input": {"oldRelationId": "candidate:old", "oldOccurrences": [0, 1], "newRelationIds": ["candidate:new-a", "candidate:new-b"], "injective": true, "occurrencesDropped": false},
+      "assert": {"status": "split"}
+    },
+    {
+      "id": "migration-unresolved",
+      "category": "migration",
+      "input": {"oldRelationId": "candidate:old", "oldOccurrenceOrdinal": 0, "candidateCount": 2, "sourceSpanComplete": false},
+      "assert": {"status": "unresolved", "failClosed": true}
+    },
+    {
+      "id": "certainty-preserved",
+      "category": "semantic-boundary",
+      "mutation": "valid producer evidence for semantic-candidate edge",
+      "assert": {"certainty": "semantic-candidate", "sourceProvenUpgrade": false, "runtimeObservedUpgrade": false}
+    }
+  ]
+}

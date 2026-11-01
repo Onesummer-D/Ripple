@@ -1,0 +1,36 @@
+{
+  "manifestVersion": "relation-id-v03-binding-manifest-v1",
+  "status": "evidence-only",
+  "baseArchiveHead": "5b6b101872f12af9b9ec0654f6d8ca25e8142419",
+  "priorV03Commit": "dd9ebde720e345ae05e7459c8e8706c1a0835ae9",
+  "files": [
+    {
+      "path": "docs/acceptance/2026-11-01/relation-id-governance-v03/RELATION-ID-GOVERNANCE-V0.3-RULING.md",
+      "sha256": "08acddc5abe3eb6cf89fb376a181a6fa6ab83a276663d2a451c18c1cab784594",
+      "bytes": 12446,
+      "lf": 259,
+      "cr": 0
+    },
+    {
+      "path": "docs/acceptance/2026-11-01/relation-id-governance-v03/RAW-GRAPH-PRODUCER-DIGEST-CONTRACT-V0.3.md",
+      "sha256": "312cf579346c3aee15a00d61617d1b7273f2cb495576a6f265a3e71d90d027d0",
+      "bytes": 9438,
+      "lf": 245,
+      "cr": 0
+    },
+    {
+      "path": "docs/acceptance/2026-11-01/relation-id-governance-v03/raw-graph-producer-policy-v03-vectors.json",
+      "sha256": "cd546d8c69df2acbe5bce76f1db280bcd9cc9162fa944731b7402fd80e9bd2fb",
+      "bytes": 9497,
+      "lf": 180,
+      "cr": 0
+    }
+  ],
+  "scopeLock": [
+    "no src changes",
+    "no model.ts changes",
+    "no B v5 changes",
+    "no D or Runtime Identity changes",
+    "no authorization changes"
+  ]
+}
