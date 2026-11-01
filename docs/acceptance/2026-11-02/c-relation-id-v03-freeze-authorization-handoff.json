@@ -1,0 +1,62 @@
+{
+  "schema": "ripple-a-v2-freeze-c-handoff/v1",
+  "generatedAt": "2026-11-01",
+  "freeze": {
+    "commit": "7a9d0e87db9b01439b89066b091a8ce240aa2f62",
+    "tree": "dad006c6c20ee7369ad2eb9a9e509e39659450be",
+    "parent": "88b4a67143db51ba1f16234a8e25e8af9536bb02",
+    "branch": "evidence/a-v2-source-mapping-remediation-20261101",
+    "status": "evidence-only frozen; host production trust HOLD"
+  },
+  "contractBlobs": {
+    "docs/acceptance/2026-10-31/acp6-observation-v2-final-manifest.json": "c276554b97966efebb8c0282982d905ec819aa68",
+    "docs/acceptance/2026-11-01/relation-id-v03-production-authorization-20261102.md": "1b6c6af93c1c09fb32956160d07ea30c7f936d6c",
+    "docs/acceptance/2026-11-01/v2-contract-freeze-ruling-20261102.md": "df6448f520f2fa5d0e75b83e3b90fad5f496f129",
+    "docs/architecture/acp6-sourcegraph-observation-v2-final-2026-10-31.md": "f8c1e1642e58d96330835cdb7dd98c6d1d262815"
+  },
+  "sourceCandidate": {
+    "commit": "2ee08975c891abb1df5ff38881326e78ead28076",
+    "tree": "60e397f075f8a1d62226d6a736993580b48df9ad",
+    "parent": "c0c543cbde9c9e9fda5e0bba61bfd8a64bbc20",
+    "bundlePath": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\exports\\ripple-a-v2-source-mapping-remediation-2ee08975.bundle",
+    "bundleSha256": "b9af6521b76f159b07f519e79046fcdd4c06cc36a38a4d93e3caf62e6fa47a08"
+  },
+  "freezeDelta": {
+    "bundlePath": "D:\\Onesummer_D\\Learning\\Competitons\\ShuMei_QG\\exports\\ripple-a-v2-freeze-7a9d0e8-delta.bundle",
+    "bundleSha256": "34712d6c5f53c0f3c7a8aa344af869d05b93886e923563816b87b989979422c4",
+    "requires": "2ee08975c891abb1df5ff38881326e78ead28076",
+    "contains": "7a9d0e87db9b01439b89066b091a8ce240aa2f62"
+  },
+  "cAuthorization": {
+    "baseCommit": "6388abec96183cc28824dc2b7fa486e4e944d305",
+    "baseTree": "8455bfc0c6f2ff5491dad8a418c8b8a7bc78ba2e",
+    "baseParent": "6a6dba09d35efc8f80ea1d0ab0875c245f0197d6",
+    "targetBranch": "feat/c-relation-id-v03-production-20261102",
+    "whitelist": [
+      "dedicated Relation ID module under src/core/",
+      "minimal Relation ID producer call-site hunks in src/core/project.ts",
+      "dedicated tests and fixtures",
+      "v0.3 docs/migration/evidence"
+    ],
+    "forbidden": [
+      "src/core/model.ts",
+      "Runtime Identity v1.2",
+      "VerificationRun",
+      "D observation collector",
+      "E pairing",
+      "F/UI",
+      "Candidate/Scope/Verification/Approval/Apply/Rollback",
+      "B v5 matcher/probe/thresholds",
+      "package/deployment/workflow files"
+    ],
+    "gates": [
+      "verify exact base commit/tree/parent in clean worktree",
+      "preserve Draft PR and independent B v5 replay",
+      "rawGraphArtifactSha256 -> producerEvidenceSha256 -> policyManifestSha256 -> final graphDigest",
+      "host-owned projectId/sourceDigest/graphDigest/sourceMappings binding unchanged",
+      "duplicate/missing/conflicting producer evidence => graphDigestStatus=unavailable",
+      "no automatic legacy ID renumbering or trust upgrade"
+    ]
+  },
+  "guard": "Final graphDigest and SourceMappings binding are architecture-owned. C must not redefine canonical fields, hostSideBinding, sourceMappings trust root, side separation, or graph digest dependency order."
+}
