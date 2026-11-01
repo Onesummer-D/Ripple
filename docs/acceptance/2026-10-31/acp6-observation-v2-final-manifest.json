@@ -1,0 +1,213 @@
+{
+  "protocol": "acp6-sourcegraph-observation-v2-final",
+  "status": "A/E final-review candidate; not frozen",
+  "base": "002df5e5b91ef387fd96f537cbd8093f641f6491",
+  "productionChange": false,
+  "contract": {
+    "graphIdentityVersion": "sourcegraph-identity/v2",
+    "graphSchemaVersion": "acp6-sourcegraph/v1",
+    "relationIdentityVersion": "relation-id/v1",
+    "observationBindingVersion": "sourcegraph-observation-binding/v1",
+    "offsetUnit": "code-unit",
+    "domainSeparated": true,
+    "observationReasonNamespace": "observation/",
+    "sourceMappingVersion": "sourcegraph-source-mapping/v1",
+    "projectIdSource": "host-project-registry"
+  },
+  "legacyQuarantineSchema": "acp6-observation-v2-legacy-input.schema.json",
+  "legacyNegativeFixture": "vectors/legacy-v5.json",
+  "tools": {
+    "node": "node docs/acceptance/2026-10-31/run-final-observation-vectors.mjs",
+    "powershell": "pwsh -NoProfile -File docs/acceptance/2026-10-31/canonical-observation-digest.ps1",
+    "dualCompare": "node docs/acceptance/2026-10-31/compare-final-reports.mjs",
+    "schemaParity": "node docs/acceptance/2026-10-31/validate-final-schemas.mjs"
+  },
+  "reports": [
+    "acp6-observation-v2-final-digest-report.json",
+    "acp6-observation-v2-final-powershell-report.json",
+    "acp6-observation-v2-final-dual-report.json",
+    "acp6-observation-v2-final-schema-report.json"
+  ],
+  "vectors": {
+    "g0": {
+      "path": "vectors/g0.json",
+      "expectedDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b"
+    },
+    "g1-shuffled": {
+      "path": "vectors/g1-shuffled.json",
+      "expected": "same digest as g0"
+    },
+    "g2-byte-offset-changed": {
+      "path": "vectors/g2-byte-offset-changed.json",
+      "expectedDigest": "f3ecbcbb7d8b5208a5a74a625a2896b7c54de13602870225fde55d1ebfbe398b"
+    },
+    "g4-nonascii": {
+      "path": "vectors/g4-nonascii.json",
+      "expectedDigest": "61a63dbcf688144e5181ad379dde80a330911e52186a1709a336b4bbc39b265f"
+    },
+    "g5-candidate-side": {
+      "path": "vectors/g5-candidate-side.json",
+      "expectedDigest": "42126ea41e94e985ec917f029fa42854b52afc6ca2bc899c603608949fb211bb",
+      "expected": "candidate side canonical bytes are independently compared"
+    },
+    "g3-duplicate-relation": {
+      "path": "vectors/g3-duplicate-relation.json",
+      "expectedReasonCode": "graph-schema-invalid"
+    },
+    "b0-observation": {
+      "path": "vectors/b0-observation.json",
+      "expectedDigest": "f61c320837b4739922b238973db6a33fa84d6a08e03e1ed0a5aafdf3fdcb85341"
+    },
+    "b1-partial-no-relation": {
+      "path": "vectors/b1-partial-no-relation.json",
+      "expectedDigest": "8cd557c6b8102d7482c1bdfd0a717437e17205eb9f7c73aa641726e12e96172b",
+      "expected": "accepted as partial; relationId may be absent"
+    },
+    "b2-complete-no-relation": {
+      "derivedFrom": "b1-partial-no-relation",
+      "expectedReasonCode": "relation-not-in-graph"
+    }
+  },
+  "negativeCases": {
+    "duplicate-relation-id": "graph-schema-invalid",
+    "unknown-location-field": "graph-schema-invalid",
+    "nested-page-overrides": "graph-schema-invalid",
+    "missing-evidence-refs": "graph-schema-invalid",
+    "invalid-node-kind": "graph-schema-invalid",
+    "unsafe-integer": "graph-schema-invalid",
+    "empty-page-overrides-key": "graph-schema-invalid",
+    "invalid-route": "observation-tuple-mismatch",
+    "unsafe-artifact-path": "artifact-path-invalid",
+    "legacy-v5": "graph-schema-invalid",
+    "source-ref-mismatch": "source-ref-mismatch",
+    "graph-node-missing": "source-ref-not-in-graph",
+    "source-use-mismatch": "source-use-location-mismatch",
+    "opaque-source-ref": "source-ref-not-in-graph",
+    "missing-relation-source-identity": "graph-schema-invalid",
+    "declaration-node-not-source-use": "declaration-node-not-source-use",
+    "cross-side-source-ref": "source-ref-not-in-graph",
+    "forged-source-identity": "graph-schema-invalid",
+    "opaque-node-relation": "source-ref-not-in-graph",
+    "source-ref-no-mapping": "source-ref-not-in-graph",
+    "missing-source-mappings": "graph-schema-invalid",
+    "forged-source-mappings": "graph-schema-invalid",
+    "old-source-digest": "graph-schema-invalid",
+    "missing-source-anchor": "graph-schema-invalid",
+    "nonunique-source-anchor": "graph-schema-invalid",
+    "source-use-location": "graph-schema-invalid",
+    "project-mismatch": "logical-project-mismatch",
+    "semantic-candidate": "relation-not-in-graph",
+    "host-envelope-source-digest": "source-digest-mismatch",
+    "host-envelope-graph-digest": "graph-digest-mismatch",
+    "host-envelope-version": "graph-digest-mismatch",
+    "host-envelope-side": "side-mismatch",
+    "forged-self-consistent-graph": "graph-digest-mismatch",
+    "source-proven-uses-token-consumer": "relation-not-in-graph",
+    "complete-missing-source-use-ref": "missing-source-use-ref",
+    "source-proven-reads-jsx-consumer": "non-strict-consumer-edge"
+  },
+  "requiredChecks": [
+    "Node and PowerShell digests are byte-for-byte equal",
+    "G1 permutation is stable",
+    "G2 source span mutation changes graphDigest",
+    "G3 duplicate Relation.id is rejected before hashing",
+    "observationBindingDigest self-field mutation does not change digest",
+    "artifact.sha256 mutation changes binding digest",
+    "offsetUnit is exactly code-unit",
+    "partial relationId may be absent; complete relationId must resolve uniquely",
+    "sourceRef must equal the selected side token-use graphNodeId",
+    "declaration nodes are rejected as observation source-use nodes",
+    "edge.evidenceRefs, node/edge enums, safe-integer maximum and pageOverrides key rules match Schema/Node/PowerShell",
+    "ObservationReasonCode values use observation/ namespace",
+    "legacy input remains quarantined and is never converted",
+    "host sourceMappings are present, side-local, sourceDigest-derived and backed by a unique file-to-token-use source-proven anchor",
+    "projectId comes only from host project registry and is checked against each side mapping",
+    "side graph sourceDigest and graphDigest are recomputed before source mapping reference validation",
+    "semantic-candidate consumer edges never become strict source-proven evidence",
+    "host side registry binding is independent of caller graph and rejects a self-consistent forged graph",
+    "envelope projectId, side, sourceDigest, graphDigest and version must match the selected host side",
+    "CSS source-use reads/source-proven anchors cannot prove a JSX consumer",
+    "G5 candidate side canonical bytes and digest are independently reproduced by Node and PowerShell",
+    "reads/source-proven edges targeting jsx-element never become JSX consumer strict proof"
+  ],
+  "evidenceOnly": true,
+  "executedNegativeCases": {
+    "missing-relation-source-identity": {
+      "status": "passed",
+      "fixture": "vectors/negative-missing-relation-source-identity.json",
+      "expectedReasonCode": "graph-schema-invalid",
+      "node": "passed",
+      "powershell": "passed",
+      "schema": "passed"
+    },
+    "forged-source-identity": {
+      "status": "passed",
+      "fixture": "vectors/negative-forged-source-identity.json",
+      "expectedReasonCode": "graph-schema-invalid"
+    },
+    "opaque-node-relation": {
+      "status": "passed",
+      "fixture": "vectors/negative-opaque-node-relation.json",
+      "expectedReasonCode": "source-ref-not-in-graph"
+    },
+    "source-ref-no-mapping": {
+      "status": "passed",
+      "fixture": "vectors/negative-source-ref-no-mapping.json",
+      "expectedReasonCode": "source-ref-not-in-graph"
+    },
+    "trust-root-source-mappings": {
+      "status": "passed",
+      "fixtures": [
+        "vectors/negative-missing-source-mappings.json",
+        "vectors/negative-forged-source-mappings.json",
+        "vectors/negative-old-source-digest.json",
+        "vectors/negative-missing-source-anchor.json",
+        "vectors/negative-nonunique-source-anchor.json",
+        "vectors/negative-source-use-location.json",
+        "vectors/g0-project-mismatch.json",
+        "vectors/g0-semantic-candidate.json"
+      ],
+      "node": "passed",
+      "powershell": "passed",
+      "schema": "passed",
+      "dual": "passed"
+    },
+    "host-binding-v3": {
+      "status": "passed",
+      "matrix": "docs/acceptance/2026-11-01/sourceidentity-v2-host-binding-negative-matrix.json",
+      "groups": [
+        "H1",
+        "H2",
+        "H3",
+        "H4"
+      ],
+      "node": "passed",
+      "powershell": "passed",
+      "schema": "passed",
+      "dual": "passed",
+      "additional": "source-proven-reads-jsx-consumer rejected as non-strict-consumer-edge"
+    }
+  },
+  "trustRoot": "host-built sourceMappings[]; caller arrays are claims",
+  "legacyEobs02Migration": {
+    "previousFixture": "docs/acceptance/2026-11-01/legacy-history/negative-missing-relation-source-identity.v0.json",
+    "previousCommit": "5a203b31d81ca640402a560ab4cde668a8e8a721",
+    "previousStatus": "prepared/blocked",
+    "newTrustRoot": "host-built sourceMappings[]",
+    "newCases": [
+      "missing-source-mappings",
+      "forged-source-mappings",
+      "old-source-digest",
+      "missing-source-anchor",
+      "nonunique-source-anchor",
+      "source-use-location",
+      "project-mismatch",
+      "semantic-candidate"
+    ],
+    "rule": "fresh execution only; historical pending is not relabeled"
+  },
+  "reviewCandidateBeforeArchive": "5291ecbfedd72f5ffcb4fc2afb4d7bf8d31836a1",
+  "hostSideBindingSchema": "acp6-sourcegraph-host-side-binding.schema.json",
+  "relationIdReview": "docs/acceptance/2026-11-01/relation-id-v03-a-review.md"
+}
+
