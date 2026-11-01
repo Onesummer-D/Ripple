@@ -1,0 +1,64 @@
+{
+  "protocol": "acp6-d-2ee-offline-safety-revalidation/v1",
+  "status": "passed-offline; formal acceptance HOLD",
+  "testSha": "2ee08975c891abb1df5ff38881326e78ead28076",
+  "testTree": "60e397f075f8a1d62226d6a736993580b48df9ad",
+  "detachedWorktree": "acp6-d-observation-v2-replay-20261101",
+  "worktreeCleanBefore": true,
+  "worktreeCleanAfter": true,
+  "commands": [
+    "node docs/acceptance/2026-10-31/run-final-observation-vectors.mjs",
+    "pwsh -NoProfile -File docs/acceptance/2026-10-31/canonical-observation-digest.ps1",
+    "node docs/acceptance/2026-10-31/validate-final-schemas.mjs",
+    "node docs/acceptance/2026-10-31/compare-final-reports.mjs"
+  ],
+  "reports": {
+    "docs/acceptance/2026-10-31/acp6-observation-v2-final-digest-report.json": {
+      "sha256": "f97722d69b10aeee21f007bc55885e49482ac9c5c4bad0c66ab028e356e2f08d",
+      "executed": true,
+      "passed": true,
+      "exitCode": 0,
+      "runner": "Node"
+    },
+    "docs/acceptance/2026-10-31/acp6-observation-v2-final-powershell-report.json": {
+      "sha256": "308fd55008d081a8181ee58ff45c67ff97bbc3467d4a94f0b2f60e838fad6448",
+      "executed": true,
+      "passed": true,
+      "exitCode": 0,
+      "runner": "PowerShell"
+    },
+    "docs/acceptance/2026-10-31/acp6-observation-v2-final-schema-report.json": {
+      "sha256": "671a620080c270af024fcaad82ef42cba78a3e5d106df73dfdf4e6f7018ad5c8",
+      "executed": true,
+      "passed": true,
+      "exitCode": 0,
+      "runner": "Schema parity"
+    },
+    "docs/acceptance/2026-10-31/acp6-observation-v2-final-dual-report.json": {
+      "sha256": "0ca9c0693e111ac13187a9be8a497c7ca2356bb244ac4498fc38aec498956307",
+      "executed": true,
+      "passed": true,
+      "exitCode": 0,
+      "runner": "Dual report"
+    }
+  },
+  "summary": {
+    "requiredNegativeCaseCount": 63,
+    "requiredNegativeExecutedCount": 63,
+    "passed": true,
+    "failed": false,
+    "blocked": false,
+    "hostBindingGroups": 4
+  },
+  "EIndependentSignoff": false,
+  "productionWrites": false,
+  "N01N32": "not-executed",
+  "historicalEOBS02": {
+    "path": "docs/acceptance/2026-11-01/legacy-history/negative-missing-relation-source-identity.v0.json",
+    "sha256": "d157bccebaaff99b35f9a023c3be25125edac1324ffc8c6c9d6d96293713988b",
+    "preserved": true,
+    "relabelled": false
+  },
+  "evidenceHead": "b6c8efcf4b1e093f8b31b74a362967cab273cb1b",
+  "evidenceTree": "a104e03ff7394516aba82bcfd0fc84ced78bd12e"
+}
