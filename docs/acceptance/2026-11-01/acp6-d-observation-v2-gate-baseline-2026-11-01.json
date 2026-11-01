@@ -37,7 +37,7 @@
   "eObs02Migration": {
     "status": "prepared-not-executed; A/E sign-off pending",
     "historicalFixture": {
-      "path": "docs/acceptance/2026-10-31/vectors/negative-missing-relation-source-identity.json",
+      "path": "docs/acceptance/2026-11-01/legacy-history/negative-missing-relation-source-identity.v0.json",
       "meaning": "legacy Relation.sourceIdentity absence; retained as historical E-OBS-02 evidence",
       "expectedReasonCode": "graph-schema-invalid",
       "expectedObservationStatus": "unavailable",

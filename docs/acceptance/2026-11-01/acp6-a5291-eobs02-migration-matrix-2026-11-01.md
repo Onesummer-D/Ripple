@@ -30,9 +30,13 @@ envelope 后按该 envelope 重算；本切片不生成生产 receipt 或新的 
 
 ## 3. 旧 fixture 到新 host mapping 的对应
 
-旧 fixture `vectors/negative-missing-relation-source-identity.json` 保留为历史
-E-OBS-02：当前候选裁定是 `graph-schema-invalid`、`unavailable`、`not-proven`、
-`graphDigest=null`、`trusted=false`。它不能被重命名为新版通过结果。
+历史旧 fixture `docs/acceptance/2026-11-01/legacy-history/negative-missing-relation-source-identity.v0.json`
+保留为旧 E-OBS-02：当前候选裁定是 `graph-schema-invalid`、`unavailable`、
+`not-proven`、`graphDigest=null`、`trusted=false`。它不能被重命名为新版通过结果。
+
+`docs/acceptance/2026-10-31/vectors/negative-missing-relation-source-identity.json`
+是新版 host mapping 负例：它保留同名语义，但输入已按
+`sourcegraph-source-mapping/v1` 组织；不能与 `legacy-history/*.v0.json` 合并计数。
 
 新版信任根改为由宿主从已验证的 side Graph 和源码快照构造
 `sourceMappings[]`。四项 required safety gates 按 A 当前候选报告登记如下，
@@ -40,7 +44,7 @@ E-OBS-02：当前候选裁定是 `graph-schema-invalid`、`unavailable`、`not-p
 
 | Gate | fixture | 触发 | A 当前候选 reasonCode | D 状态 |
 | --- | --- | --- | --- | --- |
-| E-OBS-02-G1 | `negative-missing-relation-source-identity.json` | 旧 Relation 缺失可信 source identity | `graph-schema-invalid` | prepared / not-executed |
+| E-OBS-02-G1 | `negative-missing-relation-source-identity.json` | host mapping 缺少可信 source identity | `graph-schema-invalid` | prepared / not-executed |
 | E-OBS-02-G2 | `negative-forged-source-identity.json` | caller 伪造 source identity | `graph-schema-invalid` | prepared / not-executed |
 | E-OBS-02-G3 | `negative-opaque-node-relation.json` | opaque sourceRef/relation 代替 host mapping | `source-ref-not-in-graph` | prepared / not-executed |
 | E-OBS-02-G4 | `negative-source-ref-no-mapping.json` | graph 中不存在 host mapping 的 sourceRef | `source-ref-not-in-graph` | prepared / not-executed |

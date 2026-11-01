@@ -20,6 +20,7 @@ const requiredFiles = [
   'docs/acceptance/2026-10-31/compare-final-reports.mjs',
   'docs/acceptance/2026-10-31/acp6-observation-v2-final-manifest.json',
   'docs/acceptance/2026-10-31/acp6-observation-v2-compatibility-matrix.json',
+  'docs/acceptance/2026-11-01/legacy-history/negative-missing-relation-source-identity.v0.json',
   'docs/acceptance/2026-10-31/vectors/negative-missing-relation-source-identity.json',
   'docs/acceptance/2026-10-31/vectors/negative-forged-source-identity.json',
   'docs/acceptance/2026-10-31/vectors/negative-opaque-node-relation.json',
