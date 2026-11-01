@@ -1,0 +1,99 @@
+{
+  "protocol": "acp6-d-observation-v2-gate-prep/v1",
+  "scope": "evidence-only; no production SourceGraph, collector, Runtime Identity, VerificationRun or authorization writes",
+  "dBaseline": {
+    "remoteCommit": "459b332f4d2b0749d125090332921223090b8526",
+    "remoteTree": "b2462d4c6df94b206a82c7f3dc3a74c6f612d95e",
+    "remoteBranch": "evidence/acp6-browser-observation-docs-20261030",
+    "localPrepParent": "5670782f8a88ffb309711e5c6dda939350314fb2",
+    "oldPreparationCommit": "5670782f8a88ffb309711e5c6dda939350314fb2",
+    "oldPreparationFile": "docs/acceptance/2026-11-01/prepare-a329-negative-run.mjs",
+    "preservedStatuses": {
+      "E-OBS-02": "blocked",
+      "dualReport": "blocked",
+      "N01-N32": "not-executed",
+      "productionWrites": false
+    }
+  },
+  "aCandidate": {
+    "commit": "5291ecbfedd72f5ffcb4fc2afb4d7bf8d31836a1",
+    "tree": "1b398d5b4d33df256d3cd70829c0819742bbe69c",
+    "branch": "evidence/a-v2-source-mapping-remediation-20261101",
+    "remoteArchive": "not-confirmed-by-D",
+    "eReview": "pending; no execution authorization",
+    "historyAction": "do-not-rewrite-or-overwrite",
+    "workingTreeAtPrep": "dirty; observed only, not modified by D"
+  },
+  "contractBinding": {
+    "graphIdentityVersion": "sourcegraph-identity/v2",
+    "graphSchemaVersion": "acp6-sourcegraph/v1",
+    "relationIdentityVersion": "relation-id/v1",
+    "sourceMappingVersion": "sourcegraph-source-mapping/v1",
+    "observationBindingVersion": "sourcegraph-observation-binding/v1",
+    "reasonNamespace": "observation/",
+    "projectIdSource": "host-project-registry",
+    "observationBindingDigest": "recompute only from A/E frozen canonical envelope; no golden value issued"
+  },
+  "eObs02Migration": {
+    "status": "prepared-not-executed; A/E sign-off pending",
+    "historicalFixture": {
+      "path": "docs/acceptance/2026-10-31/vectors/negative-missing-relation-source-identity.json",
+      "meaning": "legacy Relation.sourceIdentity absence; retained as historical E-OBS-02 evidence",
+      "expectedReasonCode": "graph-schema-invalid",
+      "expectedObservationStatus": "unavailable",
+      "expectedProof": "not-proven",
+      "graphDigest": null,
+      "trusted": false,
+      "rule": "never relabel historical prepared/blocked evidence as a new pass"
+    },
+    "newHostTrustRoot": {
+      "root": "host-built sourceMappings[] derived from independently verified side SourceGraph bytes and source snapshot",
+      "mappingVersion": "sourcegraph-source-mapping/v1",
+      "requiredFields": ["projectId", "sourceRef", "graphNodeId", "sourceAnchorRelationId", "sourceIdentity", "sourceUse"],
+      "requiredGates": [
+        "negative-missing-relation-source-identity.json",
+        "negative-forged-source-identity.json",
+        "negative-opaque-node-relation.json",
+        "negative-source-ref-no-mapping.json"
+      ],
+      "expandedMigrationCases": [
+        "negative-missing-source-mappings.json",
+        "negative-forged-source-mappings.json",
+        "negative-old-source-digest.json",
+        "negative-missing-source-anchor.json",
+        "negative-nonunique-source-anchor.json",
+        "negative-source-use-location.json",
+        "g0-project-mismatch.json",
+        "g0-semantic-candidate.json"
+      ],
+      "reasonStatusDecision": {
+        "aCandidateReports": {
+          "missingOrForgedMapping": "graph-schema-invalid",
+          "missingMappingStatus": "unavailable",
+          "opaqueOrUnmappedSourceRef": "source-ref-not-in-graph",
+          "projectMismatch": "logical-project-mismatch",
+          "semanticCandidate": "relation-not-in-graph"
+        },
+        "dRule": "A/E must freeze the exact namespaced reasonCode and observationStatus for each host case; D does not substitute or promote a value"
+      },
+      "strictProofRule": "no sourceRef string equality, graphNodeId string equality, Relation.id string equality, DOM geometry, static candidate edge, or raw Relation without host mapping"
+    }
+  },
+  "executionGate": {
+    "requiredACommit": "5291ecbfedd72f5ffcb4fc2afb4d7bf8d31836a1",
+    "requiredATree": "1b398d5b4d33df256d3cd70829c0819742bbe69c",
+    "requiredPreconditions": [
+      "A commit is independently archived",
+      "E explicitly signs the sourceMappings[] and reason/status mapping",
+      "C/B provide a new identity-governed real Graph with no duplicate Relation IDs, duplicate node IDs, duplicate unresolved entries or unknown endpoints",
+      "the four required gates execute in Node, PowerShell, Schema parity and Dual report",
+      "every required result agrees and remains fail-closed"
+    ],
+    "runnerSet": ["Node", "PowerShell", "Schema parity", "Dual report"],
+    "currentState": "not-authorized; prepared-not-executed",
+    "blockRule": "missing execution, inconsistent reason/status, stale SHA/Tree, or Dual omission keeps the overall result blocked",
+    "n01N32Promotion": "never inferred from offline safety negatives; N01-N32 remain not-executed",
+    "productionWrites": false
+  }
+}
+
