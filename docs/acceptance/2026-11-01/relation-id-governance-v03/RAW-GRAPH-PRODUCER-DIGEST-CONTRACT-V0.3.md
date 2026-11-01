@@ -6,6 +6,13 @@ This document narrows the v0.3 ruling to the non-circular dependency chain used 
 `sourcegraph-identity/v2`. It does not modify `Relation`, B v5, D, E, Runtime
 Identity, or any authorization gate.
 
+This supplement makes `rawGraphArtifactSha256` the canonical field name. The
+earlier v0.3 shorthand `graphSha256` in an evidence key means this raw artifact
+hash; it never means the final `graphDigestSha256`. Likewise, a
+`policyManifestSha256` shown beside a manifest in an outer archive is a binding
+value; the canonical manifest bytes used to calculate that hash exclude the value
+itself.
+
 ## 1. Dependency graph
 
 The calculation order is fixed:
