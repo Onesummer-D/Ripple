@@ -306,6 +306,82 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven', metadata: Partial<Relation> = {}) => {
     edges.push({ id, from, to, kind, certainty, evidenceRefs: [], ...metadata })
   }
+<<<<<<< HEAD
+=======
+  const addCssCandidateEdge = (input: {
+    from: string
+    to: string
+    sourceUse: NonNullable<Relation['sourceUse']>
+    sourceUseSelectorScope: string
+    definition: SourceNode
+    relationMediaContext: string[]
+    evidenceRefs: string[]
+  }) => {
+    const definitionLocation = input.definition.location
+    const definitionScope = input.definition.selectorScope
+    const definitionCharOffset = definitionLocation?.offset
+    const definitionByteOffset = input.definition.byteOffset
+    const definitionMediaContext = input.definition.mediaContext
+    if (typeof definitionScope !== 'string' || !definitionScope.trim() || /^<[^>]+>$/.test(definitionScope) ||
+      typeof definitionLocation?.path !== 'string' || !definitionLocation.path.trim() || /^<[^>]+>$/.test(definitionLocation.path) ||
+      typeof definitionCharOffset !== 'number' || !Number.isInteger(definitionCharOffset) || definitionCharOffset < 0 ||
+      typeof definitionByteOffset !== 'number' || !Number.isInteger(definitionByteOffset) || definitionByteOffset < 0 ||
+      (definitionMediaContext !== undefined && !Array.isArray(definitionMediaContext))) {
+      unresolved.push(`relation-id-rejected:missing-definition-identity:${input.definition.id}`)
+      return
+    }
+    const canonicalDefinitionScope = canonicalizeSelectorScope(definitionScope).canonical
+    let identity: ReturnType<typeof createCssSelectorCandidateIdentity>
+    try {
+      identity = createCssSelectorCandidateIdentity({
+        kind: 'css-cascade', from: input.from, to: input.to,
+        sourceUse: { ...input.sourceUse, selectorScope: input.sourceUseSelectorScope },
+        definition: {
+          id: input.definition.id,
+          tokenName: input.definition.label,
+          tokenOrigin: 'css-custom-property',
+          sourcePath: definitionLocation.path,
+          charOffset: definitionCharOffset,
+          byteOffset: definitionByteOffset,
+          offsetUnit: 'code-unit',
+          rawSelectorScope: definitionScope,
+          canonicalSelectorScope: canonicalDefinitionScope,
+          selectorParserVersion: 'css-selector-static-subset/v1',
+          mediaContext: [...(definitionMediaContext ?? [])],
+        },
+        relationRawSelectorScope: definitionScope,
+        relationCanonicalSelectorScope: canonicalDefinitionScope,
+        relationMediaContext: [...input.relationMediaContext],
+      })
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'invalid identity input'
+      unresolved.push(`relation-id-rejected:${input.definition.id}:${reason}`)
+      return
+    }
+    const payload = {
+      from: input.from,
+      to: input.to,
+      kind: 'css-cascade',
+      certainty: 'semantic-candidate',
+      sourceUse: input.sourceUse,
+      selectorScope: definitionScope,
+      mediaContext: [...input.relationMediaContext],
+      evidenceRefs: [...input.evidenceRefs],
+    } as const
+    const registration = cssCandidateRelationIds.register(identity.id, payload)
+    if (!registration.accepted) {
+      unresolved.push(`relation-id-rejected:${identity.id}:${registration.reason}`)
+      return
+    }
+    const mediaMetadata: Partial<Relation> = input.relationMediaContext.length ? { mediaContext: [...input.relationMediaContext] } : {}
+    addEdge(input.from, input.to, 'css-cascade', identity.id, 'semantic-candidate', {
+      sourceUse: input.sourceUse,
+      selectorScope: definitionScope,
+      ...mediaMetadata,
+      evidenceRefs: [...input.evidenceRefs],
+    })
+  }
+>>>>>>> 93d528f (fix(sourcegraph): reject incomplete relation identities)
 
   const overrideMarkers = new Map<string, Array<{ path: string; fallback: string; start: number; end: number }>>()
   const overrideMarkersByLocation = new Map<string, { id: string; fallback: string }>()
