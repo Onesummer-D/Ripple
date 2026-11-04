@@ -50,6 +50,33 @@
       "matchedPayloadOccurrences": 633,
       "status": "not-proven",
       "reason": "The historical B1.1 graph and the fb2 structural reproduction do not share sufficient exact project provenance for payload equivalence to prove migration identity."
+    },
+    "comparisonInputs": {
+      "sameStructuralSnapshot": {
+        "baseArtifact": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-base-fb2.json",
+        "baseArtifactSha256": "8e1c7d4c5f45f3ad15f5bc55de04db8dee3390e9dc82be3854d25a98b172bd12",
+        "baseAnalyzerSha": "fb2efe35c447eadf262d55f1d9755bb26cecabda",
+        "finalArtifact": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-final-fb2.json",
+        "finalArtifactSha256": "6821325431083234dfef17e840cdc8203a8bc151d33ece447cf4d293cc7a26a0",
+        "finalAnalyzerSha": "f6d1edf286d40314e83aa3121214dcf85d824fc0",
+        "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+        "sourceSnapshot": {
+          "requestedProjectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+          "localStructuralSnapshotGitSha": "a2876ab6e79d4e7b9fdafd301bd3549c92e9ae71",
+          "sourceDigest": "0b291f7df4aa8cdc168ad42cb4f7f1e4edb79e76108e64254fdc5977d70ac6b7",
+          "exactCheckout": false
+        }
+      },
+      "historicalB11ToCurrentStructural": {
+        "oldArtifact": "docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-graph-final34d2.json",
+        "oldArtifactSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+        "oldAnalyzerSha": "ea38c442d5c0ac3e709ea82a8c3d2a893d47b449",
+        "currentArtifact": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-final-fb2.json",
+        "currentArtifactSha256": "6821325431083234dfef17e840cdc8203a8bc151d33ece447cf4d293cc7a26a0",
+        "currentAnalyzerSha": "f6d1edf286d40314e83aa3121214dcf85d824fc0",
+        "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+        "sourceSnapshotStatus": "not-proven-exact-checkout"
+      }
     }
   },
   "migration": {
@@ -60,7 +87,7 @@
     "renamed": 168,
     "unresolved": 168,
     "missingMapping": 168,
-    "bidirectionalAuditArtifactSha256": "2b8e718f753c8806ff7d95d6598bc4867e0805897cf793c0029c4e5475e0b726",
+    "bidirectionalAuditArtifactSha256": "c8c4a3c9eac0e61a464c694fbb483af6cfb0a699be4cf13abb6fee62e0a71368",
     "reverseStatusCounts": {
       "mapped": 614,
       "ambiguous": 0,
@@ -91,8 +118,8 @@
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-graph-report.mjs",
-      "bytes": 4838,
-      "sha256": "3a592d114f5a9239fe8b3b2742e453441589ca221a2d47ee20a6a5e1d2f7dfea"
+      "bytes": 5332,
+      "sha256": "226c82cd8360dc3631a1b39ed4eeba21344c0db5c65f73a2efec15e6548bdc46"
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/validate-fb2-graph.mjs",
@@ -116,8 +143,8 @@
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v03-fb2-graph-report.json",
-      "bytes": 2075,
-      "sha256": "9bad53bb0520882f427d4874f08297a1c38472afe4e2d9427961205d738e7539"
+      "bytes": 2635,
+      "sha256": "be62ba3d7f3f44428793720249912430452739f10cc30ae422840e4774493bc9"
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v1-migration-manifest-fb2.json",
@@ -171,13 +198,13 @@
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-bidirectional-audit.mjs",
-      "bytes": 7170,
-      "sha256": "fbc9e7500b9c97f153f0e7c59cdf52c36314ddcc7643d42ec636a2e9b035ca5f"
+      "bytes": 8271,
+      "sha256": "44fad89c33df8585c1336b5becefe07f5eda11189098f554f8dac4cd0e160484"
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v03-fb2-bidirectional-audit.json",
-      "bytes": 2403620,
-      "sha256": "2b8e718f753c8806ff7d95d6598bc4867e0805897cf793c0029c4e5475e0b726"
+      "bytes": 2404567,
+      "sha256": "c8c4a3c9eac0e61a464c694fbb483af6cfb0a699be4cf13abb6fee62e0a71368"
     }
   ]
 }

@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 const root = process.cwd()
 const dir = path.resolve(root, 'docs/acceptance/2026-11-04/relation-id-v03-production')
 const oldPath = path.resolve(root, 'docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-graph-final34d2.json')
+const oldManifestPath = path.resolve(root, 'docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-manifest.json')
 const finalPath = path.join(dir, 'graph-final-fb2.json')
 const migrationPath = path.join(dir, 'relation-id-v1-migration-manifest-fb2.json')
 const canonical = value => {
@@ -17,6 +18,7 @@ const readJson = file => ({ bytes: fs.readFileSync(file), value: JSON.parse(fs.r
 const old = readJson(oldPath)
 const final = readJson(finalPath)
 const migration = JSON.parse(fs.readFileSync(migrationPath, 'utf8'))
+const oldManifest = JSON.parse(fs.readFileSync(oldManifestPath, 'utf8'))
 const edgePayload = edge => ({
   from: edge.from,
   to: edge.to,
@@ -107,8 +109,27 @@ const out = {
     implementationTree: '2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3',
     finalArchiveParent: 'b2c33056a0d67841a4b8fd08f16b35ab93d0df48',
   },
-  oldGraph: { artifact: path.relative(root, oldPath).replaceAll('\\', '/'), sha256: sha256(old.bytes), edgeCount: old.value.edges.length },
-  finalGraph: { artifact: path.relative(root, finalPath).replaceAll('\\', '/'), sha256: sha256(final.bytes), edgeCount: final.value.edges.length },
+  oldGraph: {
+    artifact: path.relative(root, oldPath).replaceAll('\\', '/'),
+    sha256: sha256(old.bytes),
+    edgeCount: old.value.edges.length,
+    projectSha: old.value.revision?.gitCommit ?? null,
+    sourceSnapshotDigest: old.value.revision?.sourceDigest ?? null,
+    analyzerSha: oldManifest.implementationCommit ?? null,
+    analyzerTree: oldManifest.implementationTree ?? null,
+    analyzerEvidence: path.relative(root, oldManifestPath).replaceAll('\\', '/'),
+    analyzerEvidenceStatus: 'declared-in-historical-manifest-not-independent-current-run',
+  },
+  finalGraph: {
+    artifact: path.relative(root, finalPath).replaceAll('\\', '/'),
+    sha256: sha256(final.bytes),
+    edgeCount: final.value.edges.length,
+    projectSha: final.value.revision?.gitCommit ?? 'b244f857457d2a07f118155602eef9097fd322bd',
+    sourceSnapshot: { requestedProjectSha: 'b244f857457d2a07f118155602eef9097fd322bd', localStructuralSnapshotGitSha: 'a2876ab6e79d4e7b9fdafd301bd3549c92e9ae71', exactCheckout: false },
+    analyzerSha: 'f6d1edf286d40314e83aa3121214dcf85d824fc0',
+    analyzerTree: '2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3',
+    analyzerEvidenceStatus: 'bound-to-final-implementation-commit',
+  },
   oldToNew: {
     manifest: path.relative(root, migrationPath).replaceAll('\\', '/'),
     totalOccurrences: migration.records.length,

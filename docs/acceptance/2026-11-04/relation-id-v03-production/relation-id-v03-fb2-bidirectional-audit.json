@@ -9,12 +9,27 @@
   "oldGraph": {
     "artifact": "docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-graph-final34d2.json",
     "sha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
-    "edgeCount": 3046
+    "edgeCount": 3046,
+    "projectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+    "sourceSnapshotDigest": "0b291f7df4aa8cdc168ad42cb4f7f1e4edb79e76108e64254fdc5977d70ac6b7",
+    "analyzerSha": "ea38c442d5c0ac3e709ea82a8c3d2a893d47b449",
+    "analyzerTree": "5fa2596517abf289880c18b259c33592ebf2413d",
+    "analyzerEvidence": "docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-manifest.json",
+    "analyzerEvidenceStatus": "declared-in-historical-manifest-not-independent-current-run"
   },
   "finalGraph": {
     "artifact": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-final-fb2.json",
     "sha256": "6821325431083234dfef17e840cdc8203a8bc151d33ece447cf4d293cc7a26a0",
-    "edgeCount": 3046
+    "edgeCount": 3046,
+    "projectSha": "a2876ab6e79d4e7b9fdafd301bd3549c92e9ae71",
+    "sourceSnapshot": {
+      "requestedProjectSha": "b244f857457d2a07f118155602eef9097fd322bd",
+      "localStructuralSnapshotGitSha": "a2876ab6e79d4e7b9fdafd301bd3549c92e9ae71",
+      "exactCheckout": false
+    },
+    "analyzerSha": "f6d1edf286d40314e83aa3121214dcf85d824fc0",
+    "analyzerTree": "2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3",
+    "analyzerEvidenceStatus": "bound-to-final-implementation-commit"
   },
   "oldToNew": {
     "manifest": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v1-migration-manifest-fb2.json",

@@ -64,6 +64,28 @@ const out = {
     unresolvedUnchanged: graph.unresolved.unchanged,
     graphDigestStatus: 'unavailable',
     historicalPayloadMismatch: bidirectional.historicalPayloadComparison,
+    comparisonInputs: {
+      sameStructuralSnapshot: {
+        baseArtifact: graph.base.artifact,
+        baseArtifactSha256: graph.base.sha256,
+        baseAnalyzerSha: graph.base.analyzerSha,
+        finalArtifact: graph.final.artifact,
+        finalArtifactSha256: graph.final.sha256,
+        finalAnalyzerSha: graph.final.analyzerSha,
+        projectSha: 'b244f857457d2a07f118155602eef9097fd322bd',
+        sourceSnapshot: graph.provenance.sourceSnapshot,
+      },
+      historicalB11ToCurrentStructural: {
+        oldArtifact: bidirectional.oldGraph.artifact,
+        oldArtifactSha256: bidirectional.oldGraph.sha256,
+        oldAnalyzerSha: bidirectional.oldGraph.analyzerSha,
+        currentArtifact: bidirectional.finalGraph.artifact,
+        currentArtifactSha256: bidirectional.finalGraph.sha256,
+        currentAnalyzerSha: bidirectional.finalGraph.analyzerSha,
+        projectSha: 'b244f857457d2a07f118155602eef9097fd322bd',
+        sourceSnapshotStatus: 'not-proven-exact-checkout',
+      },
+    },
   },
   migration: {
     artifactSha256: sha256('docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v1-migration-manifest-fb2.json'),
