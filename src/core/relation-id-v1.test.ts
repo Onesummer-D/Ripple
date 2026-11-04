@@ -54,8 +54,16 @@ describe('relation-id/v1 css-selector-candidate identity', () => {
   it.each([
     ['empty source path', { sourceUse: { ...identityInput().sourceUse, path: '' } }],
     ['placeholder source path', { sourceUse: { ...identityInput().sourceUse, path: '<unknown-source>' } }],
+    ['absolute POSIX source path', { sourceUse: { ...identityInput().sourceUse, path: '/src/theme.css' } }],
+    ['parent traversal source path', { sourceUse: { ...identityInput().sourceUse, path: '../theme.css' } }],
+    ['dot segment source path', { sourceUse: { ...identityInput().sourceUse, path: 'src/./theme.css' } }],
+    ['Windows drive source path', { sourceUse: { ...identityInput().sourceUse, path: 'C:/src/theme.css' } }],
+    ['backslash source path', { sourceUse: { ...identityInput().sourceUse, path: 'src\\theme.css' } }],
+    ['NUL source path', { sourceUse: { ...identityInput().sourceUse, path: 'src/theme\u0000.css' } }],
+    ['duplicate separator source path', { sourceUse: { ...identityInput().sourceUse, path: 'src//theme.css' } }],
     ['negative offset', { sourceUse: { ...identityInput().sourceUse, charOffset: -1 } }],
     ['non-integer offset', { sourceUse: { ...identityInput().sourceUse, byteOffset: 1.5 } }],
+    ['unsafe integer offset', { sourceUse: { ...identityInput().sourceUse, byteOffset: Number.MAX_SAFE_INTEGER + 1 } }],
     ['invalid offset unit', { sourceUse: { ...identityInput().sourceUse, offsetUnit: 'bytes' } }],
     ['NaN offset', { definition: { ...identityInput().definition, charOffset: Number.NaN } }],
     ['Infinity offset', { definition: { ...identityInput().definition, byteOffset: Number.POSITIVE_INFINITY } }],
@@ -78,6 +86,15 @@ describe('relation-id/v1 css-selector-candidate identity', () => {
     const nonPlainInput = Object.create({ inherited: true })
     Object.assign(nonPlainInput, identityInput())
     expect(() => createCssSelectorCandidateIdentity(nonPlainInput)).toThrow(/non-plain/)
+  })
+
+  it('rejects unknown fields at every governed identity boundary', () => {
+    expect(() => createCssSelectorCandidateIdentity({ ...identityInput(), extra: true } as any)).toThrow(/unknown field/)
+    expect(() => createCssSelectorCandidateIdentity({ ...identityInput(), sourceUse: { ...identityInput().sourceUse, extra: true } } as any)).toThrow(/unknown field/)
+    expect(() => createCssSelectorCandidateIdentity({ ...identityInput(), definition: { ...identityInput().definition, extra: true } } as any)).toThrow(/unknown field/)
+    const mediaContext = [] as string[] & { extra?: boolean }
+    mediaContext.extra = true
+    expect(() => createCssSelectorCandidateIdentity({ ...identityInput(), relationMediaContext: mediaContext } as any)).toThrow(/non-canonical array property|unknown field/)
   })
 
   it.each([

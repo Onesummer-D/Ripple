@@ -174,6 +174,13 @@ function assertPlainRecord(value: unknown, field: string): asserts value is Reco
   }
 }
 
+function assertExactFields(value: unknown, field: string, allowedFields: readonly string[]): asserts value is Record<string, unknown> {
+  assertPlainRecord(value, field)
+  const allowed = new Set(allowedFields)
+  const unknownFields = Reflect.ownKeys(value).filter(key => typeof key !== 'string' || !allowed.has(key))
+  if (unknownFields.length) throw new TypeError(`relation identity rejects unknown field(s) in ${field}: ${unknownFields.map(String).join(', ')}`)
+}
+
 function assertNonPlaceholderString(value: unknown, field: string): asserts value is string {
   if (typeof value !== 'string' || value.length === 0 || value.trim().length === 0 || /^<[^>]+>$/.test(value)) {
     throw new TypeError(`relation identity requires a concrete ${field}`)
@@ -181,7 +188,7 @@ function assertNonPlaceholderString(value: unknown, field: string): asserts valu
 }
 
 function assertOffset(value: unknown, field: string): asserts value is number {
-  if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 0) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     throw new TypeError(`relation identity requires a non-negative integer ${field}`)
   }
 }
@@ -192,11 +199,26 @@ function assertOffsetUnit(value: unknown, field: string): asserts value is 'code
 
 function assertStringArray(value: unknown, field: string): asserts value is string[] {
   if (!Array.isArray(value)) throw new TypeError(`relation identity requires ${field} to be an array`)
+  canonicalJson(value)
   value.forEach((item, index) => assertNonPlaceholderString(item, `${field}[${index}]`))
 }
 
+function assertRepositoryRelativePosixPath(value: unknown, field: string): asserts value is string {
+  assertNonPlaceholderString(value, field)
+  if (value.startsWith('/') || /^[A-Za-z]:/.test(value) || value.includes('\\') || value.includes('\u0000') || value.includes('//')) {
+    throw new TypeError(`relation identity requires a repository-relative POSIX ${field}`)
+  }
+  const segments = value.split('/')
+  if (segments.some(segment => segment.length === 0 || segment === '.' || segment === '..')) {
+    throw new TypeError(`relation identity rejects traversal or empty segment in ${field}`)
+  }
+}
+
 export function validateCssSelectorCandidateIdentityInput(input: unknown): asserts input is CssSelectorCandidateIdentityInput {
-  assertPlainRecord(input, 'input')
+  assertExactFields(input, 'input', [
+    'kind', 'from', 'to', 'sourceUse', 'definition',
+    'relationRawSelectorScope', 'relationCanonicalSelectorScope', 'relationMediaContext',
+  ])
   const candidate = input
   assertNonPlaceholderString(candidate.kind, 'kind')
   if (candidate.kind !== 'css-cascade') throw new TypeError('relation identity rejects invalid kind')
@@ -206,20 +228,23 @@ export function validateCssSelectorCandidateIdentityInput(input: unknown): asser
   assertNonPlaceholderString(candidate.relationCanonicalSelectorScope, 'canonical selector scope')
   assertStringArray(candidate.relationMediaContext, 'relation media context')
 
-  assertPlainRecord(candidate.sourceUse, 'sourceUse')
+  assertExactFields(candidate.sourceUse, 'sourceUse', ['path', 'charOffset', 'byteOffset', 'offsetUnit', 'selectorScope'])
   const sourceUse = candidate.sourceUse
-  assertNonPlaceholderString(sourceUse.path, 'sourceUse path')
+  assertRepositoryRelativePosixPath(sourceUse.path, 'sourceUse path')
   assertOffset(sourceUse.charOffset, 'sourceUse charOffset')
   assertOffset(sourceUse.byteOffset, 'sourceUse byteOffset')
   assertOffsetUnit(sourceUse.offsetUnit, 'sourceUse offsetUnit')
   assertNonPlaceholderString(sourceUse.selectorScope, 'sourceUse selector scope')
 
-  assertPlainRecord(candidate.definition, 'definition')
+  assertExactFields(candidate.definition, 'definition', [
+    'id', 'tokenName', 'tokenOrigin', 'sourcePath', 'charOffset', 'byteOffset', 'offsetUnit',
+    'rawSelectorScope', 'canonicalSelectorScope', 'selectorParserVersion', 'mediaContext',
+  ])
   const definition = candidate.definition
   assertNonPlaceholderString(definition.id, 'definition id')
   assertNonPlaceholderString(definition.tokenName, 'definition token name')
   if (definition.tokenOrigin !== 'css-custom-property') throw new TypeError('relation identity rejects invalid token origin')
-  assertNonPlaceholderString(definition.sourcePath, 'definition source path')
+  assertRepositoryRelativePosixPath(definition.sourcePath, 'definition source path')
   assertOffset(definition.charOffset, 'definition charOffset')
   assertOffset(definition.byteOffset, 'definition byteOffset')
   assertOffsetUnit(definition.offsetUnit, 'definition offsetUnit')

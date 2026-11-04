@@ -324,8 +324,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     const definitionMediaContext = input.definition.mediaContext
     if (typeof definitionScope !== 'string' || !definitionScope.trim() || /^<[^>]+>$/.test(definitionScope) ||
       typeof definitionLocation?.path !== 'string' || !definitionLocation.path.trim() || /^<[^>]+>$/.test(definitionLocation.path) ||
-      typeof definitionCharOffset !== 'number' || !Number.isInteger(definitionCharOffset) || definitionCharOffset < 0 ||
-      typeof definitionByteOffset !== 'number' || !Number.isInteger(definitionByteOffset) || definitionByteOffset < 0 ||
+      typeof definitionCharOffset !== 'number' || !Number.isSafeInteger(definitionCharOffset) || definitionCharOffset < 0 ||
+      typeof definitionByteOffset !== 'number' || !Number.isSafeInteger(definitionByteOffset) || definitionByteOffset < 0 ||
       (definitionMediaContext !== undefined && !Array.isArray(definitionMediaContext))) {
       unresolved.push(`relation-id-rejected:missing-definition-identity:${input.definition.id}`)
       return
