@@ -31,9 +31,12 @@ const files = [
   'docs/acceptance/2026-11-04/relation-id-v03-production/source-safety-diff-93-to-f6.patch',
   'docs/acceptance/2026-11-04/relation-id-v03-production/source-integration-diff-fb2-to-f6.patch',
   'docs/acceptance/2026-11-04/relation-id-v03-production/source-diff-fb2-evidence.json',
+  'docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-bidirectional-audit.mjs',
+  'docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v03-fb2-bidirectional-audit.json',
 ]
 const graph = JSON.parse(fs.readFileSync(path.join(dir, 'relation-id-v03-fb2-graph-report.json'), 'utf8'))
 const migration = JSON.parse(fs.readFileSync(path.join(dir, 'relation-id-v1-migration-manifest-fb2.json'), 'utf8'))
+const bidirectional = JSON.parse(fs.readFileSync(path.join(dir, 'relation-id-v03-fb2-bidirectional-audit.json'), 'utf8'))
 const fullVitest = fs.readFileSync(path.join(dir, 'vitest-full-fb2-windows.log'), 'utf8')
 const testLine = /Test Files\s+([^\n]+)\n\s+Tests\s+([^\n]+)\n\s+Errors\s+([^\n]+)/m.exec(fullVitest)
 const out = {
@@ -43,6 +46,11 @@ const out = {
   integrationBase: { sha: 'fb2efe35c447eadf262d55f1d9755bb26cecabda', tree: 'e942bf8d12e3c7224b79d673705fdc253c0cf552' },
   previousImplementation: { sha: '93d528fce7a329c3e35c62d013dfaa1675cfc3fa', tree: '75539ead0e895418e8ccca245c2808b587390353' },
   previousEvidenceArchive: '0387c359f4c4d4b34b22168fe611661a22c36d7d',
+  archiveBinding: {
+    archiveParent: 'b2c33056a0d67841a4b8fd08f16b35ab93d0df48',
+    sourceDiffFromParent: [],
+    note: 'The final archive tip is bound by the independent handoff record; its manifest does not self-reference its own commit SHA.',
+  },
   fixedProject: { name: 'allanhue/webportflio', sha: 'b244f857457d2a07f118155602eef9097fd322bd', exactCheckout: false },
   graph: {
     baseArtifactSha256: graph.base.sha256,
@@ -55,6 +63,7 @@ const out = {
     sourceProvenUnchanged: graph.sourceProven.equal,
     unresolvedUnchanged: graph.unresolved.unchanged,
     graphDigestStatus: 'unavailable',
+    historicalPayloadMismatch: bidirectional.historicalPayloadComparison,
   },
   migration: {
     artifactSha256: sha256('docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v1-migration-manifest-fb2.json'),
@@ -64,6 +73,8 @@ const out = {
     renamed: migration.mappingStats.renamed,
     unresolved: migration.mappingStats.unresolved,
     missingMapping: migration.mappingStats.missingMapping,
+    bidirectionalAuditArtifactSha256: sha256('docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v03-fb2-bidirectional-audit.json'),
+    reverseStatusCounts: bidirectional.newToOld.statusCounts,
     note: 'Migration unresolved (168) is an audit mapping metric and is distinct from SourceGraph unresolved (253).',
   },
   vitest: { summaryLine: testLine?.[0]?.trim() ?? null, rawLogSha256: sha256('docs/acceptance/2026-11-04/relation-id-v03-production/vitest-full-fb2-windows.log'), relationTargetedPassed: 27, projectTargetedPassed: 5 },

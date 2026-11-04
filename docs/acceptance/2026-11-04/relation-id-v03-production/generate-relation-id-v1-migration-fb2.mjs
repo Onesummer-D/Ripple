@@ -7,8 +7,11 @@ const root = process.cwd()
 const oldGraphPath = path.resolve(root, 'docs/acceptance/2026-10-30/acp6-b11-static-owner/b11-graph-final34d2.json')
 const oldGraphBytes = fs.readFileSync(oldGraphPath)
 const graph = JSON.parse(oldGraphBytes.toString('utf8'))
+const finalGraphPath = path.resolve(root, 'docs/acceptance/2026-11-04/relation-id-v03-production/graph-final-fb2.json')
+const finalGraphBytes = fs.readFileSync(finalGraphPath)
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const oldGraphSha256 = sha256(oldGraphBytes)
+const finalGraphSha256 = sha256(finalGraphBytes)
 const nodeById = new Map(graph.nodes.map(node => [node.id, node]))
 const payloadFor = edge => ({ id: edge.id, from: edge.from, to: edge.to, kind: edge.kind, certainty: edge.certainty, evidenceRefs: edge.evidenceRefs ?? [], sourceUse: edge.sourceUse ?? null, sourceRef: edge.sourceRef ?? null, selectorScope: edge.selectorScope ?? null, mediaContext: edge.mediaContext ?? null })
 const payloadSha = edge => sha256(Buffer.from(canonicalJson(payloadFor(edge)), 'utf8'))
@@ -65,7 +68,16 @@ const incompatibleCandidateRelations = new Set(records.filter(record => record.r
 const manifest = {
   schemaVersion: 'relation-id-migration/v1', relationIdentityVersion: 'relation-id/v1', producerPolicyVersion: 'sourcegraph-identity/v2',
   generatedFrom: { oldGraphArtifact: path.relative(root, oldGraphPath).replaceAll('\\', '/'), oldGraphSha256, oldGraphGitCommit: graph.revision?.gitCommit ?? null, oldGraphSourceDigest: graph.revision?.sourceDigest ?? null },
-  implementationBinding: { baseCommit: 'fb2efe35c447eadf262d55f1d9755bb26cecabda', implementationCommit: 'f6d1edf286d40314e83aa3121214dcf85d824fc0', implementationTree: '2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3', status: 'pending-final-graph-binding', note: 'This manifest is a deterministic audit projection of the frozen B1.1 graph. Final C graph evidence must replace implementationCommit and rerun the same generator against the final graph.' },
+  implementationBinding: {
+    baseCommit: 'fb2efe35c447eadf262d55f1d9755bb26cecabda',
+    implementationCommit: 'f6d1edf286d40314e83aa3121214dcf85d824fc0',
+    implementationTree: '2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3',
+    finalGraphArtifact: path.relative(root, finalGraphPath).replaceAll('\\', '/'),
+    finalGraphSha256,
+    finalGraphCoreSha: 'f6d1edf286d40314e83aa3121214dcf85d824fc0',
+    status: 'bound-fb2-structural-final-not-proven',
+    note: 'The old-to-new audit is bound to the fb2 structural final graph. Exact fixed-project provenance is unavailable, so bidirectional payload equivalence remains not-proven and is reported separately.',
+  },
   identityCollisionHandling: { oldGraphRelationIdDuplicateKeys: relationIdDuplicateKeys, oldGraphExtraOccurrences: relationIdExtraOccurrences, newGraphExpectedDuplicateKeys: 0, newGraphExpectedExtraOccurrences: 0, duplicatePolicy: 'reject-every-repeated-governed-id; never silently deduplicate' },
   statusCounts,
   mappingStats: { totalOldOccurrences: records.length, retained: statusCounts.retained, renamed: statusCounts.renamed, split: statusCounts.split, unresolved: statusCounts.unresolved, missingMapping: records.filter(record => record.newRelationId === null).length, incompatibleCandidateRelations, note: 'split is determined only after binding the final graph; old-only records with ambiguous definition identity remain unresolved.' },

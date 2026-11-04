@@ -17,6 +17,11 @@
     "tree": "75539ead0e895418e8ccca245c2808b587390353"
   },
   "previousEvidenceArchive": "0387c359f4c4d4b34b22168fe611661a22c36d7d",
+  "archiveBinding": {
+    "archiveParent": "b2c33056a0d67841a4b8fd08f16b35ab93d0df48",
+    "sourceDiffFromParent": [],
+    "note": "The final archive tip is bound by the independent handoff record; its manifest does not self-reference its own commit SHA."
+  },
   "fixedProject": {
     "name": "allanhue/webportflio",
     "sha": "b244f857457d2a07f118155602eef9097fd322bd",
@@ -38,16 +43,30 @@
     },
     "sourceProvenUnchanged": true,
     "unresolvedUnchanged": true,
-    "graphDigestStatus": "unavailable"
+    "graphDigestStatus": "unavailable",
+    "historicalPayloadMismatch": {
+      "oldToFinalPayloadMismatch": 2413,
+      "finalToOldPayloadMismatch": 2413,
+      "matchedPayloadOccurrences": 633,
+      "status": "not-proven",
+      "reason": "The historical B1.1 graph and the fb2 structural reproduction do not share sufficient exact project provenance for payload equivalence to prove migration identity."
+    }
   },
   "migration": {
-    "artifactSha256": "1a01ea9ffcff8df3e54cb8ac5ca58b3c280a35fa6fad22010e172e02ccc5a556",
+    "artifactSha256": "f5bd9fe0c751280254174ac06d0c6747389d702c6db429987f53f98505cde074",
     "oldGraphSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
     "totalOldOccurrences": 3046,
     "retained": 2710,
     "renamed": 168,
     "unresolved": 168,
     "missingMapping": 168,
+    "bidirectionalAuditArtifactSha256": "2b8e718f753c8806ff7d95d6598bc4867e0805897cf793c0029c4e5475e0b726",
+    "reverseStatusCounts": {
+      "mapped": 614,
+      "ambiguous": 0,
+      "unresolved": 19,
+      "orphaned": 2413
+    },
     "note": "Migration unresolved (168) is an audit mapping metric and is distinct from SourceGraph unresolved (253)."
   },
   "vitest": {
@@ -67,8 +86,8 @@
   "files": [
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/README.md",
-      "bytes": 2647,
-      "sha256": "c1fdf0ec75822278420d88b7599104c96e4a2836884bed13997700735bbcdc11"
+      "bytes": 3561,
+      "sha256": "a3341f1d136e11cf8d60a8256a070fba329ff9ff182b43e68e1358d0fca2747c"
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-graph-report.mjs",
@@ -82,8 +101,8 @@
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-relation-id-v1-migration-fb2.mjs",
-      "bytes": 8055,
-      "sha256": "015e354b59c3c993976ed6b798d0c4b25277c9592d0f5c1331454bd7bf1f1f13"
+      "bytes": 8494,
+      "sha256": "88087d7189e7b6b3eaea126bd2213856cb33ce41741ad4e2e39d28b05cb5c98b"
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-base-fb2.json",
@@ -102,8 +121,8 @@
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v1-migration-manifest-fb2.json",
-      "bytes": 2113276,
-      "sha256": "1a01ea9ffcff8df3e54cb8ac5ca58b3c280a35fa6fad22010e172e02ccc5a556"
+      "bytes": 2113560,
+      "sha256": "f5bd9fe0c751280254174ac06d0c6747389d702c6db429987f53f98505cde074"
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/vitest-full-fb2-windows.log",
@@ -149,6 +168,16 @@
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/source-diff-fb2-evidence.json",
       "bytes": 1450,
       "sha256": "e48d85578b52c19d1f677bfeb68fb5ea8c5ab00e6acb22aca063a7831515eb65"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-bidirectional-audit.mjs",
+      "bytes": 7170,
+      "sha256": "fbc9e7500b9c97f153f0e7c59cdf52c36314ddcc7643d42ec636a2e9b035ca5f"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v03-fb2-bidirectional-audit.json",
+      "bytes": 2403620,
+      "sha256": "2b8e718f753c8806ff7d95d6598bc4867e0805897cf793c0029c4e5475e0b726"
     }
   ]
 }

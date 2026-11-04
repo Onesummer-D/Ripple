@@ -9,6 +9,8 @@
 
 The production diff is limited to `src/core/relation-id-v1.ts`, `src/core/relation-id-v1.test.ts`, and the minimal `src/core/project.ts` call site. The fb2 B1.1 evidence documents remain unchanged.
 
+The source tree is unchanged between archive parent `b2c33056a0d67841a4b8fd08f16b35ab93d0df48` and archive tip `f8c0bb3969eadf8fda7bba3a1711f46e0edd3ce8`; the intervening commit is evidence-only.
+
 The source-level audit is reproducible from `source-diff-fb2-evidence.json`,
 `source-safety-diff-93-to-f6.patch`, and
 `source-integration-diff-fb2-to-f6.patch`. These bind reviewed commit
@@ -40,6 +42,18 @@ Migration records remain separate from SourceGraph unresolved records:
 - unresolved 168;
 - missingMapping 168;
 - SourceGraph unresolved 253.
+
+The old-to-new records and the explicit new-to-old projection are archived in
+`relation-id-v1-migration-manifest-fb2.json` and
+`relation-id-v03-fb2-bidirectional-audit.json`. Every old occurrence carries
+the old graph SHA, payload SHA, old ID, candidate new ID (or null), source span
+and an ambiguity reason. The reverse projection reports 614 uniquely mapped,
+19 payload-only unresolved, and 2,413 orphaned final occurrences. The latter
+is a provenance mismatch between the historical B1.1 graph and the current
+structural reproduction, not a deletion claim.
+
+Historical payload comparison is exactly 2,413 mismatches in each direction
+and is explicitly `not-proven`; the exact third-party checkout is unavailable.
 
 ## Tests
 

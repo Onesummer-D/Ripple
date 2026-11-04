@@ -12,8 +12,11 @@
     "baseCommit": "fb2efe35c447eadf262d55f1d9755bb26cecabda",
     "implementationCommit": "f6d1edf286d40314e83aa3121214dcf85d824fc0",
     "implementationTree": "2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3",
-    "status": "pending-final-graph-binding",
-    "note": "This manifest is a deterministic audit projection of the frozen B1.1 graph. Final C graph evidence must replace implementationCommit and rerun the same generator against the final graph."
+    "finalGraphArtifact": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-final-fb2.json",
+    "finalGraphSha256": "6821325431083234dfef17e840cdc8203a8bc151d33ece447cf4d293cc7a26a0",
+    "finalGraphCoreSha": "f6d1edf286d40314e83aa3121214dcf85d824fc0",
+    "status": "bound-fb2-structural-final-not-proven",
+    "note": "The old-to-new audit is bound to the fb2 structural final graph. Exact fixed-project provenance is unavailable, so bidirectional payload equivalence remains not-proven and is reported separately."
   },
   "identityCollisionHandling": {
     "oldGraphRelationIdDuplicateKeys": 84,
