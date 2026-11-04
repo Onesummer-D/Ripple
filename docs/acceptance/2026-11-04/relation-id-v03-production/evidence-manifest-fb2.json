@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "relation-id-v03-fb2-production-evidence/v1",
+  "generatedFrom": {
+    "implementationSha": "f6d1edf286d40314e83aa3121214dcf85d824fc0",
+    "implementationTree": "2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3"
+  },
+  "authorizedReviewBase": {
+    "sha": "6388abec96183cc28824dc2b7fa486e4e944d305",
+    "tree": "8455bfc0c6f2ff5491dad8a418c8b8a7bc78ba2e"
+  },
+  "integrationBase": {
+    "sha": "fb2efe35c447eadf262d55f1d9755bb26cecabda",
+    "tree": "e942bf8d12e3c7224b79d673705fdc253c0cf552"
+  },
+  "previousImplementation": {
+    "sha": "93d528fce7a329c3e35c62d013dfaa1675cfc3fa",
+    "tree": "75539ead0e895418e8ccca245c2808b587390353"
+  },
+  "previousEvidenceArchive": "0387c359f4c4d4b34b22168fe611661a22c36d7d",
+  "fixedProject": {
+    "name": "allanhue/webportflio",
+    "sha": "b244f857457d2a07f118155602eef9097fd322bd",
+    "exactCheckout": false
+  },
+  "graph": {
+    "baseArtifactSha256": "8e1c7d4c5f45f3ad15f5bc55de04db8dee3390e9dc82be3854d25a98b172bd12",
+    "finalArtifactSha256": "6821325431083234dfef17e840cdc8203a8bc151d33ece447cf4d293cc7a26a0",
+    "nodes": 675,
+    "edges": 3046,
+    "unresolved": 253,
+    "duplicateRelationIdKeys": {
+      "base": 84,
+      "final": 0
+    },
+    "extraOccurrences": {
+      "base": 252,
+      "final": 0
+    },
+    "sourceProvenUnchanged": true,
+    "unresolvedUnchanged": true,
+    "graphDigestStatus": "unavailable"
+  },
+  "migration": {
+    "artifactSha256": "1a01ea9ffcff8df3e54cb8ac5ca58b3c280a35fa6fad22010e172e02ccc5a556",
+    "oldGraphSha256": "6d4ac66639d0320bca26090ae16a7d5151c9ae596fa244955f006b2aa3cd92ad",
+    "totalOldOccurrences": 3046,
+    "retained": 2710,
+    "renamed": 168,
+    "unresolved": 168,
+    "missingMapping": 168,
+    "note": "Migration unresolved (168) is an audit mapping metric and is distinct from SourceGraph unresolved (253)."
+  },
+  "vitest": {
+    "summaryLine": "Test Files  15 failed | 55 passed (70)\r\n      Tests  67 failed | 876 passed | 68 skipped (1011)\r\n     Errors  4 errors",
+    "rawLogSha256": "7ba99645c8878dbac9247ad283376b4725846d9c8ba020239032e4650a0e94ee",
+    "relationTargetedPassed": 27,
+    "projectTargetedPassed": 5
+  },
+  "unverified": [
+    "exact fixed-project checkout",
+    "B v5 matcher/probe on f6d1edf",
+    "Linux CI",
+    "Docker/runtime smoke",
+    "Chromium E2E",
+    "remote Draft PR"
+  ],
+  "files": [
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/README.md",
+      "bytes": 2201,
+      "sha256": "02a5ab11fc7b436a345c111f511064e1268bfe6b6bdc460cb12c7aa82d6a14f3"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-graph-report.mjs",
+      "bytes": 4838,
+      "sha256": "3a592d114f5a9239fe8b3b2742e453441589ca221a2d47ee20a6a5e1d2f7dfea"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/validate-fb2-graph.mjs",
+      "bytes": 654,
+      "sha256": "a60aee8e003337c0a9f123cf96a23cd4c78be3fe2759b01ce049c6a826713162"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-relation-id-v1-migration-fb2.mjs",
+      "bytes": 8055,
+      "sha256": "015e354b59c3c993976ed6b798d0c4b25277c9592d0f5c1331454bd7bf1f1f13"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-base-fb2.json",
+      "bytes": 2048658,
+      "sha256": "8e1c7d4c5f45f3ad15f5bc55de04db8dee3390e9dc82be3854d25a98b172bd12"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-final-fb2.json",
+      "bytes": 2052118,
+      "sha256": "6821325431083234dfef17e840cdc8203a8bc151d33ece447cf4d293cc7a26a0"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v03-fb2-graph-report.json",
+      "bytes": 2075,
+      "sha256": "9bad53bb0520882f427d4874f08297a1c38472afe4e2d9427961205d738e7539"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/relation-id-v1-migration-manifest-fb2.json",
+      "bytes": 2113276,
+      "sha256": "1a01ea9ffcff8df3e54cb8ac5ca58b3c280a35fa6fad22010e172e02ccc5a556"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/vitest-full-fb2-windows.log",
+      "bytes": 185102,
+      "sha256": "7ba99645c8878dbac9247ad283376b4725846d9c8ba020239032e4650a0e94ee"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/vitest-relation-id-fb2.log",
+      "bytes": 353,
+      "sha256": "e78b6f1e29783b1b5a474eac263ca4838f3cb7384ecabdc2818656f1c47f3cfe"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/vitest-project-targeted-fb2.log",
+      "bytes": 1129,
+      "sha256": "0a6b51c23d9a0915478f36d962fab3f5de6476c6b5fea569dd9d0d0c4d8b2014"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/typecheck-fb2.log",
+      "bytes": 112,
+      "sha256": "7e3f9ff5416fa628e7683bc9b32c92a7805eb575f049381eaecd3fcd0d4da76b"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/build-fb2.log",
+      "bytes": 768,
+      "sha256": "227f17e51c6c93295e1ccd3b8e5a673763af2a0b31392a96d5fdc5bb557bd044"
+    }
+  ]
+}

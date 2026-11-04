@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "relation-id-v03-fb2-graph-report/v1",
+  "provenance": {
+    "project": "allanhue/webportflio",
+    "requestedCommit": "b244f857457d2a07f118155602eef9097fd322bd",
+    "exactCheckout": false,
+    "note": "Structural reproduction uses the archived source-text-plus-binary-placeholder checkout; exact third-party bytes and B v5 are not claimed."
+  },
+  "base": {
+    "coreSha": "fb2efe35c447eadf262d55f1d9755bb26cecabda",
+    "coreTree": "e942bf8d12e3c7224b79d673705fdc253c0cf552",
+    "artifact": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-base-fb2.json",
+    "sha256": "8e1c7d4c5f45f3ad15f5bc55de04db8dee3390e9dc82be3854d25a98b172bd12",
+    "stats": {
+      "nodes": 675,
+      "edges": 3046,
+      "unresolved": 253,
+      "duplicateRelationIdKeys": 84,
+      "extraOccurrences": 252,
+      "certainty": {
+        "source-proven": 744,
+        "runtime-observed": 0,
+        "semantic-candidate": 2050,
+        "unknown": 252
+      }
+    }
+  },
+  "final": {
+    "implementationSha": "f6d1edf286d40314e83aa3121214dcf85d824fc0",
+    "implementationTree": "2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3",
+    "artifact": "docs/acceptance/2026-11-04/relation-id-v03-production/graph-final-fb2.json",
+    "sha256": "6821325431083234dfef17e840cdc8203a8bc151d33ece447cf4d293cc7a26a0",
+    "stats": {
+      "nodes": 675,
+      "edges": 3046,
+      "unresolved": 253,
+      "duplicateRelationIdKeys": 0,
+      "extraOccurrences": 0,
+      "certainty": {
+        "source-proven": 744,
+        "runtime-observed": 0,
+        "semantic-candidate": 2050,
+        "unknown": 252
+      }
+    }
+  },
+  "payloadMultiset": {
+    "removedCount": 0,
+    "addedCount": 0,
+    "equal": true
+  },
+  "sourceProven": {
+    "baseCount": 744,
+    "finalCount": 744,
+    "removedIds": [],
+    "changedPayloadIds": [],
+    "equal": true
+  },
+  "sourceFieldKeyCount": {
+    "base": 2955,
+    "final": 2955
+  },
+  "unresolved": {
+    "base": 253,
+    "final": 253,
+    "unchanged": true
+  },
+  "relationIdUniqueness": {
+    "baseExitCode": 1,
+    "finalExitCode": 0
+  }
+}
