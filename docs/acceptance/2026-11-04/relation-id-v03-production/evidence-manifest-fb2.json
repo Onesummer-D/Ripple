@@ -67,8 +67,8 @@
   "files": [
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/README.md",
-      "bytes": 2201,
-      "sha256": "02a5ab11fc7b436a345c111f511064e1268bfe6b6bdc460cb12c7aa82d6a14f3"
+      "bytes": 2647,
+      "sha256": "c1fdf0ec75822278420d88b7599104c96e4a2836884bed13997700735bbcdc11"
     },
     {
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-graph-report.mjs",
@@ -129,6 +129,26 @@
       "path": "docs/acceptance/2026-11-04/relation-id-v03-production/build-fb2.log",
       "bytes": 768,
       "sha256": "227f17e51c6c93295e1ccd3b8e5a673763af2a0b31392a96d5fdc5bb557bd044"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-diff-evidence.mjs",
+      "bytes": 1956,
+      "sha256": "5b194af6d0c737bd142970f60e3e0b0715a5bbda7c73eb89c8f9ad092e1eb4e8"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/source-safety-diff-93-to-f6.patch",
+      "bytes": 9504,
+      "sha256": "ec29b57d56ec5f09e6b8250bedc86ee1e03d23c38ff7ec98fc8bf73196db1b06"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/source-integration-diff-fb2-to-f6.patch",
+      "bytes": 29038,
+      "sha256": "2a9b94eb1d0c9608c431924d24bc6f710c60154b7865704e6e87cc21f0573e48"
+    },
+    {
+      "path": "docs/acceptance/2026-11-04/relation-id-v03-production/source-diff-fb2-evidence.json",
+      "bytes": 1450,
+      "sha256": "e48d85578b52c19d1f677bfeb68fb5ea8c5ab00e6acb22aca063a7831515eb65"
     }
   ]
 }

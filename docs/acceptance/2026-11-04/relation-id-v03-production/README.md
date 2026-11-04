@@ -9,6 +9,14 @@
 
 The production diff is limited to `src/core/relation-id-v1.ts`, `src/core/relation-id-v1.test.ts`, and the minimal `src/core/project.ts` call site. The fb2 B1.1 evidence documents remain unchanged.
 
+The source-level audit is reproducible from `source-diff-fb2-evidence.json`,
+`source-safety-diff-93-to-f6.patch`, and
+`source-integration-diff-fb2-to-f6.patch`. These bind reviewed commit
+`93d528fce7a329c3e35c62d013dfaa1675cfc3fa`, integration base
+`fb2efe35c447eadf262d55f1d9755bb26cecabda`, and implementation commit
+`f6d1edf286d40314e83aa3121214dcf85d824fc0` without treating the later
+evidence archive commit as a production implementation.
+
 ## Safety changes
 
 The governed identity validator now rejects absolute paths, `../` and `.` segments, Windows drive prefixes, backslashes, NUL bytes, duplicate separators, placeholders, unsafe offsets, and unknown fields in the top level, sourceUse, definition, and media arrays. No fallback identity, silent cleanup, renumbering, or certainty upgrade was added.

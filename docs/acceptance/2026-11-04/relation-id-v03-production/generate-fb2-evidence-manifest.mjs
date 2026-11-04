@@ -8,8 +8,11 @@ const dir = path.resolve(root, 'docs/acceptance/2026-11-04/relation-id-v03-produ
 const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
 const sha256 = file => createHash('sha256').update(fs.readFileSync(path.resolve(root, file))).digest('hex')
 const bytes = file => fs.statSync(path.resolve(root, file)).size
-const implementationSha = git(['rev-parse', 'HEAD'])
-const implementationTree = git(['rev-parse', 'HEAD^{tree}'])
+// The production implementation is intentionally bound to the source commit,
+// not to the later evidence-only archive tip. This prevents evidence commits
+// from silently changing the code identity under review.
+const implementationSha = 'f6d1edf286d40314e83aa3121214dcf85d824fc0'
+const implementationTree = '2e0eb49b3dcb8adf09b0cdb1312bbd3b65c0adf3'
 const files = [
   'docs/acceptance/2026-11-04/relation-id-v03-production/README.md',
   'docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-graph-report.mjs',
@@ -24,6 +27,10 @@ const files = [
   'docs/acceptance/2026-11-04/relation-id-v03-production/vitest-project-targeted-fb2.log',
   'docs/acceptance/2026-11-04/relation-id-v03-production/typecheck-fb2.log',
   'docs/acceptance/2026-11-04/relation-id-v03-production/build-fb2.log',
+  'docs/acceptance/2026-11-04/relation-id-v03-production/generate-fb2-diff-evidence.mjs',
+  'docs/acceptance/2026-11-04/relation-id-v03-production/source-safety-diff-93-to-f6.patch',
+  'docs/acceptance/2026-11-04/relation-id-v03-production/source-integration-diff-fb2-to-f6.patch',
+  'docs/acceptance/2026-11-04/relation-id-v03-production/source-diff-fb2-evidence.json',
 ]
 const graph = JSON.parse(fs.readFileSync(path.join(dir, 'relation-id-v03-fb2-graph-report.json'), 'utf8'))
 const migration = JSON.parse(fs.readFileSync(path.join(dir, 'relation-id-v1-migration-manifest-fb2.json'), 'utf8'))
