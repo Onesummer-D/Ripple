@@ -9,6 +9,7 @@ import type { ProjectConfigGraph } from './project-config-resolver.mjs'
 import { resolveProjectConfigGraph } from './project-config-resolver.mjs'
 import { inspectDataRouter, inspectDeclarativeRoutes } from './project-data-routes'
 import { parseCssSelectorStructure, parseCssTokenSource } from './css-token-source'
+import { canonicalizeSelectorScope, createCssSelectorCandidateIdentity, createRelationIdRegistry } from './relation-id-v1'
 
 export class ProjectReadError extends Error {
   constructor(message: string) { super(message); this.name = 'ProjectReadError' }
@@ -302,6 +303,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const nodeById = new Map<string, SourceNode>()
   const jsxOpeningById = new Map<string, ts.JsxOpeningLikeElement>()
   const jsxIdByOpening = new Map<ts.JsxOpeningLikeElement, string>()
+  const cssCandidateRelationIds = createRelationIdRegistry()
   const addNode = (node: SourceNode) => { if (!nodeById.has(node.id)) { nodes.push(node); nodeById.set(node.id, node) } }
   const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven', metadata: Partial<Relation> = {}) => {
     edges.push({ id, from, to, kind, certainty, evidenceRefs: [], ...metadata })
@@ -1081,7 +1083,15 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
         addEdge(ownerToken.id, definition.id, 'uses-token', `css-token-alias:${ownerToken.id}:${definition.id}:${useNode.id}`, 'semantic-candidate', metadata)
       }
       for (const element of matchedClassElements) {
-        addEdge(useNode.id, element.id, 'css-cascade', `css-selector-candidate:${useNode.id}:${element.id}`, 'semantic-candidate', metadata)
+        addCssCandidateEdge({
+          from: useNode.id,
+          to: element.id,
+          sourceUse,
+          sourceUseSelectorScope: use.selectorScope,
+          definition,
+          relationMediaContext: mediaContext,
+          evidenceRefs: [useRef, useNode.id],
+        })
         addEdge(element.id, definition.id, 'uses-token', `css-token-consumer:${definition.id}:${useNode.id}:${element.id}`, 'semantic-candidate', metadata)
       }
     }
