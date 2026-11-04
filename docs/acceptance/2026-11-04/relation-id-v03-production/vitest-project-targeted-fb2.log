@@ -1,0 +1,15 @@
+
+ RUN  v3.2.7 D:/Onesummer_D/Learning/Competitons/ShuMei_QG/acp6-relation-id-v03-production-fb2-20261104
+
+ ✓ src/core/project.test.ts (35 tests | 30 skipped) 10823ms
+   ✓ real project graph and candidate executor > keeps same-name CSS theme declarations distinct and refuses ambiguous consumption proof  2758ms
+   ✓ real project graph and candidate executor > anchors CSS var() consumers to exact JSX elements and HashRouter pages without proving cascade  2217ms
+   ✓ real project graph and candidate executor > creates B1.1 candidates only for one exact static JSX owner and preserves each use anchor  1979ms
+   ✓ real project graph and candidate executor > keeps B1.1 fail-closed for duplicate, missing, dynamic, and incomplete compound owners  1861ms
+   ✓ real project graph and candidate executor > only accepts tag-only intrinsic owners and refuses global or custom-component boundaries  2007ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed | 30 skipped (35)
+   Start at  20:30:42
+   Duration  13.88s (transform 521ms, setup 0ms, collect 1.14s, tests 10.82s, environment 1.16s, prepare 187ms)
+

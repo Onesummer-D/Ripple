@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 D:/Onesummer_D/Learning/Competitons/ShuMei_QG/acp6-relation-id-v03-production-fb2-20261104
+
+ ✓ src/core/relation-id-v1.test.ts (27 tests) 9ms
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  20:30:38
+   Duration  2.01s (transform 60ms, setup 0ms, collect 128ms, tests 9ms, environment 1.17s, prepare 201ms)
+

@@ -1,0 +1,1826 @@
+
+> ripple-editor@0.1.0 test
+> vitest --run
+
+
+ RUN  v3.2.7 D:/Onesummer_D/Learning/Competitons/ShuMei_QG/acp6-relation-id-v03-production-fb2-20261104
+
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ❯ src/core/media-acceptance-run-dir.test.ts (5 tests | 1 failed) 93ms
+   ✓ media-acceptance-run-dir（P1-2：运行目录隔离与保留现场发现） > 空 workRoot：分配唯一 run 目录，无历史现场 16ms
+   ✓ media-acceptance-run-dir（P1-2：运行目录隔离与保留现场发现） > 回滚失败 → 保留现场 → 同 workRoot 重试：旧现场不被覆盖、清单字段可读 20ms
+   ✓ media-acceptance-run-dir（P1-2：运行目录隔离与保留现场发现） > 成功运行目录（无清单）不被误报为保留现场 15ms
+   ✓ media-acceptance-run-dir（P1-2：运行目录隔离与保留现场发现） > 旧版布局 workRoot/project-src 视为潜在现场并被新运行目录避开 12ms
+   × media-acceptance-run-dir（P1-2：运行目录隔离与保留现场发现） > 符号链接条目在发现阶段不被跟随 29ms
+     → EPERM: operation not permitted, symlink 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\acp6-relation-id-v03-production-fb2-20261104\node_modules\.tmp\ripple-run-dir-8xHaL2\outside' -> 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\acp6-relation-id-v03-production-fb2-20261104\node_modules\.tmp\ripple-run-dir-nfj831\acceptance\run-evil'
+ ❯ src/core/media-acceptance-server.test.ts (6 tests | 4 failed | 2 skipped) 114ms
+   × serveStatic 安全边界 > 正常服务根目录与静态资产 48ms
+     → fetch failed
+   × serveStatic 安全边界 > 路径越界（含编码形式）一律 404 15ms
+     → connect EACCES 127.0.0.1:1767
+   ↓ serveStatic 安全边界 > 指向 rootDir 外部的符号链接被拒绝（且不落入 SPA 回退），内部链接允许 9ms
+   × serveStatic 安全边界 > 带扩展名的缺失资产一律 404，不落入 SPA 回退 14ms
+     → fetch failed
+   × serveStatic 安全边界 > SPA 回退到 index.html，且回退目标仍受越界约束 12ms
+     → fetch failed
+   ↓ serveStatic 安全边界 > 回退目标 index.html 若被替换为外部符号链接，回退一律 404 15ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/visual-capture-executor.test.ts (8 tests | 1 skipped) 336ms
+ ❯ src/core/visual-evidence.browser.test.ts (10 tests | 10 skipped) 83ms
+   ↓ visual difference evidence from real Chromium captures > returns one element beyond the limit so oversized pages are rejected, not silently truncated
+   ↓ visual difference evidence from real Chromium captures > maps DPR-2 DOM geometry onto the screenshot and flags the new overlap
+   ↓ visual difference evidence from real Chromium captures > reports identical renders as unchanged without promoting them to PASS
+   ↓ visual difference evidence from real Chromium captures > refuses captures taken at different device pixel ratios or interaction states
+   ↓ visual difference evidence from real Chromium captures > C+D identity wiring (registry + embedded collector) > reads per-file served versions from the C+D registry and C+D reasons from the embedded collector
+   ↓ visual difference evidence from real Chromium captures > C+D identity wiring (registry + embedded collector) > flags duplicate runtime instance ids with the C+D blocking reason
+   ↓ visual difference evidence from real Chromium captures > C+D identity wiring (registry + embedded collector) > omits ambiguous-version files instead of attributing them to either digest
+   ↓ visual difference evidence from real Chromium captures > C+D identity wiring (registry + embedded collector) > P1 负例: 两个来源文件只有一个有效版本时 sourceVersion 必须为 null
+   ↓ visual difference evidence from real Chromium captures > C+D identity wiring (registry + embedded collector) > P1 正例: 真实单文件页且版本有效时才填 legacy sourceVersion
+   ↓ visual difference evidence from real Chromium captures > C+D identity wiring (registry + embedded collector) > degrades to null identity reasons without a collector source but still reads the registry
+ ✓ src/core/project-config-resolver.test.ts (6 tests) 372ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/candidate-provider-identity.test.ts (6 tests) 707ms
+ ✓ src/core/runtime-identity-archive.test.ts (27 tests | 4 skipped) 1482ms
+   ✓ host runtime identity archive verification > accepts the exact 16 MiB boundary and rejects one byte over without truncation  513ms
+ ✓ src/core/session.test.ts (25 tests) 1091ms
+ ❯ src/core/visual-verification-attach.test.ts (14 tests | 14 skipped) 67ms
+   ↓ visual evidence attached to a verification run > captures in the runner, analyses on the host, and attaches read-only never-pass evidence
+   ↓ visual evidence attached to a verification run > maps a never-made capture to not-run and never to pass
+   ↓ visual evidence attached to a verification run > maps tampered screenshot bytes to failed-to-run, not to a conclusion
+   ↓ visual evidence attached to a verification run > maps a capture from the wrong source tree to stale
+   ↓ visual evidence attached to a verification run > maps a tampered geometry file to failed-to-run
+   ↓ visual evidence attached to a verification run > rejects manifest entries whose recorded paths escape the capture directory
+   ↓ visual evidence attached to a verification run > rejects a manifest-recorded screenshot hash tampered without touching the PNG bytes
+   ↓ visual evidence attached to a verification run > rejects a declared screenshot hash that disagrees with the untouched bytes
+   ↓ visual evidence attached to a verification run > converts a host write failure into failed-to-run and leaves the formal run untouched
+   ↓ visual evidence attached to a verification run > survives a hostile manifest and records the abort instead of throwing
+   ↓ visual evidence attached to a verification run > isolates a hostile capture record and continues with the remaining captures
+   ↓ visual evidence attached to a verification run > does not follow a parent-directory symlink outside the evidence root for geometry
+   ↓ visual evidence attached to a verification run > runner boundary: an unexpected attach throw keeps the formal run and records a failed-to-run diagnostic
+   ↓ visual evidence attached to a verification run > runner boundary: a healthy manifest passes through with normal semantics
+ ✓ src/app/VerificationContractEditor.test.tsx (2 tests) 212ms
+ ✓ src/app/EvidencePanel.test.tsx (2 tests) 325ms
+ ✓ src/core/visual-evidence-fixtures.test.ts (14 tests) 1505ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/preview-resource-snapshot.test.ts (20 tests | 1 skipped) 1703ms
+   ✓ isolated preview resource snapshots > snapshots a CJK-scale stylesheet as original CSS plus per-font artifacts  1602ms
+ ❯ src/core/visual-evidence.test.ts (53 tests | 1 failed) 4416ms
+   ✓ visual difference evidence: comparison outcomes > reports zero difference for identical screenshots — and still not PASS 24ms
+   ✓ visual difference evidence: comparison outcomes > reports a single changed region confined to the target 13ms
+   ✓ visual difference evidence: comparison outcomes > reports several separated regions and attributes each to the most specific element 9ms
+   ✓ visual difference evidence: comparison outcomes > treats anti-aliasing-only differences as unchanged and counts them separately 13ms
+   ✓ visual difference evidence: comparison outcomes > refuses to compare screenshots of different pixel size (page extent changed) 5ms
+   ✓ visual difference evidence: comparison outcomes > refuses to compare different device pixel ratios 5ms
+   ✓ visual difference evidence: comparison outcomes > refuses to compare viewport-only captures taken at different scroll positions 3ms
+   ✓ visual difference evidence: comparison outcomes > ignores scroll differences for full-page captures (the whole document is covered) 4ms
+   ✓ visual difference evidence: comparison outcomes > rejects a negative expected scopeVersion 1ms
+   ✓ visual difference evidence: comparison outcomes > rejects a screenshot whose size contradicts its declared viewport × DPR 2ms
+   ✓ visual difference evidence: comparison outcomes > maps DOM geometry correctly at device pixel ratio 2 12ms
+   ✓ visual difference evidence: comparison outcomes > reports not-run for a missing screenshot and failed-to-run for empty or corrupt ones 15ms
+   ✓ visual difference evidence: comparison outcomes > reports failed-to-run when screenshot bytes differ from their recorded hash 5ms
+   ✓ visual difference evidence: comparison outcomes > reports stale when the evidence belongs to another candidate, source or runtime 26ms
+   ✓ visual difference evidence: comparison outcomes > keeps identity unverified (never consistent) when no expected candidate is supplied 7ms
+   ✓ visual difference evidence: comparison outcomes > downgrades to unverified when only one side declares projectId 7ms
+   ✓ visual difference evidence: comparison outcomes > ignores projectId entirely on legacy inputs where neither side declares it 6ms
+   ✓ visual difference evidence: comparison outcomes > refuses mismatched or unknown route, viewport, interaction state, browser and capture state 54ms
+   ✓ visual difference evidence: comparison outcomes > treats different hash-router or query routes as different pages 20ms
+   ✓ visual difference evidence: comparison outcomes > requires geometry to have been sampled at the same query/fragment as the screenshot 18ms
+   ✓ visual difference evidence: comparison outcomes > flags transparent screenshots 8ms
+   ✓ visual difference evidence: comparison outcomes > never fills unknown descriptor fields with defaults 8ms
+   ✓ visual difference evidence: comparison outcomes > lists limitations instead of upgrading an unchanged comparison 5ms
+   ✓ visual difference evidence: comparison outcomes > records viewport-only captures as not covering the rest of the page 8ms
+   ✓ visual difference evidence: comparison outcomes > strips credentials, query strings and fragments from recorded locations 6ms
+   ✓ visual difference evidence: DOM geometry > classifies change outside the target as non-target review, not risk 6ms
+   ✓ visual difference evidence: DOM geometry > reports risk only through an explicit geometry rule on identity-consistent evidence 10ms
+   ✓ visual difference evidence: DOM geometry > keeps changes unattributed when the declared target is absent from the sampled DOM 5ms
+   ✓ visual difference evidence: DOM geometry > does not guess a source for elements without runtime annotations 3ms
+   ✓ visual difference evidence: DOM geometry > rejects geometry that cannot be mapped onto the screenshot and says why 24ms
+   ✓ visual difference evidence: DOM geometry > uses one-sided geometry for classification but flags it and skips cross-version rules 5ms
+   ✓ visual difference evidence: DOM geometry > records element boxes in screenshot pixels and flags geometry not bound to the screenshot bytes 13ms
+   ✓ visual difference evidence: DOM geometry > does not let the target margin absorb a change to an adjacent sibling 9ms
+   ✓ visual difference evidence: DOM geometry > reports hostile or malformed geometry without throwing 28ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > is deterministic for identical inputs 28ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > never returns pass 29ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > fails closed when independently valid CSS merge distance and DPR exceed 256 device pixels 138ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > accepts the combined 256-device-pixel grid boundary 38ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > only lets callers tighten safety limits 12ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > bounds reported regions and records truncation 7ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > keeps the largest regions when it has to truncate 7ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > accepts byte arrays from another JavaScript realm and refuses other screenshot inputs 10ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > stays bounded on a large full-page capture with many elements and many regions  3382ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > records algorithm, parameters and environment 10ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > projects onto VerificationEvidence only for its own check, without inventing values or a pass 18ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > never assigns a check identity while projecting exploratory evidence 41ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > keeps geometry findings advisory until both screenshots and geometry are SHA-bound and stable 75ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > rejects traversal, drive paths, control characters and ambiguous diff artifact paths 29ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > fails closed before decoding screenshots when mergeDistanceCssPx=1 exceeds its grid budget 108ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > rolls several evidences into an advisory assertion that cannot pass 24ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > lists which planned checks were compared, not comparable or never run for the expected candidate 13ms
+   ✓ visual difference evidence: determinism, bounds and integration helpers > does not let evidence for another candidate cover a check or hide a newer failure 20ms
+   × screenshot file intake > reads regular files and refuses links, special files and oversized files 29ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-visual-kS2Oqh\shot.png' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-visual-kS2Oqh\link.png'
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/app/editing.integration.test.tsx (2 tests) 1368ms
+   ✓ media and token editing > imports dimensions and saves a poster, previews local/shared outcomes, applies and restores  893ms
+   ✓ media and token editing > rejects unsupported files and prevents invalid colors; previews/clears a color candidate  473ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ❯ src/core/runtime-identity.test.ts (156 tests | 35 failed) 5421ms
+   ✓ React key stability classification > classifies product.id inside a list as stable 12ms
+   ✓ React key stability classification > classifies product inside a list as stable 2ms
+   ✓ React key stability classification > classifies id inside a list as stable 1ms
+   ✓ React key stability classification > classifies `${product.type}-${product.id}` inside a list as stable 2ms
+   ✓ React key stability classification > classifies String(product.id) inside a list as stable 2ms
+   ✓ React key stability classification > classifies product.id.toString() inside a list as stable 1ms
+   ✓ React key stability classification > classifies product['sku'] inside a list as stable 1ms
+   ✓ React key stability classification > classifies product.id! inside a list as stable 1ms
+   ✓ React key stability classification > classifies 'row-' + product.id inside a list as stable 1ms
+   ✓ React key stability classification > classifies product.id ?? product.slug inside a list as stable 1ms
+   ✓ React key stability classification > classifies flag ? product.id : product.slug inside a list as stable 1ms
+   ✓ React key stability classification > classifies `${selected}` + product.id inside a list as stable 1ms
+   ✓ React key stability classification > classifies product.row * 0 inside a list as unverified 1ms
+   ✓ React key stability classification > classifies -product.id inside a list as unverified 1ms
+   ✓ React key stability classification > classifies product.a ? product.id : selected inside a list as unverified 0ms
+   ✓ React key stability classification > classifies product.id || selected inside a list as unverified 0ms
+   ✓ React key stability classification > classifies !product.id inside a list as unverified 0ms
+   ✓ React key stability classification > classifies product.name.length inside a list as unverified 0ms
+   ✓ React key stability classification > classifies product.id === selected inside a list as unverified 4ms
+   ✓ React key stability classification > classifies index inside a list as index 0ms
+   ✓ React key stability classification > classifies `row-${index}` inside a list as index 0ms
+   ✓ React key stability classification > classifies product.id + index inside a list as index 0ms
+   ✓ React key stability classification > classifies product.id ?? index inside a list as index 0ms
+   ✓ React key stability classification > classifies Math.random() inside a list as unstable 0ms
+   ✓ React key stability classification > classifies crypto.randomUUID() inside a list as unstable 0ms
+   ✓ React key stability classification > classifies Date.now() inside a list as unstable 0ms
+   ✓ React key stability classification > classifies `${Date.now()}` inside a list as unstable 0ms
+   ✓ React key stability classification > classifies new Date().getTime() inside a list as unstable 1ms
+   ✓ React key stability classification > classifies nanoid() inside a list as unstable 0ms
+   ✓ React key stability classification > classifies keyFor(product) inside a list as unverified 0ms
+   ✓ React key stability classification > classifies products.indexOf(product) inside a list as unverified 0ms
+   ✓ React key stability classification > classifies 'static' inside a list as unverified 0ms
+   ✓ React key stability classification > classifies prefix inside a list as unverified 0ms
+   ✓ React key stability classification > classifies position inside a list as unverified 0ms
+   ✓ React key stability classification > classifies product[0] inside a list as unverified 0ms
+   ✓ React key stability classification > classifies product[field] inside a list as unverified 0ms
+   ✓ React key stability classification > classifies 'hero' outside a list as stable 0ms
+   ✓ React key stability classification > classifies user.id outside a list as stable 0ms
+   ✓ React key stability classification > classifies selectedId outside a list as stable 0ms
+   ✓ React key stability classification > classifies Math.random() outside a list as unstable 0ms
+   ✓ React key stability classification > classifies computeKey() outside a list as unverified 0ms
+   ✓ source annotation transform > marks index keys as position-dependent and business keys as stable-keyed 43ms
+   ✓ source annotation transform > treats render props, helper callbacks and loops as unproven repetition 13ms
+   ✓ source annotation transform > keeps once-per-render functions transparent 16ms
+   ✓ source annotation transform > binds root renders, leaves other module-level JSX unbound and never self-references a shadowed component 10ms
+   ✓ source annotation transform > places boundaries only where React itself consumes the element 14ms
+   ✓ source annotation transform > injects no hooks into components that the file calls as plain functions 31ms
+   ✓ source annotation transform > orders boundaries that share a source offset (concise arrow bodies and adjacent siblings) 9ms
+   ✓ source annotation transform > never re-evaluates a key expression, whatever its form 50ms
+   ✓ source annotation transform > never adds a key to a boundary and keeps keyed state through flatMap, mixed roots and Children.map 12ms
+   ✓ source annotation transform > refuses unsafe index injection, detached row JSX, shadowed ancestor keys and position iterators 23ms
+   ✓ source annotation transform > never keeps stored or prop-passed JSX stable unless it is rendered once, directly 9ms
+   ✓ source annotation transform > treats array entries() pairs as positions and Object.keys/entries by provable source 37ms
+   ✓ source annotation transform > resolves Object.keys arguments by lexical scope 11ms
+   ✓ source annotation transform > respects var hoisting when resolving Object.keys arguments 34ms
+   ✓ source annotation transform > never moves a key in classic-runtime files or past a spread 16ms
+   ✓ source annotation transform > evaluates an element key once per annotation and only when it is pure 8ms
+   ✓ source annotation transform > keeps directives first, skips async/generator functions and bounds root renders 21ms
+   ✓ source annotation transform > registers the sha256 of the exact served source 7ms
+   ✓ source annotation transform > emits no TypeScript-only syntax into JSX files and parses as valid TSX 11ms
+   ✓ project escape index (cross-file hook safety) > keeps hooks for exports only rendered as JSX and drops them when another file calls them 258ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a named barrel 124ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a star barrel 92ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a import then re-export 72ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a namespace member 70ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a render prop in a .ts file 57ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a unresolved project alias 93ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a literal dynamic import 83ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a non-literal dynamic import 55ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a string-concatenated dynamic import prefix 55ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a template dynamic import prefix 88ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a namespace re-export (export * as) 72ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a nested namespace re-export barrel 84ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a whole namespace re-export used as a value 118ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a tsconfig path alias 87ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a bare alias that is not an installed package 86ms
+   × project escape index (cross-file hook safety) > drops hooks when an export escapes through a import.meta.glob 80ms
+     → expected true to be false // Object.is equality
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a caller inside build/ 69ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a caller in an .mts module 49ms
+   ✓ project escape index (cross-file hook safety) > drops hooks when an export escapes through a .call on the function 59ms
+   ✓ project escape index (cross-file hook safety) > follows default exports imported under another name, and ignores package imports and benign namespace JSX 254ms
+   × project escape index (cross-file hook safety) > resolves linked workspace packages and tsconfig aliases to the real files 58ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-29rcZd\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-29rcZd\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a browser before import (manifest key order decides in Vite) 14ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-T4nSeh\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-T4nSeh\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a development condition 17ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-esomTe\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-esomTe\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a nested conditions 21ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-PSyy4T\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-PSyy4T\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a condition array 23ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-014ZH0\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-014ZH0\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a sugar exports object 18ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-0TFnB7\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-0TFnB7\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a module field next to exports 23ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-anX6kG\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-anX6kG\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a browser field next to main 13ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-ZeEhh6\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-ZeEhh6\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a legacy jsnext:main field 15ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-XAhX8J\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-XAhX8J\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a legacy jsnext field 13ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-LYN3I3\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-LYN3I3\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a dotted extension-less module field 14ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-SeoCQS\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-SeoCQS\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has a target that exists outside the scanned sources 28ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-GvSF7J\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-GvSF7J\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has an object browser map 27ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-grdUhm\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-grdUhm\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has no resolvable entry at all 25ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-151Yvb\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-151Yvb\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has no entry fields and no index file 14ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-OkMaCg\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-OkMaCg\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has a directory target with its own manifest 42ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-3fUF5q\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-3fUF5q\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > fails closed for a deprecated folder mapping that covers the requested subpath 14ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-svnfMj\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-svnfMj\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a types condition pointing at a declaration file 36ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-jI8SM6\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-jI8SM6\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a dist target that is not built (fresh worktree) 19ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-92VbHE\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-92VbHE\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with subpath patterns next to the root entry 41ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-bxjbCz\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-bxjbCz\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a null exclusion and a package.json entry 23ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-RnPGL8\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-RnPGL8\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a declaration file under a runtime condition 39ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-L8DKiv\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-L8DKiv\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a style export and a top-level types field 29ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-WQAX3Q\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-WQAX3Q\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > expands exports subpath patterns for the requested subpath 23ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-DbYuf6\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-DbYuf6\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > resolves a deep workspace import without an exports map by its file path 29ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-tDZGlt\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-tDZGlt\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > resolves dotted extension-less entries and imports to script files instead of treating them as assets 23ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-BrMkxZ\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-BrMkxZ\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > records files by real path when a symlinked folder is walked before its target 55ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-sucDfG\zshared' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-sucDfG\src\linked'
+   × project escape index (cross-file hook safety) > resolves workspace packages when the project root itself is a symlinked path 13ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-X37dYa\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-X37dYa\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > looks a workspace package up from the importing file (pnpm per-package links) before the root 53ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-hByodJ\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-hByodJ\apps\web\node_modules\@acme\ui'
+   × project escape index (cross-file hook safety) > keeps hooks for a workspace package whose every entry is proven, and for an unrelated subpath file 14ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-rNBTwp\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-rNBTwp\node_modules\@acme\ui'
+   ✓ project escape index (cross-file hook safety) > follows every file an extensionless import may resolve to (Vite and TypeScript order extensions differently) 299ms
+   ✓ project escape index (cross-file hook safety) > reads MDX and inline HTML module scripts as callers  352ms
+   × project escape index (cross-file hook safety) > follows callers inside symlinked directories 14ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-krEphP\outside' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-krEphP\src\linked'
+   ✓ project escape index (cross-file hook safety) > does not give up on asset requires and scopes prefix imports to their directory 259ms
+   ✓ project escape index (cross-file hook safety) > treats a namespace export rendered only as JSX as benign 63ms
+   ✓ project escape index (cross-file hook safety) > reloads served modules whose escape decision flips after an edit elsewhere (HMR) 129ms
+   ✓ project escape index (cross-file hook safety) > rebuilds the escape index on the next transform after any watcher event, and reuses it otherwise 112ms
+   ✓ project escape index (cross-file hook safety) > invalidates a served module whose decision flipped before the next request, without HMR 123ms
+   ✓ project escape index (cross-file hook safety) > re-checks served decisions before a page navigation even when no watcher event was delivered 102ms
+   ✓ project escape index (cross-file hook safety) > re-checks served decisions shortly after a file event even when no request arrives, without HMR 183ms
+   × project escape index (cross-file hook safety) > resolves relative imports from link paths as well as real directories (preserveSymlinks) 22ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-7hM2kj\lib\inner' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-7hM2kj\src\linked'
+   × project escape index (cross-file hook safety) > reuses the index only while sources and every observed filesystem fact are unchanged 12ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-R32kgp\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-R32kgp\node_modules\@acme\ui'
+   ✓ project escape index (cross-file hook safety) > sees a same-size edit that keeps the modification time of a recently modified file 59ms
+   ✓ project escape index (cross-file hook safety) > fails closed when a queued re-check throws: every served module is invalidated 63ms
+   × project escape index (cross-file hook safety) > rebuilds when a symlink inside the project is retargeted 16ms
+     → EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-1sRIlM\shared-a' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-1sRIlM\src\linked'
+   ✓ project escape index (cross-file hook safety) > fails closed for every exported function when a dynamic import is unknowable, but keeps private components 60ms
+   ✓ browser identity runtime > merges certainties so that the weakest proof wins and keyed stability is kept 105ms
+   ✓ browser identity runtime > binds an identity only to the component whose element created the boundary 121ms
+   ✓ browser identity runtime > encodes key parts so keys containing "/" cannot collide 11ms
+   ✓ browser identity runtime > lets only the first instance of a type claim a boundary 15ms
+   ✓ browser identity runtime > derives a boundary from its lexical owner and memoizes the context value 11ms
+   ✓ runtime identity assessment > proves a stable, versioned, page-matched instance without granting an edit 4ms
+   ✓ runtime identity assessment > fails closed for unknown graph source 1ms
+   ✓ runtime identity assessment > fails closed for changed source 0ms
+   ✓ runtime identity assessment > fails closed for missing version 0ms
+   ✓ runtime identity assessment > fails closed for no digest reader 0ms
+   ✓ runtime identity assessment > fails closed for other page 0ms
+   ✓ runtime identity assessment > fails closed for positional identity 0ms
+   ✓ runtime identity assessment > fails closed for collection downgrade 0ms
+   ✓ runtime identity assessment > requires a named expected page for proof and treats an ambiguous version as not locatable 1ms
+   ✓ runtime identity assessment > proves only a canonical render-time v2 tuple with an exact sourceRef anchor 2ms
+   ✓ runtime identity assessment > keeps historical v1 proof limited to empty search and hash 0ms
+   ✓ runtime identity assessment > does not treat an unknown snapshot protocol as selectable or proven 1ms
+   ✓ runtime identity assessment > fails closed for a v1 path-only instance on page URL /?tab=b while retaining its source location 25ms
+   ✓ runtime identity assessment > fails closed for a v1 path-only instance on page URL /#/products while retaining its source location 6ms
+   ✓ runtime identity assessment > fails closed for a v1 path-only instance on page URL /?tab=b#/products while retaining its source location 16ms
+   ✓ runtime identity assessment > keeps a same-path v1 namespace ambiguous after observed query/hash navigation returns to empty URL 7ms
+   ✓ runtime identity assessment > does not revive a historical stale v1 snapshot when replayed after query/hash return to empty URL 5ms
+   ✓ runtime identity assessment > keeps only identities that survived collection for source navigation 1ms
+   ✓ runtime identity assessment > separates identity continuity from React lifecycle 1ms
+   ✓ runtime source map hardening > keeps the previous contract for observations without the optional fields 1ms
+   ✓ runtime source map hardening > rejects collection-downgraded observations but tolerates a missing page-side version 1ms
+   ✓ runtime source map hardening > separates navigation-only resolution from strict instance resolution 1ms
+   ✓ runtime source map hardening > never proves an instance without a digest reader, even with a page-side version 1ms
+   ✓ runtime source map hardening > requires the same source version and page when asked 1ms
+ ✓ src/app/experience/experience-flow.test.tsx (32 tests) 3647ms
+   ✓ F 体验工作台 · 青野演示流 > 任务三：演示审批反馈随目标/草稿/范围修订立即失效  375ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/preview/pageDocument.test.ts (3 tests) 142ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/app/PagePreview.test.tsx (1 test) 129ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/app/experience/real-adapter.test.ts (22 tests) 93ms
+ ✓ src/core/visual-dual-targets.test.ts (26 tests) 104ms
+ ✓ src/core/runtime-identity-pairing.test.ts (18 tests) 88ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/visual-evidence-view.test.ts (3 tests) 60ms
+ ✓ src/core/visual-png.test.ts (15 tests) 76ms
+ ✓ src/core/visual-diff.test.ts (9 tests) 69ms
+ ✓ src/app/ProjectWorkbench.test.tsx (1 test) 217ms
+ ✓ src/app/experience/real-adapter-phase2.test.ts (28 tests) 77ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/media-viewport-evidence.test.ts (30 tests) 79ms
+ ✓ src/app/usePreviewMeasurement.test.tsx (1 test) 63ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/app/CandidateEditor.test.tsx (1 test) 50ms
+ ✓ src/app/scope-effect-preview.test.tsx (4 tests) 61ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/page-overrides.test.ts (2 tests) 36ms
+warning: in the working copy of 'node_modules/react-router-dom/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/visual-geometry.test.ts (13 tests) 22ms
+ ✓ src/core/browser-error-accumulator.test.ts (4 tests) 28ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-router-dom/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/bolt-workflow.test.ts (7 tests) 14ms
+ ✓ src/app/experience/real-adapter-contract.test.ts (6 tests) 22ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/verification-contract.test.ts (6 tests) 16ms
+warning: in the working copy of 'node_modules/react-router-dom/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/cases/truthMatrix.test.ts (2 tests) 7ms
+ ✓ src/core/css-token-source.test.ts (5 tests) 13ms
+ ✓ src/app/verification-contract-form.test.ts (8 tests) 10ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/preview/explanations.test.ts (5 tests) 11ms
+ ✓ src/preview/measurement.test.ts (4 tests) 12ms
+ ✓ src/app/experience/view-model.test.ts (23 tests) 15ms
+ ✓ src/domain/state.test.ts (7 tests) 11ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/verification-runner-failure.test.ts (3 tests) 11ms
+ ✓ src/adapters/realEvidenceAdapter.test.ts (6 tests) 9ms
+ ✓ src/app/selectors.test.ts (5 tests) 10ms
+ ✓ src/cases/fixtures.test.ts (4 tests) 9ms
+ ❯ src/core/verification-publish.test.ts (15 tests | 3 failed) 154ms
+   × verification publish gate > serializes summary.manifest as the top-level execution record and returns the wrapper summary 19ms
+     → EPERM: operation not permitted, link 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-jydQFx\.execution.json.49572.c1dae5e3c61d28.tmp' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-jydQFx\execution.json'
+   ✓ verification publish gate > refuses to publish when verification returns no valid v4 manifest, before any close 6ms
+   ✓ verification publish gate > refuses to publish a manifest whose completed flag is false 2ms
+   ✓ verification publish gate > throws without leaving any record when the final browser.close rejects 7ms
+   ✓ verification publish gate > throws without leaving any record when the final browser.close hangs past its deadline 64ms
+   × verification publish gate > closes the browser exactly once on the success path 9ms
+     → EPERM: operation not permitted, link 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-5YGFal\.execution.json.49572.126d56551c3c58.tmp' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-5YGFal\execution.json'
+   ✓ verification publish gate > propagates the verification error untouched, never closes, and never touches a pre-existing record 6ms
+   ✓ verification publish gate > refuses to overwrite an existing record and leaves it byte-identical 11ms
+   ✓ verification publish gate > never closes a second time when the browser closed but publishing failed 10ms
+   × verification publish gate > publishes a full-contract v4 manifest with every host-read field intact 6ms
+     → EPERM: operation not permitted, link 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-9pT3ZS\.execution.json.49572.fa0c5aca300bb.tmp' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-9pT3ZS\execution.json'
+   ✓ verification publish gate > refuses to publish a non-object manifest 3ms
+   ✓ verification publish gate > refuses to publish a manifest with the wrong executor 2ms
+   ✓ verification publish gate > refuses to publish a manifest with a stale schema version 3ms
+   ✓ verification publish gate > refuses to publish a manifest whose checks are not an array 2ms
+   ✓ verification publish gate > refuses to publish a manifest without a runId 2ms
+ ✓ src/app/experience/real-selection.test.ts (7 tests) 10ms
+ ✓ src/core/runtime-selection-bridge.test.ts (12 tests) 16ms
+(node:40204) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 3)
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ src/core/preview-csp.test.ts (12 tests | 4 failed) 112ms
+   ✓ buildPreviewCsp > builds the pinned directive set with no approved resources 3ms
+   ✓ buildPreviewCsp > never emits a wildcard font source, with or without a stylesheet 1ms
+   ✓ buildPreviewCsp > keeps the strict interactive shape even when a stylesheet is authorized 0ms
+   ✓ buildPreviewCsp > adds the snapshot-authorized font origin only for the verification shape 1ms
+   ✓ buildPreviewCsp > does not widen font-src for image-only approvals even in the verification shape 0ms
+   ✓ buildPreviewCsp > lists each approved resource by origin and pathname in its serving directives 1ms
+   ✓ buildPreviewCsp > previewCspForRequest selects the shape strictly on the runner header 1ms
+   ✓ buildPreviewCsp > throws on an entry that is not a valid URL 1ms
+   × preview CSP font boundary in a real browser > interactive preview (strict shape) blocks a fonts.gstatic.com URL that is not in the authorized set 73ms
+     → browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+   × preview CSP font boundary in a real browser > verification shape allows the font request out to the route layer, which still authorizes per URL 9ms
+     → browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+   × preview CSP font boundary in a real browser > blocks the font in both shapes when no stylesheet was ever authorized 9ms
+     → browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+   × preview CSP font boundary in a real browser > a forged verification header on a fetch gains no font capability in an interactive preview 8ms
+     → browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ src/core/preview-resource-policy.test.ts (2 tests | 1 failed) 388ms
+   × preview external resource authorization > keeps hostile source references as suggestions until the user explicitly authorizes an exact HTTPS path 372ms
+     → Command failed: git -C C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-resource-project-Yad45O init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-resource-project-Yad45O/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+   ✓ preview external resource authorization > rejects unsafe schemes, local targets, credentials, and CSP directive injection 13ms
+ ❯ src/core/candidate-preview.test.ts (27 tests | 5 failed) 647ms
+   ✓ candidate preview network address > uses only the address assigned on the candidate internal network 3ms
+   ✓ candidate preview network address > rejects missing networks and unusable addresses 2ms
+   ✓ candidate preview network address > waits for Docker to attach the container before resolving its internal IPv4 address 201ms
+   ✓ candidate preview network address > fails immediately when the container stopped instead of waiting for an address timeout 1ms
+   ✓ candidate preview network address > parses Docker state and attached endpoints as one inspection 2ms
+   ✓ preview network readiness gate > hands the preview over only after the address is observed stable across consecutive checks 8ms
+   ✓ preview network readiness gate > restarts the stability count when the container address changes underneath 38ms
+   ✓ preview network readiness gate > restarts the stability count when the endpoint probe fails 33ms
+   ✓ preview network readiness gate > does not count inspections taken before an address is attached 38ms
+   ✓ preview network readiness gate > fails immediately when the container stops instead of waiting for stability 1ms
+   ✓ preview network readiness gate > reports the instability it observed when it never settles 61ms
+   ✓ candidate preview relay > rejects foreign Host and Origin, mutation methods, and non-origin-form paths 1ms
+   × candidate preview relay > forwards a normal GET but never forwards foreign requests or browser credentials 68ms
+     → fetch failed
+   × candidate preview relay > keeps one upstream connection across module requests instead of a handshake per module 11ms
+     → fetch failed
+   ✓ candidate preview relay > separates requests the relay never settled from requests the preview answered 1ms
+   ✓ candidate preview relay > keeps the event history bounded so a long preview cannot grow without limit 2ms
+   ✓ candidate preview relay > reports event-history truncation so a long preview cannot look fully recorded 1ms
+   ✓ candidate preview relay > does not mention truncation when nothing was dropped 0ms
+   × candidate preview relay > records a client abort when the browser abandons an in-flight module request 140ms
+     → expected +0 to be 1 // Object.is equality
+   × candidate preview relay > records relay rejections as denied rather than as preview failures 14ms
+     → fetch failed
+   × candidate preview relay > does not forward a close connection header that would defeat upstream reuse 14ms
+     → fetch failed
+   ✓ preview network pool teardown > removes a free network without touching any container 1ms
+   ✓ preview network pool teardown > treats an already-removed network as gone 1ms
+   ✓ preview network pool teardown > removes Ripple-owned containers attached to an in-use network and retries 1ms
+   ✓ preview network pool teardown > reports an in-use network that only foreign containers are attached to, without throwing 1ms
+   ✓ preview network pool teardown > reports the retry error when cleanup did not free the network 0ms
+   ✓ preview network pool teardown > still throws for removal errors that are neither not-found nor in-use 0ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/relation-id-v1.test.ts (27 tests) 23ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/verification-lifecycle.test.ts (9 tests) 1120ms
+   ✓ viewport scope lifecycle > bounds a late page whose close hangs forever instead of dropping it  494ms
+ ✓ src/core/scope.test.ts (8 tests) 15ms
+ ❯ src/core/preview-workspace-annotation.test.ts (1 test | 1 failed) 270ms
+   × workspace source annotation semantics matrix > project TSX is annotated and identity-provable; workspace TSX stays per-module but unannotated (unsupported, documented) 187ms
+     → EPERM: operation not permitted, symlink 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-ws-annot-h2ZlJb\linked-ui-src' -> 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-ws-annot-h2ZlJb\node_modules\linked-ui'
+ ✓ src/core/candidate-selection-bridge-html.test.ts (2 tests) 7ms
+ ❯ src/core/verification-execution.test.ts (35 tests | 35 skipped) 64ms
+   ↓ runner deadline > derives the runner deadline from the host kill time minus the reserve
+   ↓ isolated verification runner lifecycle > verifies four viewports, both sides of every scope page and the interaction with at most one page pair alive
+   ↓ isolated verification runner lifecycle > isolates every probe: IndexedDB, pagehide writes and hash routes cannot turn a broken interaction into a PASS
+   ↓ isolated verification runner lifecycle > never runs an interaction on the screenshotted main pair, where finished animations could hide a regression
+   ↓ isolated verification runner lifecycle > keeps the other side running when one probe task throws, then fails only that viewport
+   ↓ isolated verification runner lifecycle > fails a viewport whose browser.newPage() rejects and closes the page that did open
+   ↓ isolated verification runner lifecycle > fails only the affected viewport when a probe page is slow to open, without aborting the run
+   ↓ isolated verification runner lifecycle > keeps a candidate that never renders as a non-approvable record, not a runner failure
+   ↓ isolated verification runner lifecycle > fails a viewport whose resource route cannot be installed
+   ↓ isolated verification runner lifecycle > times out a hung marker probe, cancels it by closing its pages, and continues cleanly
+   ↓ isolated verification runner lifecycle > records a navigation failure or a missing declared control as an unverified route, quickly and never as a pass
+   ↓ isolated verification runner lifecycle > resolves a duplicated navigation label through the navigation landmark, only when exactly one visible candidate remains
+   ↓ isolated verification runner lifecycle > keeps the route UNKNOWN when the duplicated label is ambiguous even inside navigation landmarks
+   ↓ isolated verification runner lifecycle > opens the declared collapsible menu on narrow viewports and clicks the only visible target
+   ↓ isolated verification runner lifecycle > keeps the route UNKNOWN when the declared menu control does not exist
+   ↓ isolated verification runner lifecycle > keeps the route UNKNOWN when the opened menu exposes duplicate targets
+   ↓ isolated verification runner lifecycle > keeps the route UNKNOWN when two visible toggles carry the declared menu name
+   ↓ isolated verification runner lifecycle > binds wrong-route negation to source context instead of incidental copy
+   ↓ isolated verification runner lifecycle > refuses a duplicated declared menu even when the nav target is directly clickable
+   ↓ isolated verification runner lifecycle > proves the activated menu target inside the full Bolt conflict structure
+   ↓ isolated verification runner lifecycle > keeps the route UNKNOWN when the menu open activates nothing provable
+   ↓ isolated verification runner lifecycle > keeps the route UNKNOWN when the declared aria menu region does not hold the target
+   ↓ isolated verification runner lifecycle > refuses an aria menu that was already expanded before the click
+   ↓ isolated verification runner lifecycle > ignores dynamically inserted same-name buttons when the menu never opens
+   ↓ isolated verification runner lifecycle > counts a browser error storm exactly while keeping samples bounded and redacted
+   ↓ isolated verification runner lifecycle > serves only verified snapshot bytes and blocks a tampered snapshot on every request
+   ↓ isolated verification runner lifecycle > reports a runner failure, not a candidate record, when no viewport can run
+   ↓ isolated verification runner lifecycle > stops before the budget with a diagnostic that cannot be turned into an approvable receipt
+   ↓ isolated verification runner lifecycle > publishes the real executor output as a top-level v4 manifest through the publish gate, closing the browser exactly once
+   ↓ isolated verification runner lifecycle > aborts the run when a viewport cannot close its pages: the next viewport never starts and no record is produced
+   ↓ isolated verification runner lifecycle > counts a page close that hangs past its deadline, then aborts before the next viewport
+   ↓ isolated verification runner lifecycle > aborts the run when a newPage() promise outlives the cleanup grace: no leak counted, no next viewport, no record
+   ↓ isolated verification runner lifecycle > aborts the run when a timed-out task keeps running past the cleanup grace: the probe is not provably stopped
+   ↓ isolated verification runner lifecycle > aborts at the first viewport when no viewport can close its pages
+   ↓ isolated verification runner lifecycle > keeps browser-errors at RISK when an authorized resource could not be snapshotted, even if the page never requests it
+ ✓ src/core/project-viewports.test.ts (1 test) 5ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/AboutPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/sourcegraph-runtime-identity.test.ts (12 tests) 29798ms
+   ✓ C+D joint: pick → sourceRef → SourceGraph → page consumption → Scope evidence > proves a shared Footer consumed by two data-router pages and resolves the picked element  3759ms
+   ✓ C+D joint: pick → sourceRef → SourceGraph → page consumption → Scope evidence > accepts distinct runtime instances of identical source but never merges their identities  2286ms
+   ✓ C+D joint: pick → sourceRef → SourceGraph → page consumption → Scope evidence > invalidates stale instance identity once the candidate revision changes the source  3895ms
+   ✓ C+D joint: pick → sourceRef → SourceGraph → page consumption → Scope evidence > requires version and page evidence before any strict instance use  2627ms
+   ✓ C+D joint: pick → sourceRef → SourceGraph → page consumption → Scope evidence > refuses unstable or downgraded observations before they can reach source selection  1873ms
+   ✓ C+D joint: unproven relations stay fail-closed > keeps a route component bound only through a barrel re-export unproven  2194ms
+   ✓ C+D joint: unproven relations stay fail-closed > downgrades the whole route table when a dynamic parameter route exists, keeping proven page refs  2319ms
+   ✓ C+D joint: unproven relations stay fail-closed > does not upgrade classic <Route element={...}> JSX into proven page consumption  2122ms
+   ✓ C+D joint: unproven relations stay fail-closed > keeps unresolved imports inside the proven subgraph as partial evidence, never source-proven  2765ms
+   ✓ C+D joint: counterexamples — scope propagation and observation hygiene > propagates shared-source page impact into Scope decisions: every consuming page must be covered  2329ms
+   ✓ C+D joint: counterexamples — scope propagation and observation hygiene > rejects duplicate, unknown-source and unproven observations before source selection  1777ms
+   ✓ C+D joint: counterexamples — scope propagation and observation hygiene > keeps same-source duplicates on one page distinguishable without inventing certainty  1848ms
+ ❯ src/core/local-project-api.test.ts (8 tests | 7 failed) 5536ms
+   × loopback Project API > rejects project element selections without a current preview and refuses stale source preview baselines 1050ms
+     → fetch failed
+   × loopback Project API > analyzes a real Git project, forwards explicit local Scope to a multi-op worktree candidate and discards it 768ms
+     → fetch failed
+   × loopback Project API > injects one explicit structured executor through Session and Candidate in the local API 741ms
+     → fetch failed
+   ✓ loopback Project API > holds a candidate operation lock until async verification or cleanup has finished 4ms
+   × loopback Project API > retires superseded and reanalyzed candidates without leaving Git worktrees behind 751ms
+     → fetch failed
+   × loopback Project API > restores the same candidate after an API process restart and keeps discarded audit artifacts 748ms
+     → fetch failed
+   × loopback Project API > rejects foreign origins, non-POST methods and dirty project roots 766ms
+     → fetch failed
+   × loopback Project API > previews the applied revision only by explicit candidate identity and keeps every other dirty-tree gate 708ms
+     → fetch failed
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ❯ src/core/preview-optimize-deps.test.ts (3 tests | 2 failed) 8482ms
+   × restricted optimizeDeps discovery experiment > collapses confirmed third-party deps without touching project, workspace, lazy or CSS paths 6332ms
+     → EPERM: operation not permitted, symlink 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-optdeps-5FgQV3\linked-src' -> 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-optdeps-5FgQV3\node_modules\linkedpkg'
+   × restricted optimizeDeps discovery experiment > discovers a late dynamic dependency with exactly one controlled reload, ending rendered 150ms
+     → browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+   ✓ restricted optimizeDeps discovery experiment > refuses optimization on a failed node_modules scan instead of opening every dependency 10ms
+ ✓ src/core/apply.test.ts (4 tests) 8269ms
+   ✓ assertAppliedCandidatePreviewable > accepts a consistent applied record bound to the unchanged applied tree  2176ms
+   ✓ assertAppliedCandidatePreviewable > rejects sessions that are not the currently applied candidate  1085ms
+   ✓ assertAppliedCandidatePreviewable > rejects preview when HEAD moved, the applied tree changed, or unexpected untracked files appeared  3344ms
+   ✓ assertAppliedCandidatePreviewable > rejects symlink swaps, unexpected symlinks and index-only additions on the applied tree  1662ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/media-asset-swap.test.ts (12 tests) 57932ms
+   ✓ media-asset-swap executor > validate：形状完整的操作通过，畸形输入全部拒绝  7649ms
+   ✓ media-asset-swap executor > plan：sourceEdit 落在目标授权区间内，fileWrites 为新增资产路径与受控字节  6621ms
+   ✓ media-asset-swap executor > plan 统一素材校验（D 最终复审 P1）：绕过验收脚本直接驱动执行器，未校验字节同样被拒  6486ms
+   ✓ media-asset-swap executor > plan：无副作用——不读工程文件、不写任何文件  5086ms
+   ✓ media-asset-swap executor > plan：variants 显式 unsupported（不悄悄降级），after 与 assetRef 不一致拒绝，目标缺位置拒绝  3271ms
+   ✓ media-asset-swap 与候选核心集成（A 的 seam，B 的执行器） > 真实候选：二进制补丁、完整性校验、原工程与未授权页面不受影响  8127ms
+   ✓ media-asset-swap 与候选核心集成（A 的 seam，B 的执行器） > fail-closed：未注册执行器、畸形 payload、受保护目标、page-override 下的结构化操作  10720ms
+   ✓ media-asset-swap 与候选核心集成（A 的 seam，B 的执行器） > 审批后应用同一补丁并可靠回滚，复用 A 的公共生命周期  9928ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/runtime-identity-assessment.test.ts (21 tests) 59278ms
+   ✓ host runtime identity assessment > assesses each side against its own source tree, binds the side revision, and hashes each assessment  3668ms
+   ✓ host runtime identity assessment > uses the shared servedSourceDigest recipe and rejects path traversal or symlinks  703ms
+   ✓ host runtime identity assessment > keeps page pathname, search, and hash as an exact expected-page check  2389ms
+   ✓ host runtime identity assessment > does not prove v1 pathname-only namespaces on query or hash routes  4566ms
+   ✓ host runtime identity assessment > preserves collector route-namespace-stale after a v1 route returns to an empty namespace  2390ms
+   ✓ host runtime identity assessment > proves only a canonical v2 namespace bound to the complete page tuple  2112ms
+   ✓ host runtime identity assessment > marks malformed, non-canonical, or stale v2 namespaces route-namespace-stale  10198ms
+   ✓ host runtime identity assessment > rejects a namespace suffix that is not anchored to the record sourceRef  1991ms
+   ✓ host runtime identity assessment > requires a unique sourceRef anchor at the current JSX leaf for v1 and v2 namespaces  3756ms
+   ✓ host runtime identity assessment > keeps invalid and duplicate trusted contract paths unverified  3061ms
+   ✓ host runtime identity assessment > derives the full page tuple from trusted contract paths and fails closed on missing or ambiguous mappings  11701ms
+   ✓ host runtime identity assessment > downgrades a source version copied from the other side  1372ms
+   ✓ host runtime identity assessment > fails closed when the contract has no unique route mapping  1487ms
+   ✓ host runtime identity assessment > assigns unique tuple keys to duplicate records and downgrades every colliding runtime id  1405ms
+   ✓ host runtime identity assessment > records an empty runtime instance id as unavailable while retaining the source record assessment  1470ms
+   ✓ host runtime identity assessment > retains only host-verified Snapshot evidence when side version binding fails  1462ms
+   ✓ host runtime identity assessment > fails only the baseline binding when its host graph belongs to another project identity  1276ms
+   ✓ host runtime identity assessment > returns version-unverifiable if the source root changes after the trusted graph was built  1398ms
+   ✓ host runtime identity assessment > preserves A① capture failures as keyed host failure entries  1311ms
+   ✓ host runtime identity assessment > retains a valid empty snapshot as a stored identity entry with an empty assessment list  1557ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/shared.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/shared.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/media-acceptance-apply.test.ts (12 tests) 74362ms
+   ✓ applyApprovedCandidateWithRecovery（MEDIA 验收恢复保证） > 正常成功：返回应用态 session，显式回滚后恢复原基线  25028ms
+   ✓ applyApprovedCandidateWithRecovery（MEDIA 验收恢复保证） > 注入：应用成功后立即故障 → 自动回滚恢复原基线并向外抛错（不吞异常、不写成功）  11224ms
+   ✓ applyApprovedCandidateWithRecovery（MEDIA 验收恢复保证） > 注入：应用后摘要校验失败 → 同样走自动回滚恢复  9995ms
+   ✓ applyApprovedCandidateWithRecovery（MEDIA 验收恢复保证） > 注入：回滚本身失败 → 抛错携带双重错误且现场保留（调用方按可丢弃副本处理，不强制重置）  8352ms
+   ✓ classifyRecoveryOutcome（恢复状态如实记录，独立审查 P1-1） > 应用阶段抛错且工程未发生写入 → 无需回滚（rollbackError 为空）  7547ms
+   ✓ classifyRecoveryOutcome（恢复状态如实记录，独立审查 P1-1） > 应用阶段抛错且工程已偏离基线（无法确认未写入）→ 保守按可能写入处理，现场保留  6301ms
+   ✓ classifyRecoveryOutcome（恢复状态如实记录，独立审查 P1-1） > 应用阶段抛错且未写入时，分类如实反映"无需回滚即处基线"（摘要一致 → restored）  5911ms
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-Yc5q6e/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-LnB1R3/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-PIdoiJ/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/sub-components/profile/ProfileHeader.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyAliased.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyHidden.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyInlineType.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LazyTypeOnly.tsx', LF will be replaced by CRLF the next time Git touches it
+ ❯ src/core/project-data-routes.test.ts (86 tests | 3 failed) 130889ms
+   ✓ agent C: conservative data-router page provenance > proves nested Component, JSX element, index and relative paths through real router imports and provider  1631ms
+   ✓ agent C: conservative data-router page provenance > includes shared page consumption across two independent static routes  3174ms
+   ✓ agent C: conservative data-router page provenance > keeps dynamic parameter routes as unresolved runtime instance coverage  2734ms
+   ✓ agent C: conservative data-router page provenance > records unknown spread consumers and refuses full impact proof  2035ms
+   ✓ agent C: conservative data-router page provenance > does not trust a bare createBrowserRouter symbol or unmounted route table  2018ms
+   ✓ agent C: conservative data-router page provenance > keeps the established useState route idiom without a React Router dependency  2291ms
+   ✓ agent C: conservative data-router page provenance > reuses referenced nonstandard app config for aliased imports without marking npm packages unresolved  2113ms
+   ✓ agent C: conservative data-router page provenance > attributes an unresolved declared bare alias rather than silently ignoring it  1824ms
+   ✓ agent C: declarative route identity and import binding safety > resolves named and default page imports, aliased router bindings, and React.lazy default exports  2242ms
+   ✓ agent C: declarative route identity and import binding safety > keeps duplicate declarative paths as separate candidate route nodes and unknown impact  2125ms
+   ✓ agent C: declarative route identity and import binding safety > rejects dynamic, query-bearing, hash-bearing, and out-of-router paths  2237ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > models a provable route errorElement as a page-scoped consumer without an App-level render edge  2758ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > proves a default-imported route component used by an App-local data router  2164ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > proves the real codescandy App-local router layout for /pages/profile  1801ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > does not infer mounted pages from a Provider found only in a dead helper  1802ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > does not infer pages from an alternate screen that App does not render  1522ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > does not join two identically named router variables from different scopes  1460ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > does not confuse a factory or Provider shadow with the imported binding  1344ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > does not prove an App that is not mounted from an available entrypoint  1372ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > only declares partial impact on a conditionally mounted App-local Provider  1328ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > fails closed on push of a static routes array  1321ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > fails closed on splice of a static routes array  1403ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > fails closed on indexed write of a static routes array  1390ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > fails closed on aliased mutation of a static routes array  1370ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > fails closed on aliased index of a static routes array  1627ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > fails closed on an unknown route-array spread  1311ms
+   ✓ agent C P1: app ownership, lexical binding and mutable route safety > fails closed on computed, duplicate, and spread route object keys  4028ms
+   ✓ agent C P1 round 2: barrel provenance, JSX child and graph invariants > proves Profile -> barrel imported default ProfileHeader without inventing Link DOM mapping  1470ms
+   ✓ agent C P1 round 2: barrel provenance, JSX child and graph invariants > resolves export { default as Name } from a barrel  1386ms
+   ✓ agent C P1 round 2: barrel provenance, JSX child and graph invariants > resolves export * through two nested barrels when named component is exported  1527ms
+   ✓ agent C P1 round 2: barrel provenance, JSX child and graph invariants > does not replace an unresolved or shadowed barrel import with a same-named component  1399ms
+   ✓ agent C P1 round 2: barrel provenance, JSX child and graph invariants > does not count an arbitrary object.render(<App/>) as an application root  1355ms
+   ✓ agent C P1: configured entry and reachable root proof > custom bootstrap is proven  1570ms
+   ✓ agent C P1: configured entry and reachable root proof > actual bootstrap mounts something else  1494ms
+   ✓ agent C P1: configured entry and reachable root proof > missing HTML module entry  1488ms
+   ✓ agent C P1: configured entry and reachable root proof > missing source module entry  1310ms
+   ✓ agent C P1: configured entry and reachable root proof > two configured HTML entries are ambiguous  1412ms
+   ✓ agent C P1: configured entry and reachable root proof > uninvoked bootstrap has no root proof  1387ms
+   ✓ agent C P1: configured entry and reachable root proof > statically dead branch has no root proof  1383ms
+   ✓ agent C P1: configured entry and reachable root proof > shadowed createRoot does not prove mount  1441ms
+   ✓ agent C P1: configured entry and reachable root proof > plain object render does not prove React root  1300ms
+   ✓ agent C P1: configured entry and reachable root proof > top-level React Root direct render is proven  1363ms
+   ✓ agent C P1: configured entry and reachable root proof > top-level namespace React Root render is proven  1255ms
+   ✓ agent C P1: configured entry and reachable root proof > composite wrapper with ignored children is not proven  1229ms
+   ✓ agent C P1: configured entry and reachable root proof > React imported StrictMode wrapper preserves mount  1295ms
+   ✓ agent C P1: configured entry and reachable root proof > App only inside JSX callback is not proven  1200ms
+   ✓ agent C P1 round 3: conditional return paths never earn full source proof > fails closed on a conditional return path: if statement with implicit undefined on the other path  1248ms
+   ✓ agent C P1 round 3: conditional return paths never earn full source proof > fails closed on a conditional return path: switch with a single mounting case  1177ms
+   ✓ agent C P1 round 3: conditional return paths never earn full source proof > fails closed on a conditional return path: try block whose catch does not remount  1098ms
+   ✓ agent C P1 round 3: conditional return paths never earn full source proof > fails closed when only some conditional branches mount the RouterProvider  1801ms
+   ✓ agent C P1 round 3: conditional return paths never earn full source proof > keeps a Provider mounted inside a returned ternary or logical expression conditional  2096ms
+   ✓ agent C P1 round 3: conditional return paths never earn full source proof > keeps the unconditional single RouterProvider mount fully source-proven  1040ms
+   ✓ agent C P1 round 3: conditional return paths never earn full source proof > still proves a mount guarded by an early throw, which has no implicit-undefined path  1072ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > detects a mutation through a let alias of the route table  1124ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > detects an indexed write through a let alias of the route table  1160ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > detects an unknown function receiving the route table through a let alias  1113ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > detects a route object property write through an element reference  1091ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > fails closed when a route object is selected through a non-numeric index before a property write  1055ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > fails closed when a fuzzy element selection is forwarded through an alias before a property write  1054ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > fails closed across a two-level alias chain with an element-access write  1096ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > fails closed when a fuzzy selection is rebound through let and written  1054ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > fails closed when a let alias chain of a fuzzy selection is written  1077ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > fails closed on a write through a circular alias chain without hanging  1045ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > fails closed when a route table alias is reassigned  1063ms
+   ✓ agent C P1 round 3: mutable route table aliases fail closed > keeps an unmodified static const route table fully source-proven  1058ms
+   ✓ agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > upgrades a verified react-router-dom v6 Link binding to source-proven with an auditable basis  1256ms
+   ✓ agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > upgrades a verified NavLink binding the same way  1065ms
+   ✓ agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > keeps a shadowed local Link lookalike at semantic-candidate  1116ms
+   ✓ agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > refuses an unaudited react-router major even when the name matches  1082ms
+   ✓ agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > refuses a Link imported from an unrelated package  1164ms
+   × agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > falls back to an audited declared dependency when no installation exists (clean-clone analyses) 173ms
+     → Command failed: git init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-Yc5q6e/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+   × agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > refuses an unaudited declared dependency range 173ms
+     → Command failed: git init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-LnB1R3/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+   ✓ agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > refuses a prerelease installed version even on an audited major  1106ms
+   × agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > refuses declared prerelease, complex and partial ranges 161ms
+     → Command failed: git init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-PIdoiJ/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+   ✓ agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > never promotes a module resolution escaping the project root into an installed basis  1150ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > models a statically provable errorElement as a source-proven page consumer and clears route-coverage  1617ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > models component-valued HydrateFallback and ErrorBoundary references  1166ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > refuses to prove a default-only lazy module (route.lazy has no default route property)  1160ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > proves a route.lazy module through its named Component export and gates real Candidates by proven pages  5103ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > refuses an internal Component that the lazy module never exports  1156ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > refuses a lazy module that only re-exports Component from another file  1157ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > refuses a type-only export (`export type { X as Component }`): no runtime Component property  1192ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > refuses an inline type export (`export { type X as Component }`): no runtime Component property  1204ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > proves an export-aliased Component (export { X as Component }) and gates real Candidates by proven pages  5106ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > keeps a conditional errorElement fail-closed with a locatable reason and route-coverage  1177ms
+   ✓ agent C AC-P2b: data-router fallback and conditional consumers > keeps a chained lazy import fail-closed  1192ms
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Navigation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Navigation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Navigation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Navigation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Navigation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Navigation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/Navigation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.ripple/overrides.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/HomePage.tsx', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/core/project.test.ts (35 tests | 1 skipped) 177743ms
+   ✓ real project graph and candidate executor > reads a clean Git project, proves page/component consumers and resolves a rendered host element to source text  8687ms
+   ✓ real project graph and candidate executor > reports bounded project capabilities from arbitrary referenced and extended app config names  14506ms
+   ✓ real project graph and candidate executor > proves source aliases through the existence-gated fallback for bare catch-all mappings  4224ms
+   ✓ real project graph and candidate executor > proves component token use but keeps imported CSS token usage unknown without cascade evidence  3520ms
+   ✓ real project graph and candidate executor > keeps same-name CSS theme declarations distinct and refuses ambiguous consumption proof  2745ms
+   ✓ real project graph and candidate executor > anchors CSS var() consumers to exact JSX elements and HashRouter pages without proving cascade  2782ms
+   ✓ real project graph and candidate executor > creates B1.1 candidates only for one exact static JSX owner and preserves each use anchor  2826ms
+   ✓ real project graph and candidate executor > keeps B1.1 fail-closed for duplicate, missing, dynamic, and incomplete compound owners  2720ms
+   ✓ real project graph and candidate executor > only accepts tag-only intrinsic owners and refuses global or custom-component boundaries  2805ms
+   ✓ real project graph and candidate executor > keeps missing fallback variables as exact unknown source evidence  2651ms
+   ✓ real project graph and candidate executor > keeps token origin metadata additive to graph semantics  2447ms
+   ✓ real project graph and candidate executor > narrows member-access media candidates by the receiver declared type and keeps the name-level fallback for untyped receivers  2923ms
+   ✓ real project graph and candidate executor > keeps uncertain evidence when narrowed media candidates reach the receiver through alias or spread flows (N8/N10)  5544ms
+   ✓ real project graph and candidate executor > matches receiver types by symbol identity so same-named interfaces in other modules do not leak ranges (N9)  2902ms
+   ✓ real project graph and candidate executor > fails closed across unresolved imports, dynamic media, and scopes missing proven pages (N4/N5/N6/N7)  17044ms
+   ✓ real project graph and candidate executor > keeps uncertain evidence when a factory without an explicit return type feeds typed receivers (N11)  4396ms
+   ✓ real project graph and candidate executor > does not execute a structured action through the literal candidate replacement path  1855ms
+   ✓ real project graph and candidate executor > executes a registered structured operation as one binary patch and applies then rolls back those exact bytes  8191ms
+   ✓ real project graph and candidate executor > fails closed for unknown, malformed and protected structured actions before the executor can plan writes  3862ms
+   ✓ real project graph and candidate executor > detects binary worktree tampering, patch artifact tampering and unregistered candidate writes  6904ms
+   ✓ real project graph and candidate executor > rejects staged asset input whose bytes do not match the requested SHA-256  4121ms
+   ✓ real project graph and candidate executor > rejects structured source drift and candidate-relative path escape before writing  7885ms
+   ✓ real project graph and candidate executor > adds runtime source references only to served JSX and keeps original project files untouched  1869ms
+   ✓ real project graph and candidate executor > injects stable-key identity into JSX without adding TypeScript-only syntax  517ms
+   ✓ real project graph and candidate executor > marks unkeyed mapped elements as position-dependent instead of claiming stable identity  487ms
+   ✓ real project graph and candidate executor > rejects an execution record whose browser check is recorded as failed  5042ms
+   ✓ real project graph and candidate executor > applies every in-scope operation to one isolated worktree without changing the original project  6934ms
+   ✓ real project graph and candidate executor > rejects a locally scoped edit when its source is consumed by an excluded page  4158ms
+   ✓ real project graph and candidate executor > stores a page-local override centrally while preserving the shared source value  13039ms
+   ✓ real project graph and candidate executor > binds removal of the final page override to its restored shared JSX text  11415ms
+   ✓ real project graph and candidate executor > applies the exact approved patch to the project and rolls back only that unchanged result  7296ms
+   ✓ real project graph and candidate executor > refuses rollback after a user adds a new edit to the applied project  7389ms
+   ✓ real project graph and candidate executor > rejects a dirty baseline and rejects protected targets before creating a worktree  4055ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/core/verification-execution.test.ts [ src/core/verification-execution.test.ts ]
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ src/core/verification-execution.test.ts:180:28
+    178|   await listen(CANDIDATE_HOST, 'New brand')
+    179|   await listen(BASELINE_HOST, 'Old brand')
+    180|   browser = await chromium.launch({ headless: true, executablePath: pr…
+       |                            ^
+    181| }, 60_000)
+    182| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/70]⎯
+
+ FAIL  src/core/visual-evidence.browser.test.ts [ src/core/visual-evidence.browser.test.ts ]
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ src/core/visual-evidence.browser.test.ts:37:28
+     35| 
+     36| beforeAll(async () => {
+     37|   browser = await chromium.launch({ headless: true, executablePath: pr…
+       |                            ^
+     38| })
+     39| afterAll(async () => { await browser?.close() })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/70]⎯
+
+ FAIL  src/core/visual-verification-attach.test.ts [ src/core/visual-verification-attach.test.ts ]
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ src/core/visual-verification-attach.test.ts:43:28
+     41|     servers.push(server)
+     42|   }
+     43|   browser = await chromium.launch({ headless: true, executablePath: pr…
+       |                            ^
+     44| }, 60_000)
+     45| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/70]⎯
+
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 67 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/core/candidate-preview.test.ts > candidate preview relay > forwards a normal GET but never forwards foreign requests or browser credentials
+ FAIL  src/core/candidate-preview.test.ts > candidate preview relay > keeps one upstream connection across module requests instead of a handshake per module
+ FAIL  src/core/candidate-preview.test.ts > candidate preview relay > records relay rejections as denied rather than as preview failures
+ FAIL  src/core/candidate-preview.test.ts > candidate preview relay > does not forward a close connection header that would defeat upstream reuse
+ FAIL  src/core/local-project-api.test.ts > loopback Project API > rejects project element selections without a current preview and refuses stale source preview baselines
+ FAIL  src/core/local-project-api.test.ts > loopback Project API > analyzes a real Git project, forwards explicit local Scope to a multi-op worktree candidate and discards it
+ FAIL  src/core/local-project-api.test.ts > loopback Project API > injects one explicit structured executor through Session and Candidate in the local API
+ FAIL  src/core/local-project-api.test.ts > loopback Project API > retires superseded and reanalyzed candidates without leaving Git worktrees behind
+ FAIL  src/core/local-project-api.test.ts > loopback Project API > restores the same candidate after an API process restart and keeps discarded audit artifacts
+ FAIL  src/core/local-project-api.test.ts > loopback Project API > rejects foreign origins, non-POST methods and dirty project roots
+ FAIL  src/core/local-project-api.test.ts > loopback Project API > previews the applied revision only by explicit candidate identity and keeps every other dirty-tree gate
+ FAIL  src/core/media-acceptance-server.test.ts > serveStatic 安全边界 > 正常服务根目录与静态资产
+ FAIL  src/core/media-acceptance-server.test.ts > serveStatic 安全边界 > 带扩展名的缺失资产一律 404，不落入 SPA 回退
+ FAIL  src/core/media-acceptance-server.test.ts > serveStatic 安全边界 > SPA 回退到 index.html，且回退目标仍受越界约束
+TypeError: fetch failed
+Caused by: Error: connect EACCES 127.0.0.1:9991
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4092, code: 'EACCES', syscall: 'connect', address: '127.0.0.1', port: 9991 }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/70]⎯
+
+ FAIL  src/core/candidate-preview.test.ts > candidate preview relay > records a client abort when the browser abandons an in-flight module request
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/core/candidate-preview.test.ts:252:57
+    250|     await pending.catch(() => undefined)
+    251|     await new Promise(resolve => setTimeout(resolve, 60))
+    252|     expect(relay.accounting.outcomes['client-aborted']).toBe(1)
+       |                                                         ^
+    253|     expect(relay.accounting.events[relay.accounting.events.length - 1]…
+    254|     await new Promise<void>(resolve => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/70]⎯
+
+ FAIL  src/core/media-acceptance-run-dir.test.ts > media-acceptance-run-dir（P1-2：运行目录隔离与保留现场发现） > 符号链接条目在发现阶段不被跟随
+Error: EPERM: operation not permitted, symlink 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\acp6-relation-id-v03-production-fb2-20261104\node_modules\.tmp\ripple-run-dir-8xHaL2\outside' -> 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\acp6-relation-id-v03-production-fb2-20261104\node_modules\.tmp\ripple-run-dir-nfj831\acceptance\run-evil'
+ ❯ src/core/media-acceptance-run-dir.test.ts:93:8
+     91|     fs.writeFileSync(targetFile, 'sensitive')
+     92|     fs.mkdirSync(workRoot)
+     93|     fs.symlinkSync(outside, path.join(workRoot, 'run-evil'), 'junction…
+       |        ^
+     94|     const scenes = detectPreservedScenes(workRoot)
+     95|     // 链接目录下没有 SCENE-PRESERVED.json，且绝不能因跟随链接而读到外部内容
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/70]⎯
+
+ FAIL  src/core/media-acceptance-server.test.ts > serveStatic 安全边界 > 路径越界（含编码形式）一律 404
+Error: connect EACCES 127.0.0.1:1767
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/70]⎯
+
+ FAIL  src/core/preview-csp.test.ts > preview CSP font boundary in a real browser > interactive preview (strict shape) blocks a fonts.gstatic.com URL that is not in the authorized set
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ probe src/core/preview-csp.test.ts:120:32
+    118|   async function probe(withVerificationHeader: boolean, approved: stri…
+    119|     const { server, fontRequests, cspViolations } = await serve(approv…
+    120|     browser ??= await chromium.launch({ headless: true, executablePath…
+       |                                ^
+    121|     const page = await browser.newPage()
+    122|     page.on('console', message => { if (message.type() === 'error' && …
+ ❯ src/core/preview-csp.test.ts:140:45
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/70]⎯
+
+ FAIL  src/core/preview-csp.test.ts > preview CSP font boundary in a real browser > verification shape allows the font request out to the route layer, which still authorizes per URL
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ probe src/core/preview-csp.test.ts:120:32
+    118|   async function probe(withVerificationHeader: boolean, approved: stri…
+    119|     const { server, fontRequests, cspViolations } = await serve(approv…
+    120|     browser ??= await chromium.launch({ headless: true, executablePath…
+       |                                ^
+    121|     const page = await browser.newPage()
+    122|     page.on('console', message => { if (message.type() === 'error' && …
+ ❯ src/core/preview-csp.test.ts:147:30
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/70]⎯
+
+ FAIL  src/core/preview-csp.test.ts > preview CSP font boundary in a real browser > blocks the font in both shapes when no stylesheet was ever authorized
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ probe src/core/preview-csp.test.ts:120:32
+    118|   async function probe(withVerificationHeader: boolean, approved: stri…
+    119|     const { server, fontRequests, cspViolations } = await serve(approv…
+    120|     browser ??= await chromium.launch({ headless: true, executablePath…
+       |                                ^
+    121|     const page = await browser.newPage()
+    122|     page.on('console', message => { if (message.type() === 'error' && …
+ ❯ src/core/preview-csp.test.ts:152:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/70]⎯
+
+ FAIL  src/core/preview-csp.test.ts > preview CSP font boundary in a real browser > a forged verification header on a fetch gains no font capability in an interactive preview
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ src/core/preview-csp.test.ts:169:32
+    167|   it('a forged verification header on a fetch gains no font capability…
+    168|     const { server, fontRequests, cspViolations } = await serve([FONTS…
+    169|     browser ??= await chromium.launch({ headless: true, executablePath…
+       |                                ^
+    170|     const page = await browser.newPage()
+    171|     page.on('console', message => { if (message.type() === 'error' && …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/70]⎯
+
+ FAIL  src/core/preview-optimize-deps.test.ts > restricted optimizeDeps discovery experiment > collapses confirmed third-party deps without touching project, workspace, lazy or CSS paths
+Error: EPERM: operation not permitted, symlink 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-optdeps-5FgQV3\linked-src' -> 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-optdeps-5FgQV3\node_modules\linkedpkg'
+ ❯ linkWorkspace src/core/preview-optimize-deps.test.ts:59:6
+     57| 
+     58| function linkWorkspace(root: string, linkName: string, sourceDir: stri…
+     59|   fs.symlinkSync(path.join(root, sourceDir), path.join(root, 'node_mod…
+       |      ^
+     60| }
+     61| 
+ ❯ buildApp src/core/preview-optimize-deps.test.ts:75:3
+ ❯ src/core/preview-optimize-deps.test.ts:152:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/70]⎯
+
+ FAIL  src/core/preview-optimize-deps.test.ts > restricted optimizeDeps discovery experiment > discovers a late dynamic dependency with exactly one controlled reload, ending rendered
+Error: browserType.launch: Executable doesn't exist at C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\ms-playwright\chromium_headless_shell-1248\chrome-headless-shell-win64\chrome-headless-shell.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+ ❯ src/core/preview-optimize-deps.test.ts:226:32
+    224|     await vite.listen()
+    225|     const port = (vite.httpServer!.address() as { port: number }).port
+    226|     browser ??= await chromium.launch({ headless: true, executablePath…
+       |                                ^
+    227|     const page = await browser.newPage()
+    228|     let navigations = 0
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/70]⎯
+
+ FAIL  src/core/preview-resource-policy.test.ts > preview external resource authorization > keeps hostile source references as suggestions until the user explicitly authorizes an exact HTTPS path
+Error: Command failed: git -C C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-resource-project-Yad45O init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-resource-project-Yad45O/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+ ❯ git src/core/preview-resource-policy.test.ts:30:40
+     28|     fs.mkdirSync(path.join(projectRoot, 'src'))
+     29|     fs.writeFileSync(path.join(projectRoot, 'src', 'App.jsx'), `// att…
+     30|     const git = (...args: string[]) => execFileSync('git', ['-C', proj…
+       |                                        ^
+     31|     git('init', '-q'); git('config', 'user.email', 'policy@example.inv…
+     32|     const projectId = 'project-policy-test'
+ ❯ src/core/preview-resource-policy.test.ts:31:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/70]⎯
+
+ FAIL  src/core/preview-workspace-annotation.test.ts > workspace source annotation semantics matrix > project TSX is annotated and identity-provable; workspace TSX stays per-module but unannotated (unsupported, documented)
+Error: EPERM: operation not permitted, symlink 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-ws-annot-h2ZlJb\linked-ui-src' -> 'D:\Onesummer_D\Learning\Competitons\ShuMei_QG\.ripple-fixtures\ripple-ws-annot-h2ZlJb\node_modules\linked-ui'
+ ❯ src/core/preview-workspace-annotation.test.ts:61:8
+     59|     fs.writeFileSync(path.join(root, 'linked-ui-src', 'package.json'),…
+     60|     fs.writeFileSync(path.join(root, 'linked-ui-src', 'Panel.tsx'), `e…
+     61|     fs.symlinkSync(path.join(root, 'linked-ui-src'), path.join(root, '…
+       |        ^
+     62|     fs.mkdirSync(path.join(root, 'src'), { recursive: true })
+     63|     fs.writeFileSync(path.join(root, 'index.html'), `<!doctype html><h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/70]⎯
+
+ FAIL  src/core/project-data-routes.test.ts > agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > falls back to an audited declared dependency when no installation exists (clean-clone analyses)
+Error: Command failed: git init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-Yc5q6e/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+ ❯ declaredProject src/core/project-data-routes.test.ts:850:5
+    848|       fs.writeFileSync(target, value)
+    849|     }
+    850|     execFileSync('git', ['init', '-q'], { cwd: root })
+       |     ^
+    851|     execFileSync('git', ['add', '.'], { cwd: root })
+    852|     execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=tes…
+ ❯ src/core/project-data-routes.test.ts:860:34
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/70]⎯
+
+ FAIL  src/core/project-data-routes.test.ts > agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > refuses an unaudited declared dependency range
+Error: Command failed: git init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-LnB1R3/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+ ❯ declaredProject src/core/project-data-routes.test.ts:850:5
+    848|       fs.writeFileSync(target, value)
+    849|     }
+    850|     execFileSync('git', ['init', '-q'], { cwd: root })
+       |     ^
+    851|     execFileSync('git', ['add', '.'], { cwd: root })
+    852|     execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=tes…
+ ❯ src/core/project-data-routes.test.ts:868:34
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/70]⎯
+
+ FAIL  src/core/project-data-routes.test.ts > agent C AC-P2a: audited router host propagation (react-router Link/NavLink) > refuses declared prerelease, complex and partial ranges
+Error: Command failed: git init -q
+error: could not write config file C:/Users/Deng/AppData/Local/Packages/sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}/AC/Temp/ripple-agent-c-PIdoiJ/.git/config: Permission denied
+fatal: could not set 'core.repositoryformatversion' to '0'
+
+ ❯ declaredProject src/core/project-data-routes.test.ts:850:5
+    848|       fs.writeFileSync(target, value)
+    849|     }
+    850|     execFileSync('git', ['init', '-q'], { cwd: root })
+       |     ^
+    851|     execFileSync('git', ['add', '.'], { cwd: root })
+    852|     execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=tes…
+ ❯ src/core/project-data-routes.test.ts:884:36
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when an export escapes through a import.meta.glob
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/core/runtime-identity.test.ts:384:58
+    382|   ])('drops hooks when an export escapes through a %s', (_name, files)…
+    383|     const root = project({ 'src/ui/Row.jsx': row, ...files as Record<s…
+    384|     try { expect(hooksIn(root, 'src/ui/Row.jsx', 'Row')).toBe(false) }…
+       |                                                          ^
+    385|   })
+    386| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > resolves linked workspace packages and tsconfig aliases to the real files
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-29rcZd\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-29rcZd\node_modules\@acme\ui'
+ ❯ src/core/runtime-identity.test.ts:417:10
+    415|     try {
+    416|       fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursi…
+    417|       fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root…
+       |          ^
+    418|       expect(hooksIn(root, 'packages/ui/Row.jsx', 'Row')).toBe(false)
+    419|       expect(hooksIn(root, 'packages/ui/Badge.jsx', 'Badge')).toBe(tru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a browser before import (manifest key order decides in Vite)
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-T4nSeh\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-T4nSeh\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a development condition
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-esomTe\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-esomTe\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a nested conditions
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-PSyy4T\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-PSyy4T\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a condition array
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-014ZH0\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-014ZH0\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a sugar exports object
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-0TFnB7\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-0TFnB7\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a module field next to exports
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-anX6kG\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-anX6kG\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a browser field next to main
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-ZeEhh6\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-ZeEhh6\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a legacy jsnext:main field
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-XAhX8J\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-XAhX8J\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a legacy jsnext field
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-LYN3I3\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-LYN3I3\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > drops hooks when a workspace package entry may resolve through a dotted extension-less module field
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-SeoCQS\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-SeoCQS\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:452:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has a target that exists outside the scanned sources
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-GvSF7J\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-GvSF7J\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:467:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has an object browser map
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-grdUhm\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-grdUhm\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:467:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has no resolvable entry at all
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-151Yvb\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-151Yvb\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:467:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has no entry fields and no index file
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-OkMaCg\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-OkMaCg\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:467:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > fails closed for the whole project when a workspace manifest has a directory target with its own manifest
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-3fUF5q\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-3fUF5q\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:467:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > fails closed for a deprecated folder mapping that covers the requested subpath
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-svnfMj\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-svnfMj\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:475:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a types condition pointing at a declaration file
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-jI8SM6\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-jI8SM6\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:486:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a dist target that is not built (fresh worktree)
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-92VbHE\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-92VbHE\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:486:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with subpath patterns next to the root entry
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-bxjbCz\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-bxjbCz\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:486:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a null exclusion and a package.json entry
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-RnPGL8\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-RnPGL8\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:486:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a declaration file under a runtime condition
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-L8DKiv\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-L8DKiv\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:486:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > keeps the project-wide index precise for a workspace manifest with a style export and a top-level types field
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-WQAX3Q\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-WQAX3Q\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:486:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > expands exports subpath patterns for the requested subpath
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-DbYuf6\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-DbYuf6\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:496:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > resolves a deep workspace import without an exports map by its file path
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-tDZGlt\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-tDZGlt\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:508:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > resolves dotted extension-less entries and imports to script files instead of treating them as assets
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-BrMkxZ\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-BrMkxZ\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:519:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > records files by real path when a symlinked folder is walked before its target
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-sucDfG\zshared' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-sucDfG\src\linked'
+ ❯ src/core/runtime-identity.test.ts:542:10
+    540|     })
+    541|     try {
+    542|       fs.symlinkSync(path.join(root, 'zshared'), path.join(root, 'src'…
+       |          ^
+    543|       const index = createProjectEscapeIndex(root)()
+    544|       expect(index.all).toBe(false)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > resolves workspace packages when the project root itself is a symlinked path
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-X37dYa\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-X37dYa\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:553:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > looks a workspace package up from the importing file (pnpm per-package links) before the root
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-hByodJ\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-hByodJ\apps\web\node_modules\@acme\ui'
+ ❯ src/core/runtime-identity.test.ts:574:10
+    572|     try {
+    573|       fs.mkdirSync(path.join(root, 'apps', 'web', 'node_modules', '@ac…
+    574|       fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root…
+       |          ^
+    575|       expect(hooksIn(root, 'packages/ui/src/Row.jsx', 'Row')).toBe(fal…
+    576|       expect(createProjectEscapeIndex(root)().origins.has(path.join(ro…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > keeps hooks for a workspace package whose every entry is proven, and for an unrelated subpath file
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-rNBTwp\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-rNBTwp\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:580:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > follows callers inside symlinked directories
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-krEphP\outside' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-krEphP\src\linked'
+ ❯ src/core/runtime-identity.test.ts:625:10
+    623|     const root = project({ 'src/ui/Row.jsx': row, 'outside/App.jsx': `…
+    624|     try {
+    625|       fs.symlinkSync(path.join(root, 'outside'), path.join(root, 'src'…
+       |          ^
+    626|       fs.renameSync(path.join(root, 'outside'), path.join(root, '..', …
+    627|       removeLink(path.join(root, 'src', 'linked'))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > resolves relative imports from link paths as well as real directories (preserveSymlinks)
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-7hM2kj\lib\inner' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-7hM2kj\src\linked'
+ ❯ src/core/runtime-identity.test.ts:765:10
+    763|     })
+    764|     try {
+    765|       fs.symlinkSync(path.join(root, 'lib', 'inner'), path.join(root, …
+       |          ^
+    766|       const origins = [...createProjectEscapeIndex(root)().origins].ma…
+    767|       expect(origins).toEqual([path.join('lib', 'Row.jsx#Row'), path.j…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > reuses the index only while sources and every observed filesystem fact are unchanged
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-R32kgp\packages\ui' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-R32kgp\node_modules\@acme\ui'
+ ❯ linkedWorkspace src/core/runtime-identity.test.ts:437:8
+    435|     })
+    436|     fs.mkdirSync(path.join(root, 'node_modules', '@acme'), { recursive…
+    437|     fs.symlinkSync(path.join(root, 'packages', 'ui'), path.join(root, …
+       |        ^
+    438|     return root
+    439|   }
+ ❯ src/core/runtime-identity.test.ts:774:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/70]⎯
+
+ FAIL  src/core/runtime-identity.test.ts > project escape index (cross-file hook safety) > rebuilds when a symlink inside the project is retargeted
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-1sRIlM\shared-a' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-escape-1sRIlM\src\linked'
+ ❯ src/core/runtime-identity.test.ts:839:10
+    837|     const root = project({ 'shared-a/Row.jsx': row, 'shared-b/Row.jsx'…
+    838|     try {
+    839|       fs.symlinkSync(path.join(root, 'shared-a'), path.join(root, 'src…
+       |          ^
+    840|       const get = createProjectEscapeIndex(root)
+    841|       expect([...get(true).origins].map(origin => path.relative(root, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/70]⎯
+
+ FAIL  src/core/verification-publish.test.ts > verification publish gate > serializes summary.manifest as the top-level execution record and returns the wrapper summary
+Error: EPERM: operation not permitted, link 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-jydQFx\.execution.json.49572.c1dae5e3c61d28.tmp' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-jydQFx\execution.json'
+ ❯ runVerificationAndPublish src/core/verification-publish.mjs:87:10
+     85|     // every platform; the temp name is then removed either way.
+     86|     try {
+     87|       fs.linkSync(temporaryPath, outputPath)
+       |          ^
+     88|     } finally {
+     89|       fs.rmSync(temporaryPath, { force: true })
+ ❯ src/core/verification-publish.test.ts:42:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[54/70]⎯
+
+ FAIL  src/core/verification-publish.test.ts > verification publish gate > closes the browser exactly once on the success path
+Error: EPERM: operation not permitted, link 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-5YGFal\.execution.json.49572.126d56551c3c58.tmp' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-5YGFal\execution.json'
+ ❯ runVerificationAndPublish src/core/verification-publish.mjs:87:10
+     85|     // every platform; the temp name is then removed either way.
+     86|     try {
+     87|       fs.linkSync(temporaryPath, outputPath)
+       |          ^
+     88|     } finally {
+     89|       fs.rmSync(temporaryPath, { force: true })
+ ❯ src/core/verification-publish.test.ts:119:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[55/70]⎯
+
+ FAIL  src/core/verification-publish.test.ts > verification publish gate > publishes a full-contract v4 manifest with every host-read field intact
+Error: EPERM: operation not permitted, link 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-9pT3ZS\.execution.json.49572.fa0c5aca300bb.tmp' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-publish-9pT3ZS\execution.json'
+ ❯ runVerificationAndPublish src/core/verification-publish.mjs:87:10
+     85|     // every platform; the temp name is then removed either way.
+     86|     try {
+     87|       fs.linkSync(temporaryPath, outputPath)
+       |          ^
+     88|     } finally {
+     89|       fs.rmSync(temporaryPath, { force: true })
+ ❯ src/core/verification-publish.test.ts:209:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[56/70]⎯
+
+ FAIL  src/core/visual-evidence.test.ts > screenshot file intake > reads regular files and refuses links, special files and oversized files
+Error: EPERM: operation not permitted, symlink 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-visual-kS2Oqh\shot.png' -> 'C:\Users\Deng\AppData\Local\Packages\sandbox.{6823ff46-cdb4-45dc-b577-8ac1afbdc92c}\AC\Temp\ripple-visual-kS2Oqh\link.png'
+ ❯ src/core/visual-evidence.test.ts:664:8
+    662|     expect(readScreenshotFile(file)).toBeInstanceOf(Uint8Array)
+    663|     expect(readScreenshotFile(path.join(dir, 'missing.png'))).toBeNull…
+    664|     fs.symlinkSync(file, path.join(dir, 'link.png'))
+       |        ^
+    665|     expect(readScreenshotFile(path.join(dir, 'link.png'))).toMatchObje…
+    666|     expect(readScreenshotFile(dir)).toMatchObject({ unreadable: expect…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[57/70]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 4 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+TypeError: fetch failed
+This error originated in "src/core/candidate-preview.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "records a client abort when the browser abandons an in-flight module request". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+Caused by: Error: connect EACCES 127.0.0.1:9998
+ ❯ TCPConnectWrap.afterConnect [as oncomplete] node:net:1705:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4092, code: 'EACCES', syscall: 'connect', address: '127.0.0.1', port: 9998 }
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:605:17
+ ❯ processTimers node:internal/timers:541:7
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:605:17
+ ❯ processTimers node:internal/timers:541:7
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:605:17
+ ❯ processTimers node:internal/timers:541:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  15 failed | 55 passed (70)
+      Tests  67 failed | 876 passed | 68 skipped (1011)
+     Errors  4 errors
+   Start at  20:13:51
+   Duration  189.30s (transform 9.28s, setup 0ms, collect 60.37s, tests 579.63s, environment 482.63s, prepare 39.61s)
+
