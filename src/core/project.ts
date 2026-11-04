@@ -306,8 +306,6 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   const addEdge = (from: string, to: string, kind: Relation['kind'], id: string, certainty: Relation['certainty'] = 'source-proven', metadata: Partial<Relation> = {}) => {
     edges.push({ id, from, to, kind, certainty, evidenceRefs: [], ...metadata })
   }
-<<<<<<< HEAD
-=======
   const addCssCandidateEdge = (input: {
     from: string
     to: string
@@ -381,7 +379,6 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
       evidenceRefs: [...input.evidenceRefs],
     })
   }
->>>>>>> 93d528f (fix(sourcegraph): reject incomplete relation identities)
 
   const overrideMarkers = new Map<string, Array<{ path: string; fallback: string; start: number; end: number }>>()
   const overrideMarkersByLocation = new Map<string, { id: string; fallback: string }>()
