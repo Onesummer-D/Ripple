@@ -1,0 +1,17 @@
+1fe8eb2bf9d046d4593b54e379437cb0197bf5da58d6b370bd6535f2d6fba2cf  docs\acceptance\2026-11-07\e-h0-wrapper-v1\adjustment-report.md
+dd7ae28ddb8167e2b06c2f7dd9051e1ce86a76e667845d5b4a0cc497cd31519d  docs\acceptance\2026-11-07\e-h0-wrapper-v1\adversarial-probe-replay.log
+8f227769c7fcecbb21760c4793668e2dd6cd6422c2016b5b2b9ca2b739b5ee72  docs\acceptance\2026-11-07\e-h0-wrapper-v1\build.log
+b361ebff0081576a6efe3dc63f4027000bb57e84adf68dbff13605b437d1832b  docs\acceptance\2026-11-07\e-h0-wrapper-v1\environment.txt
+45007572599919f5b574f2c160e7cb6aa37f6b2f012e80522be293d6d407b4e3  docs\acceptance\2026-11-07\e-h0-wrapper-v1\full-vitest-windows-summary.md
+1eaddb4b23bda43bbfcf9e3430393ba89558f008c96e6a7e34c133a903ed86a8  docs\acceptance\2026-11-07\e-h0-wrapper-v1\full-vitest-windows.log
+e529f413d7f979659cafe8d4451d42e93969fae5820cd47623ac37d7469d461a  docs\acceptance\2026-11-07\e-h0-wrapper-v1\h0-results.json
+36f3b91ba2040d0c055d951d3b74aafc32051fd1facd14c9f28cb82ac9699034  docs\acceptance\2026-11-07\e-h0-wrapper-v1\implementation-report.md
+a3e28a674fe6f90ff88535fb1161b06be4db5ea21dfcf6ff3db617d17e0befed  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-dual.log
+4ac1097b865dd894481ce4805fc77553be05549d4cd12cae1d737b90c5d37dfa  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-node.log
+5574d52c51d27af83a6809be166bec29bf164d02fb5510a453eea6d98c4e421f  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-powershell.log
+4146d69a17d7c2daf2286900e3c415b9082d0f111a912d0403eed415fbc68018  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-schema.log
+8b19b9c86ebd684a6ea78516eec9d703feffcf9da86adfebd602a1039ac42024  docs\acceptance\2026-11-07\e-h0-wrapper-v1\typecheck.log
+19898a14c8a8e3a43224b689484a9c2108b905fdf800ea5329a43682664c0a37  docs\acceptance\2026-11-07\e-h0-wrapper-v1\wrapper-vitest.log
+ad4682f8742aed830715649504d07b2c5ea88d1123a14bcc1244be256836d9bc  src\core\observation-host-registry-v1.ts
+3977942885b7ccf0abfb45c164e40b8c300b46f0960b03f7213a9efcb44456d6  src\core\observation-host-trust-v1.test.ts
+58cf638f9806e3c2c06d4e2e29742929241a6b6c366d524c16965e9c16583960  src\core\observation-host-trust-v1.ts

@@ -1,0 +1,6 @@
+Node: `v24.15.0`
+TypeScript used for local verification: `5.9.3` (available workspace dependency tree)
+Vitest used for local verification: `3.2.7` (available workspace dependency tree)
+Frozen V2 replay worktree: `acp6-d-observation-v2-replay-20261101`
+Frozen V2 replay HEAD: `407587b9f66304d25ce93c7426803245ccb149b6`
+Windows: symlink/hard-link and some local Git/loopback operations are restricted by the sandbox.

@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "G0": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+  "G1": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+  "G2": "f3ecbcbb7d8b5208a5a74a625a2896b7c54de13602870225fde55d1ebfbe398b",
+  "G4": "61a63dbcf688144e5181ad379dde80a330911e52186a1709a336b4bbc39b265f",
+  "B0": "f61c320837b473992b238973db6a33fa84d6a08e03e1ed0a5aafdf3fdcb85341",
+  "G3": {
+    "pass": true,
+    "reasonCode": "graph-schema-invalid",
+    "observationReasonCode": "observation/graph-schema-invalid",
+    "message": "duplicate Relation.id: rel:a",
+    "status": "passed",
+    "prepared": true,
+    "executed": true,
+    "passed": true,
+    "failed": false,
+    "blocked": false
+  }
+}
+
+EXIT_CODE=0

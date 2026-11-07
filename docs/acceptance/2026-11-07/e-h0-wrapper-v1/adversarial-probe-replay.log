@@ -1,0 +1,197 @@
+{
+  "protocol": "ripple-e-h0-adversarial-probe/v1",
+  "input": {
+    "commit": "2ee08975c891abb1df5ff38881326e78ead28076",
+    "tree": "60e397f075f8a1d62226d6a736993580b48df9ad",
+    "validator": "docs/acceptance/2026-10-31/canonical-observation-digest.mjs"
+  },
+  "results": [
+    {
+      "name": "H0-01 caller-forged-host-binding-authentic-side",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "real graph + altered host graphDigest",
+      "actual": {
+        "accepted": false,
+        "code": "graph-digest-mismatch",
+        "message": "selected side graph graphDigest differs from host graph"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-01b caller-forged-self-consistent-graph-and-binding",
+      "expected": "reject-by-production-registry",
+      "classification": "executed-boundary-gap",
+      "inputSummary": "forged graph + caller-created matching binding",
+      "actual": {
+        "accepted": true,
+        "result": {
+          "status": "complete",
+          "reasonCode": "observation/complete",
+          "trusted": true
+        }
+      },
+      "pass": false
+    },
+    {
+      "name": "H0-02 caller-registers-or-overrides-host-binding",
+      "expected": "reject-by-production-registry",
+      "classification": "not-executable",
+      "inputSummary": "registry mutation API absent from evidence helper",
+      "actual": {
+        "accepted": false,
+        "code": "not-executable",
+        "message": "no host registry API is present in evidence-only validator"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-03 cross-project-reuse-authentic-binding",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "envelope projectId differs from authentic host binding",
+      "actual": {
+        "accepted": false,
+        "code": "logical-project-mismatch",
+        "message": "binding projectId differs from selected host side"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-04 baseline-candidate-cross-side-reuse",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "candidate envelope passed to baseline host binding",
+      "actual": {
+        "accepted": false,
+        "code": "side-mismatch",
+        "message": "binding side differs from selected host side"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-05 old-graphDigest-reused-for-new-graph",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "forged graph with old registered graphDigest",
+      "actual": {
+        "accepted": false,
+        "code": "graph-digest-mismatch",
+        "message": "selected side graph graphDigest differs from host graph"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-06 sourceDigest-does-not-match-host-snapshot-binding",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "envelope sourceDigest differs from host binding",
+      "actual": {
+        "accepted": false,
+        "code": "source-digest-mismatch",
+        "message": "binding sourceDigest differs from selected host side"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-07 sourceMappings-do-not-match-selected-graph",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "mapping byteOffset changed against authentic host graph",
+      "actual": {
+        "accepted": false,
+        "code": "graph-schema-invalid",
+        "message": "source mapping anchor is not trusted: node:a"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-08 runId-checkId-cross-session-valid-shape",
+      "expected": "reject-by-run-registry",
+      "classification": "executed-boundary-gap",
+      "inputSummary": "valid but unregistered runId/checkId",
+      "actual": {
+        "accepted": true,
+        "result": {
+          "status": "complete",
+          "reasonCode": "observation/complete",
+          "trusted": true
+        }
+      },
+      "pass": false
+    },
+    {
+      "name": "H0-09 valid-route-page-viewport-replaced",
+      "expected": "reject-by-check-plan",
+      "classification": "executed-boundary-gap",
+      "inputSummary": "valid alternate route/page/viewport tuple",
+      "actual": {
+        "accepted": true,
+        "result": {
+          "status": "complete",
+          "reasonCode": "observation/complete",
+          "trusted": true
+        }
+      },
+      "pass": false
+    },
+    {
+      "name": "H0-10 missing-host-binding-field",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "host binding graphDigest removed",
+      "actual": {
+        "accepted": false,
+        "code": "graph-schema-invalid",
+        "message": "hostSideBinding.graphDigest must be a non-empty string"
+      },
+      "pass": true
+    },
+    {
+      "name": "H0-11 unknown-must-not-upgrade-to-trusted",
+      "expected": "reject",
+      "classification": "executed",
+      "inputSummary": "valid graph reference with status unknown",
+      "actual": {
+        "accepted": true,
+        "result": {
+          "status": "unknown",
+          "reasonCode": "observation/complete",
+          "trusted": true
+        }
+      },
+      "pass": false
+    },
+    {
+      "name": "H0-12 historical-receipt-reused-in-new-run",
+      "expected": "reject-by-run-registry",
+      "classification": "executed-boundary-gap",
+      "inputSummary": "old graph/artifact reused under new run/check",
+      "actual": {
+        "accepted": true,
+        "result": {
+          "status": "complete",
+          "reasonCode": "observation/complete",
+          "trusted": true
+        }
+      },
+      "pass": false
+    },
+    {
+      "name": "H0-13 static-reads-to-jsx-is-not-runtime-proof",
+      "expected": "accept-static-only",
+      "classification": "executed-control",
+      "inputSummary": "reads + source-proven relation to jsx-element",
+      "actual": {
+        "accepted": true,
+        "result": {
+          "status": "complete",
+          "reasonCode": "observation/complete",
+          "trusted": true
+        }
+      },
+      "pass": true
+    }
+  ]
+}
+EXIT_CODE=0
