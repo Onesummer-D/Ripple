@@ -202,9 +202,12 @@
     "type": "GraphDigestV2",
     "fieldsRef": "graphDigestV2.fields",
     "includes": [
+      "graphIdentityVersion",
+      "graphSchemaVersion",
+      "relationIdentityVersion",
+      "sourceMappingVersion",
       "projectId",
       "sourceDigest",
-      "sourceMappingVersion",
       "sourceMappings",
       "nodes",
       "edges",
