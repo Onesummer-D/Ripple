@@ -22,8 +22,9 @@
   "remoteArchive": {
     "baseCommit": "5e1f909c427954539bef6f8acfe267556b20b81a",
     "branch": "evidence/d-e0-g0-fixture-20261107",
-    "commit": "to-be-created",
-    "tree": "to-be-created"
+    "payloadCommit": "2518a8c016f4cc686a22e21d18f92c453b450c01",
+    "payloadTree": "d3992c1b265f873735b07907b9e0e09e147d191b",
+    "note": "payload commit/tree are immutable evidence objects; the branch head is reported separately because a manifest cannot contain its own final commit hash"
   },
   "fixture": {
     "path": "g0.json",
@@ -147,6 +148,6 @@
     "The original raw fixture is archived; canonical bytes alone are not the evidence.",
     "Node and PowerShell agree on canonical JSON bytes and the domain-separated digest.",
     "The archive is standalone and does not alter D-E0 history, production SourceGraph, Runtime Identity, VerificationRun, or D-P1.",
-    "remoteArchive.commit and remoteArchive.tree are reported in the handoff; this manifest does not pretend to contain a self-referential commit hash."
+    "payloadCommit/payloadTree identify the immutable evidence payload; the final branch HEAD is delivered separately."
   ]
 }
