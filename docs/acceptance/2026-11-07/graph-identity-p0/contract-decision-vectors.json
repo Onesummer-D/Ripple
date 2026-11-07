@@ -1,0 +1,369 @@
+{
+  "vectorVersion": "graph-identity-p0-contract-decision/v2",
+  "status": "evidence-only",
+  "base": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+  "refs": {
+    "dObservationContract": "808489c38e25c3f1765abc37345e28a393b2da18",
+    "dExecutableSerializer": "2a26173614f62066f7de9e37e6e3d5b5f1af2e75",
+    "eLatestHead": "44649afa1d698fd77fd0e445e473e135995dc5c3",
+    "eHistoricalHead": "944161c042cfe16184e4122143c0b545e7f16e67",
+    "fixedProject": "b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "contractFieldMatrix": {
+    "graphDigestV2": {
+      "layer": "GraphIdentity",
+      "version": "sourcegraph-identity/v2",
+      "includedInGraphDigest": true,
+      "fields": [
+        "graphIdentityVersion",
+        "graphSchemaVersion",
+        "relationIdentityVersion",
+        "sourceMappingVersion",
+        "projectId",
+        "sourceDigest",
+        "sourceMappings",
+        "nodes",
+        "edges",
+        "unresolved"
+      ]
+    },
+    "producerEvidenceV1": {
+      "layer": "ProducerEvidence",
+      "version": "producer-evidence/v1",
+      "includedInGraphDigest": false,
+      "fields": [
+        "evidenceVersion",
+        "graphIdentityVersion",
+        "graphDigestSha256",
+        "rawGraphArtifactSha256",
+        "analyzerBuild",
+        "edgeOccurrences"
+      ]
+    },
+    "policyManifestV1": {
+      "layer": "ProducerPolicy",
+      "version": "producer-policy/v1",
+      "includedInGraphDigest": false,
+      "fields": [
+        "policyManifestVersion",
+        "graphIdentityVersion",
+        "graphDigestSha256",
+        "rawGraphArtifactSha256",
+        "producerEvidenceSha256",
+        "producerPolicies"
+      ]
+    },
+    "provenanceAttestationV1": {
+      "layer": "ProvenanceAttestation",
+      "version": "sourcegraph-provenance/v1",
+      "status": "candidate-not-frozen",
+      "includedInGraphDigest": false,
+      "fields": [
+        "graphProvenanceVersion",
+        "graphDigestSha256",
+        "rawGraphArtifactSha256",
+        "producerEvidenceSha256",
+        "policyManifestSha256",
+        "analyzerBuild",
+        "edgeOccurrenceCoverage"
+      ]
+    },
+    "hostBinding": {
+      "layer": "ObservationBinding",
+      "version": "sourcegraph-observation-binding/v1",
+      "includedInGraphDigest": false,
+      "fields": [
+        "projectId",
+        "side",
+        "runId",
+        "checkId",
+        "graphDigestSha256",
+        "graphProvenanceDigest"
+      ]
+    }
+  },
+  "supersededFields": {
+    "oldFinalGraphDigest": [
+      "rawGraphArtifactSha256",
+      "producerEvidenceSha256",
+      "policyManifestSha256",
+      "sourceBindings",
+      "nodes",
+      "edgeOccurrences",
+      "unresolved"
+    ],
+    "status": "superseded-not-executable",
+    "replacement": [
+      "GraphDigestV2",
+      "ProducerEvidenceV1",
+      "PolicyManifestV1",
+      "ProvenanceAttestationV1"
+    ],
+    "reason": "Producer evidence and policy hashes are provenance inputs and cannot be inserted into sourcegraph-identity/v2 GraphDigestV2."
+  },
+  "migrationTable": [
+    {
+      "oldField": "rawGraphArtifactSha256",
+      "newHome": [
+        "rawGraphArtifact",
+        "ProvenanceAttestationV1.rawGraphArtifactSha256"
+      ],
+      "rule": "raw artifact hash remains an evidence reference; excluded from GraphDigestV2"
+    },
+    {
+      "oldField": "producerEvidenceSha256",
+      "newHome": [
+        "ProducerEvidenceV1",
+        "ProvenanceAttestationV1.producerEvidenceSha256"
+      ],
+      "rule": "independent evidence reference; excluded from GraphDigestV2"
+    },
+    {
+      "oldField": "policyManifestSha256",
+      "newHome": [
+        "PolicyManifestV1",
+        "ProvenanceAttestationV1.policyManifestSha256"
+      ],
+      "rule": "independent policy reference; excluded from GraphDigestV2"
+    },
+    {
+      "oldField": "sourceBindings",
+      "newHome": [
+        "GraphDigestV2.sourceMappings",
+        "rawGraphArtifact.sourceBindings"
+      ],
+      "rule": "strictly distinguish host-derived sourceMappings from raw source byte bindings"
+    },
+    {
+      "oldField": "nodes",
+      "newHome": [
+        "GraphDigestV2.nodes"
+      ],
+      "rule": "canonical Graph nodes with duplicate and unknown-field rejection"
+    },
+    {
+      "oldField": "edgeOccurrences",
+      "newHome": [
+        "ProducerEvidenceV1.edgeOccurrences"
+      ],
+      "rule": "occurrence audit evidence; GraphDigestV2 uses canonical edges"
+    },
+    {
+      "oldField": "unresolved",
+      "newHome": [
+        "GraphDigestV2.unresolved"
+      ],
+      "rule": "preserve unresolved entries; no deletion for digest eligibility"
+    },
+    {
+      "oldField": "projectId",
+      "newHome": [
+        "GraphDigestV2.projectId"
+      ],
+      "rule": "required host-issued logical project identity"
+    },
+    {
+      "oldField": "sourceMappingVersion",
+      "newHome": [
+        "GraphDigestV2.sourceMappingVersion"
+      ],
+      "rule": "required mapping contract version"
+    },
+    {
+      "oldField": "sourceMappings",
+      "newHome": [
+        "GraphDigestV2.sourceMappings"
+      ],
+      "rule": "required verified source mapping set"
+    },
+    {
+      "oldField": "sourceDigest",
+      "newHome": [
+        "GraphDigestV2.sourceDigest"
+      ],
+      "rule": "required source snapshot identity"
+    }
+  ],
+  "layers": {
+    "graphDigest": "sourcegraph-identity/v2",
+    "producerEvidence": "producer-evidence/v1",
+    "policyManifest": "producer-policy/v1",
+    "provenanceAttestation": "sourcegraph-provenance/v1",
+    "observationBinding": "sourcegraph-observation-binding/v1"
+  },
+  "formalG0Input": {
+    "artifactPath": "docs/acceptance/2026-10-31/vectors/g0.json",
+    "expectedDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "envelopeFields": [
+      "graphIdentityVersion",
+      "graphSchemaVersion",
+      "relationIdentityVersion",
+      "sourceMappingVersion",
+      "projectId",
+      "sourceDigest",
+      "sourceMappings",
+      "nodes",
+      "edges",
+      "unresolved"
+    ],
+    "inputBytesSha256": null,
+    "inputBytesStatus": "not-locatable-at-d-contract-commit",
+    "sourceCommit": "808489c38e25c3f1765abc37345e28a393b2da18",
+    "sourceTreeSearch": "no g0.json blob/path found in the D contract commit tree",
+    "action": "A/D must supply exact bytes before this vector can be frozen"
+  },
+  "vectors": [
+    {
+      "id": "formal-d-g0-v2",
+      "type": "GraphDigestV2",
+      "envelope": "canonicalGraph-with-projectId-sourceMappingVersion-sourceMappings",
+      "digest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+      "inputRef": "formalG0Input",
+      "status": "formal-candidate-input-bytes-not-locatable"
+    },
+    {
+      "id": "legacy-reduced-graph-replay",
+      "type": "legacy-reduced-graph-replay",
+      "envelope": "reduced-static-graph-without-projectId-sourceMappings",
+      "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "status": "legacy-unproven-replay",
+      "noRawArtifactClaim": true,
+      "rawArtifactClaim": "none"
+    },
+    {
+      "id": "same-graph-different-evidence",
+      "graphDigest": "unchanged",
+      "producerEvidenceSha256": "changed",
+      "policyManifestSha256": "unchanged",
+      "provenanceAttestation": "changed",
+      "expected": "GraphDigestV2 stable; ProvenanceAttestationV1 changes"
+    },
+    {
+      "id": "missing-evidence",
+      "graphDigest": "available",
+      "producerEvidenceSha256": null,
+      "policyManifestSha256": null,
+      "provenanceAttestation": null,
+      "expected": "GraphDigestV2 may remain available; provenance attestation unavailable; no proof upgrade"
+    },
+    {
+      "id": "conflicting-policy",
+      "producerEvidenceSha256": "present",
+      "policyManifestSha256": "conflicting",
+      "provenanceAttestation": null,
+      "expected": "attestation rejected; GraphDigestV2 is not rewritten"
+    },
+    {
+      "id": "host-run-change",
+      "graphDigest": "unchanged",
+      "observationBindingDigest": "changed",
+      "expected": "static GraphDigestV2 stable; observation binding changes"
+    },
+    {
+      "id": "host-side-change",
+      "graphDigest": "same-static-graph",
+      "hostBinding": "different-side-binding",
+      "expected": "no cross-side borrow"
+    },
+    {
+      "id": "evidence-in-v2-digest",
+      "mutation": "append producerEvidenceSha256 or policyManifestSha256 to GraphDigestV2 input",
+      "expected": "reject as version mismatch; require a new digest type/version"
+    }
+  ],
+  "positiveCases": [
+    {
+      "id": "graph-digest-without-provenance",
+      "expected": "GraphDigestV2 available when canonical Graph, projectId and sourceMappings validate; provenance may remain unavailable"
+    },
+    {
+      "id": "provenance-with-exact-build",
+      "expected": "attestation candidate only when graphDigest, evidence, policy, analyzer build and every occurrence match"
+    },
+    {
+      "id": "mixed-producer-explicit-policy",
+      "expected": "each edge occurrence maps to exactly one explicit producer policy"
+    },
+    {
+      "id": "legacy-producer-uniqueness",
+      "expected": "legacy IDs remain uniqueness-checked and are not silently upgraded"
+    }
+  ],
+  "negativeCases": [
+    {
+      "id": "unknown-field",
+      "mutation": "add graph.extra",
+      "expected": "reject graph-schema-invalid"
+    },
+    {
+      "id": "duplicate-node",
+      "mutation": "duplicate nodes[0].id",
+      "expected": "reject graph-schema-invalid"
+    },
+    {
+      "id": "duplicate-relation-equal-payload",
+      "mutation": "duplicate edges[0] unchanged",
+      "expected": "reject; no silent deduplication"
+    },
+    {
+      "id": "duplicate-relation-conflicting-payload",
+      "mutation": "same relation id with changed endpoint or sourceUse",
+      "expected": "reject; payload conflict"
+    },
+    {
+      "id": "unknown-endpoint",
+      "mutation": "edge.to refers to absent node",
+      "expected": "reject graph-schema-invalid"
+    },
+    {
+      "id": "missing-producer",
+      "mutation": "omit one edgeOccurrences record",
+      "expected": "producerEvidenceStatus=rejected; graphDigestV2 is independently evaluated; provenance unavailable"
+    },
+    {
+      "id": "duplicate-producer",
+      "mutation": "repeat one occurrence ordinal",
+      "expected": "producerEvidenceStatus=rejected; graphDigestV2 is independently evaluated; provenance unavailable"
+    },
+    {
+      "id": "conflicting-producer",
+      "mutation": "one occurrence maps to two policy ids",
+      "expected": "producerEvidenceStatus=rejected; graphDigestV2 is independently evaluated; provenance unavailable"
+    },
+    {
+      "id": "policy-change",
+      "mutation": "change governed relationIdentityVersion",
+      "expected": "raw/evidence may remain; policy and provenance change; GraphDigestV2 input stays separate"
+    },
+    {
+      "id": "unicode-byte-order",
+      "mutation": "add Chinese label and compare UTF-8 byte order",
+      "expected": "deterministic; no NFC/NFD normalization"
+    },
+    {
+      "id": "line-ending-change",
+      "mutation": "LF source bytes -> CRLF source bytes",
+      "expected": "sourceDigest and relevant byteOffset change"
+    },
+    {
+      "id": "graph-digest-unavailable",
+      "mutation": "missing source mapping or projectId",
+      "expected": "no trusted GraphDigestV2 emitted"
+    },
+    {
+      "id": "provenance-domain-not-frozen",
+      "mutation": "use candidate provenance domain as production contract",
+      "expected": "reject until A/D/E freeze type, domain and bytes"
+    }
+  ],
+  "failClosedRules": [
+    "missing, duplicate, conflicting or version-mismatched evidence never yields a trusted attestation",
+    "projectId and sourceMappings are host-derived and cannot be caller supplied",
+    "side, runId and checkId are observation binding fields and never Relation ID or GraphDigestV2 inputs",
+    "semantic-candidate, UNKNOWN and unresolved remain unchanged",
+    "AC6.2 remains 34/123 with 89 unresolved",
+    "AC6.4 remains 34/147 with 113 UNKNOWN",
+    "historical 2413 NOT-PROVEN records remain isolated",
+    "ff8735ed legacy replay is never labeled formal raw-sourcegraph/v1 without schema, bytes and hash proof"
+  ]
+}

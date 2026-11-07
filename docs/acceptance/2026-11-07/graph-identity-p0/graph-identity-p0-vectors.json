@@ -1,0 +1,280 @@
+{
+  "vectorVersion": "graph-identity-p0/v2",
+  "status": "evidence-only",
+  "base": {
+    "commit": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "tree": "46049ba554a9e7c3ef9048924607a5025342496f",
+    "project": "allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "contractRefs": {
+    "graphIdentityVersion": "sourcegraph-identity/v2",
+    "graphSchemaVersion": "acp6-sourcegraph/v1",
+    "relationIdentityVersion": "relation-id/v1",
+    "graphDomain": "ripple/sourcegraph-identity/v2/graphDigest\u0000",
+    "dSerializerCommit": "2a26173614f62066f7de9e37e6e3d5b5f1af2e75",
+    "dSerializerBlob": "bb70603a7e02e6cab0277024f7e115226bbb3af4",
+    "ePr": "https://github.com/Onesummer-D/Ripple/pull/73",
+    "eHead": "44649afa1d698fd77fd0e445e473e135995dc5c3",
+    "eRegistryBlob": "c12201372d1e04e6e5791ea14e5a08a248f571b2",
+    "eHistoricalHead": "944161c042cfe16184e4122143c0b545e7f16e67",
+    "eHistoricalRegistryBlob": "457333dc6485083e003cde139c9a13d7260f4b69"
+  },
+  "fixtures": {
+    "dG0": {
+      "graphIdentityVersion": "sourcegraph-identity/v2",
+      "graphSchemaVersion": "acp6-sourcegraph/v1",
+      "relationIdentityVersion": "relation-id/v1",
+      "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nodes": [
+        {
+          "id": "node:b",
+          "kind": "token",
+          "label": "--x"
+        },
+        {
+          "id": "node:a",
+          "kind": "token-use",
+          "label": "var(--x)",
+          "location": {
+            "path": "src/a.css",
+            "offset": 4,
+            "byteOffset": 4
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "rel:a",
+          "from": "node:a",
+          "to": "node:b",
+          "kind": "reads",
+          "certainty": "source-proven",
+          "evidenceRefs": [
+            "e2",
+            "e1"
+          ],
+          "sourceUse": {
+            "path": "src/a.css",
+            "charOffset": 4,
+            "byteOffset": 4,
+            "offsetUnit": "code-unit"
+          }
+        }
+      ],
+      "unresolved": [],
+      "fixtureStatus": "legacy-reduced-graph-replay",
+      "noRawArtifactClaim": true
+    },
+    "eHostBinding": {
+      "projectId": "project:test",
+      "side": "baseline",
+      "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "graphSchemaVersion": "acp6-sourcegraph/v1",
+      "graphIdentityVersion": "sourcegraph-identity/v2",
+      "mappingVersion": "sourcegraph-source-mapping/v1",
+      "graph": {
+        "id": "graph:test",
+        "revision": {
+          "projectId": "project:test",
+          "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "runtimeFingerprint": "fp"
+        },
+        "nodes": [
+          {
+            "id": "node:b",
+            "kind": "token",
+            "label": "--x"
+          },
+          {
+            "id": "node:a",
+            "kind": "token-use",
+            "label": "var(--x)",
+            "location": {
+              "path": "src/a.css",
+              "offset": 4,
+              "byteOffset": 4
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "rel:a",
+            "from": "node:a",
+            "to": "node:b",
+            "kind": "reads",
+            "certainty": "source-proven",
+            "evidenceRefs": [
+              "e2",
+              "e1"
+            ],
+            "sourceUse": {
+              "path": "src/a.css",
+              "charOffset": 4,
+              "byteOffset": 4,
+              "offsetUnit": "code-unit"
+            }
+          }
+        ],
+        "unresolved": []
+      },
+      "sourceMappings": [
+        {
+          "sourceRef": "node:a",
+          "sourceFile": "src/a.css",
+          "graphNodeId": "node:a",
+          "sourceDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "relationIds": [
+            "rel:a"
+          ]
+        }
+      ]
+    }
+  },
+  "goldens": [
+    {
+      "id": "legacy-reduced-graph-replay",
+      "algorithm": "D-observation-v2-canonicalGraph-replay",
+      "input": "fixtures.dG0",
+      "canonicalJsonUtf8Sha256": "7670bc338a3b26ced964761dde0131c603f9b7c08c1ae1ff5e21b79fe1bd94d8",
+      "expectedDigest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "expectedOutcome": "legacy-replay-pass; not-formal-G0"
+    },
+    {
+      "id": "legacy-reduced-graph-replay-shuffled",
+      "algorithm": "D-observation-v2-canonicalGraph",
+      "mutation": "reverse nodes, object keys, and evidenceRefs",
+      "expectedDigest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "expectedOutcome": "same-legacy-replay-digest"
+    },
+    {
+      "id": "legacy-reduced-byte-offset-change",
+      "algorithm": "D-observation-v2-canonicalGraph",
+      "mutation": "fixtures.dG0.edges[0].sourceUse.byteOffset: 4 -> 5",
+      "expectedDigest": "b4c30037e7ddfb236b41b6af674c89a5ebe4b6a6c1df878b793986686076639a",
+      "expectedOutcome": "digest-changes"
+    },
+    {
+      "id": "e-vs-d",
+      "algorithm": "E-PR73-computeHostGraphDigestV1-vs-GraphDigestV2",
+      "input": "fixtures.eHostBinding",
+      "eCanonicalJsonUtf8Sha256": "b825abef6e9dffb9c2fa6caf16a4a5abe5213d5d22388bcbbb1a9339aa67c952",
+      "eDigest": "d4839721ed7761ee767a953e2edca79c8bb6c0f52f6d42e21e4f0672b02bfa6d",
+      "dGraphDigestReference": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "incompatibilities": [
+        "different input envelope: E HostBinding wrapper carries project/side/mapping context while GraphDigestV2 is the canonical Graph Identity envelope",
+        "E function type/version is computeHostGraphDigestV1; formal GraphDigest type is GraphDigestV2/sourcegraph-identity/v2",
+        "side/run/check and host registry revision remain ObservationBinding fields, not GraphDigestV2 fields",
+        "E does not establish ProducerEvidenceV1 or ProvenanceAttestationV1"
+      ],
+      "expectedOutcome": "not-the-same-contract; latest E must consume/recompute the GraphDigestV2 core only"
+    },
+    {
+      "id": "e-order-sensitive",
+      "algorithm": "historical-E-PR73-computeHostGraphDigestV1",
+      "mutation": "reverse graph.nodes only",
+      "eDigest": "1938139927d6711c8c263b2d7c8a7eb902a254993d2ffb321e6480e0bb5e3ba6",
+      "expectedOutcome": "historical-only; do not infer latest E ordering semantics",
+      "status": "historical-vector-from-earlier-E-head"
+    },
+    {
+      "id": "formal-g0-discrepancy",
+      "algorithm": "D archived document table versus archived executable",
+      "documentTableDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+      "executableDigest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "expectedOutcome": "A-D-exact-input-required-before-freeze",
+      "formalInputStatus": "not-locatable",
+      "inputStatus": "formal g0 bytes not locatable"
+    }
+  ],
+  "negativeCases": [
+    {
+      "id": "unknown-field",
+      "mutation": "add graph.extra",
+      "expected": "reject graph-schema-invalid"
+    },
+    {
+      "id": "duplicate-node",
+      "mutation": "duplicate nodes[0].id",
+      "expected": "reject graph-schema-invalid"
+    },
+    {
+      "id": "duplicate-relation-equal-payload",
+      "mutation": "duplicate edges[0] unchanged",
+      "expected": "reject; no silent deduplication"
+    },
+    {
+      "id": "duplicate-relation-conflicting-payload",
+      "mutation": "same relation id with changed endpoint or sourceUse",
+      "expected": "reject; payload conflict"
+    },
+    {
+      "id": "unknown-endpoint",
+      "mutation": "edge.to refers to absent node",
+      "expected": "reject graph-schema-invalid"
+    },
+    {
+      "id": "missing-producer",
+      "mutation": "omit one edgeOccurrences record",
+      "expected": "producerEvidenceStatus=rejected; GraphDigestV2 remains independently evaluated; ProvenanceAttestationStatus=unavailable"
+    },
+    {
+      "id": "duplicate-producer",
+      "mutation": "repeat one occurrence ordinal",
+      "expected": "producerEvidenceStatus=rejected; GraphDigestV2 remains independently evaluated; ProvenanceAttestationStatus=unavailable"
+    },
+    {
+      "id": "conflicting-producer",
+      "mutation": "one occurrence maps to two policy ids",
+      "expected": "producerEvidenceStatus=rejected; GraphDigestV2 remains independently evaluated; ProvenanceAttestationStatus=unavailable"
+    },
+    {
+      "id": "policy-change",
+      "mutation": "change governed relationIdentityVersion",
+      "expected": "raw/evidence may remain; policy and provenance attestation change; GraphDigestV2 input stays separate"
+    },
+    {
+      "id": "unicode-byte-order",
+      "mutation": "add Chinese label and compare UTF-8 byte order",
+      "expected": "deterministic; no NFC/NFD normalization"
+    },
+    {
+      "id": "line-ending-change",
+      "mutation": "LF source bytes -> CRLF source bytes",
+      "expected": "sourceDigest and relevant byteOffset change"
+    },
+    {
+      "id": "graph-digest-unavailable",
+      "mutation": "missing source binding or analyzer build",
+      "expected": "no trusted digest emitted"
+    }
+  ],
+  "scopeAssertions": [
+    "AC6.2 remains 34/123 with 89 unresolved",
+    "AC6.4 remains 34/147 with 113 UNKNOWN",
+    "semantic-candidate never upgrades to source-proven",
+    "four designated negative cases remain UNKNOWN",
+    "B v5 matcher/probe and thresholds are not inputs to this design serializer",
+    "ff8735ed legacy replay is not a formal raw-sourcegraph/v1 artifact until exact schema, bytes and hash are proven",
+    "latest E head 44649afa is the current comparison reference; old E digest values are historical vectors only"
+  ],
+  "formalG0": {
+    "artifactPath": "docs/acceptance/2026-10-31/vectors/g0.json",
+    "expectedDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "requiredFields": [
+      "graphIdentityVersion",
+      "graphSchemaVersion",
+      "relationIdentityVersion",
+      "sourceMappingVersion",
+      "projectId",
+      "sourceDigest",
+      "sourceMappings",
+      "nodes",
+      "edges",
+      "unresolved"
+    ],
+    "inputBytesSha256": null,
+    "status": "not-locatable-at-d-contract-commit",
+    "sourceCommit": "808489c38e25c3f1765abc37345e28a393b2da18",
+    "note": "No g0.json blob/path is present in the D contract commit tree; exact bytes must be supplied by A/D before formal freeze."
+  }
+}
