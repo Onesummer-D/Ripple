@@ -8,4 +8,4 @@ dfdc55fe6c52ccbffc5ef69b6bdd9896ed2a24ff118aede3463f7685ee6f65d4  10477  docs/ac
 55610cd90beea6d31c78a65c50482afff31188c8427ee73d0ed665c351747f07  8821  docs/acceptance/2026-11-07/graph-identity-p0/producer-manifest-schema-v0.json
 2e7b003a456c3316b5f3d15a5e2b6e73125afebfca2ed1d8284ce23e36744617  12186  docs/acceptance/2026-11-07/graph-identity-p0/contract-decision-vectors.json
 50d7f0d5c8593b8aa4de00b8f2e42c5800370bdd65a5f9ae3b4480bac95b1015  19817  docs/architecture/graph-identity-p0-design-2026-11-07.md
-f83af4ef16ce3d49f7f686e2354a5f0065ea780260153c1ec6cdbfce1b4cfbda  9387  docs/architecture/graph-identity-p0-contract-decisions-2026-11-07.md
+68f6b0256b5d94b77c92d0866937a4715030725df93de9037c2ee19b739b1b11  10695  docs/architecture/graph-identity-p0-contract-decisions-2026-11-07.md

@@ -57,6 +57,21 @@ prefix 使用 D 的冻结规则；缺少任一必需字段时不输出可信 dig
 `producer-manifest-schema-v0.json.supersededHistory`，状态为
 `superseded-not-executable`。
 
+### 2.2 旧字段迁移表
+
+| 旧字段 | 新归属 | 迁移规则 |
+| --- | --- | --- |
+| `rawGraphArtifactSha256` | `rawGraphArtifact`；`ProvenanceAttestationV1.rawGraphArtifactSha256` | 作为证据引用保留，不进入 GraphDigestV2 |
+| `producerEvidenceSha256` | `ProducerEvidenceV1`；`ProvenanceAttestationV1.producerEvidenceSha256` | 独立证据引用，不进入 GraphDigestV2 |
+| `policyManifestSha256` | `PolicyManifestV1`；`ProvenanceAttestationV1.policyManifestSha256` | 独立策略引用，不进入 GraphDigestV2 |
+| `sourceBindings` | `rawGraphArtifact.sourceBindings` 与严格区分的 `GraphDigestV2.sourceMappings` | 原始源码字节绑定不得冒充 host-derived source mapping |
+| `nodes` / `unresolved` | `GraphDigestV2.nodes` / `GraphDigestV2.unresolved` | 保留完整集合；重复和未知字段拒绝 |
+| `edgeOccurrences` | `ProducerEvidenceV1.edgeOccurrences` | occurrence 审计证据；GraphDigestV2 使用 canonical `edges` |
+| `projectId` / `sourceDigest` / `sourceMappingVersion` / `sourceMappings` | `GraphDigestV2` 同名字段 | 必须由可信 project registry/source snapshot 派生 |
+
+上述表与 `contract-decision-vectors.json.migrationTable` 逐项对应；无法唯一映射时
+保持 evidence/provenance unavailable，不静默删除或重编号。
+
 ## 3. Producer Evidence 与 provenance attestation
 
 Producer Evidence 和 Policy Manifest 的 SHA 不进入 GraphDigestV2。它们只在独立
