@@ -1,0 +1,8 @@
+# Graph Identity P0 evidence-only SHA-256 manifest
+status=evidence-only
+base=d1c941da77d4ab4bbcd7ae557052557628bcb27c
+baseTree=46049ba554a9e7c3ef9048924607a5025342496f
+3c95bbb19cd02d5e7db778f09c52325dde9c841bb493733148593838a24ddac1  1834  README.md
+c1bf861657502d0ce5098d878bddfbe2e70976ec4d91ae27c4e523de27a82af9  7224  graph-identity-p0-vectors.json
+42e2ba63fd0abe981b65959dfad371d3e444ccd5468f9730137b58def6eda560  5030  producer-manifest-schema-v0.json
+sourceOnly=true
