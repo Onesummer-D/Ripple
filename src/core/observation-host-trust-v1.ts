@@ -32,7 +32,8 @@ export interface ObservationBindingV1 {
   graphDigest?: string
   graphSchemaVersion?: string
   graphIdentityVersion?: string
-  mappingVersion?: string
+  relationIdentityVersion?: string
+  sourceMappingVersion?: string
   /** Caller claims are diagnostic input only; they can never become registry authority. */
   callerClaims?: {
     hostSideBinding?: unknown
@@ -70,6 +71,7 @@ export type HostTrustReasonCode =
   | 'host-trust/artifact-digest-mismatch'
   | 'host-trust/artifact-size-mismatch'
   | 'host-trust/crypto-unavailable'
+  | 'host-trust/validation-exception'
 
 export interface HostTrustSuccess {
   ok: true
@@ -116,7 +118,9 @@ function sameViewport(left: ObservationViewport, right: ObservationViewport): bo
 function validPage(value: unknown): value is ObservationPageTuple {
   if (!value || typeof value !== 'object') return false
   const page = value as Record<string, unknown>
-  return typeof page.pathname === 'string' && typeof page.search === 'string' && typeof page.hash === 'string'
+  return typeof page.pathname === 'string' && /^\/[^?#\u0000-\u0020\u007f]*$/.test(page.pathname) &&
+    typeof page.search === 'string' && (page.search === '' || /^\?[^#\u0000-\u0020\u007f]+$/.test(page.search)) &&
+    typeof page.hash === 'string' && (page.hash === '' || /^#[^\u0000-\u0020\u007f]+$/.test(page.hash))
 }
 
 function validViewport(value: unknown): value is ObservationViewport {
@@ -124,6 +128,16 @@ function validViewport(value: unknown): value is ObservationViewport {
   const viewport = value as Record<string, unknown>
   return Number.isSafeInteger(viewport.width) && Number.isSafeInteger(viewport.height) &&
     Number(viewport.width) > 0 && Number(viewport.height) > 0
+}
+
+function validRoute(value: unknown): value is string {
+  if (typeof value !== 'string' || /[\\\u0000-\u0020\u007f]/.test(value)) return false
+  const match = value.match(/^([^?#]+)(\?[^#]+)?(#.+)?$/)
+  return !!match && validPage({ pathname: match[1], search: match[2] ?? '', hash: match[3] ?? '' })
+}
+
+function validArtifactPath(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && !value.includes('\\') && !value.includes('\0') && !value.startsWith('/') && !value.startsWith('//') && !/^[A-Za-z]:/.test(value) && !value.includes('//') && !value.split('/').some(segment => segment === '' || segment === '.' || segment === '..')
 }
 
 function failed(
@@ -162,22 +176,24 @@ function validSourceSnapshot(binding: HostTrustSideBinding): boolean {
   if (!binding || !binding.sourceSnapshot || typeof binding.sourceSnapshot !== 'object') return false
   const files = binding.sourceSnapshot.files
   return Array.isArray(files) && files.length > 0 &&
-    files.every(file => !!file && isNonEmptyString(file.path) && validBytes(file.bytes)) &&
+    files.every(file => !!file && validArtifactPath(file.path) && validBytes(file.bytes)) &&
     new Set(files.map(file => file.path)).size === files.length
 }
 
 function graphShapeError(graph: SourceGraph): string | undefined {
-  if (!graph || typeof graph !== 'object' || !isNonEmptyString(graph.id) || !graph.revision || !isNonEmptyString(graph.revision.projectId) || !isNonEmptyString(graph.revision.sourceDigest)) return 'graph identity or revision is incomplete'
+  if (!graph || typeof graph !== 'object' || !isNonEmptyString(graph.id) || !graph.revision || !isNonEmptyString(graph.revision.projectId) || !/^[a-f0-9]{64}$/.test(graph.revision.sourceDigest)) return 'graph identity or revision is incomplete'
   if (!Array.isArray(graph.nodes) || !Array.isArray(graph.edges) || !Array.isArray(graph.unresolved)) return 'graph arrays are malformed'
   const nodeIds = new Set<string>()
   for (const node of graph.nodes) {
-    if (!node || !isNonEmptyString(node.id) || nodeIds.has(node.id)) return 'graph node IDs are missing or duplicated'
+    if (!node || !isNonEmptyString(node.id) || nodeIds.has(node.id) || !['file', 'symbol', 'component', 'route', 'data', 'media', 'token', 'token-use', 'jsx-element', 'state'].includes(node.kind)) return 'graph node IDs, kinds, or fields are invalid'
     nodeIds.add(node.id)
   }
   const edgeIds = new Set<string>()
   for (const edge of graph.edges) {
     if (!edge || !isNonEmptyString(edge.id) || edgeIds.has(edge.id) || !nodeIds.has(edge.from) || !nodeIds.has(edge.to) ||
-      !Array.isArray(edge.evidenceRefs) || edge.evidenceRefs.length === 0 || edge.evidenceRefs.some(ref => !isNonEmptyString(ref))) {
+      !['imports', 'reads', 'renders', 'uses-token', 'token-reference', 'asset-consumer', 'css-cascade', 'same-copy', 'semantic-link'].includes(edge.kind) ||
+      !['source-proven', 'runtime-observed', 'semantic-candidate', 'unknown'].includes(edge.certainty) ||
+      !Array.isArray(edge.evidenceRefs) || edge.evidenceRefs.length === 0 || new Set(edge.evidenceRefs).size !== edge.evidenceRefs.length || edge.evidenceRefs.some(ref => !isNonEmptyString(ref))) {
       return 'graph edge endpoints, IDs, or evidenceRefs are invalid'
     }
     edgeIds.add(edge.id)
@@ -190,15 +206,17 @@ function mappingShapeError(binding: HostTrustSideBinding): string | undefined {
   if (!Array.isArray(mappings)) return 'sourceMappings is not an array'
   const graphNodeIds = new Set(binding.graph.nodes.map(node => node.id))
   const relationIds = new Set(binding.graph.edges.map(edge => edge.id))
-  const sourceFiles = new Set(binding.sourceSnapshot.files.map(file => file.path))
   const sourceRefs = new Set<string>()
+  const anchorIds = new Set<string>()
   for (const mapping of mappings) {
-    if (!mapping || !isNonEmptyString(mapping.sourceRef) || !isNonEmptyString(mapping.sourceFile) || !isNonEmptyString(mapping.graphNodeId) ||
-      !sourceFiles.has(mapping.sourceFile) || !graphNodeIds.has(mapping.graphNodeId) || !isNonEmptyString(mapping.sourceDigest) || mapping.sourceDigest !== binding.sourceDigest ||
-      !Array.isArray(mapping.relationIds) || mapping.relationIds.length === 0 || mapping.relationIds.some((id: string) => !relationIds.has(id)) || sourceRefs.has(mapping.sourceRef)) {
-      return 'sourceMappings are missing, duplicated, or not bound to the host graph'
-    }
+    if (!mapping || mapping.projectId !== binding.projectId || !isNonEmptyString(mapping.sourceRef) || mapping.sourceRef !== mapping.graphNodeId || !isNonEmptyString(mapping.graphNodeId) || !graphNodeIds.has(mapping.graphNodeId) || !isNonEmptyString(mapping.sourceAnchorRelationId) || !relationIds.has(mapping.sourceAnchorRelationId) || !isNonEmptyString(mapping.sourceIdentity) || !/^source:[0-9a-f]{64}:[^:]+:[0-9]+:[0-9]+$/.test(mapping.sourceIdentity) || !mapping.sourceUse || !validArtifactPath(mapping.sourceUse.path) || !Number.isSafeInteger(mapping.sourceUse.charOffset) || !Number.isSafeInteger(mapping.sourceUse.byteOffset) || mapping.sourceUse.charOffset < 0 || mapping.sourceUse.byteOffset < 0 || mapping.sourceUse.offsetUnit !== 'code-unit' || sourceRefs.has(mapping.sourceRef) || anchorIds.has(mapping.sourceAnchorRelationId)) return 'sourceMappings are missing, duplicated, or not bound to the host graph'
+    const sourceNode = binding.graph.nodes.find(node => node.id === mapping.graphNodeId)
+    const anchors = binding.graph.edges.filter(edge => edge.id === mapping.sourceAnchorRelationId)
+    const from = anchors.length === 1 ? binding.graph.nodes.filter(node => node.id === anchors[0].from) : []
+    const expectedIdentity = `source:${binding.sourceDigest}:${mapping.sourceUse.path}:${mapping.sourceUse.charOffset}:${mapping.sourceUse.byteOffset}`
+    if (!sourceNode || sourceNode.kind !== 'token-use' || anchors.length !== 1 || from.length !== 1 || from[0].kind !== 'file' || anchors[0].kind !== 'reads' || anchors[0].certainty !== 'source-proven' || anchors[0].to !== mapping.graphNodeId || !anchors[0].sourceUse || anchors[0].sourceUse.path !== mapping.sourceUse.path || anchors[0].sourceUse.charOffset !== mapping.sourceUse.charOffset || anchors[0].sourceUse.byteOffset !== mapping.sourceUse.byteOffset || anchors[0].sourceUse.offsetUnit !== mapping.sourceUse.offsetUnit || mapping.sourceIdentity !== expectedIdentity) return 'sourceMappings are not strict source-use anchors'
     sourceRefs.add(mapping.sourceRef)
+    anchorIds.add(mapping.sourceAnchorRelationId)
   }
   return undefined
 }
@@ -226,7 +244,8 @@ function comparePoint(envelope: ObservationBindingV1, point: HostTrustRunPoint):
     (envelope.graphDigest !== undefined && envelope.graphDigest !== point.graphDigest) ||
     (envelope.graphSchemaVersion !== undefined && envelope.graphSchemaVersion !== point.graphSchemaVersion) ||
     (envelope.graphIdentityVersion !== undefined && envelope.graphIdentityVersion !== point.graphIdentityVersion) ||
-    (envelope.mappingVersion !== undefined && envelope.mappingVersion !== point.mappingVersion)) return 'caller observation does not match the host check plan'
+    (envelope.relationIdentityVersion !== undefined && envelope.relationIdentityVersion !== point.relationIdentityVersion) ||
+    (envelope.sourceMappingVersion !== undefined && envelope.sourceMappingVersion !== point.sourceMappingVersion)) return 'caller observation does not match the host check plan'
   return undefined
 }
 
@@ -246,7 +265,12 @@ async function validateSourceAndGraph(projectId: string, binding: HostTrustSideB
   }
   const mappingError = mappingShapeError(binding)
   if (mappingError) return failed('rejected', binding.status, 'host-trust/mapping-invalid', [mappingError], 'rejected')
-  const graphDigest = await computeHostGraphDigestV1(binding)
+  let graphDigest: string
+  try {
+    graphDigest = await computeHostGraphDigestV1(binding)
+  } catch {
+    return failed('rejected', binding.status, 'host-trust/graph-invalid', ['graph or sourceMappings failed the frozen canonical Graph Digest contract'], 'rejected')
+  }
   if (graphDigest !== binding.graphDigest || graphDigest !== point.graphDigest) {
     return failed('rejected', binding.status, 'host-trust/graph-digest-mismatch', ['host graph bytes or sourceMappings do not match the registered graphDigest'], 'rejected')
   }
@@ -278,7 +302,7 @@ async function validateArtifact(envelope: ObservationBindingV1, point: HostTrust
  * `trusted` value is intentionally never consumed here; graph and artifact
  * checks are recomputed from the immutable registry snapshot.
  */
-export async function validateHostObservationV1(envelope: ObservationBindingV1, registry: HostTrustRegistryV1): Promise<HostTrustResult> {
+async function validateHostObservationV1Internal(envelope: ObservationBindingV1, registry: HostTrustRegistryV1): Promise<HostTrustResult> {
   if (!isHostTrustRegistryV1(registry)) return failed('unavailable', 'unavailable', 'host-trust/registry-unavailable', ['registry is not a host-created immutable registry'])
   if (!envelope || typeof envelope !== 'object') return failed('rejected', 'unavailable', 'host-trust/observation-tuple-mismatch', ['observation envelope is not an object'])
   if (hasCallerAuthorityClaims(envelope)) {
@@ -289,9 +313,9 @@ export async function validateHostObservationV1(envelope: ObservationBindingV1, 
     return failed('rejected', status, 'host-trust/caller-authority-supplied', ['caller-supplied graph, mapping, host binding, or runtime proof claims are never authoritative'])
   }
   if (envelope.protocol !== 'ripple-observation-binding/v1' || !isNonEmptyString(envelope.projectId) || !isNonEmptyString(envelope.runId) || !isNonEmptyString(envelope.checkId) ||
-    !isNonEmptyString(envelope.route) || !validPage(envelope.page) || !validViewport(envelope.viewport) || !isNonEmptyString(envelope.state) ||
+    !validRoute(envelope.route) || !validPage(envelope.page) || !validViewport(envelope.viewport) || !isNonEmptyString(envelope.state) ||
     !['baseline', 'candidate'].includes(envelope.side) || !['complete', 'partial', 'unknown', 'unavailable', 'stale'].includes(envelope.status) ||
-    !envelope.artifact || !isNonEmptyString(envelope.artifact.path) || !/^[a-f0-9]{64}$/.test(envelope.artifact.sha256) || !Number.isSafeInteger(envelope.artifact.sizeBytes) || envelope.artifact.sizeBytes < 0) {
+    !envelope.artifact || !validArtifactPath(envelope.artifact.path) || !/^[a-f0-9]{64}$/.test(envelope.artifact.sha256) || !Number.isSafeInteger(envelope.artifact.sizeBytes) || envelope.artifact.sizeBytes < 0) {
     return failed('rejected', 'unavailable', 'host-trust/observation-tuple-mismatch', ['observation envelope is malformed'])
   }
   const projectLookup = registry.readProject(envelope.projectId)
@@ -311,7 +335,7 @@ export async function validateHostObservationV1(envelope: ObservationBindingV1, 
   if (bindingLookup.kind !== 'unique') return failed('unavailable', 'unavailable', 'host-trust/side-binding-unavailable', ['side binding lookup did not yield one authoritative binding'])
   const binding = bindingLookup.value
   if (binding.projectId !== projectLookup.value.projectId || binding.runId !== point.runId || binding.checkId !== point.checkId || binding.side !== point.side ||
-    binding.graphSchemaVersion !== point.graphSchemaVersion || binding.graphIdentityVersion !== point.graphIdentityVersion || binding.mappingVersion !== point.mappingVersion ||
+    binding.graphSchemaVersion !== point.graphSchemaVersion || binding.graphIdentityVersion !== point.graphIdentityVersion || binding.relationIdentityVersion !== point.relationIdentityVersion || binding.sourceMappingVersion !== point.sourceMappingVersion ||
     binding.sourceDigest !== point.sourceDigest || binding.graphDigest !== point.graphDigest) {
     return failed('conflict', binding.status, 'host-trust/side-binding-conflict', ['side binding does not match the host project and run point'])
   }
@@ -347,6 +371,17 @@ export async function validateHostObservationV1(envelope: ObservationBindingV1, 
     authorizationEligible: false,
     reasonCode: 'host-trust/complete',
     diagnostics,
+  }
+}
+
+export async function validateHostObservationV1(envelope: ObservationBindingV1, registry: HostTrustRegistryV1): Promise<HostTrustResult> {
+  try {
+    return await validateHostObservationV1Internal(envelope, registry)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'web-crypto-unavailable') {
+      return failed('unavailable', 'unavailable', 'host-trust/crypto-unavailable', ['Web Crypto SHA-256 is unavailable in this runtime'])
+    }
+    return failed('unavailable', 'unavailable', 'host-trust/validation-exception', ['host observation validation raised an exception and was rejected'])
   }
 }
 

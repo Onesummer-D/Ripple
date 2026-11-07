@@ -68,4 +68,5 @@
   "nodeHeadIndependent": true,
   "powershellDotNetIndependent": true
 }
+
 EXIT_CODE=0

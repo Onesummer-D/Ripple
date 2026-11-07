@@ -1,12 +1,13 @@
 {
   "protocol": "ripple-e-h0-wrapper-v1-results/v1",
   "base": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
-  "implementationCommit": "4d50e1006bc33c124c8733f7a3341caa33e15e81",
+  "implementationCommit": "bc0dd673d3e209cffc186ab25c4503648a901cd1",
   "runtimeIdentityV12Blob": "8bbecf6e3f64db2b68506eedaa8eea709d1167de",
-  "wrapperTests": { "testFile": "src/core/observation-host-trust-v1.test.ts", "passed": 23, "failed": 0, "exitCode": 0 },
+  "wrapperTests": { "testFile": "src/core/observation-host-trust-v1.test.ts", "passed": 36, "failed": 0, "exitCode": 0 },
   "cases": {
     "H0-01": "pass",
     "H0-01b": "pass",
+    "H0-01c": "pass",
     "H0-02": "pass",
     "H0-03": "pass",
     "H0-04": "pass",
@@ -21,6 +22,10 @@
     "H0-13": "pass",
     "H0-14": "pass",
     "H0-15": "pass",
+    "graph-digest-golden": "pass",
+    "graph-schema-negatives": "pass",
+    "strict-source-use-mappings": "pass",
+    "static-jsx-consumer-no-runtime-proof": "pass",
     "malformed-guard": "pass"
   },
   "typecheck": { "exitCode": 0 },

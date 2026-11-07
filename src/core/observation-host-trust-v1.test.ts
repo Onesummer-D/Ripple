@@ -4,6 +4,7 @@ import {
   computeHostGraphDigestV1,
   computeHostSourceDigestV1,
   createHostTrustRegistryV1,
+  createHostTrustRegistryV1TestDouble,
   type HostTrustRegistryState,
   type HostTrustSideBinding,
   type ObservationStatus,
@@ -29,15 +30,15 @@ async function makeSide(side: 'baseline' | 'candidate', sourceText: string, stat
     revision: { projectId: 'project-h0', sourceDigest, runtimeFingerprint: `fingerprint-${side}` },
     nodes: [
       { id: `file-${side}`, kind: 'file', label: 'src/App.tsx', location: { path: 'src/App.tsx' } },
-      { id: `jsx-${side}`, kind: 'jsx-element', label: 'App', location: { path: 'src/App.tsx', offset: 0, byteOffset: 0 } },
+      { id: `token-use-${side}`, kind: 'token-use', label: 'App token use', location: { path: 'src/App.tsx', offset: 0, byteOffset: 0 } },
     ],
-    edges: [{ id: `relation-${side}`, from: `file-${side}`, to: `jsx-${side}`, kind: 'renders', certainty: 'source-proven', evidenceRefs: [`evidence-${side}`] } satisfies Relation],
+    edges: [{ id: `relation-${side}`, from: `file-${side}`, to: `token-use-${side}`, kind: 'reads', certainty: 'source-proven', evidenceRefs: [`evidence-${side}`], sourceUse: { path: 'src/App.tsx', charOffset: 0, byteOffset: 0, offsetUnit: 'code-unit' } } satisfies Relation],
     unresolved: [],
   }
-  const sourceMappings = [{ sourceRef: 'jsx:src/App.tsx#1', sourceFile: 'src/App.tsx', graphNodeId: `file-${side}`, sourceDigest, relationIds: [`relation-${side}`] }]
+  const sourceMappings = [{ projectId: 'project-h0', sourceRef: `token-use-${side}`, graphNodeId: `token-use-${side}`, sourceAnchorRelationId: `relation-${side}`, sourceIdentity: `source:${sourceDigest}:src/App.tsx:0:0`, sourceUse: { path: 'src/App.tsx', charOffset: 0, byteOffset: 0, offsetUnit: 'code-unit' as const } }]
   const bindingWithoutDigest: HostTrustSideBinding = {
     projectId: 'project-h0', runId: pointBase.runId, checkId: pointBase.checkId, side, status,
-    sourceDigest, graphDigest: '', graphSchemaVersion: 'graph-schema/v1', graphIdentityVersion: 'graph-identity/v2', mappingVersion: 'mapping/v1',
+    sourceDigest, graphDigest: '', graphSchemaVersion: 'acp6-sourcegraph/v1', graphIdentityVersion: 'sourcegraph-identity/v2', relationIdentityVersion: 'relation-id/v1', sourceMappingVersion: 'sourcegraph-source-mapping/v1',
     sourceSnapshot, graph, sourceMappings,
   }
   const graphDigest = await computeHostGraphDigestV1(bindingWithoutDigest)
@@ -52,7 +53,7 @@ async function makeSide(side: 'baseline' | 'candidate', sourceText: string, stat
   }
   const runPoint = {
     projectId: 'project-h0', ...pointBase, side, page, sourceDigest, graphDigest,
-    graphSchemaVersion: binding.graphSchemaVersion, graphIdentityVersion: binding.graphIdentityVersion, mappingVersion: binding.mappingVersion, artifactPath: artifact.path,
+    graphSchemaVersion: binding.graphSchemaVersion, graphIdentityVersion: binding.graphIdentityVersion, relationIdentityVersion: binding.relationIdentityVersion, sourceMappingVersion: binding.sourceMappingVersion, artifactPath: artifact.path,
   }
   return { binding, artifact, runPoint, sourceDigest, graphDigest }
 }
@@ -67,18 +68,50 @@ async function makeFixture(options: { status?: ObservationStatus; mutate?: (stat
     artifacts: [baseline.artifact, candidate.artifact],
   }
   options.mutate?.(state)
-  const registry = createHostTrustRegistryV1(state)
+  const registry = createHostTrustRegistryV1TestDouble(state)
   const envelope: ObservationBindingV1 = {
     protocol: 'ripple-observation-binding/v1', projectId: 'project-h0', runId: pointBase.runId, checkId: pointBase.checkId, side: 'baseline',
     route: pointBase.route, page, viewport: pointBase.viewport, state: pointBase.state, status: 'complete',
     artifact: { path: baseline.artifact.path, sha256: baseline.artifact.sha256, sizeBytes: baseline.artifact.sizeBytes },
     sourceDigest: baseline.sourceDigest, graphDigest: baseline.graphDigest,
-    graphSchemaVersion: baseline.binding.graphSchemaVersion, graphIdentityVersion: baseline.binding.graphIdentityVersion, mappingVersion: baseline.binding.mappingVersion,
+    graphSchemaVersion: baseline.binding.graphSchemaVersion, graphIdentityVersion: baseline.binding.graphIdentityVersion, relationIdentityVersion: baseline.binding.relationIdentityVersion, sourceMappingVersion: baseline.binding.sourceMappingVersion,
   }
   return { registry, state, envelope, baseline, candidate }
 }
 
 describe('Host Trust Wrapper v1 — E-H0', () => {
+  it('matches the frozen D Graph Digest golden vector and uses the formal domain separator', async () => {
+    const sourceDigest = 'a'.repeat(64)
+    const sourceUse = { path: 'src/App.tsx', charOffset: 0, byteOffset: 0, offsetUnit: 'code-unit' as const }
+    const graph: SourceGraph = {
+      id: 'graph-golden',
+      revision: { projectId: 'project-h0', sourceDigest, runtimeFingerprint: 'fingerprint-golden' },
+      nodes: [
+        { id: 'file-baseline', kind: 'file', label: 'src/App.tsx', location: { path: 'src/App.tsx' } },
+        { id: 'token-use-baseline', kind: 'token-use', label: 'App token use', location: { path: 'src/App.tsx', offset: 0, byteOffset: 0 } },
+      ],
+      edges: [{ id: 'relation-baseline', from: 'file-baseline', to: 'token-use-baseline', kind: 'reads', certainty: 'source-proven', evidenceRefs: ['evidence-baseline'], sourceUse } satisfies Relation],
+      unresolved: [],
+    }
+    const digest = await computeHostGraphDigestV1({
+      projectId: 'project-h0', sourceDigest, graphSchemaVersion: 'acp6-sourcegraph/v1', graphIdentityVersion: 'sourcegraph-identity/v2', relationIdentityVersion: 'relation-id/v1', sourceMappingVersion: 'sourcegraph-source-mapping/v1', graph,
+      sourceMappings: [{ projectId: 'project-h0', sourceRef: 'token-use-baseline', graphNodeId: 'token-use-baseline', sourceAnchorRelationId: 'relation-baseline', sourceIdentity: `source:${sourceDigest}:src/App.tsx:0:0`, sourceUse }],
+    })
+    expect(digest).toBe('48ec3e0130910c3b95e04ce39265de92b16f50c5f24d41f4e69694cf9dff13f5')
+  })
+
+  it.each(['unknown node kind', 'duplicate evidenceRefs', 'duplicate relation ID', 'empty pageOverrides', 'unsafe integer'])('rejects frozen Graph Digest schema case: %s', async label => {
+    const fixture = await makeFixture()
+    const binding = fixture.baseline.binding
+    const graph = structuredClone(binding.graph) as unknown as SourceGraph & { nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> }
+    if (label === 'unknown node kind') (graph.nodes[0] as Record<string, unknown>).kind = 'not-a-node-kind'
+    if (label === 'duplicate evidenceRefs') graph.edges[0].evidenceRefs = ['same', 'same']
+    if (label === 'duplicate relation ID') graph.edges.push({ ...graph.edges[0] })
+    if (label === 'empty pageOverrides') graph.nodes[0].pageOverrides = { '': 'bad' }
+    if (label === 'unsafe integer') graph.nodes[0].location = { path: 'src/App.tsx', offset: Number.MAX_SAFE_INTEGER + 1 }
+    await expect(computeHostGraphDigestV1({ ...binding, graph })).rejects.toThrow('graph-schema-invalid')
+  })
+
   it('H0-01 rejects caller graphDigest mutation', async () => {
     const fixture = await makeFixture()
     const result = await validateHostObservationV1({ ...fixture.envelope, graphDigest: 'f'.repeat(64) }, fixture.registry)
@@ -94,10 +127,19 @@ describe('Host Trust Wrapper v1 — E-H0', () => {
     expect(result).toMatchObject({ ok: false, trusted: false, reasonCode: 'host-trust/caller-authority-supplied' })
   })
 
+  it('H0-01c rejects a self-consistent forged registry created through the public factory', async () => {
+    const fixture = await makeFixture()
+    const callerRegistry = createHostTrustRegistryV1(fixture.state)
+    const result = await validateHostObservationV1(fixture.envelope, callerRegistry)
+    expect(result).toMatchObject({ ok: false, trusted: false, reasonCode: 'host-trust/registry-unavailable' })
+  })
+
   it('H0-02 rejects caller registry replacement and exposes no write capability', async () => {
     const fixture = await makeFixture()
+    expect(Object.isFrozen(fixture.registry)).toBe(true)
     expect('write' in fixture.registry).toBe(false)
     expect('update' in fixture.registry).toBe(false)
+    expect(Reflect.set(fixture.registry as unknown as object, 'readProject', () => ({ kind: 'missing' }))).toBe(false)
     const fakeRegistry = {
       readProject: () => ({ kind: 'unique', value: { projectId: 'project-h0', sourceDigests: {} } }),
       readRunPoint: () => ({ kind: 'missing' }), readSideBinding: () => ({ kind: 'missing' }), readArtifact: () => ({ kind: 'missing' }),
@@ -137,6 +179,24 @@ describe('Host Trust Wrapper v1 — E-H0', () => {
     } })
     const result = await validateHostObservationV1(fixture.envelope, fixture.registry)
     expect(result).toMatchObject({ ok: false, trusted: false, reasonCode: 'host-trust/mapping-invalid' })
+  })
+
+  it.each([
+    ['sourceRef mismatch', (mapping: HostTrustSideBinding['sourceMappings'][number]) => ({ ...mapping, sourceRef: 'wrong-ref' })],
+    ['declaration node target', (mapping: HostTrustSideBinding['sourceMappings'][number]) => ({ ...mapping, sourceRef: 'file-baseline', graphNodeId: 'file-baseline' })],
+    ['relation endpoint mismatch', (mapping: HostTrustSideBinding['sourceMappings'][number]) => ({ ...mapping })],
+    ['sourceUse mismatch', (mapping: HostTrustSideBinding['sourceMappings'][number]) => ({ ...mapping, sourceUse: { ...mapping.sourceUse, charOffset: 1 } })],
+    ['non-strict certainty', (mapping: HostTrustSideBinding['sourceMappings'][number]) => ({ ...mapping })],
+  ])('P0 strict source-use mapping rejects %s', async (label, mappingEdit) => {
+    const fixture = await makeFixture({ mutate: state => {
+      const binding = state.sideBindings[0]
+      let nextMapping = mappingEdit(binding.sourceMappings[0])
+      if (label === 'relation endpoint mismatch') state.sideBindings = [{ ...binding, graph: { ...binding.graph, edges: binding.graph.edges.map(edge => ({ ...edge, to: 'file-baseline' })) }, sourceMappings: [nextMapping] }, ...state.sideBindings.slice(1)]
+      else if (label === 'non-strict certainty') state.sideBindings = [{ ...binding, graph: { ...binding.graph, edges: binding.graph.edges.map(edge => ({ ...edge, certainty: 'semantic-candidate' })) }, sourceMappings: [nextMapping] }, ...state.sideBindings.slice(1)]
+      else state.sideBindings = [{ ...binding, sourceMappings: [nextMapping] }, ...state.sideBindings.slice(1)]
+    } })
+    const result = await validateHostObservationV1(fixture.envelope, fixture.registry)
+    expect(result).toMatchObject({ ok: false, trusted: false, reasonCode: expect.stringMatching(/^host-trust\/(mapping-invalid|graph-invalid|graph-digest-mismatch)$/) })
   })
 
   it('H0-08 rejects an unregistered run/check', async () => {
@@ -187,9 +247,16 @@ describe('Host Trust Wrapper v1 — E-H0', () => {
 
   it('H0-13 keeps static source-proven reads separate from runtime proof and authorization', async () => {
     const fixture = await makeFixture()
-    const result = await validateHostObservationV1({ ...fixture.envelope, staticRelation: { from: 'file-baseline', to: 'jsx-baseline', kind: 'reads', certainty: 'source-proven' } }, fixture.registry)
+    const result = await validateHostObservationV1({ ...fixture.envelope, staticRelation: { from: 'file-baseline', to: 'token-use-baseline', kind: 'reads', certainty: 'source-proven' } }, fixture.registry)
     expect(hostTrustResultIsComplete(result)).toBe(true)
     expect(result).toMatchObject({ ok: true, trusted: true, trustState: 'host-bound-complete', runtimeProof: 'none', authorizationEligible: false })
+  })
+
+  it('P0 refuses to upgrade a static relation aimed at a JSX consumer into runtime proof', async () => {
+    const fixture = await makeFixture()
+    const result = await validateHostObservationV1({ ...fixture.envelope, staticRelation: { from: 'file-baseline', to: 'jsx-consumer', kind: 'reads', certainty: 'source-proven' } }, fixture.registry)
+    expect(result).toMatchObject({ ok: true, trusted: true, runtimeProof: 'none', authorizationEligible: false })
+    expect(hostTrustResultIsComplete(result)).toBe(true)
   })
 
   it('H0-14 rejects artifact byte, SHA, size, and duplicate archive failures', async () => {
@@ -220,5 +287,10 @@ describe('Host Trust Wrapper v1 — E-H0', () => {
     } })
     const malformedBinding = await validateHostObservationV1(malformedHost.envelope, malformedHost.registry)
     expect(malformedBinding).toMatchObject({ ok: false, trusted: false })
+    const malformedRunPoint = await makeFixture({ mutate: state => { state.runPoints = undefined as never } })
+    const malformedRunResult = await validateHostObservationV1(malformedRunPoint.envelope, malformedRunPoint.registry)
+    expect(malformedRunResult).toMatchObject({ ok: false, trusted: false, reasonCode: 'host-trust/run-point-conflict' })
+    const malformedArtifactPath = await validateHostObservationV1({ ...fixture.envelope, artifact: { ...fixture.envelope.artifact, path: '../escape.json' } }, fixture.registry)
+    expect(malformedArtifactPath).toMatchObject({ ok: false, trusted: false, reasonCode: 'host-trust/observation-tuple-mismatch' })
   })
 })
