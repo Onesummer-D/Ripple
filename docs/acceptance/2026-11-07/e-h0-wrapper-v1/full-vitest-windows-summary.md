@@ -14,4 +14,4 @@ Environment-caused failure classes:
 - Windows sandbox denied temporary Git initialization/config writes in project/resource tests.
 - Loopback preview tests received `EACCES`/`fetch failed` on local ports.
 
-The new `observation-host-trust-v1.test.ts` file passed `22/22`. No failure referenced either new production wrapper file.
+The new `observation-host-trust-v1.test.ts` file passed `23/23`. No failure referenced either new production wrapper file.

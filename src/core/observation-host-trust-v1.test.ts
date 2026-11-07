@@ -209,4 +209,16 @@ describe('Host Trust Wrapper v1 — E-H0', () => {
     const result = await validateHostObservationV1({ ...fixture.envelope, callerClaims: { runtimeProof: { assessmentStatus: 'missing', reasons: ['instance-unavailable'] } } }, fixture.registry)
     expect(result).toMatchObject({ ok: false, trusted: false, reasonCode: 'host-trust/caller-authority-supplied' })
   })
+
+  it('malformed envelope and host snapshot data fail closed without throwing', async () => {
+    const fixture = await makeFixture()
+    const malformedEnvelope = await validateHostObservationV1(null as never, fixture.registry)
+    expect(malformedEnvelope).toMatchObject({ ok: false, trusted: false, reasonCode: 'host-trust/observation-tuple-mismatch' })
+    const malformedHost = await makeFixture({ mutate: state => {
+      const binding = state.sideBindings[0]
+      state.sideBindings = [{ ...binding, sourceSnapshot: undefined as never }, ...state.sideBindings.slice(1)]
+    } })
+    const malformedBinding = await validateHostObservationV1(malformedHost.envelope, malformedHost.registry)
+    expect(malformedBinding).toMatchObject({ ok: false, trusted: false })
+  })
 })

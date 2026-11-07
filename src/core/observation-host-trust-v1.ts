@@ -159,14 +159,15 @@ function validBytes(bytes: readonly number[]): boolean {
 }
 
 function validSourceSnapshot(binding: HostTrustSideBinding): boolean {
+  if (!binding || !binding.sourceSnapshot || typeof binding.sourceSnapshot !== 'object') return false
   const files = binding.sourceSnapshot.files
   return Array.isArray(files) && files.length > 0 &&
-    files.every(file => isNonEmptyString(file.path) && validBytes(file.bytes)) &&
+    files.every(file => !!file && isNonEmptyString(file.path) && validBytes(file.bytes)) &&
     new Set(files.map(file => file.path)).size === files.length
 }
 
 function graphShapeError(graph: SourceGraph): string | undefined {
-  if (!isNonEmptyString(graph.id) || !graph.revision || !isNonEmptyString(graph.revision.projectId) || !isNonEmptyString(graph.revision.sourceDigest)) return 'graph identity or revision is incomplete'
+  if (!graph || typeof graph !== 'object' || !isNonEmptyString(graph.id) || !graph.revision || !isNonEmptyString(graph.revision.projectId) || !isNonEmptyString(graph.revision.sourceDigest)) return 'graph identity or revision is incomplete'
   if (!Array.isArray(graph.nodes) || !Array.isArray(graph.edges) || !Array.isArray(graph.unresolved)) return 'graph arrays are malformed'
   const nodeIds = new Set<string>()
   for (const node of graph.nodes) {
@@ -203,6 +204,7 @@ function mappingShapeError(binding: HostTrustSideBinding): string | undefined {
 }
 
 function sameLineage(artifact: HostTrustArtifact, point: HostTrustRunPoint, envelope: ObservationBindingV1): boolean {
+  if (!artifact || !artifact.lineage) return false
   return artifact.lineage.projectId === point.projectId && artifact.lineage.runId === point.runId && artifact.lineage.checkId === point.checkId &&
     artifact.lineage.side === point.side && artifact.lineage.route === point.route && samePage(artifact.lineage.page, point.page) &&
     sameViewport(artifact.lineage.viewport, point.viewport) && artifact.lineage.state === point.state &&
@@ -211,8 +213,9 @@ function sameLineage(artifact: HostTrustArtifact, point: HostTrustRunPoint, enve
     sameViewport(artifact.lineage.viewport, envelope.viewport) && artifact.lineage.state === envelope.state
 }
 
-function hasCallerAuthorityClaims(envelope: ObservationBindingV1): boolean {
-  const claims = envelope.callerClaims
+function hasCallerAuthorityClaims(envelope: unknown): boolean {
+  if (!envelope || typeof envelope !== 'object') return false
+  const claims = (envelope as ObservationBindingV1).callerClaims
   return !!claims && Object.keys(claims).length > 0
 }
 
@@ -259,6 +262,7 @@ async function validateArtifact(envelope: ObservationBindingV1, point: HostTrust
   if (lookupError) return lookupError
   if (artifactLookup.kind !== 'unique') return failed('unavailable', 'unavailable', 'host-trust/artifact-unavailable', ['artifact lookup did not yield one authoritative artifact'])
   const artifact = artifactLookup.value
+  if (!artifact || typeof artifact !== 'object' || !artifact.lineage) return failed('rejected', 'complete', 'host-trust/artifact-lineage-mismatch', ['host artifact record is malformed'])
   if (point.artifactPath !== artifact.path || envelope.artifact.path !== artifact.path || envelope.artifact.sha256 !== artifact.sha256 || envelope.artifact.sizeBytes !== artifact.sizeBytes) {
     return failed('rejected', 'complete', 'host-trust/artifact-lineage-mismatch', ['artifact path, digest, or declared size does not match the host run point'])
   }
@@ -276,7 +280,14 @@ async function validateArtifact(envelope: ObservationBindingV1, point: HostTrust
  */
 export async function validateHostObservationV1(envelope: ObservationBindingV1, registry: HostTrustRegistryV1): Promise<HostTrustResult> {
   if (!isHostTrustRegistryV1(registry)) return failed('unavailable', 'unavailable', 'host-trust/registry-unavailable', ['registry is not a host-created immutable registry'])
-  if (hasCallerAuthorityClaims(envelope)) return failed('rejected', envelope.status, 'host-trust/caller-authority-supplied', ['caller-supplied graph, mapping, host binding, or runtime proof claims are never authoritative'])
+  if (!envelope || typeof envelope !== 'object') return failed('rejected', 'unavailable', 'host-trust/observation-tuple-mismatch', ['observation envelope is not an object'])
+  if (hasCallerAuthorityClaims(envelope)) {
+    const claimedStatus = (envelope as { status?: unknown }).status
+    const status: ObservationStatus = typeof claimedStatus === 'string' && ['complete', 'partial', 'unknown', 'unavailable', 'stale'].includes(claimedStatus)
+      ? claimedStatus as ObservationStatus
+      : 'unavailable'
+    return failed('rejected', status, 'host-trust/caller-authority-supplied', ['caller-supplied graph, mapping, host binding, or runtime proof claims are never authoritative'])
+  }
   if (envelope.protocol !== 'ripple-observation-binding/v1' || !isNonEmptyString(envelope.projectId) || !isNonEmptyString(envelope.runId) || !isNonEmptyString(envelope.checkId) ||
     !isNonEmptyString(envelope.route) || !validPage(envelope.page) || !validViewport(envelope.viewport) || !isNonEmptyString(envelope.state) ||
     !['baseline', 'candidate'].includes(envelope.side) || !['complete', 'partial', 'unknown', 'unavailable', 'stale'].includes(envelope.status) ||

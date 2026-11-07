@@ -128,7 +128,13 @@ function sameCanonicalValue(left: unknown, right: unknown): boolean {
 }
 
 function lookup<T>(values: readonly T[], predicate: (value: T) => boolean): HostRegistryLookup<T> {
-  const matches = values.filter(predicate)
+  if (!Array.isArray(values)) return { kind: 'conflict', values: [] }
+  const matches: T[] = []
+  try {
+    for (const value of values) if (predicate(value)) matches.push(value)
+  } catch {
+    return { kind: 'conflict', values: [] }
+  }
   if (matches.length === 0) return { kind: 'missing' }
   if (matches.length === 1) return { kind: 'unique', value: matches[0] }
   return matches.every(value => sameCanonicalValue(value, matches[0]))
@@ -152,7 +158,7 @@ export function createHostTrustRegistryV1(state: HostTrustRegistryState): HostTr
     readSideBinding: (runId: string, checkId: string, side: ObservationSide): HostRegistryLookup<HostTrustSideBinding> =>
       lookup(frozen.sideBindings, item => item.runId === runId && item.checkId === checkId && item.side === side),
     readArtifact: (path: string, runId: string, checkId: string, side: ObservationSide): HostRegistryLookup<HostTrustArtifact> =>
-      lookup(frozen.artifacts, item => item.path === path && item.lineage.runId === runId && item.lineage.checkId === checkId && item.lineage.side === side),
+      lookup(frozen.artifacts, item => !!item && typeof item === 'object' && !!item.lineage && item.path === path && item.lineage.runId === runId && item.lineage.checkId === checkId && item.lineage.side === side),
   } satisfies HostTrustRegistryV1 & RegistryBranded
   registryInstances.add(registry)
   return registry

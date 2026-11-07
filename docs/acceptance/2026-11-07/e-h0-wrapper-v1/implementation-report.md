@@ -50,7 +50,7 @@ Static `reads + source-proven` evidence is retained as static evidence only; it 
 
 ## H0-01 to H0-15 results
 
-The dedicated Vitest file ran 22 assertions because H0-09 and H0-11 are parameterized.
+The dedicated Vitest file ran 23 tests because H0-09 and H0-11 are parameterized and includes one malformed-input guard.
 
 | Case | Result | Assertion |
 |---|---:|---|
@@ -70,12 +70,13 @@ The dedicated Vitest file ran 22 assertions because H0-09 and H0-11 are paramete
 | H0-13 | PASS | Static source proof does not become runtime proof or authorization |
 | H0-14 | PASS | Artifact byte/SHA/size and duplicate archive failures rejected |
 | H0-15 | PASS | Missing/non-proving RI claims cannot be supplied by caller |
+| malformed guard | PASS | Null envelope and malformed host snapshot fail closed without throwing |
 
-Dedicated result: `22/22` assertions, exit code `0`.
+Dedicated result: `23/23` tests, exit code `0`.
 
 ## Command results
 
-- Wrapper targeted test: exit `0`, `22/22` passed (`wrapper-vitest.log`).
+- Wrapper targeted test: exit `0`, `23/23` passed (`wrapper-vitest.log`).
 - Typecheck: exit `0` (`typecheck.log`).
 - Build: exit `0` (`build.log`).
 - Frozen Node validator: exit `0` (`offline-node.log`).

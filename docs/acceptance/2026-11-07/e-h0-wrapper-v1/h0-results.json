@@ -3,7 +3,7 @@
   "base": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
   "implementationCommit": "fe541ab5177b7d8512d27989fa08a60bec8952a3",
   "runtimeIdentityV12Blob": "8bbecf6e3f64db2b68506eedaa8eea709d1167de",
-  "wrapperTests": { "testFile": "src/core/observation-host-trust-v1.test.ts", "passed": 22, "failed": 0, "exitCode": 0 },
+  "wrapperTests": { "testFile": "src/core/observation-host-trust-v1.test.ts", "passed": 23, "failed": 0, "exitCode": 0 },
   "cases": {
     "H0-01": "pass",
     "H0-01b": "pass",
@@ -20,7 +20,8 @@
     "H0-12": "pass",
     "H0-13": "pass",
     "H0-14": "pass",
-    "H0-15": "pass"
+    "H0-15": "pass",
+    "malformed-guard": "pass"
   },
   "typecheck": { "exitCode": 0 },
   "build": { "exitCode": 0 },
