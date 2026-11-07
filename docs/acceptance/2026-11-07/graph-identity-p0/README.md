@@ -16,8 +16,10 @@ collector, E pairing, or authorization gate is changed.
 ## Files
 
 - `docs/architecture/graph-identity-p0-design-2026-11-07.md`: contract, implementation boundary, E comparison, risks and A/E sign-off items.
+- `docs/architecture/graph-identity-p0-contract-decisions-2026-11-07.md`: D G0 version relation, Graph Digest/provenance/Host Binding layer decisions.
 - `docs/acceptance/2026-11-07/graph-identity-p0/graph-identity-p0-vectors.json`: golden and negative vectors.
 - `docs/acceptance/2026-11-07/graph-identity-p0/producer-manifest-schema-v0.json`: proposed producer manifest shape and rejection rules.
+- `docs/acceptance/2026-11-07/graph-identity-p0/contract-decision-vectors.json`: machine-readable layer and fail-closed vectors.
 - `docs/acceptance/2026-11-07/graph-identity-p0/sha256-manifest.txt`: final GitHub file-byte hashes for this evidence package.
 
 ## Local checks
@@ -30,7 +32,7 @@ node -e "for (const f of process.argv.slice(1)) { JSON.parse(require('fs').readF
 git diff --check
 ```
 
-Expected design-only scope: one architecture document and three evidence files under
+Expected design-only scope: two architecture documents and five evidence files under
 `docs/`; `git diff --name-only d1c941da` must not contain `src/` or `model.ts`.
 
 The D G0 executable replay currently computes `ff8735ed...`; the archived document

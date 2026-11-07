@@ -2,7 +2,10 @@
 status=evidence-only
 base=d1c941da77d4ab4bbcd7ae557052557628bcb27c
 baseTree=46049ba554a9e7c3ef9048924607a5025342496f
-79372c62a506e602390ed1017f7c21743945dd13c11177cca89adc1a1d030ec9  1963  README.md
-49410dea7525b1a43cf88c91df985c59ca49c988f779103fac3e453765bd0760  7223  graph-identity-p0-vectors.json
-4329905320078513b0bcf30f60341ded88c25a4abbc7d5a0b2f317539ad15c03  5029  producer-manifest-schema-v0.json
+89fd9899b2a26a8b4dddb37ce3052eb1e4f8833d285daa4d3d8bef4ebed59f3c  2243  docs/acceptance/2026-11-07/graph-identity-p0/README.md
+49410dea7525b1a43cf88c91df985c59ca49c988f779103fac3e453765bd0760  7223  docs/acceptance/2026-11-07/graph-identity-p0/graph-identity-p0-vectors.json
+4329905320078513b0bcf30f60341ded88c25a4abbc7d5a0b2f317539ad15c03  5029  docs/acceptance/2026-11-07/graph-identity-p0/producer-manifest-schema-v0.json
+7ca5241919dbc29c45f9ecdffd8cfdbdd62f65470611e732be55b83faf27474a  2934  docs/acceptance/2026-11-07/graph-identity-p0/contract-decision-vectors.json
+afe5cec7fd2dde4f469fce5764b5ec14814febb7ff0b127e6df1ce26d1fba070  17808  docs/architecture/graph-identity-p0-design-2026-11-07.md
+2702f577e94b897822ad1926a9ea4aa0c8b7b28bc0dc0d7564a7d8235ec4ac1d  7506  docs/architecture/graph-identity-p0-contract-decisions-2026-11-07.md
 sourceOnly=true

@@ -1,0 +1,78 @@
+{
+  "vectorVersion": "graph-identity-p0-contract-decision/v1",
+  "status": "evidence-only",
+  "base": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+  "refs": {
+    "dObservationContract": "808489c38e25c3f1765abc37345e28a393b2da18",
+    "dExecutableSerializer": "2a26173614f62066f7de9e37e6e3d5b5f1af2e75",
+    "eLatestHead": "44649afa1d698fd77fd0e445e473e135995dc5c3",
+    "fixedProject": "b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "layers": {
+    "graphDigest": "sourcegraph-identity/v2",
+    "producerEvidence": "producer-evidence/v1",
+    "provenanceAttestation": "sourcegraph-provenance/v1",
+    "observationBinding": "sourcegraph-observation-binding/v1"
+  },
+  "vectors": [
+    {
+      "id": "formal-d-g0-v2",
+      "envelope": "graphIdentityV2-with-projectId-sourceMappings",
+      "digest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+      "status": "formal-candidate-awaiting-a-d-freeze"
+    },
+    {
+      "id": "pr74-replay-raw-v1",
+      "envelope": "reduced-static-graph-without-projectId-sourceMappings",
+      "digest": "ff8735ed6e3ff1f8321f66c2263d37c243ad7ec36616f28b98406fdc6ebcb9fe",
+      "status": "raw-sourcegraph-replay-only"
+    },
+    {
+      "id": "same-graph-different-evidence",
+      "graphDigest": "unchanged",
+      "producerEvidenceSha256": "changed",
+      "graphProvenanceDigest": "changed",
+      "expected": "graph-identity-stable-provenance-changes"
+    },
+    {
+      "id": "missing-evidence",
+      "graphDigest": "available",
+      "producerEvidenceSha256": null,
+      "graphProvenanceDigest": null,
+      "expected": "provenance-unavailable; no-proof-upgrade"
+    },
+    {
+      "id": "conflicting-policy",
+      "producerEvidenceSha256": "present",
+      "policyManifestSha256": "conflicting",
+      "graphProvenanceDigest": null,
+      "expected": "attestation-rejected"
+    },
+    {
+      "id": "host-run-change",
+      "graphDigest": "unchanged",
+      "observationBindingDigest": "changed",
+      "expected": "graph-stable-observation-changes"
+    },
+    {
+      "id": "host-side-change",
+      "graphDigest": "side-local-and-independent",
+      "hostBinding": "different-side-binding",
+      "expected": "no-cross-side-borrow"
+    },
+    {
+      "id": "evidence-in-v2-digest",
+      "mutation": "append producerEvidenceSha256 to GraphDigestV2 input",
+      "expected": "reject-as-version-mismatch; require-new-digest-type"
+    }
+  ],
+  "failClosedRules": [
+    "missing, duplicate, conflicting or version-mismatched evidence never yields a trusted attestation",
+    "projectId and sourceMappings are host-derived and cannot be caller supplied",
+    "side, runId and checkId are observation binding fields and never Relation ID inputs",
+    "semantic-candidate, UNKNOWN and unresolved remain unchanged",
+    "AC6.2 remains 34/123 with 89 unresolved",
+    "AC6.4 remains 34/147 with 113 UNKNOWN",
+    "historical 2413 NOT-PROVEN records remain isolated"
+  ]
+}
