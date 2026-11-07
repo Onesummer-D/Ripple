@@ -1,0 +1,152 @@
+{
+  "protocol": "d-e0-g0-fixture-archive-manifest/v1",
+  "archiveKind": "evidence-only",
+  "productionWrites": false,
+  "historicalReportsModified": false,
+  "dP1Started": false,
+  "authorityCandidate": {
+    "commit": "2ee08975c891abb1df5ff38881326e78ead28076",
+    "tree": "60e397f075f8a1d62226d6a736993580b48df9ad",
+    "contractBlob": "fdac5d433f2c2747c7acb567078daac779f354f8",
+    "nodeSerializerBlob": "74b3e5288737c4987c024c6c30f76aab292fbc07",
+    "powershellSerializerBlob": "2ebbbe6b9764a72678e0c9f693a5277ad24f1f51",
+    "fixtureBlob": "1e8d7c962f7afc2b45dd7e4648e19f016f5ca81b",
+    "status": "candidate authority; no contract rewrite"
+  },
+  "localEvidence": {
+    "requestedCommit": "bfe0b06a74c702908698ad1c25253d0087bf22e3",
+    "requestedTree": "cb7aff6107292c2cb1450aa4fcc44f384c36e6dc",
+    "preparationHead": "2e8e619faa03815d1545ee5b659106056a5e6478",
+    "scope": "prior evidence-only review and handoff"
+  },
+  "remoteArchive": {
+    "baseCommit": "5e1f909c427954539bef6f8acfe267556b20b81a",
+    "branch": "evidence/d-e0-g0-fixture-20261107",
+    "commit": "to-be-created",
+    "tree": "to-be-created"
+  },
+  "fixture": {
+    "path": "g0.json",
+    "bytes": 1931,
+    "sha256": "f1bc951f493d2d404fafa7e764d397039fa44619496aa6f2107f5290e20152d3",
+    "gitBlob": "1e8d7c962f7afc2b45dd7e4648e19f016f5ca81b"
+  },
+  "canonical": {
+    "path": "g0.canonical.json",
+    "bytes": 1353,
+    "sha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+    "graphDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "domain": "ripple/sourcegraph-identity/v2/graphDigest\\u0000"
+  },
+  "recomputation": {
+    "node": {
+      "exitCode": 0,
+      "outputPath": "node-output.json",
+      "stdoutPath": "node-run.stdout.json"
+    },
+    "powershell": {
+      "exitCode": 0,
+      "outputPath": "powershell-output.json",
+      "stdoutPath": "powershell-run.stdout.json"
+    },
+    "verificationReport": "verification-report.json"
+  },
+  "environment": {
+    "executedAtUtc": "2026-11-07T15:43:10.1267065Z",
+    "os": "Microsoft Windows NT 10.0.26200.0",
+    "node": "v24.15.0",
+    "powershell": "PowerShell 7.6.9"
+  },
+  "files": [
+    {
+      "path": "g0.json",
+      "bytes": 1931,
+      "sha256": "f1bc951f493d2d404fafa7e764d397039fa44619496aa6f2107f5290e20152d3",
+      "gitBlob": "1e8d7c962f7afc2b45dd7e4648e19f016f5ca81b"
+    },
+    {
+      "path": "g0.canonical.json",
+      "bytes": 1353,
+      "sha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+      "gitBlob": "cf0d9389462d28b8a5c9c5a374b5bfa40fe4843f"
+    },
+    {
+      "path": "canonical-observation-digest.mjs",
+      "bytes": 26936,
+      "sha256": "fce141f05ad5f63db35413862f0e1ab63df19336fc61a9e1b29eb1aecd15a736",
+      "gitBlob": "74b3e5288737c4987c024c6c30f76aab292fbc07"
+    },
+    {
+      "path": "canonical-observation-digest.ps1",
+      "bytes": 40868,
+      "sha256": "cfd0af34214a1d61c73728f6f27d7641df9435ee5fbe9cecbfb4e2cd5267c5a9",
+      "gitBlob": "2ebbbe6b9764a72678e0c9f693a5277ad24f1f51"
+    },
+    {
+      "path": "node-recompute.mjs",
+      "bytes": 1257,
+      "sha256": "15b2cbb4b51944537a715b8e24699dac7bc0d3b612ccf3bcaec0347f245f8c28",
+      "gitBlob": "3fa29f72f26071273ee04036452536888961608f"
+    },
+    {
+      "path": "powershell-recompute.ps1",
+      "bytes": 17479,
+      "sha256": "3104be0639e1af76a4e52afd0a83425adb29ea855040e4cf7ab8029f7ec0ef1d",
+      "gitBlob": "27e4f47992129bc0fd3726e03c6c7f35c0d6c814"
+    },
+    {
+      "path": "node-output.json",
+      "bytes": 4086,
+      "sha256": "da15046df0ed228cd8dfdacb5e515f559696c71b10a3296df78e4da6591df0fc",
+      "gitBlob": "b3181f661cc1970f1c351e1e0b42f05392796aed"
+    },
+    {
+      "path": "powershell-output.json",
+      "bytes": 4105,
+      "sha256": "befc07e7caf214c4466fab41f611355b85172872d818e3f3fb55cf29b49aa4f8",
+      "gitBlob": "a0426232a10026a9c16cbccab0f7011152f13757"
+    },
+    {
+      "path": "node-run.stdout.json",
+      "bytes": 4086,
+      "sha256": "da15046df0ed228cd8dfdacb5e515f559696c71b10a3296df78e4da6591df0fc",
+      "gitBlob": "b3181f661cc1970f1c351e1e0b42f05392796aed"
+    },
+    {
+      "path": "powershell-run.stdout.json",
+      "bytes": 4105,
+      "sha256": "befc07e7caf214c4466fab41f611355b85172872d818e3f3fb55cf29b49aa4f8",
+      "gitBlob": "a0426232a10026a9c16cbccab0f7011152f13757"
+    },
+    {
+      "path": "node-exit-code.txt",
+      "bytes": 4,
+      "sha256": "59329e6e34621dcc1dbc8c625c61774c7c88912bdccb43d75ab48244e555382f",
+      "gitBlob": "a929e51863a6dcded6c86033d28de4b010486bb7"
+    },
+    {
+      "path": "powershell-exit-code.txt",
+      "bytes": 4,
+      "sha256": "59329e6e34621dcc1dbc8c625c61774c7c88912bdccb43d75ab48244e555382f",
+      "gitBlob": "a929e51863a6dcded6c86033d28de4b010486bb7"
+    },
+    {
+      "path": "verification-report.json",
+      "bytes": 1031,
+      "sha256": "c88204b4d640809175427ecd7377a740f05fa4adee966c77fbc819ec1773594f",
+      "gitBlob": "fa5de2643ec980fc2e77f5c56f16dcfe8afd1c3b"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1288,
+      "sha256": "265a1b39645ad4309c854399d597cf8d3d0519b3f53e21302ee6edf571771abf",
+      "gitBlob": "3e7030b29f955c04a9065b8b99b4144d442b17f0"
+    }
+  ],
+  "notes": [
+    "The original raw fixture is archived; canonical bytes alone are not the evidence.",
+    "Node and PowerShell agree on canonical JSON bytes and the domain-separated digest.",
+    "The archive is standalone and does not alter D-E0 history, production SourceGraph, Runtime Identity, VerificationRun, or D-P1.",
+    "remoteArchive.commit and remoteArchive.tree are reported in the handoff; this manifest does not pretend to contain a self-referential commit hash."
+  ]
+}

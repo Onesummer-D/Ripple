@@ -1,0 +1,29 @@
+{
+  "protocol": "d-e0-g0-recompute-report/v1",
+  "executed": true,
+  "conclusion": "passed",
+  "node": {
+    "command": "node node-recompute.mjs",
+    "exitCode": 0,
+    "outputFile": "node-output.json",
+    "stdoutFile": "node-run.stdout.json",
+    "graphDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "canonicalBytesSha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+    "canonicalBytes": 1353
+  },
+  "powershell": {
+    "command": "pwsh -NoProfile -File powershell-recompute.ps1",
+    "exitCode": 0,
+    "outputFile": "powershell-output.json",
+    "stdoutFile": "powershell-run.stdout.json",
+    "graphDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "canonicalBytesSha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+    "canonicalBytes": 1353
+  },
+  "equality": {
+    "canonicalJson": true,
+    "canonicalBytesSha256": true,
+    "graphDigest": true,
+    "inputSha256": true
+  }
+}
