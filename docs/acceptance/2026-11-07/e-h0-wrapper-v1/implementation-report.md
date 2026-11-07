@@ -4,8 +4,9 @@
 
 - Base: `ed58cfdc2892acaa9b97363a3414b1c219d07053`
 - Base tree: `24de55f8bc1d8146b12b42b8bfdd4b24d5f41f6c`
-- Implementation commit: `fe541ab5177b7d8512d27989fa08a60bec8952a3`
-- Implementation tree: `2b2047c138471a5432a4a4e10b74b57af710bd71`
+- Initial implementation commit: `fe541ab5177b7d8512d27989fa08a60bec8952a3`
+- Final local implementation commit: `4d50e1006bc33c124c8733f7a3341caa33e15e81`
+- Final local implementation tree: `65cc818db77de8f254b6475bd387cccb25645a68`
 - Branch: `e/h0-host-trust-wrapper-v1`
 - Runtime Identity v1.2 frozen blob: `8bbecf6e3f64db2b68506eedaa8eea709d1167de`
 
@@ -83,11 +84,12 @@ Dedicated result: `23/23` tests, exit code `0`.
 - Frozen PowerShell validator: exit `0` (`offline-powershell.log`).
 - Frozen Schema parity: exit `0` (`offline-schema.log`).
 - Frozen Dual report: exit `0`, required negatives `63/63` (`offline-dual.log`).
+- Full Windows Vitest: exit `1`; `55/70` files passed, `867` tests passed, `67` failed, `68` skipped, `6` unhandled errors (`full-vitest-windows.log` and `full-vitest-windows-summary.md`).
 - Previous independent adversarial probe replay: exit `0`; its known evidence-only acceptance gaps remain recorded in `adversarial-probe-replay.log` and are the cases rejected by this wrapper's H0 suite.
 
 ## Full Windows Vitest note
 
-The requested full `npm test -- --run` was executed. The wrapper test passed, but the Windows run exited `1` because this environment cannot launch the Playwright executable and denies symlink, hard-link, temporary Git initialization and some loopback operations. The exact summary and failure categories are retained in `full-vitest-windows-summary.md`; these failures are outside the three whitelist source files. Linux CI remains required for authoritative full-suite acceptance.
+The requested full `npm test -- --run` was executed against the final source. The wrapper test passed, but the Windows run exited `1` because this environment cannot launch the Playwright executable and denies symlink, hard-link, temporary Git initialization and some loopback operations. The exact raw output, summary and failure categories are retained in `full-vitest-windows.log` and `full-vitest-windows-summary.md`; these failures are outside the three whitelist source files. Linux CI remains required for authoritative full-suite acceptance.
 
 Dependency restoration via `npm ci` also hit Windows npm `Exit handler never called` and EPERM directory creation. Typecheck/build and the targeted test were run with the already available workspace dependency tree; the environment and versions are recorded in `environment.txt`.
 

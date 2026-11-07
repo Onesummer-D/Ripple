@@ -1,7 +1,7 @@
 {
   "protocol": "ripple-e-h0-wrapper-v1-results/v1",
   "base": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
-  "implementationCommit": "fe541ab5177b7d8512d27989fa08a60bec8952a3",
+  "implementationCommit": "4d50e1006bc33c124c8733f7a3341caa33e15e81",
   "runtimeIdentityV12Blob": "8bbecf6e3f64db2b68506eedaa8eea709d1167de",
   "wrapperTests": { "testFile": "src/core/observation-host-trust-v1.test.ts", "passed": 23, "failed": 0, "exitCode": 0 },
   "cases": {

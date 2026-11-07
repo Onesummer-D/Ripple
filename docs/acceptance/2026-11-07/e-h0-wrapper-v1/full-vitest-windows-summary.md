@@ -4,7 +4,7 @@ Command: `npm test -- --run`
 
 Exit code: `1`
 
-Observed summary: `55` files passed, `15` files failed, `866` tests passed, `67` tests failed, `68` skipped, `6` unhandled errors.
+Observed summary: `55` files passed, `15` files failed, `867` tests passed, `67` tests failed, `68` skipped, `6` unhandled errors.
 
 Environment-caused failure classes:
 
@@ -15,3 +15,5 @@ Environment-caused failure classes:
 - Loopback preview tests received `EACCES`/`fetch failed` on local ports.
 
 The new `observation-host-trust-v1.test.ts` file passed `23/23`. No failure referenced either new production wrapper file.
+
+Raw output from the final-source run is preserved in `full-vitest-windows.log`; the command exit code is appended as `EXIT_CODE=1`.
