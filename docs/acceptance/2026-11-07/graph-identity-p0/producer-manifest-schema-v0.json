@@ -70,7 +70,7 @@
   },
   "finalGraphDigest": {
     "fields": ["graphIdentityVersion", "rawGraphArtifactSha256", "producerEvidenceSha256", "policyManifestSha256", "sourceBindings", "nodes", "edgeOccurrences", "unresolved"],
-    "domainPrefix": "ripple/sourcegraph-identity/v2/graphDigest\\u0000",
+    "domainPrefix": "ripple/sourcegraph-identity/v2/graphDigest\u0000",
     "formula": "sha256(UTF8(domainPrefix) || UTF8(canonicalJson(finalGraphDigestInput)))",
     "unavailableWhen": ["missing producer evidence", "duplicate producer evidence", "conflicting policy mapping", "unknown field", "duplicate node id", "duplicate relation id", "unknown endpoint", "untrusted source binding", "missing analyzer build"],
     "notAuthorization": ["does not prove sourceRef", "does not prove source-proven", "does not prove runtime-observed", "does not grant Candidate/Scope/Verification/Approval/Apply/Rollback"]
