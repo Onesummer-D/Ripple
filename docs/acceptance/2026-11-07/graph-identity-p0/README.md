@@ -11,7 +11,8 @@ collector, E pairing, or authorization gate is changed.
 - Fixed project: `allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd`
 - D frozen contract blob: `f8c1e1642e58d96330835cdb7dd98c6d1d262815`
 - D executable serializer blob: `bb70603a7e02e6cab0277024f7e115226bbb3af4`
-- E PR #73 head: `944161c042cfe16184e4122143c0b545e7f16e67`
+- E PR #73 latest head: `44649afa1d698fd77fd0e445e473e135995dc5c3`
+- E historical head: `944161c042cfe16184e4122143c0b545e7f16e67` (comparison only)
 
 ## Files
 
@@ -22,7 +23,7 @@ collector, E pairing, or authorization gate is changed.
 - `docs/acceptance/2026-11-07/graph-identity-p0/contract-decision-vectors.json`: machine-readable layer and fail-closed vectors.
 - `docs/acceptance/2026-11-07/graph-identity-p0/sha256-manifest.txt`: final GitHub file-byte hashes for this evidence package.
 
-## Local checks
+## Contract consistency checks
 
 ```powershell
 node -e "for (const f of process.argv.slice(1)) { JSON.parse(require('fs').readFileSync(f,'utf8')); console.log(f, 'JSON OK') }" `
@@ -30,12 +31,14 @@ node -e "for (const f of process.argv.slice(1)) { JSON.parse(require('fs').readF
   docs/acceptance/2026-11-07/graph-identity-p0/producer-manifest-schema-v0.json
 
 git diff --check
+node -e "const v=require('./docs/acceptance/2026-11-07/graph-identity-p0/contract-decision-vectors.json'); const s=require('./docs/acceptance/2026-11-07/graph-identity-p0/producer-manifest-schema-v0.json'); if (s.canonicalGraphDigest.fields.join('|') !== v.contractFieldMatrix.graphDigestV2.fields.join('|')) throw new Error('GraphDigest field matrix mismatch'); if (s.provenanceAttestation.graphProvenanceVersion !== v.layers.provenanceAttestation) throw new Error('provenance version mismatch'); if (v.vectors.find(x => x.id === 'legacy-reduced-graph-replay').noRawArtifactClaim !== true) throw new Error('legacy replay claim mismatch'); console.log('contract consistency OK')"
 ```
 
 Expected design-only scope: two architecture documents and five evidence files under
 `docs/`; `git diff --name-only d1c941da` must not contain `src/` or `model.ts`.
 
-The D G0 executable replay currently computes `ff8735ed...`; the archived document
-body lists `4b061992...` for the same named vector. This package records both values
-and leaves the discrepancy as an explicit A/D sign-off item rather than choosing one
-silently.
+The legacy reduced replay computes `ff8735ed...`; the D document table lists
+`4b061992...` for the formal GraphIdentityV2 target. The referenced formal
+`docs/acceptance/2026-10-31/vectors/g0.json` bytes are not present in the D contract
+commit tree, so this package records the field contract and both historical values while
+keeping the formal input `not-proven`. The replay is not claimed as `raw-sourcegraph/v1`.

@@ -10,13 +10,13 @@ A/D/E 选择并冻结单一 canonical vector。
 
 | 标识 | 字节来源 | 规范身份 | 结论 |
 | --- | --- | --- | --- |
-| `d-g0-formal-v2` | D Observation V2 归档向量，digest `4b061992...` | `GraphIdentityV2` / `sourcegraph-identity/v2` | 目标正式 Graph Digest 向量；包含 host-issued `projectId`、`sourceMappingVersion` 和 host-derived `sourceMappings`。 |
-| `pr74-replay-raw-v1` | PR #74 对 D executable serializer 的实际重放，digest `ff8735ed...` | `raw-sourcegraph/v1` serializer replay | 早期/较小的 canonical graph replay；缺少正式 v2 的 `projectId` 与 `sourceMappings`，不能冒充 `graphDigest`。 |
+| `d-g0-formal-v2` | D Observation V2 归档向量，digest `4b061992...` | `GraphDigestV2` / `sourcegraph-identity/v2` | 目标正式 Graph Digest 向量；字段合同包含 host-issued `projectId`、`sourceMappingVersion` 和 host-derived `sourceMappings`，但 `g0.json` 原始字节尚未在 D 合同提交中定位。 |
+| `legacy-reduced-graph-replay` | PR #74 对 D executable serializer 的实际重放，digest `ff8735ed...` | legacy reduced replay | 早期/较小的 canonical graph replay；缺少正式 v2 的 `projectId` 与 `sourceMappings`，没有 raw-sourcegraph/v1 字节和 schema 证明，不能冒充 raw artifact 或 `graphDigest`。 |
 
 两者不是同一输入的“旧值/新值”，也不是允许静默替换的两个 digest。它们属于不同
-输入 envelope：前者是 host-bound Graph Identity V2，后者只可作为 raw artifact
-或 serializer replay 记录。历史值均保留；在 A/D 选定正式字节前，生产
-`graphDigestStatus=unavailable`。
+input envelope：前者是 host-bound Graph Identity V2 的目标字段合同，后者只可作为
+legacy reduced replay 记录。由于正式 `g0.json` 原始字节不可定位，历史值均保留；在
+A/D 交付并选择正式字节前，生产 `graphDigestStatus=unavailable`。
 
 ## 2. Graph Digest 的范围
 
@@ -42,7 +42,26 @@ Graph Identity 的 host-derived 输入，必须在 Graph Digest 计算前完成�
 Graph Digest 的数组/对象排序、UTF-8 字节序、重复拒绝、未知字段拒绝和 domain
 prefix 使用 D 的冻结规则；缺少任一必需字段时不输出可信 digest。
 
+### 2.1 统一字段矩阵
+
+| 层 | 版本 | 进入 GraphDigestV2 | 规范字段 |
+| --- | --- | --- | --- |
+| Graph Identity | `sourcegraph-identity/v2` | 是 | `graphIdentityVersion`, `graphSchemaVersion`, `relationIdentityVersion`, `sourceMappingVersion`, `projectId`, `sourceDigest`, `sourceMappings`, `nodes`, `edges`, `unresolved` |
+| Producer Evidence | `producer-evidence/v1` | 否 | `evidenceVersion`, `graphIdentityVersion`, `graphDigestSha256`, `rawGraphArtifactSha256`, `analyzerBuild`, `edgeOccurrences` |
+| Producer Policy | `producer-policy/v1` | 否 | `policyManifestVersion`, `graphIdentityVersion`, `graphDigestSha256`, `rawGraphArtifactSha256`, `producerEvidenceSha256`, `producerPolicies` |
+| Provenance Attestation | `sourcegraph-provenance/v1`（候选，未冻结） | 否 | `graphProvenanceVersion`, `graphDigestSha256`, `rawGraphArtifactSha256`, `producerEvidenceSha256`, `policyManifestSha256`, `analyzerBuild`, `edgeOccurrenceCoverage` |
+| Observation Binding | `sourcegraph-observation-binding/v1` | 否 | `projectId`, `side`, `runId`, `checkId`, `graphDigestSha256`, `graphProvenanceDigest` |
+
+旧 `finalGraphDigest` 中的 evidence/policy hash、`sourceBindings` 和
+`edgeOccurrences` 已迁移到各自 evidence/provenance 层；旧字段集合只保留在
+`producer-manifest-schema-v0.json.supersededHistory`，状态为
+`superseded-not-executable`。
+
 ## 3. Producer Evidence 与 provenance attestation
+
+Producer Evidence 和 Policy Manifest 的 SHA 不进入 GraphDigestV2。它们只在独立
+ProvenanceAttestationV1 候选中被引用；候选 domain 和版本由 A/D/E 会签后才可冻结。
+
 
 Producer Evidence SHA 与 Policy Manifest SHA 应形成独立的
 `graphProvenanceDigest`，而不是悄悄改变 `graphDigest` 的输入：
@@ -56,7 +75,7 @@ source snapshot
   -> HostBinding
 ```
 
-建议固定：
+建议固定（候选，尚未由 A/D/E 冻结）：
 
 - `graphProvenanceVersion = sourcegraph-provenance/v1`；
 - `graphProvenanceDigest` 是 attestation canonical bytes 的 domain-separated SHA-256；
@@ -118,7 +137,7 @@ claims 或摘要数量推断 producer 或 source identity。
 
 机器向量在同目录 `graph-identity-p0-contract-decision-vectors.json`，覆盖：
 
-- formal D G0 与 PR #74 raw replay 的不同 envelope；
+- formal D G0 字段合同与 PR #74 legacy reduced replay 的不同 envelope；
 - 同一 Graph、不同 producer evidence 时 Graph Digest 不变而 attestation 改变；
 - 缺失/冲突 evidence 或 policy 时 attestation unavailable；
 - Host run/check/side 变化不改变 Graph Digest，但改变 Observation/Host Binding；
@@ -126,8 +145,8 @@ claims 或摘要数量推断 producer 或 source identity。
 
 A/D/E 需要共同签署：
 
-1. `4b061992...` 是否冻结为 formal GraphDigestV2 向量；
-2. `ff8735ed...` 是否归档为 `raw-sourcegraph/v1` replay；
+1. `4b061992...` 对应的 `g0.json` 精确字节及其 canonical hash；
+2. `ff8735ed...` 继续作为 legacy reduced replay，不能标记为 `raw-sourcegraph/v1`；
 3. `graphProvenanceDigest` 的正式类型、domain 和字段；
 4. E 是否只消费/重算 GraphDigestV2，并以 attestation 作为独立可选证据；
 5. `projectId` 与 `sourceMappings` 的 host registry 来源；

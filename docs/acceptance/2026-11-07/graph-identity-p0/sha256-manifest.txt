@@ -2,10 +2,10 @@
 status=evidence-only
 base=d1c941da77d4ab4bbcd7ae557052557628bcb27c
 baseTree=46049ba554a9e7c3ef9048924607a5025342496f
-89fd9899b2a26a8b4dddb37ce3052eb1e4f8833d285daa4d3d8bef4ebed59f3c  2243  docs/acceptance/2026-11-07/graph-identity-p0/README.md
-49410dea7525b1a43cf88c91df985c59ca49c988f779103fac3e453765bd0760  7223  docs/acceptance/2026-11-07/graph-identity-p0/graph-identity-p0-vectors.json
-4329905320078513b0bcf30f60341ded88c25a4abbc7d5a0b2f317539ad15c03  5029  docs/acceptance/2026-11-07/graph-identity-p0/producer-manifest-schema-v0.json
-7ca5241919dbc29c45f9ecdffd8cfdbdd62f65470611e732be55b83faf27474a  2934  docs/acceptance/2026-11-07/graph-identity-p0/contract-decision-vectors.json
-afe5cec7fd2dde4f469fce5764b5ec14814febb7ff0b127e6df1ce26d1fba070  17808  docs/architecture/graph-identity-p0-design-2026-11-07.md
-2702f577e94b897822ad1926a9ea4aa0c8b7b28bc0dc0d7564a7d8235ec4ac1d  7506  docs/architecture/graph-identity-p0-contract-decisions-2026-11-07.md
 sourceOnly=true
+5c9af1fbc71444d4c3e613851616057445ee9b794f0b0df7b74a27b7e4015baf  3180  docs/acceptance/2026-11-07/graph-identity-p0/README.md
+dfdc55fe6c52ccbffc5ef69b6bdd9896ed2a24ff118aede3463f7685ee6f65d4  10477  docs/acceptance/2026-11-07/graph-identity-p0/graph-identity-p0-vectors.json
+55610cd90beea6d31c78a65c50482afff31188c8427ee73d0ed665c351747f07  8821  docs/acceptance/2026-11-07/graph-identity-p0/producer-manifest-schema-v0.json
+2e7b003a456c3316b5f3d15a5e2b6e73125afebfca2ed1d8284ce23e36744617  12186  docs/acceptance/2026-11-07/graph-identity-p0/contract-decision-vectors.json
+50d7f0d5c8593b8aa4de00b8f2e42c5800370bdd65a5f9ae3b4480bac95b1015  19817  docs/architecture/graph-identity-p0-design-2026-11-07.md
+f83af4ef16ce3d49f7f686e2354a5f0065ea780260153c1ec6cdbfce1b4cfbda  9387  docs/architecture/graph-identity-p0-contract-decisions-2026-11-07.md

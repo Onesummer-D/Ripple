@@ -1,24 +1,31 @@
 {
   "schemaName": "ripple-graph-producer-manifest",
-  "schemaVersion": "graph-producer-manifest/v1",
+  "schemaVersion": "graph-producer-manifest/v2-design",
   "status": "design-only",
+  "contractStatus": "GraphDigestV2 and ProducerProvenanceV1 are separate; provenance domain is candidate-not-frozen",
   "identity": {
     "graphIdentityVersion": "sourcegraph-identity/v2",
     "graphSchemaVersion": "acp6-sourcegraph/v1",
     "relationIdentityVersion": "relation-id/v1",
+    "sourceMappingVersion": "sourcegraph-source-mapping/v1",
     "rawArtifactVersion": "raw-sourcegraph/v1",
     "producerEvidenceVersion": "producer-evidence/v1",
-    "policyManifestVersion": "producer-policy/v1"
+    "policyManifestVersion": "producer-policy/v1",
+    "graphProvenanceVersion": "sourcegraph-provenance/v1"
   },
   "required": [
-    "project",
+    "projectId",
     "sourceDigest",
-    "sourceBindings",
-    "analyzerBuild",
+    "sourceMappingVersion",
+    "sourceMappings",
+    "nodes",
+    "edges",
+    "unresolved",
+    "graphDigestStatus",
     "rawGraphArtifact",
     "producerEvidence",
     "policyManifest",
-    "graphDigestStatus"
+    "provenanceAttestation"
   ],
   "project": {
     "requestedProjectSha": "b244f857457d2a07f118155602eef9097fd322bd",
@@ -26,59 +33,244 @@
     "exactCheckout": "boolean",
     "projectId": "<host registry id>"
   },
-  "sourceDigest": "<64 lowercase hex>",
-  "sourceBindings": {
-    "itemFields": ["role", "path", "sourceFileSha256"],
-    "pathRule": "repository-relative POSIX; no absolute, traversal, backslash, NUL, duplicate separator",
-    "sortKey": ["role", "path", "sourceFileSha256"],
-    "encodingRule": "raw UTF-8 bytes; no newline or Unicode normalization"
+  "graphDigestV2": {
+    "fields": [
+      "graphIdentityVersion",
+      "graphSchemaVersion",
+      "relationIdentityVersion",
+      "sourceMappingVersion",
+      "projectId",
+      "sourceDigest",
+      "sourceMappings",
+      "nodes",
+      "edges",
+      "unresolved"
+    ],
+    "domainPrefix": "ripple/sourcegraph-identity/v2/graphDigest\u0000",
+    "formula": "sha256(UTF8(domainPrefix) || UTF8(canonicalJson(graphDigestV2Input)))",
+    "sourceMappingsRule": "host-derived from the verified project/source snapshot; caller claims are rejected",
+    "arrayOrder": "canonical UTF-8 byte ordering by contract key; object keys sorted lexicographically",
+    "duplicateRule": "duplicate node id, edge relation identity, source mapping or unresolved entry is rejected",
+    "unavailableWhen": [
+      "missing or conflicting projectId/sourceDigest/sourceMappings",
+      "unknown field or unsupported enum",
+      "duplicate node, relation, source mapping or unresolved identity",
+      "unknown endpoint or non-canonical source span",
+      "formal G0 input bytes or exact D vector are not available"
+    ],
+    "notAuthorization": [
+      "does not prove sourceRef",
+      "does not prove source-proven",
+      "does not prove runtime-observed",
+      "does not grant Candidate/Scope/Verification/Approval/Apply/Rollback"
+    ]
   },
-  "analyzerBuild": {
-    "fields": ["implementationSha", "implementationTree", "relevantBlobs", "toolVersion", "lockfileSha256"],
-    "relevantBlobFields": ["path", "blobSha"],
-    "identityRule": "all fields verified against the run that emitted rawGraphArtifact"
+  "sourceMappings": {
+    "fields": [
+      "sourceRef",
+      "graphNodeId",
+      "sourceFile",
+      "sourceDigest",
+      "sourceUse",
+      "anchor"
+    ],
+    "sourceUseFields": [
+      "path",
+      "charOffset",
+      "byteOffset",
+      "offsetUnit"
+    ],
+    "pathRule": "repository-relative POSIX; no absolute, traversal, drive letter, backslash, NUL or duplicate separator",
+    "offsetRule": "charOffset and byteOffset are non-negative safe integers; byteOffset refers to original UTF-8 bytes; no normalization"
   },
   "rawGraphArtifact": {
     "artifactVersion": "raw-sourcegraph/v1",
-    "fields": ["artifactVersion", "nodes", "edges", "unresolved", "sourceBindings"],
+    "status": "candidate-envelope; ff8735ed replay is not proven to satisfy this schema",
+    "fields": [
+      "artifactVersion",
+      "nodes",
+      "edges",
+      "unresolved",
+      "sourceBindings"
+    ],
+    "sourceBindingsFields": [
+      "role",
+      "path",
+      "sourceFileSha256"
+    ],
     "arraySortKeys": {
-      "nodes": ["id", "kind", "sourceRef", "payloadSha256"],
-      "edges": ["relationId", "kind", "from", "to", "certainty", "payloadSha256", "sourceUse.path", "sourceUse.byteOffset", "sourceUse.charOffset", "selectorScope.raw", "mediaContext"],
-      "unresolved": ["id", "reason", "sourceRef", "byteOffset", "charOffset"],
-      "sourceBindings": ["role", "path", "sourceFileSha256"]
+      "nodes": [
+        "id",
+        "kind",
+        "sourceRef",
+        "payloadSha256"
+      ],
+      "edges": [
+        "relationId",
+        "kind",
+        "from",
+        "to",
+        "certainty",
+        "payloadSha256",
+        "sourceUse.path",
+        "sourceUse.byteOffset",
+        "sourceUse.charOffset",
+        "selectorScope.raw",
+        "mediaContext"
+      ],
+      "unresolved": [
+        "id",
+        "reason",
+        "sourceRef",
+        "byteOffset",
+        "charOffset"
+      ],
+      "sourceBindings": [
+        "role",
+        "path",
+        "sourceFileSha256"
+      ]
     },
-    "hash": "sha256(UTF8(canonicalJson))",
-    "duplicateRule": "preserve equal sort-key occurrences in raw artifact; reject duplicate node/relation identity before trusted final digest",
-    "shaField": "rawGraphArtifactSha256"
+    "hash": "sha256(UTF8(canonicalJson(rawGraphArtifact)))",
+    "duplicateRule": "preserve raw occurrences for audit; reject duplicates when constructing trusted GraphDigestV2"
   },
   "producerEvidence": {
     "evidenceVersion": "producer-evidence/v1",
-    "fields": ["evidenceVersion", "graphIdentityVersion", "rawGraphArtifactSha256", "analyzerBuild", "edgeOccurrences"],
-    "edgeOccurrenceFields": ["occurrenceOrdinal", "relationId", "payloadSha256", "producerPolicyId", "producerIdentity", "producerContractVersion", "policyVersion"],
-    "lookupKey": ["rawGraphArtifactSha256", "occurrenceOrdinal", "relationId", "payloadSha256"],
-    "completeness": "each canonical edge occurrence exactly once",
-    "failure": "missing, duplicate or conflicting record => producerEvidenceStatus=rejected and graphDigestStatus=unavailable"
+    "fields": [
+      "evidenceVersion",
+      "graphIdentityVersion",
+      "graphDigestSha256",
+      "rawGraphArtifactSha256",
+      "analyzerBuild",
+      "edgeOccurrences"
+    ],
+    "analyzerBuildFields": [
+      "implementationSha",
+      "implementationTree",
+      "relevantBlobs",
+      "toolVersion",
+      "lockfileSha256"
+    ],
+    "edgeOccurrenceFields": [
+      "occurrenceOrdinal",
+      "relationId",
+      "payloadSha256",
+      "producerPolicyId",
+      "producerIdentity",
+      "producerContractVersion",
+      "policyVersion"
+    ],
+    "lookupKey": [
+      "rawGraphArtifactSha256",
+      "occurrenceOrdinal",
+      "relationId",
+      "payloadSha256"
+    ],
+    "completeness": "each canonical edge occurrence exactly once and bound to one producer policy",
+    "failure": "missing, duplicate or conflicting record => producerEvidenceStatus=rejected; graphDigestStatus remains independent; graphProvenanceStatus=unavailable"
   },
   "policyManifest": {
     "policyManifestVersion": "producer-policy/v1",
-    "fields": ["policyManifestVersion", "graphIdentityVersion", "rawGraphArtifactSha256", "producerEvidenceSha256", "producerPolicies"],
-    "producerPolicyFields": ["policyId", "producerIdentity", "relationIdentityVersion", "relationKinds", "certaintySet", "mode", "producerEvidenceRef"],
-    "sort": {"producerPolicies": ["policyId"], "relationKinds": "UTF-8 lexicographic", "certaintySet": "UTF-8 lexicographic"},
+    "fields": [
+      "policyManifestVersion",
+      "graphIdentityVersion",
+      "graphDigestSha256",
+      "rawGraphArtifactSha256",
+      "producerEvidenceSha256",
+      "producerPolicies"
+    ],
+    "producerPolicyFields": [
+      "policyId",
+      "producerIdentity",
+      "relationIdentityVersion",
+      "relationKinds",
+      "certaintySet",
+      "mode",
+      "producerEvidenceRef"
+    ],
+    "sort": {
+      "producerPolicies": [
+        "policyId"
+      ],
+      "relationKinds": "UTF-8 lexicographic",
+      "certaintySet": "UTF-8 lexicographic"
+    },
     "mappingRule": "every edge occurrence matches exactly one policy; no inference from id prefix, endpoint or certainty",
-    "shaField": "policyManifestSha256",
-    "cycleRule": "exclude policyManifestSha256 and graphDigestSha256 from canonical policy bytes"
+    "cycleRule": "exclude policyManifestSha256, graphDigestSha256 and provenanceAttestationSha256 from canonical policy bytes"
   },
-  "finalGraphDigest": {
-    "fields": ["graphIdentityVersion", "rawGraphArtifactSha256", "producerEvidenceSha256", "policyManifestSha256", "sourceBindings", "nodes", "edgeOccurrences", "unresolved"],
-    "domainPrefix": "ripple/sourcegraph-identity/v2/graphDigest\u0000",
-    "formula": "sha256(UTF8(domainPrefix) || UTF8(canonicalJson(finalGraphDigestInput)))",
-    "unavailableWhen": ["missing producer evidence", "duplicate producer evidence", "conflicting policy mapping", "unknown field", "duplicate node id", "duplicate relation id", "unknown endpoint", "untrusted source binding", "missing analyzer build"],
-    "notAuthorization": ["does not prove sourceRef", "does not prove source-proven", "does not prove runtime-observed", "does not grant Candidate/Scope/Verification/Approval/Apply/Rollback"]
+  "canonicalGraphDigest": {
+    "type": "GraphDigestV2",
+    "fieldsRef": "graphDigestV2.fields",
+    "includes": [
+      "projectId",
+      "sourceDigest",
+      "sourceMappingVersion",
+      "sourceMappings",
+      "nodes",
+      "edges",
+      "unresolved"
+    ],
+    "excludes": [
+      "rawGraphArtifactSha256",
+      "producerEvidenceSha256",
+      "policyManifestSha256",
+      "runId",
+      "checkId",
+      "side",
+      "route",
+      "page",
+      "viewport",
+      "artifact"
+    ],
+    "status": "independent of producer evidence and policy",
+    "output": "graphDigestSha256"
+  },
+  "provenanceAttestation": {
+    "type": "ProvenanceAttestationV1",
+    "graphProvenanceVersion": "sourcegraph-provenance/v1",
+    "status": "candidate-not-frozen; pending A/D/E approval",
+    "fields": [
+      "graphProvenanceVersion",
+      "graphDigestSha256",
+      "rawGraphArtifactSha256",
+      "producerEvidenceSha256",
+      "policyManifestSha256",
+      "analyzerBuild",
+      "edgeOccurrenceCoverage"
+    ],
+    "domainPrefixCandidate": "ripple/sourcegraph-provenance/v1/attestation\u0000",
+    "formulaCandidate": "sha256(UTF8(domainPrefixCandidate) || UTF8(canonicalJson(attestationInput)))",
+    "noSelfReference": "provenanceAttestationSha256 is not included in its own input",
+    "unavailableWhen": [
+      "missing or conflicting GraphDigestV2",
+      "missing/duplicate/conflicting producer evidence",
+      "policy mismatch",
+      "analyzer build or occurrence coverage mismatch",
+      "graphProvenanceVersion not frozen"
+    ]
+  },
+  "historicalSuperseded": {
+    "oldFieldSet": [
+      "rawGraphArtifactSha256",
+      "producerEvidenceSha256",
+      "policyManifestSha256",
+      "sourceBindings",
+      "nodes",
+      "edgeOccurrences",
+      "unresolved"
+    ],
+    "oldName": "finalGraphDigest",
+    "supersededBy": [
+      "canonicalGraphDigest",
+      "provenanceAttestation"
+    ],
+    "reason": "producer evidence and policy hashes are provenance inputs, not GraphIdentityV2 fields",
+    "status": "superseded-not-executable"
   },
   "legacyPolicy": {
     "producerIdentity": "legacy-default",
     "relationIdentityVersion": "legacy",
-    "rule": "legacy Relation ids remain readable and are still uniqueness-checked; they are not upgraded into relation-id/v1"
+    "rule": "legacy Relation ids remain readable and uniqueness-checked; they are not upgraded into relation-id/v1"
   },
   "prohibited": [
     "emission-order identity",
@@ -88,6 +280,7 @@
     "global renumbering",
     "producer inference from Relation.id prefix",
     "semantic-candidate to source-proven upgrade",
-    "B v5 threshold changes"
+    "B v5 threshold changes",
+    "putting producer evidence or policy hashes into GraphDigestV2 without a new type/version"
   ]
 }
