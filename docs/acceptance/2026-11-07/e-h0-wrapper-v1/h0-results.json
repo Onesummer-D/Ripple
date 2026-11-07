@@ -1,0 +1,37 @@
+{
+  "protocol": "ripple-e-h0-wrapper-v1-results/v1",
+  "base": "ed58cfdc2892acaa9b97363a3414b1c219d07053",
+  "implementationCommit": "fe541ab5177b7d8512d27989fa08a60bec8952a3",
+  "runtimeIdentityV12Blob": "8bbecf6e3f64db2b68506eedaa8eea709d1167de",
+  "wrapperTests": { "testFile": "src/core/observation-host-trust-v1.test.ts", "passed": 22, "failed": 0, "exitCode": 0 },
+  "cases": {
+    "H0-01": "pass",
+    "H0-01b": "pass",
+    "H0-02": "pass",
+    "H0-03": "pass",
+    "H0-04": "pass",
+    "H0-05": "pass",
+    "H0-06": "pass",
+    "H0-07": "pass",
+    "H0-08": "pass",
+    "H0-09": "pass",
+    "H0-10": "pass",
+    "H0-11": "pass",
+    "H0-12": "pass",
+    "H0-13": "pass",
+    "H0-14": "pass",
+    "H0-15": "pass"
+  },
+  "typecheck": { "exitCode": 0 },
+  "build": { "exitCode": 0 },
+  "frozenOffline": {
+    "node": 0,
+    "powershell": 0,
+    "schema": 0,
+    "dual": 0,
+    "dualRequiredNegativeCases": "63/63"
+  },
+  "productionIntegration": false,
+  "eH1": "HOLD",
+  "dP1": "HOLD"
+}

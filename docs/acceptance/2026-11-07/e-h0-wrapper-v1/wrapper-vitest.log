@@ -1,0 +1,16 @@
+
+> ripple-editor@0.1.0 test
+> vitest --run src/core/observation-host-trust-v1.test.ts
+
+
+ RUN  v3.2.7 D:/Onesummer_D/Learning/Competitons/ShuMei_QG/ripple-e-h0-wrapper-20261107
+
+ ✓ src/core/observation-host-trust-v1.test.ts (22 tests) 42ms
+
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+   Start at  16:55:59
+   Duration  2.36s (transform 68ms, setup 0ms, collect 82ms, tests 42ms, environment 1.44s, prepare 242ms)
+
+
+EXIT_CODE=0

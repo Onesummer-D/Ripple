@@ -1,0 +1,71 @@
+{
+  "status": "passed",
+  "executionSummary": {
+    "prepared": true,
+    "executed": true,
+    "passed": true,
+    "failed": false,
+    "blocked": false,
+    "requiredNegativeCaseCount": 63,
+    "requiredNegativeExecutedCount": 63
+  },
+  "checks": {
+    "G0Digest": true,
+    "G0CanonicalBytes": true,
+    "G4Digest": true,
+    "G4CanonicalBytes": true,
+    "B0Digest": true,
+    "B0CanonicalBytes": true,
+    "NegativeCases": true,
+    "ReasonCodeClosedSet": true,
+    "SchemaParity": true,
+    "ArtifactPathCases": true,
+    "CaptureFormatCases": true,
+    "SourceIdentityNegativeExecuted": true,
+    "HostBindingNegativeExecuted": true,
+    "TrustRootNegativeExecuted": true
+  },
+  "sourceIdentityNegative": {
+    "id": "E-OBS-02",
+    "fixtures": [
+      "negative-missing-relation-source-identity.json",
+      "negative-forged-source-identity.json",
+      "negative-opaque-node-relation.json",
+      "negative-source-ref-no-mapping.json"
+    ],
+    "expected": "all fail-closed and executed",
+    "status": "passed"
+  },
+  "trustRootNegative": {
+    "id": "E-OBS-02-v2",
+    "fixtures": [
+      "negative-missing-source-mappings.json",
+      "negative-forged-source-mappings.json",
+      "negative-old-source-digest.json",
+      "negative-missing-source-anchor.json",
+      "negative-nonunique-source-anchor.json",
+      "negative-source-use-location.json",
+      "g0-project-mismatch.json",
+      "g0-semantic-candidate.json"
+    ],
+    "expected": "all fail-closed and executed",
+    "status": "passed"
+  },
+  "hostBindingNegative": {
+    "id": "E-OBS-02-v3",
+    "fixtures": [
+      "host-envelope-source-digest",
+      "host-envelope-graph-digest",
+      "host-envelope-version",
+      "host-envelope-side",
+      "forged-self-consistent-graph",
+      "source-proven-uses-token-consumer",
+      "complete-missing-source-use-ref"
+    ],
+    "expected": "all implementations reject mismatched or self-consistent caller claims",
+    "status": "passed"
+  },
+  "nodeHeadIndependent": true,
+  "powershellDotNetIndependent": true
+}
+EXIT_CODE=0

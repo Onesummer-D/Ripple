@@ -1,0 +1,15 @@
+dd7ae28ddb8167e2b06c2f7dd9051e1ce86a76e667845d5b4a0cc497cd31519d  docs\acceptance\2026-11-07\e-h0-wrapper-v1\adversarial-probe-replay.log
+ea4dd81c4a0321dda7d8a2f7cbd8a529698e7a47a67afe194e29ce1b7cb4873a  docs\acceptance\2026-11-07\e-h0-wrapper-v1\build.log
+b361ebff0081576a6efe3dc63f4027000bb57e84adf68dbff13605b437d1832b  docs\acceptance\2026-11-07\e-h0-wrapper-v1\environment.txt
+fc6352cf689532b6b4a8cc572ca8e72e1e911f490ff58612663b229f26120763  docs\acceptance\2026-11-07\e-h0-wrapper-v1\full-vitest-windows-summary.md
+ef32c11e14fe07289e22b417642516f679e190ed9b64177d7635bc014f247a93  docs\acceptance\2026-11-07\e-h0-wrapper-v1\h0-results.json
+5f027645cb0da84b9fcda3f94806acbc06db02523ce4418bcde8937ac242d26d  docs\acceptance\2026-11-07\e-h0-wrapper-v1\implementation-report.md
+5fb1b98de216d40fdef4402858824f26724a77c0df62d57c875f11e77e151d82  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-dual.log
+c8cb5e34aa7afeabfe2029f66a07135ab6c27ee0011b6d37567cf5ac3c374cba  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-node.log
+65986e90844b4b7d2ea3552471788733455c1d7a46cf3bc2ce4fe3cb0b211c82  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-powershell.log
+bde078e50edd43c500d3cda5b024c1c7bffdea63eb1b07953a55443ffe41a2a4  docs\acceptance\2026-11-07\e-h0-wrapper-v1\offline-schema.log
+5cdceb0c325d4dcd252155c5fd6b77e379929b6dccbc9d0a267f8119ba8c034d  docs\acceptance\2026-11-07\e-h0-wrapper-v1\typecheck.log
+009ac026e0ffb5dc9c13bf8e1af5c19f2e6701914a3ae1a1f13d82e42296a177  docs\acceptance\2026-11-07\e-h0-wrapper-v1\wrapper-vitest.log
+602e88aa8c2c6439007640f205ba72fbb30755aebbf602f1b8ab1bb45283223d  src/core/observation-host-registry-v1.ts
+4bd0968a78a9393eb70509f59653862b8561feb3b5bc7c3eabbbcb95cb71c8cc  src/core/observation-host-trust-v1.test.ts
+359a8a985671951d62ac82058c90f51a0902353b06ea5dabd1dfd1f3010e8748  src/core/observation-host-trust-v1.ts
