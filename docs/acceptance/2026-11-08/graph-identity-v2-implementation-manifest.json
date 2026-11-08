@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "ripple-graph-identity-phase1b-a-implementation-manifest/v1",
+  "authorization": {
+    "commit": "0c7eee6a5913b5aa6ec78c1c4053083b9ec76928",
+    "blob": "419e92d041cd039278765d530c5e0d2678404f8c",
+    "sha256": "234f02a2ff732ab94513a74f7d56277fb93f05d7be22dd48391fe23b90d4f875"
+  },
+  "base": {
+    "sha": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "tree": "46049ba554a9e7c3ef9048924607a5025342496f",
+    "parent": "ad86c5083b06c3df50d0f0c5b7395403ac391b4c"
+  },
+  "implementation": {
+    "branch": "feat/c-graph-identity-v2-pure-20261108",
+    "sourceCommit": "d3038fabd99cb92ac5eb44885f0ae48e040bb94e",
+    "sourceTree": "dea6806d954c91502276bbd93434079f15b2e599",
+    "finalArchiveHead": "bound-out-of-band",
+    "allowedFiles": [
+      "src/core/graph-identity-v2.ts",
+      "src/core/graph-identity-v2.test.ts",
+      "docs/acceptance/**/graph-identity-v2-implementation-*"
+    ]
+  },
+  "contract": {
+    "canonicalFields": [
+      "graphIdentityVersion",
+      "graphSchemaVersion",
+      "relationIdentityVersion",
+      "sourceMappingVersion",
+      "projectId",
+      "sourceDigest",
+      "sourceMappings",
+      "nodes",
+      "edges",
+      "unresolved"
+    ],
+    "domainUtf8": "ripple/sourcegraph-identity/v2/graphDigest\\0",
+    "goldenCanonicalBytesSha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+    "goldenDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "sourceTrust": "content-only",
+    "producerEvidence": "excluded",
+    "hostTrust": "excluded"
+  },
+  "golden": {
+    "commit": "e1834d683fb0e3c56e856f5ba2922404912b3e76",
+    "path": "docs/acceptance/2026-11-07/d-e0-g0-remote/g0.json",
+    "gitBlob": "1e8d7c962f7afc2b45dd7e4648e19f016f5ca81b",
+    "rawInputSha256": "f1bc951f493d2d404fafa7e764d397039fa44619496aa6f2107f5290e20152d3"
+  },
+  "files": [
+    {
+      "path": "src/core/graph-identity-v2.ts",
+      "bytes": 20831,
+      "sha256": "7afb32632e6bb8bef28acb29843f8455cf972bc3d28091fbae86f0c2bf9e6254"
+    },
+    {
+      "path": "src/core/graph-identity-v2.test.ts",
+      "bytes": 9384,
+      "sha256": "3e1ee1698514817b9aafb222c56a56839e8c6d6b5285557947bef5746dc14d76"
+    },
+    {
+      "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-authorization.json",
+      "bytes": 4242,
+      "sha256": "234f02a2ff732ab94513a74f7d56277fb93f05d7be22dd48391fe23b90d4f875"
+    },
+    {
+      "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-test-log.txt",
+      "bytes": 1925,
+      "sha256": "979e5d703e85314d43178e89c3b6037ad13a9f45e6919f2a20121b008295f367"
+    },
+    {
+      "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-report.md",
+      "bytes": 3202,
+      "sha256": "29cf542123644d362d03ae96fc19baa9ce2aab194c3bc41e6edfbf6d25ee8108"
+    }
+  ],
+  "verification": {
+    "targetedVitest": {
+      "runner": "vitest 5.0.5 cached",
+      "tests": 34,
+      "passed": 34,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "manualReplay": {
+      "exitCode": 0,
+      "digest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b"
+    },
+    "isolatedTypecheck": {
+      "exitCode": 0,
+      "scope": "module and test with temporary declarations"
+    },
+    "projectTypecheck": {
+      "exitCode": 1,
+      "status": "unverified",
+      "reason": "tsc unavailable and registry resolution failed"
+    },
+    "projectBuild": {
+      "exitCode": 1,
+      "status": "unverified",
+      "reason": "tsc unavailable"
+    },
+    "fullVitest": {
+      "exitCode": 1,
+      "status": "unverified",
+      "filesPassed": 25,
+      "filesFailed": 37,
+      "testsPassed": 289,
+      "testsFailed": 8,
+      "testsSkipped": 7
+    },
+    "linuxCi": "unverified",
+    "dockerChromium": "unverified",
+    "bReview": "pending"
+  },
+  "scope": {
+    "productionWiring": "forbidden",
+    "analyzeProject": "unchanged",
+    "projectTs": "unchanged",
+    "modelTs": "unchanged",
+    "runtimeIdentity": "unchanged",
+    "sourceGraphProducer": "unchanged",
+    "authorizationGates": "unchanged",
+    "phase1bNext": "not-authorized"
+  }
+}

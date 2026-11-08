@@ -1,0 +1,42 @@
+GraphDigestV2 Phase 1B-a implementation verification log
+
+Authorization
+- authorization commit: 0c7eee6a5913b5aa6ec78c1c4053083b9ec76928
+- authorization blob: 419e92d041cd039278765d530c5e0d2678404f8c
+- authorization file SHA-256: 234f02a2ff732ab94513a74f7d56277fb93f05d7be22dd48391fe23b90d4f875
+- authorized base: d1c941da77d4ab4bbcd7ae557052557628bcb27c
+
+Replay
+1. node --experimental-strip-types <G0 replay script>
+   exit=0
+   digest=4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b
+   canonicalBytesSha256=8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e
+2. node --experimental-strip-types <manual positive/negative script>
+   exit=0
+   positive, permutation, duplicate, unknown field, invalid path, mapping conflict, missing mapping: pass
+3. TypeScript transpileModule syntax check for graph-identity-v2.ts and graph-identity-v2.test.ts
+   exit=0
+4. isolated strict TypeScript check with temporary declarations for node:crypto/Buffer/vitest
+   exit=0
+
+Vitest
+5. cached Vitest 5.0.5, minimal node config, src/core/graph-identity-v2.test.ts
+   exit=0
+   1 file, 34 tests passed
+6. cached Vitest 5.0.5, minimal node config, full src/**/*.test.ts discovery
+   exit=1
+   62 files discovered; 25 passed, 37 failed; 289 tests passed, 8 failed, 7 skipped
+   The failed suites include unavailable project dependencies (typescript, postcss, vite, playwright, pixelmatch, pngjs, react-dom) and existing Windows sandbox restrictions (EPERM symlink/hardlink and EACCES localhost). This is not a PASS for the full suite.
+
+Project commands
+7. npm run typecheck
+   exit=1: tsc is not installed in the clean worktree; npm attempted registry access and network resolution failed.
+8. npm run build
+   exit=1: tsc is not installed in the clean worktree.
+9. git diff --check
+   exit=0
+
+CI
+- Linux CI: UNVERIFIED; no remote Draft PR exists yet.
+- Docker/Chromium: UNVERIFIED.
+- B independent review: pending.
