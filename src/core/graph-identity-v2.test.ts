@@ -4,6 +4,8 @@ import {
   EDGE_KINDS,
   GRAPH_DIGEST_DOMAIN,
   GRAPH_IDENTITY_VERSION,
+  GRAPH_SCHEMA_VERSION,
+  RELATION_IDENTITY_VERSION,
   SOURCE_MAPPING_VERSION,
   canonicalGraph,
   canonicalJson,
@@ -17,8 +19,8 @@ const zeroDigest = '0'.repeat(64)
 function g0(): GraphDigestV2 {
   return {
     graphIdentityVersion: GRAPH_IDENTITY_VERSION,
-    graphSchemaVersion: 'acp6-sourcegraph/v1',
-    relationIdentityVersion: 'relation-id/v1',
+    graphSchemaVersion: GRAPH_SCHEMA_VERSION,
+    relationIdentityVersion: RELATION_IDENTITY_VERSION,
     sourceMappingVersion: SOURCE_MAPPING_VERSION,
     projectId: 'project-demo',
     sourceDigest: zeroDigest,
@@ -94,6 +96,8 @@ describe('GraphDigestV2 pure canonical module', () => {
 
   it.each([
     ['graph identity version', (graph: GraphDigestV2) => ({ ...graph, graphIdentityVersion: 'sourcegraph-identity/v1' })],
+    ['graph schema version', (graph: GraphDigestV2) => ({ ...graph, graphSchemaVersion: 'acp6-sourcegraph/v2' })],
+    ['relation identity version', (graph: GraphDigestV2) => ({ ...graph, relationIdentityVersion: 'relation-id/v2' })],
     ['source mapping version', (graph: GraphDigestV2) => ({ ...graph, sourceMappingVersion: 'sourcegraph-source-mapping/v2' })],
     ['missing source mappings', (graph: GraphDigestV2) => ({ ...graph, sourceMappings: undefined } as unknown as GraphDigestV2)],
     ['missing source identity', (graph: GraphDigestV2) => ({ ...graph, sourceMappings: [{ ...graph.sourceMappings[0], sourceIdentity: '' }] })],
@@ -179,3 +183,4 @@ describe('GraphDigestV2 pure canonical module', () => {
     expect(EDGE_KINDS).toContain('css-cascade')
   })
 })
+

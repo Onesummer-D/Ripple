@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 export const GRAPH_IDENTITY_VERSION = 'sourcegraph-identity/v2' as const
 export const GRAPH_SCHEMA_VERSION = 'acp6-sourcegraph/v1' as const
+export const RELATION_IDENTITY_VERSION = 'relation-id/v1' as const
 export const SOURCE_MAPPING_VERSION = 'sourcegraph-source-mapping/v1' as const
 export const GRAPH_DIGEST_DOMAIN = 'ripple/sourcegraph-identity/v2/graphDigest\0' as const
 export const SOURCE_OFFSET_UNIT = 'code-unit' as const
@@ -314,8 +315,8 @@ export function validateGraphDigestV2(value: unknown): asserts value is GraphDig
   assertExactFields(value, 'graph', GRAPH_FIELDS)
   const graph = value
   if (graph.graphIdentityVersion !== GRAPH_IDENTITY_VERSION) fail('graphIdentityVersion mismatch')
-  assertNonEmptyString(graph.graphSchemaVersion, 'graphSchemaVersion')
-  assertNonEmptyString(graph.relationIdentityVersion, 'relationIdentityVersion')
+  if (graph.graphSchemaVersion !== GRAPH_SCHEMA_VERSION) fail('graphSchemaVersion mismatch')
+  if (graph.relationIdentityVersion !== RELATION_IDENTITY_VERSION) fail('relationIdentityVersion mismatch')
   if (graph.sourceMappingVersion !== SOURCE_MAPPING_VERSION) fail('sourceMappingVersion mismatch')
   assertConcreteString(graph.projectId, 'projectId')
   assertSha256(graph.sourceDigest, 'sourceDigest')
@@ -468,3 +469,4 @@ export function canonicalGraph(graph: unknown): GraphDigestV2Result {
 export function computeGraphDigestV2(graph: unknown): string {
   return canonicalGraph(graph).digest
 }
+
