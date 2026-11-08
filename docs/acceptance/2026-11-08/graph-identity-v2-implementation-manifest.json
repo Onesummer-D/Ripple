@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "ripple-graph-identity-phase1b-a-implementation-manifest/v1",
+  "authorization": {
+    "commit": "0c7eee6a5913b5aa6ec78c1c4053083b9ec76928",
+    "blob": "419e92d041cd039278765d530c5e0d2678404f8c",
+    "sha256": "234f02a2ff732ab94513a74f7d56277fb93f05d7be22dd48391fe23b90d4f875"
+  },
+  "base": {
+    "sha": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "tree": "46049ba554a9e7c3ef9048924607a5025342496f",
+    "parent": "ad86c5083b06c3df50d0f0c5b7395403ac391b4c"
+  },
+  "implementation": {
+    "branch": "feat/c-graph-identity-v2-pure-20261108",
+    "sourceCommit": "b234138e708eb956f2714b2380427297e85bbd24",
+    "sourceTree": "4ba744f6a58b977e52682a671aa03cee2aab28eb",
+    "remoteHead": "b234138e708eb956f2714b2380427297e85bbd24",
+    "remoteTree": "4ba744f6a58b977e52682a671aa03cee2aab28eb",
+    "remoteBaseBranch": "base/c-graph-identity-v2-20261108",
+    "finalArchiveHead": "bound-out-of-band",
+    "allowedFiles": [
+      "src/core/graph-identity-v2.ts",
+      "src/core/graph-identity-v2.test.ts",
+      "docs/acceptance/**/graph-identity-v2-implementation-*"
+    ]
+  },
+  "contract": {
+    "canonicalFields": [
+      "graphIdentityVersion",
+      "graphSchemaVersion",
+      "relationIdentityVersion",
+      "sourceMappingVersion",
+      "projectId",
+      "sourceDigest",
+      "sourceMappings",
+      "nodes",
+      "edges",
+      "unresolved"
+    ],
+    "domainUtf8": "ripple/sourcegraph-identity/v2/graphDigest\\0",
+    "goldenCanonicalBytesSha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+    "goldenDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "sourceTrust": "content-only",
+    "producerEvidence": "excluded",
+    "hostTrust": "excluded"
+  },
+  "golden": {
+    "commit": "e1834d683fb0e3c56e856f5ba2922404912b3e76",
+    "path": "docs/acceptance/2026-11-07/d-e0-g0-remote/g0.json",
+    "gitBlob": "1e8d7c962f7afc2b45dd7e4648e19f016f5ca81b",
+    "rawInputSha256": "f1bc951f493d2d404fafa7e764d397039fa44619496aa6f2107f5290e20152d3"
+  },
+  "files": [
+    {
+      "path": "src/core/graph-identity-v2.ts",
+      "bytes": 20947,
+      "sha256": "0d3eb2c36338fdc917060fab9441fd82f770a2fefd87bc02b16a388448990466"
+    },
+    {
+      "path": "src/core/graph-identity-v2.test.ts",
+      "bytes": 9668,
+      "sha256": "0f2392bb3c3b4239ac9291cec8d7058aa527f137986e388d8a7ed7300706254c"
+    },
+    {
+      "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-authorization.json",
+      "bytes": 4242,
+      "sha256": "234f02a2ff732ab94513a74f7d56277fb93f05d7be22dd48391fe23b90d4f875"
+    },
+    {
+      "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-test-log.txt",
+      "bytes": 3984,
+      "sha256": "38a56c126cd3c6759a92ab6a6b8165fe2f01e1c8abbe5b315a9d28b11c9fc427"
+    },
+    {
+      "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-report.md",
+      "bytes": 4374,
+      "sha256": "f12a340e8c88e17e4702914b7c6c9ddfd52fe27646dfb1e334898ab5cb0afdf0"
+    }
+  ],
+  "verification": {
+    "targetedVitest": {
+      "runner": "vitest 5.0.5 cached",
+      "tests": 36,
+      "passed": 36,
+      "failed": 0,
+      "exitCode": 0
+    },
+    "manualReplay": {
+      "exitCode": 0,
+      "digest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b"
+    },
+    "isolatedTypecheck": {
+      "exitCode": 0,
+      "scope": "module and test with temporary declarations"
+    },
+    "projectTypecheck": {
+      "exitCode": 1,
+      "status": "unverified",
+      "reason": "tsc unavailable and registry resolution failed"
+    },
+    "projectBuild": {
+      "exitCode": 1,
+      "status": "unverified",
+      "reason": "tsc unavailable"
+    },
+    "fullVitest": {
+      "exitCode": 1,
+      "status": "unverified",
+      "filesPassed": 25,
+      "filesFailed": 37,
+      "testsPassed": 289,
+      "testsFailed": 8,
+      "testsSkipped": 7
+    },
+    "linuxCi": {
+      "runId": 42487457132,
+      "url": "https://github.com/Onesummer-D/Ripple/actions/runs/42487457132",
+      "head": "ac71613e72ec04a0ab535199a4219e24473b43b2",
+      "conclusion": "success"
+    },
+    "dockerChromium": "passed-in-linux-ci",
+    "artifact": {
+      "name": "ripple-browser-evidence-42487457132",
+      "sha256": "917e1442599d741188d15c066eda0e093b4711d5c4ab397992a61dbee9729c8a"
+    },
+    "bReview": "pending"
+  },
+  "scope": {
+    "productionWiring": "forbidden",
+    "analyzeProject": "unchanged",
+    "projectTs": "unchanged",
+    "modelTs": "unchanged",
+    "runtimeIdentity": "unchanged",
+    "sourceGraphProducer": "unchanged",
+    "authorizationGates": "unchanged",
+    "phase1bNext": "not-authorized"
+  }
+}
+

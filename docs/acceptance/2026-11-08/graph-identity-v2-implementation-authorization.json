@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "ripple-graph-identity-phase1b-a-authorization/v1",
+  "recordedAt": "2026-11-08",
+  "reviewer": "A",
+  "decision": "GRAPH IDENTITY PURE MODULE ACCEPTANCE",
+  "scope": "isolated pure GraphDigestV2 computation only; evidence-side implementation; no production wiring",
+  "inputs": {
+    "cBase": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "cDesign": "b54e2f83d674ccfc5edc3603ed18d88093e6d51b",
+    "dGoldenHead": "e1834d683fb0e3c56e856f5ba2922404912b3e76",
+    "dGoldenTree": "167db5cccc264036f0981f5b257339f3417e4bab",
+    "graphDigestV2": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "eH0Head": "44649afa1d698fd77fd0e445e473e135995dc5c3"
+  },
+  "implementationBranch": {
+    "requiredBase": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "recommendedName": "feat/c-graph-identity-v2-pure-20261108",
+    "draftOnly": true,
+    "mustRemainSeparateFrom": ["PR #70", "PR #72", "PR #74", "main"]
+  },
+  "allowedFiles": [
+    "src/core/graph-identity-v2.ts",
+    "src/core/graph-identity-v2.test.ts",
+    "docs/acceptance/**/graph-identity-v2-implementation-*"
+  ],
+  "additionalFilePolicy": {
+    "packageJson": "forbidden without separate approval",
+    "existingTestEntrypoints": "forbidden without separate approval",
+    "productionIntegration": "forbidden in this slice"
+  },
+  "forbiddenFilesAndSystems": [
+    "src/core/project.ts",
+    "src/core/model.ts",
+    "src/core/runtime-identity-*.ts",
+    "src/core/verification-runner.ts",
+    "src/core/verification-execution.mjs",
+    "D collector production files",
+    "E observation host wrapper and pairing",
+    "Scope/Candidate/Approval/Apply/Rollback",
+    "B v5 matcher/probe and thresholds",
+    "package.json",
+    "package-lock.json",
+    "deployment and workflow authorization gates"
+  ],
+  "requiredContract": {
+    "canonicalFields": ["graphIdentityVersion", "graphSchemaVersion", "relationIdentityVersion", "sourceMappingVersion", "projectId", "sourceDigest", "sourceMappings", "nodes", "edges", "unresolved"],
+    "domainUtf8": "ripple/sourcegraph-identity/v2/graphDigest\\u0000",
+    "goldenCanonicalBytesSha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+    "goldenDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "sourceTrust": "content digest only; no host trust, authorization or proof capability",
+    "excludedInputs": ["ProducerEvidence", "PolicyManifest", "side", "runId", "checkId", "route", "page", "viewport", "state", "artifact"]
+  },
+  "requiredFailClosed": [
+    "missing required field",
+    "unknown field",
+    "version mismatch",
+    "duplicate node or relation ID",
+    "conflicting duplicate payload",
+    "unknown endpoint",
+    "invalid relative POSIX path",
+    "invalid offset or offsetUnit",
+    "missing or invalid sourceMappings",
+    "untrusted or missing projectId/sourceDigest/sourceMappings",
+    "unsafe integer, non-finite value, null/undefined, accessor or cyclic input"
+  ],
+  "requiredTests": [
+    "exact D G0 canonical bytes and digest",
+    "D/E same-vector replay",
+    "object and set-array permutation stability",
+    "duplicate/conflict/unknown-field rejection",
+    "invalid path/offset/offsetUnit rejection",
+    "field add/remove and version mismatch rejection",
+    "missing sourceMappings fail-closed",
+    "content-computed does not imply trusted host source",
+    "Typecheck",
+    "Build",
+    "Vitest",
+    "Linux CI with exact implementation HEAD"
+  ],
+  "reviewGates": {
+    "B": "independent exact-vector and negative-case review before A final review",
+    "A": "final code, scope, manifest and CI review after B",
+    "D": "only canonical digest compatibility review; no collector wiring",
+    "E": "only compatibility observation; no production consumption"
+  },
+  "explicitlyNotAuthorized": [
+    "analyzeProject integration",
+    "SourceGraph model changes",
+    "hostSideBinding",
+    "sourceMappings production derivation",
+    "VerificationRun or Assessment changes",
+    "E-H1",
+    "D-P1",
+    "Runtime Identity v1.2 changes",
+    "any authorization or lifecycle change",
+    "main merge, deployment, Bolt"
+  ],
+  "nextAuthorization": "Phase 1B-b requires a new A request and independent review"
+}
