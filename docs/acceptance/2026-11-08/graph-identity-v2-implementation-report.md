@@ -61,7 +61,7 @@ No other source, model, package, lockfile, Runtime Identity, D/E, B v5, or gate 
 
 ## Verification status
 
-Targeted module tests are green: 36/36, including exact rejection of non-frozen graphSchemaVersion and relationIdentityVersion. This patch is a minimal validation tightening; G0 bytes and digest are unchanged. The prior exact-head CI runs remain valid for the pre-fix code, while the version-fix commit requires fresh CI before acceptance.
+Targeted module tests are green: 36/36, including exact rejection of non-frozen graphSchemaVersion and relationIdentityVersion. This patch is a minimal validation tightening; G0 bytes and digest are unchanged. Exact version-fix PR HEAD CI `42487457132` is green: npm ci, typecheck, unit/full Vitest job, build, Docker runtime smoke, Chromium E2E, and evidence preservation all passed. Artifact `ripple-browser-evidence-42487457132` has SHA-256 `917e1442599d741188d15c066eda0e093b4711d5c4ab397992a61dbee9729c8a`.
 
 The local clean environment still records project `npm run typecheck` and `npm run build` exit 1 because dependencies were unavailable; those are superseded for acceptance by the exact-head Linux CI result above. B independent exact-vector review remains pending. Phase 1B-b is not authorized.
 

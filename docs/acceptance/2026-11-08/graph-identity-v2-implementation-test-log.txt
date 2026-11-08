@@ -73,5 +73,8 @@ Version contract fix
 - targeted Vitest: 36 passed, exit=0
 - added negative cases: graphSchemaVersion mismatch; relationIdentityVersion mismatch
 - G0 canonical bytes/digest: unchanged
-- fresh Linux CI for version-fix commit: pending
+- fresh Linux CI for version-fix PR HEAD: 42487457132, success
+- artifact: ripple-browser-evidence-42487457132
+- artifact SHA-256: 917e1442599d741188d15c066eda0e093b4711d5c4ab397992a61dbee9729c8a
+- URL: https://github.com/Onesummer-D/Ripple/actions/runs/42487457132
 

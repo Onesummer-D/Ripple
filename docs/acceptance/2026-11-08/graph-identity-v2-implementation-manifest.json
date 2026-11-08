@@ -68,13 +68,13 @@
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-test-log.txt",
-      "bytes": 3767,
-      "sha256": "0364f3daceb3877daa0c36498380738152e657c39d053eaac186b85c600332a1"
+      "bytes": 3984,
+      "sha256": "38a56c126cd3c6759a92ab6a6b8165fe2f01e1c8abbe5b315a9d28b11c9fc427"
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-report.md",
-      "bytes": 4202,
-      "sha256": "aad18bbab9765bb1455fcb50ab1a971cf2c0ba26c388f6b8100e505ae7ed87f3"
+      "bytes": 4374,
+      "sha256": "f12a340e8c88e17e4702914b7c6c9ddfd52fe27646dfb1e334898ab5cb0afdf0"
     }
   ],
   "verification": {
@@ -112,9 +112,17 @@
       "testsFailed": 8,
       "testsSkipped": 7
     },
-    "linuxCi": "pending-version-fix",
-    "dockerChromium": "pending-version-fix",
-    "artifact": null,
+    "linuxCi": {
+      "runId": 42487457132,
+      "url": "https://github.com/Onesummer-D/Ripple/actions/runs/42487457132",
+      "head": "ac71613e72ec04a0ab535199a4219e24473b43b2",
+      "conclusion": "success"
+    },
+    "dockerChromium": "passed-in-linux-ci",
+    "artifact": {
+      "name": "ripple-browser-evidence-42487457132",
+      "sha256": "917e1442599d741188d15c066eda0e093b4711d5c4ab397992a61dbee9729c8a"
+    },
     "bReview": "pending"
   },
   "scope": {
