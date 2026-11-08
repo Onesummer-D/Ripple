@@ -1,0 +1,40 @@
+{
+  "document": "graph-identity-v2-adapter-test-plan",
+  "version": "phase1b-b/design-v1",
+  "status": "planned-only",
+  "acceptanceOrder": ["C-adapter", "pure-GraphDigestV2", "B-v5", "D-canonical-replay", "E-host-binding", "A-final-review"],
+  "golden": [
+    {"id":"G0-d-golden","input":"D e1834d683fb0e3c56e856f5ba2922404912b3e76","canonicalBytesSha256":"8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e","graphDigestSha256":"4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b","expect":"pass"},
+    {"id":"array-order-stability","input":"same graph with nodes/edges/mappings/unresolved/evidenceRefs permuted","expect":"same digest"},
+    {"id":"object-key-order-stability","input":"same graph with object insertion order permuted","expect":"same digest"},
+    {"id":"fixed-project-replay","input":"allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd","expect":"per-mapping status; no fabricated mapping; unavailable allowed"}
+  ],
+  "negative": [
+    {"id":"version-mismatch","mutations":["graphIdentityVersion","graphSchemaVersion","relationIdentityVersion","sourceMappingVersion"],"expect":"reject"},
+    {"id":"duplicate-node-or-relation","mutations":["duplicate node id","duplicate relation id","same id different payload"],"expect":"reject"},
+    {"id":"unknown-endpoint","mutation":"edge endpoint absent from nodes","expect":"reject"},
+    {"id":"unknown-field","mutation":"extra top-level/node/edge/mapping field","expect":"reject"},
+    {"id":"invalid-source-use","mutations":["absolute path","drive path","backslash","NUL","..","duplicate separator","negative/fractional/unsafe offset","wrong offsetUnit"],"expect":"reject"},
+    {"id":"mapping-path-mismatch","mutation":"token-use path differs from sourceUse or file anchor","expect":"reject and unavailable"},
+    {"id":"mapping-char-offset-mismatch","mutation":"location.offset differs from sourceUse.charOffset","expect":"reject and unavailable"},
+    {"id":"mapping-byte-offset-mismatch","mutation":"recomputed UTF-8 byte offset differs","expect":"reject and unavailable"},
+    {"id":"wrong-anchor","mutation":"anchor is not unique, not reads/source-proven, or not file→token-use","expect":"reject and unavailable"},
+    {"id":"source-identity-mismatch","mutation":"digest/path/offset tuple does not derive sourceIdentity","expect":"reject"},
+    {"id":"missing-or-caller-project","mutation":"registry absent, caller-only projectId, registry sourceDigest mismatch","expect":"unavailable"},
+    {"id":"snapshot-toctou","mutation":"file bytes, root tree, symlink target, or tracked set changes between capture and mapping","expect":"unavailable"},
+    {"id":"unsupported-trust-claim","mutation":"input includes trusted/sourceProof/runtimeProof claim","expect":"content-only; no trust upgrade"},
+    {"id":"static-candidate-overreach","mutation":"CSS candidate edge supplied as source-proven consumer proof","expect":"preserve semantic-candidate/unknown"},
+    {"id":"relation-duplicate-history","mutation":"legacy duplicate Relation ids from producer graph","expect":"reject or unavailable; never silently dedupe"},
+    {"id":"utf8-platform-vectors","mutations":["Chinese/non-ASCII","LF vs CRLF","UTF-16 code-unit offset","UTF-8 byteOffset","Linux/Windows same bytes"],"expect":"same result only for same source bytes; changed bytes bind a new digest"}
+  ],
+  "bAcceptance": {
+    "matcher": "unmodified B v5",
+    "requirements": ["exact fixed project checkout", "exact adapter/pure-module SHA", "input SHA-256", "exit code", "AC6.2/AC6.4 thresholds unchanged", "static candidates remain candidates"],
+    "prohibited": ["fixture-known answers in production logic", "threshold changes", "strict consumer proof from static candidate"]
+  },
+  "dEInterfaces": {
+    "D": "recompute canonical bytes/digest and unavailable/rejected states from the same ten-field input",
+    "E": "reference a verified GraphDigest in a later host evidence record; do not redefine GraphDigestV2",
+    "producerEvidence": "bind exact analyzer build and every edge occurrence outside GraphDigestV2"
+  }
+}

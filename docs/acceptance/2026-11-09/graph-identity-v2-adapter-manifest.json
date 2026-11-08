@@ -1,0 +1,50 @@
+{
+  "manifestVersion": "phase1b-b-design-manifest/v1",
+  "status": "evidence-only",
+  "base": {
+    "pr72SourceGraphCommit": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "pr72Tree": "46049ba554a9e7c3ef9048924607a5025342496f",
+    "pr75PureModuleCommit": "30030cd10c4eefbd976749be1b2b5df800bbf200",
+    "pr75PureModuleTree": "f49b9800a433c44c298a330aa70ebce0d95d50f6",
+    "aAcceptanceCommit": "142d1aacf398b58b047e3a91d1046c6297d41650",
+    "designWorktreeCommit": "33d10616615f71e78e521671dc8df5547ed6a1ef",
+    "designWorktreeTree": "db0114a9033cb0c3350adab69c37dbcc962c4cb2",
+    "designParentIsLocalInspectionSnapshot": true
+  },
+  "fixedProject": {
+    "repository": "allanhue/webportflio",
+    "commit": "b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "golden": {
+    "dCommit": "e1834d683fb0e3c56e856f5ba2922404912b3e76",
+    "canonicalBytesSha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+    "graphDigestSha256": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b"
+  },
+  "files": [
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-design-review.md",
+      "bytes": 8738,
+      "sha256": "648ae56deec8576d043503c9c6fdc6e75715164486752a90472266c25263dda4"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-field-matrix.json",
+      "bytes": 6213,
+      "sha256": "e668e2cc3d24fd7c350ad3cdb730cb23ccf337025c939e001f9fbd2288bcb610"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-contract.json",
+      "bytes": 3766,
+      "sha256": "716f8f4383efbe0b2cfbc4d590259701504d87882c4d4b0d3876dded9e4efae2"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-test-plan.json",
+      "bytes": 4089,
+      "sha256": "e284735025b59725ffda153da747a386bb99691e4ee78e76b7a1541450082498"
+    }
+  ],
+  "sourceFilesChanged": [],
+  "productionStatus": "not-authorized",
+  "graphDigestStatus": "not-run",
+  "trustStatus": "content-only-design; no host or producer proof",
+  "selfHashPolicy": "manifest intentionally excludes its own commit and file hash; final archive identity is recorded by the handoff commit"
+}

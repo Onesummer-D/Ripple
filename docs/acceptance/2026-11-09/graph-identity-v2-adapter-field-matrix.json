@@ -1,0 +1,116 @@
+{
+  "document": "graph-identity-v2-adapter-field-matrix",
+  "version": "phase1b-b/design-v1",
+  "status": "evidence-only",
+  "sourceRefs": {
+    "sourceGraphBase": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "pureModule": "30030cd10c4eefbd976749be1b2b5df800bbf200",
+    "hostBindingReference": "44649afa1d698fd77fd0e445e473e135995dc5c3",
+    "fixedProject": "b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "versionContract": {
+    "graphIdentityVersion": "sourcegraph-identity/v2",
+    "graphSchemaVersion": "acp6-sourcegraph/v1",
+    "relationIdentityVersion": "relation-id/v1",
+    "sourceMappingVersion": "sourcegraph-source-mapping/v1"
+  },
+  "identityLayers": {
+    "graphDigestV2": ["graphIdentityVersion", "graphSchemaVersion", "relationIdentityVersion", "sourceMappingVersion", "projectId", "sourceDigest", "sourceMappings", "nodes", "edges", "unresolved"],
+    "observationOrHostLayer": ["runId", "checkId", "side", "pageContext", "hostArtifactId", "hostRegistryIssuance"],
+    "producerOrProvenanceLayer": ["analyzerBuild", "producerEvidenceSha256", "policyManifestSha256", "attestationDigest"],
+    "rule": "E Host Binding references a verified GraphDigestV2 and does not redefine or append fields to its canonical input."
+  },
+  "rows": [
+    {
+      "id": "project-revision-project-id",
+      "source": "ProjectRevision.projectId",
+      "target": "GraphDigestV2.projectId",
+      "transform": "accept only a host registry value bound to repository, commit, rootTree and sourceDigest",
+      "evidence": "PR72 readProjectSnapshot derives project:<sha256(normalized-local-root)>",
+      "status": "requires-external-host-registry",
+      "failure": "unavailable when registry is missing, caller-supplied, or mismatched",
+      "notes": "Do not promote the path-derived value to trusted identity."
+    },
+    {
+      "id": "project-revision-source-digest",
+      "source": "ProjectRevision.sourceDigest",
+      "target": "GraphDigestV2.sourceDigest",
+      "transform": "reuse digest computed from the immutable tracked-file byte snapshot",
+      "evidence": "digestTrackedTree uses sorted tracked relative paths and exact bytes",
+      "status": "direct-after-snapshot-binding",
+      "failure": "unavailable when any bound file bytes or checkout tree changes"
+    },
+    {
+      "id": "source-graph-nodes",
+      "source": "SourceGraph.nodes[]",
+      "target": "GraphDigestV2.nodes[]",
+      "transform": "strict field-preserving conversion to GraphNode; UTF-8 canonical sorting by id",
+      "evidence": "SourceNode fields and kind enum in model.ts",
+      "status": "direct-with-validation",
+      "failure": "rejected on unknown field, invalid path/offset, unsupported kind, or duplicate id"
+    },
+    {
+      "id": "source-graph-edges",
+      "source": "SourceGraph.edges[]",
+      "target": "GraphDigestV2.edges[]",
+      "transform": "strict field-preserving conversion to GraphEdge; preserve certainty, sourceUse, selectorScope and mediaContext",
+      "evidence": "Relation fields and enum in model.ts/project.ts",
+      "status": "direct-with-validation",
+      "failure": "rejected on unknown field, unknown endpoint, invalid sourceUse, duplicate relation id, or conflicting payload"
+    },
+    {
+      "id": "source-graph-unresolved",
+      "source": "SourceGraph.unresolved[]",
+      "target": "GraphDigestV2.unresolved[]",
+      "transform": "preserve strings, reject duplicates, sort by UTF-8 bytes only for canonicalization",
+      "evidence": "project.ts returns a de-duplicated unresolved list",
+      "status": "direct-with-validation",
+      "failure": "rejected on non-string or duplicate member; never delete to obtain a digest"
+    },
+    {
+      "id": "token-use-node",
+      "source": "SourceNode(kind=token-use).location, byteOffset",
+      "target": "GraphSourceMapping.graphNodeId/sourceUse",
+      "transform": "candidate mapping only when the node is anchored by one source-proven file→token-use reads edge and exact byte checks pass",
+      "evidence": "project.ts emits token-use location.path/offset and byteOffset from parseCssTokenSource",
+      "status": "candidate-after-source-validation",
+      "failure": "mapping omitted and GraphDigest unavailable when anchor or byte proof is missing"
+    },
+    {
+      "id": "file-token-use-anchor",
+      "source": "Relation(kind=reads, certainty=source-proven, from=file, to=token-use)",
+      "target": "GraphSourceMapping.sourceAnchorRelationId/sourceUse",
+      "transform": "require unique relation id, file source path, token-use endpoint, and sourceUse equality plus byte-span verification",
+      "evidence": "css-token-use-source:<file>:<offset> emitted in project.ts",
+      "status": "eligible-anchor",
+      "failure": "mapping rejected/unavailable on missing, duplicate, or conflicting anchor"
+    },
+    {
+      "id": "relation-source-ref",
+      "source": "Relation.id/sourceRef usage in existing graph",
+      "target": "GraphSourceMapping.sourceRef",
+      "transform": "use the exact token-use graph node id for sourceRef; never derive it from relation id or label",
+      "evidence": "PR72 SourceGraph has no SourceNode.sourceRef field",
+      "status": "strict-explicit",
+      "failure": "unavailable when an exact graph node cannot be identified"
+    },
+    {
+      "id": "runtime-fields",
+      "source": "ProjectRevision.gitCommit/ref/runtimeFingerprint and graph.id",
+      "target": "GraphDigestV2",
+      "transform": "exclude from the ten fields; retain in external evidence/host records",
+      "evidence": "GraphDigestV2 ten-field contract",
+      "status": "external-evidence-only",
+      "failure": "no digest input change; host record is unavailable if required evidence is absent"
+    },
+    {
+      "id": "producer-fields",
+      "source": "Relation producerIdentity/sourceIdentity",
+      "target": "GraphDigestV2.edges[]",
+      "transform": "preserve only explicit values; do not infer producer or source identity from prefixes, endpoints, or certainty",
+      "evidence": "PR72 relations do not consistently carry these fields",
+      "status": "optional-explicit",
+      "failure": "producer provenance remains unavailable when occurrence evidence is missing"
+    }
+  ]
+}
