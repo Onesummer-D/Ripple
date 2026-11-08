@@ -59,3 +59,11 @@ Evidence archive handoff
 - parent: 68939a8d9408575c5703b3b67cc8a899a7e12c9c
 - archive commit contains evidence-only updates; production module and test source are unchanged.
 
+Final PR HEAD CI 42481526413
+- head: 9ddfd9828d6a0c1286d60773c80613ef36f45a81
+- conclusion: success
+- passed stages: npm ci; pinned fixture install; Playwright Chromium install; typecheck; unit tests; build; Docker/runtime smoke; browser tests; evidence preservation
+- artifact: ripple-browser-evidence-42481526413
+- artifact SHA-256: 719e3571a0768d5e990e03198937689c7083d07e6788fe8d1a1fe1e40fa30a70
+- URL: https://github.com/Onesummer-D/Ripple/actions/runs/42481526413
+

@@ -16,6 +16,8 @@ This commit implements only the authorized pure `GraphDigestV2` computation modu
 - Code remote HEAD used by CI: `68939a8d9408575c5703b3b67cc8a899a7e12c9c`
 - Evidence archive HEAD: `0a29a480fca17e77c7a56a49226adc481fa61ef1`
 - Evidence archive Tree: `480dd410524d3a9a1d42b7e6959144334878dd02`
+- Final PR HEAD after evidence handoff: `9ddfd9828d6a0c1286d60773c80613ef36f45a81`
+- Final PR Tree: `4047ccfec17f5697515418f8f539d9395a2c6b08`
 - Exact PR base branch: `base/c-graph-identity-v2-20261108` at `d1c941da77d4ab4bbcd7ae557052557628bcb27c`
 
 ## Contract implemented
@@ -57,7 +59,7 @@ No other source, model, package, lockfile, Runtime Identity, D/E, B v5, or gate 
 
 ## Verification status
 
-Targeted module tests are green: 34/34. The first remote CI attempt (42479221608) exposed a test-only TypeScript widening error; the callback return type was corrected without production changes. Final remote CI `42479758867` is green: npm ci, typecheck, unit/full Vitest job, build, Docker runtime smoke, Chromium E2E, and evidence preservation all passed. Artifact `ripple-browser-evidence-42479758867` has SHA-256 `0cef4332da1169f44082c17849fae9aa4af1b6d52971887ef9e795887cb49197`.
+Targeted module tests are green: 34/34. The first remote CI attempt (42479221608) exposed a test-only TypeScript widening error; the callback return type was corrected without production changes. CI `42479758867` passed the code head, and final PR HEAD CI `42481526413` is also green: npm ci, typecheck, unit/full Vitest job, build, Docker runtime smoke, Chromium E2E, and evidence preservation all passed. Final artifact `ripple-browser-evidence-42481526413` has SHA-256 `719e3571a0768d5e990e03198937689c7083d07e6788fe8d1a1fe1e40fa30a70`.
 
 The local clean environment still records project `npm run typecheck` and `npm run build` exit 1 because dependencies were unavailable; those are superseded for acceptance by the exact-head Linux CI result above. B independent exact-vector review remains pending. Phase 1B-b is not authorized.
 
