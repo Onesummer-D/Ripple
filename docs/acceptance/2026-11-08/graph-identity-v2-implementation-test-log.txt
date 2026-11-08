@@ -40,3 +40,7 @@ CI
 - Linux CI: UNVERIFIED; no remote Draft PR exists yet.
 - Docker/Chromium: UNVERIFIED.
 - B independent review: pending.
+
+Follow-up after Linux CI 42479221608
+- typecheck failure: test it.each callback return widened sourceMappingVersion to string at graph-identity-v2.test.ts:103.
+- fix: negative mutation callbacks now return unknown; production module unchanged.

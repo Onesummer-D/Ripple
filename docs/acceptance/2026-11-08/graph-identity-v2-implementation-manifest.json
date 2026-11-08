@@ -55,8 +55,8 @@
     },
     {
       "path": "src/core/graph-identity-v2.test.ts",
-      "bytes": 9384,
-      "sha256": "3e1ee1698514817b9aafb222c56a56839e8c6d6b5285557947bef5746dc14d76"
+      "bytes": 9372,
+      "sha256": "a37ad1e6bef77dfbd6d5bab22ec1f28e4bddcda1a444596f3e973821b2f5aaa2"
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-authorization.json",
@@ -65,8 +65,8 @@
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-test-log.txt",
-      "bytes": 1925,
-      "sha256": "979e5d703e85314d43178e89c3b6037ad13a9f45e6919f2a20121b008295f367"
+      "bytes": 2170,
+      "sha256": "26c55c50fae72f09ec9b5112dfa4deac095e189198e528259fa242f0e34481a4"
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-report.md",

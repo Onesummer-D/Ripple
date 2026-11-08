@@ -88,7 +88,7 @@ describe('GraphDigestV2 pure canonical module', () => {
     ['unknown node field', (graph: GraphDigestV2) => ({ ...graph, nodes: [{ ...graph.nodes[0], unknown: true }, ...graph.nodes.slice(1)] })],
     ['unknown edge field', (graph: GraphDigestV2) => ({ ...graph, edges: [{ ...graph.edges[0], unknown: true }, graph.edges[1]] })],
     ['conflicting duplicate payload', (graph: GraphDigestV2) => ({ ...graph, edges: [...graph.edges, { ...graph.edges[0], to: 'node:a' }] })],
-  ])('rejects %s', (_name: string, mutate: (graph: GraphDigestV2) => GraphDigestV2) => {
+  ])('rejects %s', (_name: string, mutate: (graph: GraphDigestV2) => unknown) => {
     expect(() => validateGraphDigestV2(mutate(g0()))).toThrow()
   })
 
@@ -100,7 +100,7 @@ describe('GraphDigestV2 pure canonical module', () => {
     ['wrong mapping project', (graph: GraphDigestV2) => ({ ...graph, sourceMappings: [{ ...graph.sourceMappings[0], projectId: 'other' }] })],
     ['wrong mapping anchor', (graph: GraphDigestV2) => ({ ...graph, sourceMappings: [{ ...graph.sourceMappings[0], sourceAnchorRelationId: 'rel:a' }] })],
     ['wrong source identity digest', (graph: GraphDigestV2) => ({ ...graph, sourceMappings: [{ ...graph.sourceMappings[0], sourceIdentity: `source:${'1'.repeat(64)}:src/a.css:4:4` }] })],
-  ])('rejects %s', (_name: string, mutate: (graph: GraphDigestV2) => GraphDigestV2) => {
+  ])('rejects %s', (_name: string, mutate: (graph: GraphDigestV2) => unknown) => {
     expect(() => canonicalGraph(mutate(g0()))).toThrow()
   })
 
