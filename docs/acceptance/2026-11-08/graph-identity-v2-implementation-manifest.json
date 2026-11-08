@@ -12,10 +12,10 @@
   },
   "implementation": {
     "branch": "feat/c-graph-identity-v2-pure-20261108",
-    "sourceCommit": "d3038fabd99cb92ac5eb44885f0ae48e040bb94e",
-    "sourceTree": "dea6806d954c91502276bbd93434079f15b2e599",
-    "remoteHead": "68939a8d9408575c5703b3b67cc8a899a7e12c9c",
-    "remoteTree": "a8a2f1f1390a77a35587f8d693321457b736b13c",
+    "sourceCommit": "b234138e708eb956f2714b2380427297e85bbd24",
+    "sourceTree": "4ba744f6a58b977e52682a671aa03cee2aab28eb",
+    "remoteHead": "b234138e708eb956f2714b2380427297e85bbd24",
+    "remoteTree": "4ba744f6a58b977e52682a671aa03cee2aab28eb",
     "remoteBaseBranch": "base/c-graph-identity-v2-20261108",
     "finalArchiveHead": "bound-out-of-band",
     "allowedFiles": [
@@ -53,13 +53,13 @@
   "files": [
     {
       "path": "src/core/graph-identity-v2.ts",
-      "bytes": 20831,
-      "sha256": "7afb32632e6bb8bef28acb29843f8455cf972bc3d28091fbae86f0c2bf9e6254"
+      "bytes": 20947,
+      "sha256": "0d3eb2c36338fdc917060fab9441fd82f770a2fefd87bc02b16a388448990466"
     },
     {
       "path": "src/core/graph-identity-v2.test.ts",
-      "bytes": 9372,
-      "sha256": "a37ad1e6bef77dfbd6d5bab22ec1f28e4bddcda1a444596f3e973821b2f5aaa2"
+      "bytes": 9668,
+      "sha256": "0f2392bb3c3b4239ac9291cec8d7058aa527f137986e388d8a7ed7300706254c"
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-authorization.json",
@@ -68,20 +68,20 @@
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-test-log.txt",
-      "bytes": 3404,
-      "sha256": "bceca588ac0c0b4177cdd6e7a3bc62ab600f6d7bc325397b50bc875c59ad3bc6"
+      "bytes": 3767,
+      "sha256": "0364f3daceb3877daa0c36498380738152e657c39d053eaac186b85c600332a1"
     },
     {
       "path": "docs/acceptance/2026-11-08/graph-identity-v2-implementation-report.md",
-      "bytes": 4244,
-      "sha256": "539a06a13c87b86a9f6557485f51905dd357331eee0d829ed3add8d48dd081d0"
+      "bytes": 4202,
+      "sha256": "aad18bbab9765bb1455fcb50ab1a971cf2c0ba26c388f6b8100e505ae7ed87f3"
     }
   ],
   "verification": {
     "targetedVitest": {
       "runner": "vitest 5.0.5 cached",
-      "tests": 34,
-      "passed": 34,
+      "tests": 36,
+      "passed": 36,
       "failed": 0,
       "exitCode": 0
     },
@@ -112,17 +112,9 @@
       "testsFailed": 8,
       "testsSkipped": 7
     },
-    "linuxCi": {
-      "runId": 42481526413,
-      "url": "https://github.com/Onesummer-D/Ripple/actions/runs/42481526413",
-      "head": "9ddfd9828d6a0c1286d60773c80613ef36f45a81",
-      "conclusion": "success"
-    },
-    "dockerChromium": "passed-in-linux-ci",
-    "artifact": {
-      "name": "ripple-browser-evidence-42481526413",
-      "sha256": "719e3571a0768d5e990e03198937689c7083d07e6788fe8d1a1fe1e40fa30a70"
-    },
+    "linuxCi": "pending-version-fix",
+    "dockerChromium": "pending-version-fix",
+    "artifact": null,
     "bReview": "pending"
   },
   "scope": {

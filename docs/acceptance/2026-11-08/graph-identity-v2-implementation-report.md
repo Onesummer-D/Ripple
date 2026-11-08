@@ -14,6 +14,8 @@ This commit implements only the authorized pure `GraphDigestV2` computation modu
 - First implementation commit: `d3038fabd99cb92ac5eb44885f0ae48e040bb94e`
 - Remote Draft PR: `https://github.com/Onesummer-D/Ripple/pull/75`
 - Code remote HEAD used by CI: `68939a8d9408575c5703b3b67cc8a899a7e12c9c`
+- Version-fix implementation commit: `b234138e708eb956f2714b2380427297e85bbd24`
+- Version-fix implementation Tree: `4ba744f6a58b977e52682a671aa03cee2aab28eb`
 - Evidence archive HEAD: `0a29a480fca17e77c7a56a49226adc481fa61ef1`
 - Evidence archive Tree: `480dd410524d3a9a1d42b7e6959144334878dd02`
 - Final PR HEAD after evidence handoff: `9ddfd9828d6a0c1286d60773c80613ef36f45a81`
@@ -59,7 +61,7 @@ No other source, model, package, lockfile, Runtime Identity, D/E, B v5, or gate 
 
 ## Verification status
 
-Targeted module tests are green: 34/34. The first remote CI attempt (42479221608) exposed a test-only TypeScript widening error; the callback return type was corrected without production changes. CI `42479758867` passed the code head, and final PR HEAD CI `42481526413` is also green: npm ci, typecheck, unit/full Vitest job, build, Docker runtime smoke, Chromium E2E, and evidence preservation all passed. Final artifact `ripple-browser-evidence-42481526413` has SHA-256 `719e3571a0768d5e990e03198937689c7083d07e6788fe8d1a1fe1e40fa30a70`.
+Targeted module tests are green: 36/36, including exact rejection of non-frozen graphSchemaVersion and relationIdentityVersion. This patch is a minimal validation tightening; G0 bytes and digest are unchanged. The prior exact-head CI runs remain valid for the pre-fix code, while the version-fix commit requires fresh CI before acceptance.
 
 The local clean environment still records project `npm run typecheck` and `npm run build` exit 1 because dependencies were unavailable; those are superseded for acceptance by the exact-head Linux CI result above. B independent exact-vector review remains pending. Phase 1B-b is not authorized.
 

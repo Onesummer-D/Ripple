@@ -67,3 +67,11 @@ Final PR HEAD CI 42481526413
 - artifact SHA-256: 719e3571a0768d5e990e03198937689c7083d07e6788fe8d1a1fe1e40fa30a70
 - URL: https://github.com/Onesummer-D/Ripple/actions/runs/42481526413
 
+Version contract fix
+- implementation commit: b234138e708eb956f2714b2380427297e85bbd24
+- implementation tree: 4ba744f6a58b977e52682a671aa03cee2aab28eb
+- targeted Vitest: 36 passed, exit=0
+- added negative cases: graphSchemaVersion mismatch; relationIdentityVersion mismatch
+- G0 canonical bytes/digest: unchanged
+- fresh Linux CI for version-fix commit: pending
+
