@@ -44,3 +44,12 @@ CI
 Follow-up after Linux CI 42479221608
 - typecheck failure: test it.each callback return widened sourceMappingVersion to string at graph-identity-v2.test.ts:103.
 - fix: negative mutation callbacks now return unknown; production module unchanged.
+
+Final exact-head CI 42479758867
+- head: 68939a8d9408575c5703b3b67cc8a899a7e12c9c
+- conclusion: success
+- passed stages: npm ci; pinned fixture install; Playwright Chromium install; typecheck; unit tests; build; Docker/runtime smoke; browser tests; evidence preservation
+- artifact: ripple-browser-evidence-42479758867
+- artifact SHA-256: 0cef4332da1169f44082c17849fae9aa4af1b6d52971887ef9e795887cb49197
+- URL: https://github.com/Onesummer-D/Ripple/actions/runs/42479758867
+

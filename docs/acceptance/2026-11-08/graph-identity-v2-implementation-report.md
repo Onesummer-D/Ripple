@@ -12,6 +12,10 @@ This commit implements only the authorized pure `GraphDigestV2` computation modu
 - Required base: `d1c941da77d4ab4bbcd7ae557052557628bcb27c`
 - Implementation branch: `feat/c-graph-identity-v2-pure-20261108`
 - First implementation commit: `d3038fabd99cb92ac5eb44885f0ae48e040bb94e`
+- Remote Draft PR: `https://github.com/Onesummer-D/Ripple/pull/75`
+- Final remote HEAD: `68939a8d9408575c5703b3b67cc8a899a7e12c9c`
+- Final remote Tree: `a8a2f1f1390a77a35587f8d693321457b736b13c`
+- Exact PR base branch: `base/c-graph-identity-v2-20261108` at `d1c941da77d4ab4bbcd7ae557052557628bcb27c`
 
 ## Contract implemented
 
@@ -52,6 +56,9 @@ No other source, model, package, lockfile, Runtime Identity, D/E, B v5, or gate 
 
 ## Verification status
 
-Targeted module tests are green: 34/34. Full project typecheck, build, Linux CI, Docker/Chromium, and full dependency-backed Vitest remain unverified in this clean environment because dependencies are not installed and registry resolution is unavailable. The exact commands and exit codes are recorded in the test log.
+Targeted module tests are green: 34/34. The first remote CI attempt (42479221608) exposed a test-only TypeScript widening error; the callback return type was corrected without production changes. Final remote CI `42479758867` is green: npm ci, typecheck, unit/full Vitest job, build, Docker runtime smoke, Chromium E2E, and evidence preservation all passed. Artifact `ripple-browser-evidence-42479758867` has SHA-256 `0cef4332da1169f44082c17849fae9aa4af1b6d52971887ef9e795887cb49197`.
+
+The local clean environment still records project `npm run typecheck` and `npm run build` exit 1 because dependencies were unavailable; those are superseded for acceptance by the exact-head Linux CI result above. B independent exact-vector review remains pending. Phase 1B-b is not authorized.
 
 B independent exact-vector review is the next gate. Phase 1B-b is not authorized.
+
