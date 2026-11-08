@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "ripple-graph-identity-phase1b-a-final-acceptance-decision/v1",
+  "recordedAt": "2026-11-09",
+  "reviewer": "A",
+  "decision": "GRAPH IDENTITY PHASE 1B-a PURE MODULE ACCEPT WITH SCOPE",
+  "status": "ACCEPT WITH SCOPE",
+  "scope": [
+    "GraphDigestV2 pure module",
+    "canonical serializer",
+    "frozen graphSchemaVersion and relationIdentityVersion checks",
+    "G0 golden replay",
+    "fail-closed negative vectors",
+    "content-only digest computation"
+  ],
+  "candidate": {
+    "pr": 75,
+    "url": "https://github.com/Onesummer-D/Ripple/pull/75",
+    "base": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
+    "implementationHead": "b234138e708eb956f2714b2380427297e85bbd24",
+    "implementationTree": "4ba744f6a58b977e52682a671aa03cee2aab28eb",
+    "finalHead": "30030cd10c4eefbd976749be1b2b5df800bbf200",
+    "finalTree": "f49b9800a433c44c298a330aa70ebce0d95d50f6",
+    "authorizedFileScope": "6/6 PASS",
+    "implementationToFinalSourceChanged": false
+  },
+  "ci": {
+    "runId": 42489302086,
+    "url": "https://github.com/Onesummer-D/Ripple/actions/runs/42489302086",
+    "head": "30030cd10c4eefbd976749be1b2b5df800bbf200",
+    "conclusion": "success",
+    "artifactSha256": "6f4f22ed0a5f16faa9e2ee07e8ebe9b1283eb4b04598efde54a34ce1a7ca53ef"
+  },
+  "bIndependentReview": {
+    "directory": "acp6-graphdigest-v2-independent-review-pr75-version-fix-20261108",
+    "report": {
+      "file": "graphdigest-v2-version-fix-independent-review-report-20261108.json",
+      "bytes": 27732,
+      "sha256": "0405686e29c1ef5d6c6032aa364ff2bf5cc5b70a631084dd1731be18bad15f23"
+    },
+    "negativeRaw": {
+      "file": "graphdigest-v2-version-fix-negative-raw-20261108.json",
+      "bytes": 19170,
+      "sha256": "878c0ff0f8cb14c5ad59b8d184c85dbbdf44022ad2fc36667e222c19d2f64636"
+    },
+    "sourceMappingReview": {
+      "file": "graphdigest-v2-sourcemapping-contract-review-20261108.json",
+      "bytes": 2594,
+      "sha256": "9df31594f33721d5c087069e672f4f14524d3f81c2f4c908e9ef6b80539536b2"
+    },
+    "manifest": {
+      "file": "sha256-manifest-20261108.json",
+      "bytes": 3055,
+      "sha256": "5d3113397006830ba481c94830eabb6d678d0e6e1ea71a10cf88cd0742fabe10",
+      "entries": 16,
+      "entriesMatched": 16
+    },
+    "directReplay": {
+      "versionFixCommand": "node --experimental-transform-types graphdigest-v2-version-fix-independent-review-20261108.mjs",
+      "versionFixExitCode": 0,
+      "sourceMappingCommand": "node --experimental-transform-types sourcemapping-contract-review-20261108.mjs",
+      "sourceMappingExitCode": 0
+    },
+    "exactSourceChecks": {
+      "implementationSourceSha256": "0d3eb2c36338fdc917060fab9441fd82f770a2fefd87bc02b16a388448990466",
+      "finalSourceSha256": "0d3eb2c36338fdc917060fab9441fd82f770a2fefd87bc02b16a388448990466",
+      "implementationTestSha256": "0f2392bb3c3b4239ac9291cec8d7058aa527f137986e388d8a7ed7300706254c",
+      "finalTestSha256": "0f2392bb3c3b4239ac9291cec8d7058aa527f137986e388d8a7ed7300706254c"
+    },
+    "versionNegatives": {
+      "cases": 6,
+      "entryPoints": 3,
+      "allRejected": true,
+      "errorCode": "graph-schema-invalid"
+    },
+    "g0": {
+      "canonicalBytesSha256": "8301d143ef0409e613f5e37d665011343787917c902478de65a18dab4b8ea87e",
+      "digest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+      "matchesGolden": true,
+      "sourceTrust": "content-only",
+      "trustFieldsAbsent": ["trusted", "runtimeProof", "authorizationEligible"]
+    },
+    "legacyNegatives": {
+      "duplicateIds": "rejected",
+      "unknownFields": "rejected",
+      "invalidPaths": "rejected",
+      "invalidOffsets": "rejected",
+      "mappingConflicts": "rejected"
+    }
+  },
+  "sourceMappingConsistency": {
+    "status": "CONTRACT CLARIFICATION",
+    "acceptedCases": [
+      "token-use.location.path-only",
+      "token-use.location.offset-only",
+      "anchor.from.file.label-only",
+      "anchor.from.file.location.path-only"
+    ],
+    "boundary": "No host trust or source proof is inferred; D must separately decide metadata binding for Producer/Host Integration"
+  },
+  "historicalEvidence": {
+    "priorHoldRecord": "e18d979408d8be9ac4d729e4d16f6eb086d035bf",
+    "legacyBReportBinding": "68939a8d",
+    "legacyBReportStatus": "historical P0 FAIL; retained and not overwritten"
+  },
+  "notIncluded": [
+    "analyzeProject or Graph Producer wiring",
+    "ProducerEvidenceV1",
+    "ProvenanceAttestationV1",
+    "host Registry Issuer",
+    "E-H1",
+    "D-P1",
+    "Runtime Identity v1.2",
+    "VerificationRun or authorization changes"
+  ],
+  "nextGate": "C may submit Phase 1B-b design and minimal whitelist; production implementation requires a new A authorization",
+  "globalRestrictions": ["no merge", "no main update", "no deployment", "no unauthenticated Project API", "no Bolt"]
+}
