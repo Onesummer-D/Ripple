@@ -13,8 +13,9 @@ This commit implements only the authorized pure `GraphDigestV2` computation modu
 - Implementation branch: `feat/c-graph-identity-v2-pure-20261108`
 - First implementation commit: `d3038fabd99cb92ac5eb44885f0ae48e040bb94e`
 - Remote Draft PR: `https://github.com/Onesummer-D/Ripple/pull/75`
-- Final remote HEAD: `68939a8d9408575c5703b3b67cc8a899a7e12c9c`
-- Final remote Tree: `a8a2f1f1390a77a35587f8d693321457b736b13c`
+- Code remote HEAD used by CI: `68939a8d9408575c5703b3b67cc8a899a7e12c9c`
+- Evidence archive HEAD: `0a29a480fca17e77c7a56a49226adc481fa61ef1`
+- Evidence archive Tree: `480dd410524d3a9a1d42b7e6959144334878dd02`
 - Exact PR base branch: `base/c-graph-identity-v2-20261108` at `d1c941da77d4ab4bbcd7ae557052557628bcb27c`
 
 ## Contract implemented
