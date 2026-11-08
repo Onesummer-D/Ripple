@@ -1,0 +1,66 @@
+{
+  "document": "graph-identity-v2-adapter-negative-vectors-supplement",
+  "version": "phase1b-b/design-supplement-v1",
+  "status": "evidence-only; proposed diagnostics are not frozen",
+  "contractSources": {
+    "pureGraphValidator": "PR75 30030cd10c4eefbd976749be1b2b5df800bbf200",
+    "pureGraphSchemaError": "graph-schema-invalid",
+    "adapterAvailabilityLabels": "design-only; A/D/E approval required",
+    "fixedProject": "allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd"
+  },
+  "vectors": [
+    {
+      "id": "canonical-unknown-trust-field",
+      "layer": "canonical-graph",
+      "input": "Add trusted=true, runtimeProof, or authorizationEligible to GraphDigestV2 top level, node, edge, or mapping",
+      "expectedStatus": "rejected",
+      "expectedErrorCode": "graph-schema-invalid",
+      "digest": "not-computed",
+      "contractBasis": "PR75 exact field whitelist"
+    },
+    {
+      "id": "canonical-unknown-trust-field-nested",
+      "layer": "canonical-graph",
+      "input": "Add trusted=true to sourceUse or location while all known fields remain valid",
+      "expectedStatus": "rejected",
+      "expectedErrorCode": "graph-schema-invalid",
+      "digest": "not-computed",
+      "contractBasis": "PR75 nested exact field whitelist"
+    },
+    {
+      "id": "caller-claims-trusted-without-registry",
+      "layer": "external-adapter",
+      "input": "Valid canonical GraphDigestV2 plus trusted=true/sourceProof=host-claimed, with no host registry or source snapshot evidence",
+      "expectedStatus": "unavailable",
+      "expectedDiagnosticCode": "host-evidence-missing",
+      "diagnosticCodeStatus": "proposed adapter diagnostic; not frozen",
+      "pureModuleResult": "sourceTrust=content-only",
+      "digest": "content digest may be computed, but no trusted result is emitted",
+      "contractBasis": "design supplement §4.2; host evidence remains outside GraphDigestV2"
+    },
+    {
+      "id": "caller-claims-trusted-with-registry-mismatch",
+      "layer": "external-adapter",
+      "input": "Valid canonical graph plus trusted=true, but registry sourceDigest/tree does not match frozen source snapshot",
+      "expectedStatus": "unavailable",
+      "expectedDiagnosticCode": "host-evidence-missing",
+      "diagnosticCodeStatus": "proposed adapter diagnostic; not frozen",
+      "pureModuleResult": "sourceTrust=content-only",
+      "digest": "content digest may be computed, but host binding is unavailable",
+      "contractBasis": "design supplement §1 and §4.2"
+    }
+  ],
+  "snapshotVectors": [
+    {"id":"head-tree-drift","expectedStatus":"unavailable","reason":"checkout identity differs"},
+    {"id":"tracked-set-drift","expectedStatus":"unavailable","reason":"tracked file set differs"},
+    {"id":"symlink-or-special-file","expectedStatus":"rejected-or-unavailable","reason":"exact status awaits adapter contract"},
+    {"id":"byte-change-between-capture-and-analysis","expectedStatus":"unavailable","reason":"TOCTOU cannot prove analyzer bytes"},
+    {"id":"non-unique-source-mapping","expectedStatus":"unavailable","reason":"mapping identity is ambiguous"}
+  ],
+  "nonClaims": [
+    "No new public GraphDigestV2 field is proposed",
+    "No adapter status or diagnostic code is frozen by this file",
+    "No trusted/source-proven/runtime-proof/authorization claim follows from digest equality",
+    "semantic-candidate and UNKNOWN remain unchanged"
+  ]
+}

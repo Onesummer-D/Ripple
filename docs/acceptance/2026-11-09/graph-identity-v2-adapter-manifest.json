@@ -1,5 +1,5 @@
 {
-  "manifestVersion": "phase1b-b-design-manifest/v1",
+  "manifestVersion": "phase1b-b-design-manifest/v2",
   "status": "evidence-only",
   "base": {
     "pr72SourceGraphCommit": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
@@ -23,13 +23,13 @@
   "files": [
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-design-review.md",
-      "bytes": 8738,
-      "sha256": "648ae56deec8576d043503c9c6fdc6e75715164486752a90472266c25263dda4"
+      "bytes": 8816,
+      "sha256": "514535c9d197047b15b47d68a3ad240692cdc59adbf8965713d864e548ecee0c"
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-field-matrix.json",
-      "bytes": 6213,
-      "sha256": "e668e2cc3d24fd7c350ad3cdb730cb23ccf337025c939e001f9fbd2288bcb610"
+      "bytes": 6291,
+      "sha256": "2058f5028ddbb1c38594d99f2e51b149f0da3f5e0d960ed8f6b601edb8335931"
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-contract.json",
@@ -38,13 +38,24 @@
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-test-plan.json",
-      "bytes": 4089,
-      "sha256": "e284735025b59725ffda153da747a386bb99691e4ee78e76b7a1541450082498"
+      "bytes": 4182,
+      "sha256": "57d010ffeb70b8274aaaccaebadeeb3b41bce857eb71566479598aeda7ee08d7"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-snapshot-supplement-20261109.md",
+      "bytes": 7065,
+      "sha256": "199f93f4d814df71e00bc185ea7bd91575897ebf882441ac7d81d7a097b12e9c"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-negative-vectors-supplement.json",
+      "bytes": 3412,
+      "sha256": "3a9c52909b936985dde30ee186112e4a84fae06e198a6ee2c39b7dbd71803963"
     }
   ],
   "sourceFilesChanged": [],
   "productionStatus": "not-authorized",
   "graphDigestStatus": "not-run",
   "trustStatus": "content-only-design; no host or producer proof",
-  "selfHashPolicy": "manifest intentionally excludes its own commit and file hash; final archive identity is recorded by the handoff commit"
+  "selfHashPolicy": "manifest intentionally excludes its own commit and file hash; final archive identity is recorded by the handoff commit",
+  "supplementStatus": "P0/P1 design clarification; implementation HOLD"
 }

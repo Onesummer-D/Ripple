@@ -18,7 +18,7 @@
     "graphDigestV2": ["graphIdentityVersion", "graphSchemaVersion", "relationIdentityVersion", "sourceMappingVersion", "projectId", "sourceDigest", "sourceMappings", "nodes", "edges", "unresolved"],
     "observationOrHostLayer": ["runId", "checkId", "side", "pageContext", "hostArtifactId", "hostRegistryIssuance"],
     "producerOrProvenanceLayer": ["analyzerBuild", "producerEvidenceSha256", "policyManifestSha256", "attestationDigest"],
-    "rule": "E Host Binding references a verified GraphDigestV2 and does not redefine or append fields to its canonical input."
+    "rule": "E Host Binding references a verified GraphDigestV2; E may independently recompute and compare it using the same frozen contract, but does not redefine or append fields to the canonical input."
   },
   "rows": [
     {

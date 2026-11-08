@@ -34,7 +34,7 @@
   },
   "dEInterfaces": {
     "D": "recompute canonical bytes/digest and unavailable/rejected states from the same ten-field input",
-    "E": "reference a verified GraphDigest in a later host evidence record; do not redefine GraphDigestV2",
+    "E": "independently recompute and compare GraphDigestV2 with the same frozen canonical contract, then reference the verified digest in host evidence; do not redefine it or skip source validation",
     "producerEvidence": "bind exact analyzer build and every edge occurrence outside GraphDigestV2"
   }
 }

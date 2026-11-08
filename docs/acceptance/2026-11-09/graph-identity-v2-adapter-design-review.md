@@ -96,7 +96,7 @@ The adapter preserves all existing `unresolved` entries. It never removes an unr
 2. The accepted pure module computes canonical bytes and the domain-separated digest.
 3. B runs the unmodified v5 matcher/probe on the exact fixed project and compares AC6.2/AC6.4 counts; the adapter must not change thresholds or consumer semantics.
 4. D verifies canonical bytes, mapping completeness, and unavailable behavior.
-5. E may bind a verified GraphDigest in a later host evidence record; E must not redefine or recompute GraphDigestV2.
+5. E may independently recompute and compare GraphDigestV2 using the same frozen contract. E must not redefine the digest or skip source snapshot, mapping, registry, and producer evidence checks.
 6. A reviews the adapter whitelist and the final evidence manifest before any production call point is authorized.
 
 ## 8. Future file whitelist (design only)
