@@ -25,7 +25,7 @@
      hash.update(String(Buffer.byteLength(relative, 'utf8')))
      hash.update(':').update(relative).update(':')
      hash.update(String(bytes.byteLength)).update(':')
-     hash.update(sha256(bytes)).update('\\n')
+     hash.update(sha256(bytes)).update('\n')
    sourceDigest = hash.digest('hex')
    ```
 
@@ -33,6 +33,12 @@
 6. 在该 checkout 上调用现有 `analyzeProject(input, true)`。因为 API 仍从磁盘读取，方案 A 依赖快照的不可变语义，而不是假设 `analyzeProject()` 已接受字节映射。
 7. 分析结束后再次读取 Git HEAD/tree、tracked file set 和每个绑定文件的字节哈希。任何变化、读取错误或快照对象被替换均返回 `unavailable`，不输出 GraphDigest。
 8. Adapter 只使用步骤 4 的快照字节做 SourceMapping byte-span 验证；不得在 mapping 阶段重新读取可写路径。
+
+### 1.4 字节级复算测试
+
+适配器验收必须对同一批真实 tracked 文件字节分别运行现有 `digestTrackedTree()` 和独立复算器，并比较完整的 64 位小写 SHA-256。两条实现都必须保留文件路径排序、路径 UTF-8 字节长度、文件字节长度、每文件 SHA-256 和记录分隔符的原算法。
+
+必须包含一组反例：将记录末尾的单个 LF 字节 `0A` 替换为两个 ASCII 字节 `5C 6E`（字符 `\\` 与 `n`）时，独立复算结果必须与生产算法结果不同；把 CRLF 当作 LF 也必须得到不同摘要。该反例只验证字节合同，不改变 GraphDigestV2 十字段或 domain。
 
 ### 1.2 方案 A 的边界
 

@@ -51,6 +51,9 @@
     }
   ],
   "snapshotVectors": [
+    {"id":"digest-record-lf-byte","expectedStatus":"pass","reason":"production and independent digestTrackedTree replay use one LF byte 0A after each record"},
+    {"id":"digest-record-backslash-n-bytes","expectedStatus":"different-digest","reason":"replacing 0A with ASCII 5C 6E must not match production digest"},
+    {"id":"digest-crlf-record","expectedStatus":"different-digest","reason":"CRLF is different source bytes from LF and must not be normalized"},
     {"id":"head-tree-drift","expectedStatus":"unavailable","reason":"checkout identity differs"},
     {"id":"tracked-set-drift","expectedStatus":"unavailable","reason":"tracked file set differs"},
     {"id":"symlink-or-special-file","expectedStatus":"rejected-or-unavailable","reason":"exact status awaits adapter contract"},

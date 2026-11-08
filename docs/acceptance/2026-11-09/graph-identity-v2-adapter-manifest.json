@@ -43,13 +43,13 @@
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-snapshot-supplement-20261109.md",
-      "bytes": 7065,
-      "sha256": "199f93f4d814df71e00bc185ea7bd91575897ebf882441ac7d81d7a097b12e9c"
+      "bytes": 7727,
+      "sha256": "760212fedffa451a975875150347f015926a8697fc0db2077f3052b192124900"
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-negative-vectors-supplement.json",
-      "bytes": 3412,
-      "sha256": "3a9c52909b936985dde30ee186112e4a84fae06e198a6ee2c39b7dbd71803963"
+      "bytes": 3874,
+      "sha256": "71486e918df6925d8f5b7702da6538ed27136352471e13860b23e382f21c832d"
     }
   ],
   "sourceFilesChanged": [],
@@ -57,5 +57,6 @@
   "graphDigestStatus": "not-run",
   "trustStatus": "content-only-design; no host or producer proof",
   "selfHashPolicy": "manifest intentionally excludes its own commit and file hash; final archive identity is recorded by the handoff commit",
-  "supplementStatus": "P0/P1 design clarification; implementation HOLD"
+  "supplementStatus": "P0/P1 design clarification; implementation HOLD",
+  "sourceDigestByteContract": "single LF byte 0A; backslash+n 5C 6E and CRLF are distinct negative vectors"
 }
