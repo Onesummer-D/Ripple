@@ -1,0 +1,32 @@
+{
+  "protocol": "phase1b-b-source-mapping-signoff-manifest/v1",
+  "status": "evidence-only",
+  "reviewBaseline": {
+    "commit": "da89402738b3f46aeea1dc9eedaa5231a22fd571",
+    "tree": "d4065b4cf07a487bb73a8efc8130ff566be59973"
+  },
+  "inspectedHead": {
+    "commit": "4ba7ed829aab69f4769b5e770b1f1abf572a50b6",
+    "tree": "4667c8e5a0923df152101cae1a4d2856d0544619"
+  },
+  "files": [
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-signoff-20261109.md",
+      "bytes": 9399,
+      "sha256": "91120b9be70de97c46f4aad6aca485feb8ed40df45902e6a59f6440da1025bbb",
+      "gitBlob": "ee0dcab461833774903e9e41ebf3d21d222e3a83"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-signoff.json",
+      "bytes": 4052,
+      "sha256": "535a5f7b513738f0ee516866eb9676d858448b5bd2741613a68c04ad7e094bd3",
+      "gitBlob": "1bb0157d750ce8969736ee93b8779572a5a4c692"
+    }
+  ],
+  "productionWrites": false,
+  "graphDigestV2Modified": false,
+  "adapterImplemented": false,
+  "dP1": "HOLD",
+  "final": "ADJUST REQUIRED",
+  "note": "Report is a contract review and does not claim adapter test execution or production approval."
+}

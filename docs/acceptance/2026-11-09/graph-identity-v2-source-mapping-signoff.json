@@ -1,0 +1,101 @@
+{
+  "document": "graph-identity-v2-source-mapping-signoff",
+  "version": "phase1b-b/signoff-v1",
+  "status": "evidence-only",
+  "reviewBaseline": {
+    "commit": "da89402738b3f46aeea1dc9eedaa5231a22fd571",
+    "tree": "d4065b4cf07a487bb73a8efc8130ff566be59973"
+  },
+  "inspectionHead": {
+    "commit": "4ba7ed829aab69f4769b5e770b1f1abf572a50b6",
+    "tree": "4667c8e5a0923df152101cae1a4d2856d0544619"
+  },
+  "decisions": [
+    {
+      "id": "SM-01",
+      "status": "PASS",
+      "rule": "token-use.location.path == mapping.sourceUse.path == unique file node location.path/label",
+      "caveat": "exact path binding must use normalized repository-relative POSIX path, never ID/label inference"
+    },
+    {
+      "id": "SM-02",
+      "status": "ADJUST",
+      "rule": "UTF-16 code-unit offset must be recomputed from the same immutable bytes after strict UTF-8 decode, with token span/bounds check",
+      "missing": "fatal decode, missing span, out-of-range or mismatch => mapping-rejected/unavailable"
+    },
+    {
+      "id": "SM-03",
+      "status": "ADJUST",
+      "rule": "node.byteOffset, location.byteOffset and mapping.sourceUse.byteOffset are all required and equal to original UTF-8 byte position",
+      "missing": "missing or normalization drift => mapping-rejected/unavailable"
+    },
+    {
+      "id": "SM-04",
+      "status": "PASS",
+      "rule": "exactly one unique file --reads/source-proven--> token-use edge with equal sourceUse",
+      "caveat": "duplicate/missing/wrong-kind/wrong-endpoint => mapping-rejected/unavailable"
+    }
+  ],
+  "adapterStates": {
+    "aggregate": [
+      {
+        "status": "rejected",
+        "meaning": "malformed adapter or GraphDigestV2 input",
+        "digest": "none"
+      },
+      {
+        "status": "unavailable",
+        "meaning": "valid structure but missing/unproven snapshot, registry or complete Mapping",
+        "digest": "no trusted adapter result"
+      },
+      {
+        "status": "available-content-only",
+        "meaning": "all ten fields, all token-use mappings, immutable bytes and registry binding pass",
+        "digest": "content-only GraphDigestV2"
+      }
+    ],
+    "mappingDecision": [
+      "accepted",
+      "mapping-rejected"
+    ],
+    "priority": [
+      "rejected",
+      "unavailable",
+      "available-content-only"
+    ],
+    "mappingRejectedAggregatesTo": "unavailable"
+  },
+  "coverage": {
+    "requiredNodeKind": "token-use",
+    "requiredCount": "all graph nodes of kind token-use",
+    "exactCardinality": "mapping count == token-use count",
+    "missing": "unavailable with mapping-missing or mapping-coverage-incomplete; preserve graph/unresolved; no digest",
+    "extra": "rejected",
+    "zeroTokenUse": "sourceMappings must be empty"
+  },
+  "digestTrackedTree": {
+    "status": "PASS-contract",
+    "separatorByte": "0A",
+    "rejectBytes": "5C 6E and CRLF as equivalent",
+    "normalization": "none",
+    "replayRequired": true,
+    "adapterSymlinkHandling": "reject before trusting digest because pure function uses synthetic symlink/special-file bytes"
+  },
+  "boundary": {
+    "pureModule": "ten-field validation/canonicalization/domain-separated digest; content-only",
+    "adapter": "snapshot/TOCTOU/path/offset/Mapping/registry/coverage",
+    "forbidden": "mutate SourceGraph, extend digest fields, reanalyze, connect VerificationRun or authorization"
+  },
+  "remainingIssues": [
+    "Freeze SM-02 strict UTF-8/UTF-16 span algorithm",
+    "Make byteOffset mandatory for eligible Mapping",
+    "Split adapterStatus and mappingDecision in Schema",
+    "Freeze complete token-use coverage and zero-token-use behavior",
+    "Run fixed-project production-vs-independent digest replay and negative vectors",
+    "Classify real SourceGraph duplicate Relation IDs and special files"
+  ],
+  "final": "ADJUST REQUIRED",
+  "productionWrites": false,
+  "dP1": "HOLD",
+  "reportSha256": "91120b9e70de97c46f4aad6aca485feb8ed40df45902e6a59f6440da1025bbb"
+}
