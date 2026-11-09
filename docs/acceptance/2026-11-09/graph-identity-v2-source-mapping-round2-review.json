@@ -1,0 +1,119 @@
+{
+  "document": "graph-identity-v2-source-mapping-round2-review",
+  "version": "phase1b-b/sm03-compat-v1",
+  "status": "evidence-only",
+  "verdict": "ACCEPT WITH SCOPE",
+  "baseline": {
+    "original": "da89402738b3f46aeea1dc9eedaa5231a22fd571",
+    "originalTree": "d4065b4cf07a487bb73a8efc8130ff566be59973",
+    "firstRound": "ecdb8d99b460dc1ae6084137b73d365f39d39f4d",
+    "firstRoundTree": "227da5870f4b5d490876df0e291195f883471dcb",
+    "localInspection": "e532f6bee5cfde30e269f85a9d370420aea7c881"
+  },
+  "producerProof": {
+    "path": "src/core/project.ts",
+    "lines": "626-644",
+    "locationFields": [
+      "path",
+      "start",
+      "end",
+      "offset"
+    ],
+    "locationByteOffset": "missing",
+    "nodeByteOffset": "use.byteOffset",
+    "relationSourceUseByteOffset": "use.byteOffset",
+    "anchor": "file -> token-use reads/source-proven"
+  },
+  "options": [
+    {
+      "id": "1",
+      "name": "adapter-canonical-copy-add-location-byteOffset",
+      "sourceProof": "yes-if-derived-from-immutable-snapshot",
+      "changesGraphDigestInput": true,
+      "changesProducer": false,
+      "breaksG0": "no for archived G0 because location.byteOffset already present; changes PR72 graph inputs",
+      "sourceGraphCompatible": true,
+      "decision": "not-default"
+    },
+    {
+      "id": "2",
+      "name": "allow-missing-location-byteOffset-with-existing-byte-proof",
+      "sourceProof": "yes",
+      "changesGraphDigestInput": false,
+      "changesProducer": false,
+      "breaksG0": "no",
+      "sourceGraphCompatible": true,
+      "decision": "recommended"
+    },
+    {
+      "id": "3",
+      "name": "producer-make-location-byteOffset-required",
+      "sourceProof": "yes",
+      "changesGraphDigestInput": true,
+      "changesProducer": true,
+      "breaksG0": "no for fixture but changes producer replay semantics",
+      "sourceGraphCompatible": "requires migration",
+      "decision": "not-authorized"
+    }
+  ],
+  "sm02": {
+    "status": "frozen",
+    "strictUtf8": "fatal decoder",
+    "illegalUtf8": "source-utf8-invalid -> unavailable",
+    "validUfffd": "accept; U+FFFD is one UTF-16 code-unit and three UTF-8 bytes",
+    "offset": "location.offset == sourceUse.charOffset; code-unit boundaries and span required"
+  },
+  "sm03": {
+    "status": "frozen-compatible",
+    "required": [
+      "tokenUse.byteOffset",
+      "mapping.sourceUse.byteOffset",
+      "Relation.sourceUse.byteOffset"
+    ],
+    "optional": [
+      "tokenUse.location.byteOffset"
+    ],
+    "optionalRule": "if present it must equal required offsets",
+    "recompute": "original UTF-8 snapshot at code-unit start; no normalization",
+    "digestInputChanged": false
+  },
+  "coverage": {
+    "requiredKind": "token-use",
+    "cardinality": "one mapping per token-use",
+    "missing": "mapping-missing or mapping-coverage-incomplete -> unavailable; preserve graph/unresolved",
+    "extra": "rejected",
+    "zeroTokenUse": "sourceMappings empty"
+  },
+  "states": {
+    "aggregate": [
+      "rejected",
+      "unavailable",
+      "available-content-only"
+    ],
+    "mappingDecision": [
+      "accepted",
+      "mapping-rejected"
+    ],
+    "mappingRejectedAggregate": "unavailable",
+    "priority": [
+      "rejected",
+      "unavailable",
+      "available-content-only"
+    ]
+  },
+  "digestTrackedTree": {
+    "lfByte": "0A",
+    "backslashN": "distinct",
+    "crlf": "distinct",
+    "unicodeNormalization": "none",
+    "replayRequired": true
+  },
+  "boundary": {
+    "pureModule": "unchanged ten-field canonical/content digest",
+    "adapter": "snapshot, offsets, coverage, registry, TOCTOU",
+    "productionWrites": false
+  },
+  "blobCorrection": "graph-identity-v2-source-mapping-blob-correction-20261109.json",
+  "implementationStatus": "not-started",
+  "dP1": "HOLD"
+}

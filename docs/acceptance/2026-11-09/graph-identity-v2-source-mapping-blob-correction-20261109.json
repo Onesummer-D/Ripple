@@ -1,0 +1,31 @@
+{
+  "document": "graph-identity-v2-source-mapping-blob-correction",
+  "version": "phase1b-b/remote-tree-identity-v1",
+  "status": "evidence-only",
+  "firstRoundRemote": {
+    "commit": "ecdb8d99b460dc1ae6084137b73d365f39d39f4d",
+    "tree": "227da5870f4b5d490876df0e291195f883471dcb"
+  },
+  "rule": "GitHub review identity uses remote Tree Blob; local blob remains local commit identity",
+  "files": [
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-signoff-20261109.md",
+      "localCommitBlob": "ee0dcab461833774903e9e41ebf3d21d222e3a83",
+      "remoteTreeBlob": "d16d29cdb2bd970e18953c5b1eaa5ba8a6559806",
+      "sha256": "91120b9be70de97c46f4aad6aca485feb8ed40df45902e6a59f6440da1025bbb"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-signoff.json",
+      "localCommitBlob": "1bb0157d750ce8969736ee93b8779572a5a4c692",
+      "remoteTreeBlob": "815b25aba1a2d563fc12f763aa59550749f39dec",
+      "sha256": "535a5f7b513738f0ee516866eb9676d858448b5bd2741613a68c04ad7e094bd3"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-signoff-manifest.json",
+      "localCommitBlob": "7d2475b546d9ffb22eb84af07fb3164578d1d4ef",
+      "remoteTreeBlob": "5775616bd96f8b561a8f833b6df0e85e44945556",
+      "sha256": "content SHA recorded in first-round manifest; remote Tree Blob is authoritative"
+    }
+  ],
+  "correction": "Future manifests must carry remoteTreeBlob for remote files and retain localCommitBlob only as provenance metadata."
+}

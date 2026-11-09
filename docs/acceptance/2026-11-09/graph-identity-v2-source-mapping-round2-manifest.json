@@ -1,0 +1,36 @@
+{
+  "protocol": "phase1b-b-source-mapping-round2-manifest/v1",
+  "status": "evidence-only",
+  "verdict": "ACCEPT WITH SCOPE",
+  "baseline": {
+    "original": "da89402738b3f46aeea1dc9eedaa5231a22fd571",
+    "firstRoundEvidence": "ecdb8d99b460dc1ae6084137b73d365f39d39f4d",
+    "firstRoundTree": "227da5870f4b5d490876df0e291195f883471dcb"
+  },
+  "files": [
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-round2-review-20261109.md",
+      "bytes": 8558,
+      "sha256": "bcc287ca1eff15e0f8b972f18623cd3bdccc0ab5490e8b41588b1552aa8a8197",
+      "localBlob": "a1c82c673326ce80977eeae27609618a2700e38f"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-round2-review.json",
+      "bytes": 3895,
+      "sha256": "5b02aced21482cd60149d1e63265147c5ae9efe3acdb981014e278d75496ff39",
+      "localBlob": "6088bdafd1a0f2c0b1ac127565f8844b788595fd"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-blob-correction-20261109.json",
+      "bytes": 1573,
+      "sha256": "be8e8da28eaf08fbc8837c365b7bff12989530b7640d0b2aa3e3068e5fa5e0df",
+      "localBlob": "0d804fc5e9adb6ee159cdedc96bba16de253be04"
+    }
+  ],
+  "remoteIdentityCorrection": "graph-identity-v2-source-mapping-blob-correction-20261109.json",
+  "productionWrites": false,
+  "graphDigestV2Modified": false,
+  "adapterImplemented": false,
+  "dP1": "HOLD",
+  "note": "Option 2 freezes SM-03 without changing Producer or GraphDigestV2 input. Remote Tree Blob identities are recorded separately from local commit blobs."
+}
