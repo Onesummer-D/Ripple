@@ -40,6 +40,6 @@
     "branch": "evidence/d-source-mapping-round2-20261109",
     "payloadCommit": "1acf5b28cd2c1a73e6392178b59ec29f5a97341a",
     "payloadTree": "dd31a0e39249e9354404c8c2cb5259d5de547b03",
-    "manifestFinalization": "pending"
+    "manifestFinalization": "self-reference omitted; final branch HEAD is delivered separately"
   }
 }
