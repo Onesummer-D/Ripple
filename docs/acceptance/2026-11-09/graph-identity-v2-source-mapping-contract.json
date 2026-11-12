@@ -1,14 +1,20 @@
 {
   "document": "graph-identity-v2-source-mapping-contract",
-  "version": "sourcegraph-source-mapping/v1-adapter-design",
+  "version": "sourcegraph-source-mapping/v1-adapter-design-sm03-round2",
   "status": "evidence-only",
+  "dContract": {
+    "commit": "dd9c8b15251795ab7df8758fe64706532d9a1ce5",
+    "tree": "d386e7cac2a3b64e4c347a5353a60f458be0b817",
+    "verdict": "ACCEPT WITH SCOPE",
+    "scope": "D contract acceptance does not mean Adapter implementation acceptance"
+  },
   "rules": [
     {
       "id": "SM-01-path",
       "claim": "token-use.location.path == mapping.sourceUse.path == anchor.from file path",
-      "trustedEvidence": ["immutable repository-relative POSIX path", "file bytes SHA-256", "file node label/path", "unique reads anchor"],
+      "trustedEvidence": ["immutable repository-relative POSIX path", "file bytes SHA-256", "file node location/path consistency", "unique reads anchor"],
       "validationPoint": "adapter before GraphDigestV2 input construction; pure module repeats structural path checks",
-      "failureStatus": "mapping-rejected; graphDigestStatus=unavailable",
+      "failureStatus": "mappingDecision=mapping-rejected; adapterStatus=unavailable",
       "affectsGraphDigest": true,
       "hostResponsibility": "host may bind registry/project identity later, but cannot repair a path mismatch",
       "prohibitedShortcut": "node label, relation id, or string similarity is not byte-source proof"
@@ -16,43 +22,80 @@
     {
       "id": "SM-02-char-offset",
       "claim": "token-use.location.offset == mapping.sourceUse.charOffset with offsetUnit=code-unit",
-      "trustedEvidence": ["UTF-8 decoded immutable source bytes", "TypeScript/CSS parser offset", "token-use location"],
-      "validationPoint": "adapter recomputes the expected code-unit position from the frozen source text and checks the token span",
-      "failureStatus": "mapping-rejected; graphDigestStatus=unavailable",
+      "trustedEvidence": ["strict UTF-8 decoded immutable source bytes", "parser token start/span", "token-use location"],
+      "validationPoint": "adapter uses fatal UTF-8 decoding, builds UTF-16 code-unit to UTF-8 byte boundaries, and verifies token start/span",
+      "failureStatus": "mappingDecision=mapping-rejected; adapterStatus=unavailable",
       "affectsGraphDigest": true,
       "hostResponsibility": "none; host observation cannot change a static source span",
-      "prohibitedShortcut": "same numeric value without checking the source bytes is insufficient"
+      "prohibitedShortcut": "replacement decoding, numeric equality alone, or span omission is insufficient"
     },
     {
       "id": "SM-03-byte-offset",
-      "claim": "token-use.byteOffset == token-use.location.byteOffset when present == mapping.sourceUse.byteOffset",
-      "trustedEvidence": ["original UTF-8 bytes", "byte offset recomputation before decoding normalization", "parser byte offset"],
-      "validationPoint": "adapter source snapshot validator; no LF/CRLF or Unicode normalization",
-      "failureStatus": "mapping-rejected; graphDigestStatus=unavailable",
-      "affectsGraphDigest": true,
-      "hostResponsibility": "none; platform-specific offset drift is a source snapshot failure, not a host proof",
-      "prohibitedShortcut": "charOffset equality or relation id equality cannot substitute for byte offset equality"
+      "claim": "tokenUse.byteOffset == Relation.sourceUse.byteOffset == mapping.sourceUse.byteOffset; location.byteOffset is optional but equal when present",
+      "trustedEvidence": ["original UTF-8 bytes", "UTF-16 code-unit start to byte-boundary recomputation", "parser byte offset", "all three required graph fields"],
+      "validationPoint": "adapter source snapshot validator; no LF/CRLF, NFC/NFD, case, or path normalization",
+      "requiredFields": ["tokenUse.byteOffset", "Relation.sourceUse.byteOffset", "Mapping.sourceUse.byteOffset"],
+      "optionalFields": ["tokenUse.location.byteOffset"],
+      "optionalRule": "if tokenUse.location.byteOffset exists, it must equal all required byte offsets",
+      "failureStatus": "missing/conflicting required offset -> mappingDecision=mapping-rejected; adapterStatus=unavailable",
+      "affectsGraphDigest": false,
+      "hostResponsibility": "none; platform-specific offset drift is a source snapshot failure, not host proof",
+      "prohibitedShortcut": "charOffset equality, relation id equality, or synthetic location.byteOffset cannot substitute for required byte proof",
+      "adoptedOption": "D SM-03 option 2; do not add location.byteOffset to canonical GraphDigest input"
     },
     {
       "id": "SM-04-anchor",
       "claim": "mapping.sourceAnchorRelationId selects one reads/source-proven edge from a file node to the exact token-use node",
       "trustedEvidence": ["unique relation id", "kind=reads", "certainty=source-proven", "from.kind=file", "to=graphNodeId", "equal sourceUse"],
       "validationPoint": "adapter relation index and immutable source path check; pure module validates endpoint/kind/certainty/equality",
-      "failureStatus": "mapping-rejected; graphDigestStatus=unavailable",
+      "failureStatus": "mappingDecision=mapping-rejected; adapterStatus=unavailable",
       "affectsGraphDigest": true,
-      "hostResponsibility": "host can attest the analyzer build, not invent an absent anchor",
+      "hostResponsibility": "host can attest analyzer build, not invent an absent anchor",
       "prohibitedShortcut": "node names and endpoint strings alone do not prove an anchor"
     }
   ],
+  "strictUtf8AndCodeUnit": {
+    "decoder": "fatal UTF-8 decoder; invalid byte sequence is not replaced",
+    "invalidUtf8": "source-utf8-invalid -> adapterStatus=unavailable",
+    "validUfffd": "accept U+FFFD encoded as EF BF BD; one UTF-16 code-unit and three UTF-8 bytes",
+    "surrogateBoundary": "a code-unit offset inside a surrogate pair is mappingDecision=mapping-rejected",
+    "span": "verify token start and span in decoded text and original byte snapshot",
+    "normalization": "none: no LF/CRLF, NFC/NFD, case, or path normalization"
+  },
+  "coverage": {
+    "domain": "all SourceGraph.nodes where kind=token-use",
+    "cardinality": "exactly one mapping and one unique source-proven reads anchor per token-use",
+    "mappingCount": "must equal token-use node count",
+    "extraMapping": "rejected",
+    "missingOrDuplicate": "mappingDecision=mapping-rejected or mapping-missing; aggregate adapterStatus=unavailable",
+    "zeroTokenUse": "sourceMappings must be empty and coverage is complete",
+    "excluded": ["token declaration nodes", "semantic-candidate consumer edges", "css-cascade edges", "runtime consumers"]
+  },
   "sourceIdentityRule": {
     "value": "source:<sourceDigest>:<path>:<charOffset>:<byteOffset>",
     "mustBeDerivedFrom": ["validated graph.sourceDigest", "validated sourceUse"],
     "notEvidenceOf": ["host trust", "runtime observation", "computed CSS consumer", "authorization"]
   },
+  "states": {
+    "aggregate": ["rejected", "unavailable", "available-content-only"],
+    "mappingDecision": ["accepted", "mapping-rejected"],
+    "mappingRejectedAggregate": "unavailable",
+    "priority": ["rejected", "unavailable", "available-content-only"],
+    "rejected": "malformed structure or input; no digest",
+    "unavailable": "structure valid but snapshot, UTF-8, registry, TOCTOU, required byte proof, or full mapping coverage is missing; no trusted adapter result",
+    "availableContentOnly": "all ten fields, all token-use mappings, immutable bytes, and registry binding validate; pure content digest only"
+  },
   "statusRules": {
-    "missingMapping": "preserve graph and unresolved diagnostics, return unavailable; do not emit a trusted mapping",
-    "duplicateMapping": "reject; one sourceRef, graphNodeId, and anchor cannot be mapped twice",
+    "mappingRejectedIsDiagnosticOnly": true,
+    "missingMapping": "preserve graph and unresolved diagnostics, return unavailable; do not emit trusted mapping",
+    "duplicateMapping": "reject the mapping set; one sourceRef, graphNodeId, and anchor cannot be mapped twice",
     "conflictingMapping": "reject; differing path/offset/anchor/sourceIdentity is not merged",
     "untrustedProjectId": "unavailable even when pure content validation succeeds"
+  },
+  "digestBoundary": {
+    "graphDigestInputChanged": false,
+    "locationByteOffset": "optional producer metadata; never synthesized into canonical GraphDigest input",
+    "pureModule": "unchanged ten-field canonical/content digest",
+    "adapter": "snapshot, offsets, coverage, registry, and TOCTOU validation"
   }
 }

@@ -1,6 +1,6 @@
 {
   "document": "graph-identity-v2-adapter-test-plan",
-  "version": "phase1b-b/design-v1",
+  "version": "phase1b-b/design-v2-sm03-round2",
   "status": "planned-only",
   "acceptanceOrder": ["C-adapter", "pure-GraphDigestV2", "B-v5", "D-canonical-replay", "E-host-binding", "A-final-review"],
   "golden": [
@@ -9,6 +9,31 @@
     {"id":"object-key-order-stability","input":"same graph with object insertion order permuted","expect":"same digest"},
     {"id":"fixed-project-replay","input":"allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd","expect":"per-mapping status; no fabricated mapping; unavailable allowed"}
   ],
+  "sourceMappingRound2": {
+    "dContract": {
+      "commit": "dd9c8b15251795ab7df8758fe64706532d9a1ce5",
+      "tree": "d386e7cac2a3b64e4c347a5353a60f458be0b817",
+      "verdict": "ACCEPT WITH SCOPE"
+    },
+    "sm03Option": "option-2",
+    "requiredIndependentOffsets": ["tokenUse.byteOffset", "Relation.sourceUse.byteOffset", "Mapping.sourceUse.byteOffset"],
+    "optionalLocationByteOffset": "missing is allowed; present must equal all required offsets",
+    "strictUtf8": "fatal decoder; invalid bytes unavailable; legal EF BF BD accepted",
+    "coverage": "every token-use node exactly one mapping and unique source-proven reads anchor; zero token-use requires empty sourceMappings",
+    "aggregatePriority": ["rejected", "unavailable", "available-content-only"],
+    "mappingDecision": ["accepted", "mapping-rejected"],
+    "mappingRejectedAggregate": "unavailable",
+    "vectors": [
+      {"id":"sm03-location-byte-optional","mutation":"remove tokenUse.location.byteOffset only","expect":"pass if three required offsets agree"},
+      {"id":"sm03-location-byte-conflict","mutation":"set tokenUse.location.byteOffset different from required offsets","expect":"mapping-rejected; unavailable"},
+      {"id":"sm03-required-byte-missing","mutation":"remove one required byteOffset","expect":"mapping-rejected; unavailable"},
+      {"id":"sm02-invalid-utf8","mutation":"replace source byte sequence with invalid UTF-8","expect":"source-utf8-invalid; unavailable"},
+      {"id":"sm02-valid-ufffd","mutation":"use EF BF BD and matching code-unit/byte span","expect":"accepted"},
+      {"id":"token-use-one-to-one","mutation":"remove, duplicate, conflict, or add a mapping/anchor","expect":"mapping-rejected or mapping-missing; unavailable"},
+      {"id":"zero-token-use","mutation":"graph has no kind=token-use node","expect":"sourceMappings=[]; coverage complete"},
+      {"id":"state-priority","mutation":"malformed structure plus missing snapshot evidence","expect":"rejected takes priority over unavailable"}
+    ]
+  },
   "negative": [
     {"id":"version-mismatch","mutations":["graphIdentityVersion","graphSchemaVersion","relationIdentityVersion","sourceMappingVersion"],"expect":"reject"},
     {"id":"duplicate-node-or-relation","mutations":["duplicate node id","duplicate relation id","same id different payload"],"expect":"reject"},

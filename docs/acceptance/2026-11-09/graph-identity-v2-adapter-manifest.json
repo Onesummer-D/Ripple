@@ -1,5 +1,5 @@
 {
-  "manifestVersion": "phase1b-b-design-manifest/v2",
+  "manifestVersion": "phase1b-b-design-manifest/v3-sm03-round2",
   "status": "evidence-only",
   "base": {
     "pr72SourceGraphCommit": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
@@ -7,9 +7,13 @@
     "pr75PureModuleCommit": "30030cd10c4eefbd976749be1b2b5df800bbf200",
     "pr75PureModuleTree": "f49b9800a433c44c298a330aa70ebce0d95d50f6",
     "aAcceptanceCommit": "142d1aacf398b58b047e3a91d1046c6297d41650",
-    "designWorktreeCommit": "33d10616615f71e78e521671dc8df5547ed6a1ef",
-    "designWorktreeTree": "db0114a9033cb0c3350adab69c37dbcc962c4cb2",
-    "designParentIsLocalInspectionSnapshot": true
+    "designWorktreeCommit": "cebf704ef9ac49f3e1c9121d4d3825d85f114a11",
+    "designWorktreeTree": "635189d5b45fb8d7e0d91028abb4b0a5582f3dcd",
+    "designParentIsLocalInspectionSnapshot": true,
+    "dRound2Commit": "dd9c8b15251795ab7df8758fe64706532d9a1ce5",
+    "dRound2Tree": "d386e7cac2a3b64e4c347a5353a60f458be0b817",
+    "dRound2Verdict": "ACCEPT WITH SCOPE",
+    "adapterAcceptance": "not-granted"
   },
   "fixedProject": {
     "repository": "allanhue/webportflio",
@@ -28,18 +32,18 @@
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-field-matrix.json",
-      "bytes": 6291,
-      "sha256": "2058f5028ddbb1c38594d99f2e51b149f0da3f5e0d960ed8f6b601edb8335931"
+      "bytes": 8027,
+      "sha256": "e743e6ee336f33db81b8b8eda7dc0926a33778a76ee5a832f2a765b3b5be012b"
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-source-mapping-contract.json",
-      "bytes": 3766,
-      "sha256": "716f8f4383efbe0b2cfbc4d590259701504d87882c4d4b0d3876dded9e4efae2"
+      "bytes": 6797,
+      "sha256": "0174baf8b1839b0cba4f97bb66edc5a67cbb9e9dc4e0df5d78db4d8618e13b7f"
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-test-plan.json",
-      "bytes": 4182,
-      "sha256": "57d010ffeb70b8274aaaccaebadeeb3b41bce857eb71566479598aeda7ee08d7"
+      "bytes": 6218,
+      "sha256": "2a4e9a9351111e3f942b49fe321181f868b0167f6a1006c73e82e417ced2e1c5"
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-snapshot-supplement-20261109.md",
@@ -48,8 +52,13 @@
     },
     {
       "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-negative-vectors-supplement.json",
-      "bytes": 3874,
-      "sha256": "71486e918df6925d8f5b7702da6538ed27136352471e13860b23e382f21c832d"
+      "bytes": 4895,
+      "sha256": "1b25be996ea93090996c6e9ec4456c985efef6a8fc3bd6d03571321e1e244b10"
+    },
+    {
+      "path": "docs/acceptance/2026-11-09/graph-identity-v2-adapter-d-round2-integration-20261113.md",
+      "bytes": 7484,
+      "sha256": "a38922df0a431f4855111597c2395071b095d79be59548fd11ac0e49078d3f9d"
     }
   ],
   "sourceFilesChanged": [],
@@ -57,6 +66,17 @@
   "graphDigestStatus": "not-run",
   "trustStatus": "content-only-design; no host or producer proof",
   "selfHashPolicy": "manifest intentionally excludes its own commit and file hash; final archive identity is recorded by the handoff commit",
-  "supplementStatus": "P0/P1 design clarification; implementation HOLD",
+  "supplementStatus": "D round2 SM-02/SM-03 integration; implementation HOLD",
+  "dRound2Integration": {
+    "sourceMappingContract": "graph-identity-v2-source-mapping-contract.json",
+    "adoptedSm03": "option-2",
+    "requiredByteOffsets": ["tokenUse.byteOffset", "Relation.sourceUse.byteOffset", "Mapping.sourceUse.byteOffset"],
+    "optionalByteOffset": "tokenUse.location.byteOffset; equality required when present",
+    "strictUtf8": "fatal decoder; legal U+FFFD accepted; invalid bytes unavailable",
+    "tokenUseCoverage": "exact one mapping and unique source-proven anchor per token-use; zero-token-use requires empty sourceMappings",
+    "aggregatePriority": ["rejected", "unavailable", "available-content-only"],
+    "mappingRejectedIsDiagnosticOnly": true,
+    "optionAorB": "both remain design-compatible; implementation choice awaits E Linux experiment"
+  },
   "sourceDigestByteContract": "single LF byte 0A; backslash+n 5C 6E and CRLF are distinct negative vectors"
 }

@@ -1,6 +1,6 @@
 {
   "document": "graph-identity-v2-adapter-field-matrix",
-  "version": "phase1b-b/design-v1",
+  "version": "phase1b-b/design-v2-sm03-round2",
   "status": "evidence-only",
   "sourceRefs": {
     "sourceGraphBase": "d1c941da77d4ab4bbcd7ae557052557628bcb27c",
@@ -13,6 +13,40 @@
     "graphSchemaVersion": "acp6-sourcegraph/v1",
     "relationIdentityVersion": "relation-id/v1",
     "sourceMappingVersion": "sourcegraph-source-mapping/v1"
+  },
+  "dRound2Contract": {
+    "dCommit": "dd9c8b15251795ab7df8758fe64706532d9a1ce5",
+    "dTree": "d386e7cac2a3b64e4c347a5353a60f458be0b817",
+    "verdict": "ACCEPT WITH SCOPE",
+    "implementationStatus": "adapter implementation not accepted"
+  },
+  "sourceMappingContract": {
+    "sm02": {
+      "decoder": "fatal UTF-8",
+      "invalidUtf8": "source-utf8-invalid -> unavailable",
+      "validUfffd": "EF BF BD is legal U+FFFD: one UTF-16 code-unit and three UTF-8 bytes",
+      "offsetUnit": "code-unit",
+      "normalization": "none"
+    },
+    "sm03": {
+      "adopted": "option-2",
+      "requiredByteOffsets": ["tokenUse.byteOffset", "Relation.sourceUse.byteOffset", "Mapping.sourceUse.byteOffset"],
+      "optionalByteOffset": "tokenUse.location.byteOffset",
+      "optionalRule": "when present, location.byteOffset equals all required byte offsets",
+      "canonicalGraphDigestChange": false
+    },
+    "coverage": {
+      "domain": "all kind=token-use nodes",
+      "exactlyOneMappingAndAnchor": true,
+      "mappingCountEqualsTokenUseCount": true,
+      "extraMapping": "rejected",
+      "zeroTokenUse": "sourceMappings=[] and coverage complete"
+    },
+    "states": {
+      "aggregatePriority": ["rejected", "unavailable", "available-content-only"],
+      "mappingDecision": ["accepted", "mapping-rejected"],
+      "mappingRejectedAggregate": "unavailable"
+    }
   },
   "identityLayers": {
     "graphDigestV2": ["graphIdentityVersion", "graphSchemaVersion", "relationIdentityVersion", "sourceMappingVersion", "projectId", "sourceDigest", "sourceMappings", "nodes", "edges", "unresolved"],
@@ -71,16 +105,18 @@
       "id": "token-use-node",
       "source": "SourceNode(kind=token-use).location, byteOffset",
       "target": "GraphSourceMapping.graphNodeId/sourceUse",
-      "transform": "candidate mapping only when the node is anchored by one source-proven file→token-use reads edge and exact byte checks pass",
-      "evidence": "project.ts emits token-use location.path/offset and byteOffset from parseCssTokenSource",
+      "transform": "exactly one mapping only when the node is anchored by one source-proven file→token-use reads edge and exact path/charOffset/byteOffset checks pass",
+      "evidence": "project.ts emits token-use location.path/offset and tokenUse.byteOffset from parseCssTokenSource; Relation.sourceUse.byteOffset mirrors the same use",
       "status": "candidate-after-source-validation",
-      "failure": "mapping omitted and GraphDigest unavailable when anchor or byte proof is missing"
+      "requiredFields": ["location.path", "location.offset", "byteOffset", "sourceUse.path", "sourceUse.charOffset", "sourceUse.byteOffset"],
+      "optionalFields": ["location.byteOffset"],
+      "failure": "mapping omitted and GraphDigest unavailable when required fields, anchor, strict UTF-8 span, or one-to-one cardinality is missing"
     },
     {
       "id": "file-token-use-anchor",
       "source": "Relation(kind=reads, certainty=source-proven, from=file, to=token-use)",
       "target": "GraphSourceMapping.sourceAnchorRelationId/sourceUse",
-      "transform": "require unique relation id, file source path, token-use endpoint, and sourceUse equality plus byte-span verification",
+      "transform": "require exactly one unique relation id, file source path, token-use endpoint, sourceUse equality, and byte-span verification per token-use",
       "evidence": "css-token-use-source:<file>:<offset> emitted in project.ts",
       "status": "eligible-anchor",
       "failure": "mapping rejected/unavailable on missing, duplicate, or conflicting anchor"

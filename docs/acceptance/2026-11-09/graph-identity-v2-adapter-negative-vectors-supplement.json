@@ -1,6 +1,6 @@
 {
   "document": "graph-identity-v2-adapter-negative-vectors-supplement",
-  "version": "phase1b-b/design-supplement-v1",
+  "version": "phase1b-b/design-supplement-v2-sm03-round2",
   "status": "evidence-only; proposed diagnostics are not frozen",
   "contractSources": {
     "pureGraphValidator": "PR75 30030cd10c4eefbd976749be1b2b5df800bbf200",
@@ -58,7 +58,14 @@
     {"id":"tracked-set-drift","expectedStatus":"unavailable","reason":"tracked file set differs"},
     {"id":"symlink-or-special-file","expectedStatus":"rejected-or-unavailable","reason":"exact status awaits adapter contract"},
     {"id":"byte-change-between-capture-and-analysis","expectedStatus":"unavailable","reason":"TOCTOU cannot prove analyzer bytes"},
-    {"id":"non-unique-source-mapping","expectedStatus":"unavailable","reason":"mapping identity is ambiguous"}
+    {"id":"non-unique-source-mapping","expectedStatus":"unavailable","reason":"mapping identity is ambiguous"},
+    {"id":"sm03-location-byte-optional","expectedStatus":"pass","reason":"location.byteOffset may be absent when all three required byte offsets agree"},
+    {"id":"sm03-location-byte-conflict","expectedStatus":"unavailable","reason":"present location.byteOffset differs from required offsets"},
+    {"id":"sm03-required-byte-missing","expectedStatus":"unavailable","reason":"tokenUse.byteOffset, Relation.sourceUse.byteOffset, and Mapping.sourceUse.byteOffset are independently required"},
+    {"id":"sm02-invalid-utf8","expectedStatus":"unavailable","reason":"fatal decoder returns source-utf8-invalid"},
+    {"id":"sm02-valid-ufffd","expectedStatus":"pass","reason":"EF BF BD is legal U+FFFD with one code-unit and three bytes"},
+    {"id":"token-use-coverage-missing","expectedStatus":"unavailable","reason":"mapping count and unique source-proven anchor count must equal token-use node count"},
+    {"id":"zero-token-use","expectedStatus":"pass","reason":"no token-use nodes require sourceMappings=[]"}
   ],
   "nonClaims": [
     "No new public GraphDigestV2 field is proposed",
