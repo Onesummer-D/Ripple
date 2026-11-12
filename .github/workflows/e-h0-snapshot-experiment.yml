@@ -1,0 +1,81 @@
+name: E-H0 Snapshot Evidence Experiment
+
+on:
+  push:
+    branches:
+      - e/e-h0-snapshot-experiment-20261113
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout experiment commit with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install evidence tools
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y strace e2fsprogs util-linux
+
+      - name: Record runner and checkout identity
+        run: |
+          mkdir -p "$RUNNER_TEMP/e-h0-snapshot"
+          {
+            echo "runner=$(uname -a)"
+            echo "os=$(cat /etc/os-release)"
+            echo "node=$(node --version)"
+            echo "npm=$(npm --version)"
+            echo "git=$(git --version)"
+            echo "head=$(git rev-parse HEAD)"
+            echo "tree=$(git rev-parse HEAD^{tree})"
+            echo "source_commit=da89402738b3f46aeea1dc9eedaa5231a22fd571"
+          } | tee "$RUNNER_TEMP/e-h0-snapshot/runner-environment.txt"
+
+      - name: Run evidence-only experiment
+        continue-on-error: true
+        env:
+          E_H0_SOURCE_COMMIT: da89402738b3f46aeea1dc9eedaa5231a22fd571
+          E_H0_EXPECTED_TREE: d4065b4cf07a487bb73a8efc8130ff566be59973
+          E_H0_AUTH_SHA256: 04479850c469664c1f48b375613d47899230ef088a1e8a1e1128c567fe20c3bf
+          E_H0_OUTPUT_ROOT: ${{ runner.temp }}/e-h0-snapshot
+        run: |
+          set +e
+          node --experimental-transform-types \
+            --loader ./scripts/ts-extension-loader.mjs \
+            scripts/evidence/e-h0-snapshot-experiment.mjs \
+            --mode experiment
+          status=$?
+          echo "experiment_exit=$status" | tee "$RUNNER_TEMP/e-h0-snapshot/experiment-exit.txt"
+          exit 0
+
+      - name: Upload raw evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripple-e-h0-snapshot-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e-h0-snapshot
+            docs/acceptance/2026-11-12/e-h0-snapshot-experiment-*.json
+            docs/acceptance/2026-11-12/e-h0-snapshot-experiment-*.md
+          if-no-files-found: warn
+          retention-days: 30
+
+
