@@ -512,6 +512,8 @@ async function experimentMode() {
     readonly: experiment.snapshot?.readonly || null,
     analyzer: experiment.analyzer ? {
       exitCode: experiment.analyzer.exitCode ?? null,
+      stdout: experiment.analyzer.stdout || '',
+      stderr: experiment.analyzer.stderr || '',
       result: experiment.analyzer.result || null,
       trace: experiment.analyzer.trace || null,
     } : null,
