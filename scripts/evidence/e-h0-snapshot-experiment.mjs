@@ -12,8 +12,8 @@ const outputRoot = process.env.E_H0_OUTPUT_ROOT || path.join(os.tmpdir(), 'rippl
 const argv = process.argv.slice(2)
 
 const argValue = (name, fallback = undefined) => {
-  const exact = argv.find((item) => item === name)
-  if (exact) return fallback
+  const exactIndex = argv.findIndex((item) => item === name)
+  if (exactIndex >= 0) return argv[exactIndex + 1] ?? fallback
   const prefix = name + '='
   const item = argv.find((value) => value.startsWith(prefix))
   return item ? item.slice(prefix.length) : fallback
