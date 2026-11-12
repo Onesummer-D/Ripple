@@ -340,11 +340,17 @@ function prepareReadOnlySnapshot(snapshotRoot, manifest) {
 }
 
 function cleanupSnapshot(snapshotRoot, state) {
+  if (!snapshotRoot) return
   if (state?.mounted) sudo(['umount', '-l', state.mountRoot])
   sudo(['chattr', '-R', '-i', snapshotRoot])
   sudo(['chmod', '-R', 'u+w', snapshotRoot])
-  fs.rmSync(state?.mountRoot || '', { recursive: true, force: true })
-  fs.rmSync(snapshotRoot, { recursive: true, force: true })
+  const uid = command('id', ['-u']).stdout.trim()
+  const gid = command('id', ['-g']).stdout.trim()
+  if (uid && gid) sudo(['chown', '-R', uid + ':' + gid, snapshotRoot])
+  sudo(['rm', '-rf', snapshotRoot])
+  if (state?.mountRoot) sudo(['rm', '-rf', state.mountRoot])
+  try { fs.rmSync(state?.mountRoot || '', { recursive: true, force: true }) } catch {}
+  try { fs.rmSync(snapshotRoot, { recursive: true, force: true }) } catch {}
 }
 
 async function analyzeMode() {
@@ -494,6 +500,25 @@ async function experimentMode() {
     if (snapshotRoot) cleanupSnapshot(snapshotRoot, readonly)
     fs.rmSync(path.join(outputRoot, 'analyzer-tool'), { recursive: true, force: true })
   }
+  console.log(JSON.stringify({
+    optionA: experiment.status,
+    workflowCommit: experiment.workflowCommit,
+    analyzedSourceCommit: experiment.analyzedSourceCommit,
+    analyzedSourceTree: experiment.snapshot?.before?.rootTree || null,
+    trackedCount: experiment.snapshot?.before?.trackedCount || null,
+    trackedSetSha256: experiment.snapshot?.before?.trackedSetSha256 || null,
+    sourceDigest: experiment.snapshot?.before?.sourceDigest || null,
+    snapshotByteBinding: experiment.snapshot?.byteBinding || null,
+    readonly: experiment.snapshot?.readonly || null,
+    analyzer: experiment.analyzer ? {
+      exitCode: experiment.analyzer.exitCode ?? null,
+      result: experiment.analyzer.result || null,
+      trace: experiment.analyzer.trace || null,
+    } : null,
+    negativeCases: experiment.negativeCases,
+    hostProof: experiment.hostProof,
+    authorizationEligible: experiment.authorizationEligible,
+  }))
 }
 
 if (mode === 'analyze') await analyzeMode()
