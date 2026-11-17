@@ -95,8 +95,26 @@
       },
       {
         "name": "linux-docker-chromium-ci",
-        "status": "PENDING",
-        "reason": "Remote Draft PR CI has not yet run."
+        "status": "passed",
+        "head": "ac5fc1c28ae82a933466dedf9e27fce85a23fa6e",
+        "runId": 44138101823,
+        "runUrl": "https://github.com/Onesummer-D/Ripple/actions/runs/44138101823",
+        "steps": {
+          "npmCi": "passed",
+          "playwrightChromiumInstall": "passed",
+          "typecheck": "passed",
+          "vitestFiles": "74/74 passed",
+          "vitestTests": "1068/1068 passed",
+          "build": "passed",
+          "dockerRuntimeSmoke": "passed",
+          "chromiumPlaywright": "87 passed, 1 skipped"
+        },
+        "artifact": {
+          "name": "ripple-browser-evidence-44138101823",
+          "id": 14354126985,
+          "sizeBytes": 17808159,
+          "sha256": "94de4ece7b67d85d281a5e3b7def37f3fac0ec9d11715e5af9f2f045a97d1ce7"
+        }
       }
     ],
     "frozenGraphDigestV2G0": {
@@ -157,13 +175,13 @@
     },
     {
       "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/README.md",
-      "bytes": 4064,
-      "sha256": "b1b08fb24e7f834fa4d2125af9ed091fcc0c4a38c20f31604c3f85ca4ce911d1"
+      "bytes": 4197,
+      "sha256": "36e70451542439b56882336f1e678cc5c5dd3f2e8f45dc58427193ac8c801712"
     },
     {
       "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/local-validation.json",
-      "bytes": 2882,
-      "sha256": "c56c982945ebdd4792ba8c4a1f53dbe06f1361bcd0c345d6bb439d5e45280c60"
+      "bytes": 3554,
+      "sha256": "1bd647dbe9852d630fdcfec9e98f6316ec258f3d8c61bac69f14eb48a233ef7a"
     },
     {
       "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/replay.mjs",

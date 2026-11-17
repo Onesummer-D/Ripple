@@ -68,8 +68,26 @@
     },
     {
       "name": "linux-docker-chromium-ci",
-      "status": "PENDING",
-      "reason": "Remote Draft PR CI has not yet run."
+      "status": "passed",
+      "head": "ac5fc1c28ae82a933466dedf9e27fce85a23fa6e",
+      "runId": 44138101823,
+      "runUrl": "https://github.com/Onesummer-D/Ripple/actions/runs/44138101823",
+      "steps": {
+        "npmCi": "passed",
+        "playwrightChromiumInstall": "passed",
+        "typecheck": "passed",
+        "vitestFiles": "74/74 passed",
+        "vitestTests": "1068/1068 passed",
+        "build": "passed",
+        "dockerRuntimeSmoke": "passed",
+        "chromiumPlaywright": "87 passed, 1 skipped"
+      },
+      "artifact": {
+        "name": "ripple-browser-evidence-44138101823",
+        "id": 14354126985,
+        "sizeBytes": 17808159,
+        "sha256": "94de4ece7b67d85d281a5e3b7def37f3fac0ec9d11715e5af9f2f045a97d1ce7"
+      }
     }
   ],
   "frozenGraphDigestV2G0": {
