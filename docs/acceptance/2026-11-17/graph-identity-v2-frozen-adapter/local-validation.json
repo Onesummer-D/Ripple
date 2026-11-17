@@ -1,0 +1,79 @@
+{
+  "status": "local-verification-record",
+  "environment": {
+    "os": "Windows",
+    "node": "v24.15.0",
+    "npm": "11.12.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  },
+  "commands": [
+    {
+      "name": "targeted-vitest",
+      "command": "npx vitest run src/core/frozen-source-snapshot.test.ts src/core/frozen-project-snapshot.test.ts src/core/graph-identity-v2-adapter.test.ts src/core/graph-identity-v2.test.ts --reporter=dot",
+      "exitCode": 0,
+      "filesPassed": 4,
+      "testsPassed": 57,
+      "note": "The sandboxed run first hit temp rename EPERM. The same command passed when run with filesystem access required by Vitest's temporary-file rename operations."
+    },
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "exitCode": 0
+    },
+    {
+      "name": "real-sourcegraph-positive",
+      "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/real-sourcegraph-positive.mjs",
+      "exitCode": 0,
+      "status": "available-content-only",
+      "graphDigest": "af9082ccb4a0f5e53eacf4d8c5febc83bdbf6ae7bfd27ecfd9b59b7d37be66fd",
+      "canonicalBytesSha256": "c86a750686001efeca4f6992a5cf54e23d2f7d01a6d46415613fa6fb460f8b9b",
+      "sourceDigest": "47c12fc52842e2743d08ead6a9360b5721f3c11a487e63005d2948f4be6de0b4",
+      "nodes": 8,
+      "edges": 18,
+      "unresolved": 2,
+      "tokenUseCount": 2,
+      "acceptedMappings": 2,
+      "sourceTrust": "content-only",
+      "hostProvenance": "unverified"
+    },
+    {
+      "name": "full-vitest-windows",
+      "command": "npx vitest run --reporter=dot",
+      "exitCode": 1,
+      "filesTotal": 74,
+      "filesPassed": 67,
+      "filesFailed": 7,
+      "testsPassed": 1054,
+      "testsFailed": 5,
+      "testsSkipped": 9,
+      "durationSeconds": 421.43,
+      "observedFailureClasses": [
+        "browser afterAll hook timeout (10 seconds)",
+        "preview optimizeDeps performance threshold miss (observed 30184ms; limit 27209ms)",
+        "Windows symlink creation EPERM in visual evidence test"
+      ],
+      "statusInterpretation": "failed; no blanket environment waiver"
+    },
+    {
+      "name": "fixed-third-party-exact-checkout-replay",
+      "command": "replay.mjs allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd",
+      "status": "UNVERIFIED",
+      "reason": "No local successful run is available. B must replay the final exact PR HEAD."
+    },
+    {
+      "name": "linux-docker-chromium-ci",
+      "status": "PENDING",
+      "reason": "Remote Draft PR CI has not yet run."
+    }
+  ],
+  "frozenGraphDigestV2G0": {
+    "status": "passed-in-focused-tests",
+    "expectedDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b"
+  }
+}
