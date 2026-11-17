@@ -1,0 +1,12 @@
+[
+  {
+    "sourceRef": "token-use:theme.css#48",
+    "decision": "accepted",
+    "reasonCode": "mapping-byte-validated"
+  },
+  {
+    "sourceRef": "token-use:theme.css#73",
+    "decision": "accepted",
+    "reasonCode": "mapping-byte-validated"
+  }
+]

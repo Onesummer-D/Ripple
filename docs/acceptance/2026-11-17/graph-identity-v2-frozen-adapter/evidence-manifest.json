@@ -1,0 +1,222 @@
+{
+  "manifestVersion": "graph-identity-v2-frozen-adapter-evidence/v1",
+  "sourceBaseCommit": "30030cd10c4eefbd976749be1b2b5df800bbf200",
+  "requiredPrBase": {
+    "branch": "e/frozen-source-snapshot-v1-20261117",
+    "commit": "667ed54d2999e8f6e3ebaa1012165144015a9894",
+    "tree": "5870a5aab017e90a51f1ca0e65fbd06844824309",
+    "note": "E-owned FrozenSourceSnapshot module and tests are inherited unchanged from this base."
+  },
+  "graphDigestV2": {
+    "pureModuleCommit": "30030cd10c4eefbd976749be1b2b5df800bbf200",
+    "g0Digest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b",
+    "unchanged": true
+  },
+  "realSourceGraphFixture": {
+    "status": "available-content-only",
+    "graphDigest": "af9082ccb4a0f5e53eacf4d8c5febc83bdbf6ae7bfd27ecfd9b59b7d37be66fd",
+    "canonicalBytesSha256": "c86a750686001efeca4f6992a5cf54e23d2f7d01a6d46415613fa6fb460f8b9b",
+    "sourceDigest": "47c12fc52842e2743d08ead6a9360b5721f3c11a487e63005d2948f4be6de0b4",
+    "nodes": 8,
+    "edges": 18,
+    "unresolved": 2,
+    "tokenUseCount": 2,
+    "acceptedMappings": 2,
+    "sourceTrust": "content-only",
+    "hostProvenance": "unverified"
+  },
+  "localValidation": {
+    "status": "local-verification-record",
+    "environment": {
+      "os": "Windows",
+      "node": "v24.15.0",
+      "npm": "11.12.1",
+      "typescript": "5.9.3",
+      "vitest": "4.1.12"
+    },
+    "commands": [
+      {
+        "name": "targeted-vitest",
+        "command": "npx vitest run src/core/frozen-source-snapshot.test.ts src/core/frozen-project-snapshot.test.ts src/core/graph-identity-v2-adapter.test.ts src/core/graph-identity-v2.test.ts --reporter=dot",
+        "exitCode": 0,
+        "filesPassed": 4,
+        "testsPassed": 57,
+        "note": "The sandboxed run first hit temp rename EPERM. The same command passed when run with filesystem access required by Vitest's temporary-file rename operations."
+      },
+      {
+        "name": "typecheck",
+        "command": "npm run typecheck",
+        "exitCode": 0
+      },
+      {
+        "name": "build",
+        "command": "npm run build",
+        "exitCode": 0
+      },
+      {
+        "name": "real-sourcegraph-positive",
+        "command": "node --experimental-transform-types --loader ./scripts/ts-extension-loader.mjs docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/real-sourcegraph-positive.mjs",
+        "exitCode": 0,
+        "status": "available-content-only",
+        "graphDigest": "af9082ccb4a0f5e53eacf4d8c5febc83bdbf6ae7bfd27ecfd9b59b7d37be66fd",
+        "canonicalBytesSha256": "c86a750686001efeca4f6992a5cf54e23d2f7d01a6d46415613fa6fb460f8b9b",
+        "sourceDigest": "47c12fc52842e2743d08ead6a9360b5721f3c11a487e63005d2948f4be6de0b4",
+        "nodes": 8,
+        "edges": 18,
+        "unresolved": 2,
+        "tokenUseCount": 2,
+        "acceptedMappings": 2,
+        "sourceTrust": "content-only",
+        "hostProvenance": "unverified"
+      },
+      {
+        "name": "full-vitest-windows",
+        "command": "npx vitest run --reporter=dot",
+        "exitCode": 1,
+        "filesTotal": 74,
+        "filesPassed": 67,
+        "filesFailed": 7,
+        "testsPassed": 1054,
+        "testsFailed": 5,
+        "testsSkipped": 9,
+        "durationSeconds": 421.43,
+        "observedFailureClasses": [
+          "browser afterAll hook timeout (10 seconds)",
+          "preview optimizeDeps performance threshold miss (observed 30184ms; limit 27209ms)",
+          "Windows symlink creation EPERM in visual evidence test"
+        ],
+        "statusInterpretation": "failed; no blanket environment waiver"
+      },
+      {
+        "name": "fixed-third-party-exact-checkout-replay",
+        "command": "replay.mjs allanhue/webportflio@b244f857457d2a07f118155602eef9097fd322bd",
+        "status": "UNVERIFIED",
+        "reason": "No local successful run is available. B must replay the final exact PR HEAD."
+      },
+      {
+        "name": "linux-docker-chromium-ci",
+        "status": "passed",
+        "head": "ac5fc1c28ae82a933466dedf9e27fce85a23fa6e",
+        "runId": 44138101823,
+        "runUrl": "https://github.com/Onesummer-D/Ripple/actions/runs/44138101823",
+        "steps": {
+          "npmCi": "passed",
+          "playwrightChromiumInstall": "passed",
+          "typecheck": "passed",
+          "vitestFiles": "74/74 passed",
+          "vitestTests": "1068/1068 passed",
+          "build": "passed",
+          "dockerRuntimeSmoke": "passed",
+          "chromiumPlaywright": "87 passed, 1 skipped"
+        },
+        "artifact": {
+          "name": "ripple-browser-evidence-44138101823",
+          "id": 14354126985,
+          "sizeBytes": 17808159,
+          "sha256": "94de4ece7b67d85d281a5e3b7def37f3fac0ec9d11715e5af9f2f045a97d1ce7"
+        }
+      }
+    ],
+    "frozenGraphDigestV2G0": {
+      "status": "passed-in-focused-tests",
+      "expectedDigest": "4b061992d5b8d61732d1c9da093dd643523c9a841dd8a86d9feeeaedb6f1627b"
+    }
+  },
+  "files": [
+    {
+      "path": "src/core/project.ts",
+      "bytes": 76333,
+      "sha256": "d5b1a71b0413f9e98e3546a9fb8dab40fc5b8f451cd7580c19544e0c9403397f"
+    },
+    {
+      "path": "src/core/project-config-resolver.mjs",
+      "bytes": 8753,
+      "sha256": "281f91f9fa4d569d298d3a4120f8cd10ff2f188b7159e364c45f809819a82bcd"
+    },
+    {
+      "path": "src/core/project-config-resolver.d.mts",
+      "bytes": 1234,
+      "sha256": "3857a8110f69c50ec828273951c51250c2dd5081f15c3a0f6fd278ac111ad259"
+    },
+    {
+      "path": "src/core/page-overrides.ts",
+      "bytes": 9610,
+      "sha256": "e0217e5557d8eb1d0131c4126c8ec3c8cdacb3fd563ec70c383ddaa368396359"
+    },
+    {
+      "path": "src/core/frozen-project-snapshot.ts",
+      "bytes": 6697,
+      "sha256": "38d467069e805caf9e448b05ad04645be0c35b0f9ebeec0cdfc554f4b87c3946"
+    },
+    {
+      "path": "src/core/frozen-project-snapshot.test.ts",
+      "bytes": 5618,
+      "sha256": "be03ed7e89eff461cb35509555ffa568780a3cc31e9e72ca32fc19ec6ea76b1b"
+    },
+    {
+      "path": "src/core/graph-identity-v2-adapter.ts",
+      "bytes": 15532,
+      "sha256": "d3093e123fcbee0e9fbcd7eb67d1ac1064c08f13a27d5ab6770eea3fec176daf"
+    },
+    {
+      "path": "src/core/graph-identity-v2-adapter.test.ts",
+      "bytes": 7943,
+      "sha256": "ee7087dfff316a3150a3bba4b5de1cfebc36ae407580b05389875d833759a274"
+    },
+    {
+      "path": "src/core/frozen-source-snapshot.ts",
+      "bytes": 9123,
+      "sha256": "a852a347e04b25fe86dabc78d11e29f22d7aa63d1666fdaae9a9acb3d4643480"
+    },
+    {
+      "path": "src/core/frozen-source-snapshot.test.ts",
+      "bytes": 6650,
+      "sha256": "4829c6724c7dc7b31881eda6c731dacb7ae5265c559fb30a89c2f0cf57ff4b27"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/README.md",
+      "bytes": 4197,
+      "sha256": "36e70451542439b56882336f1e678cc5c5dd3f2e8f45dc58427193ac8c801712"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/local-validation.json",
+      "bytes": 3554,
+      "sha256": "1bd647dbe9852d630fdcfec9e98f6316ec258f3d8c61bac69f14eb48a233ef7a"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/replay.mjs",
+      "bytes": 3259,
+      "sha256": "8e24b0e26425b16af161b0cdc63e1dd20e603a678069d5eee0eb4d3436324f71"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/real-sourcegraph-positive.mjs",
+      "bytes": 3781,
+      "sha256": "d74c328a9822e6f8f082c9e3682340d85c49b58d019007c27a7dc0471b0cbfb8"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/generate-manifest.mjs",
+      "bytes": 3121,
+      "sha256": "22e984436a4c9c2606b6136b07a7763da5fead58b34237925975068ea7f1a799"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/real-sourcegraph-output/canonical-graph.json",
+      "bytes": 7982,
+      "sha256": "c86a750686001efeca4f6992a5cf54e23d2f7d01a6d46415613fa6fb460f8b9b"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/real-sourcegraph-output/mapping-diagnostics.json",
+      "bytes": 249,
+      "sha256": "470321d78d25e1ba025c41af1967a66ce018646e750a8dd10da2c2a619dd1c5d"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/real-sourcegraph-output/report.json",
+      "bytes": 1043,
+      "sha256": "1241dc8ee9d6d1fc10d6218ea74ed25087a61abf6142435c2e3fd491ee555415"
+    },
+    {
+      "path": "docs/acceptance/2026-11-17/graph-identity-v2-frozen-adapter/real-sourcegraph-output/sourcegraph.json",
+      "bytes": 10100,
+      "sha256": "c2cc2f143a9ef696b1d34db2fb246488aec5433d444a41809085eb9a21890dad"
+    }
+  ]
+}

@@ -1,21 +1,21 @@
 import path from 'node:path'
 import fs from 'node:fs'
 
-function parseConfig(configPath, ts) {
+function parseConfig(configPath, ts, system) {
   const absolutePath = path.resolve(configPath)
-  const read = ts.readConfigFile(absolutePath, ts.sys.readFile)
+  const read = ts.readConfigFile(absolutePath, system.readFile)
   if (read.error) return undefined
   const parsed = ts.getParsedCommandLineOfConfigFile(absolutePath, {}, {
-    ...ts.sys,
+    ...system,
     onUnRecoverableConfigFileDiagnostic: () => {},
   })
   return parsed ? { configPath: absolutePath, raw: read.config, parsed } : undefined
 }
 
-function applicationEntries(root, ts) {
+function applicationEntries(root, system) {
   const htmlPath = path.join(root, 'index.html')
-  if (!ts.sys.fileExists(htmlPath)) return []
-  const html = ts.sys.readFile(htmlPath) ?? ''
+  if (!system.fileExists(htmlPath)) return []
+  const html = system.readFile(htmlPath) ?? ''
   return [...html.matchAll(/<script\b[^>]*\btype=["']module["'][^>]*>/gi)]
     .map(match => match[0])
     .map(tag => tag.match(/\bsrc=["']([^"']+)["']/i)?.[1])
@@ -23,25 +23,25 @@ function applicationEntries(root, ts) {
     .map(source => path.resolve(root, source.replace(/^\/+/, '').split(/[?#]/, 1)[0]))
 }
 
-function collectConfigs(root, ts) {
+function collectConfigs(root, ts, system) {
   const pending = ['tsconfig.json', 'jsconfig.json']
     .map(name => path.join(root, name))
-    .filter(file => ts.sys.fileExists(file))
+    .filter(file => system.fileExists(file))
   const visited = new Set()
   const configs = []
   while (pending.length) {
     const configPath = path.resolve(pending.shift())
     if (visited.has(configPath)) continue
     visited.add(configPath)
-    const config = parseConfig(configPath, ts)
+    const config = parseConfig(configPath, ts, system)
     if (!config) continue
     configs.push(config)
     const references = Array.isArray(config.raw.references) ? config.raw.references : []
     for (const reference of references) {
       if (typeof reference?.path !== 'string') continue
       const referencePath = path.resolve(path.dirname(configPath), reference.path)
-      const target = ts.sys.directoryExists(referencePath) ? path.join(referencePath, 'tsconfig.json') : referencePath
-      if (ts.sys.fileExists(target)) pending.push(target)
+      const target = system.directoryExists(referencePath) ? path.join(referencePath, 'tsconfig.json') : referencePath
+      if (system.fileExists(target)) pending.push(target)
     }
   }
   return configs
@@ -98,10 +98,10 @@ function aliasRules(config) {
   return { status: 'supported', rules }
 }
 
-export function resolveProjectConfigGraph(inputRoot, ts) {
+export function resolveProjectConfigGraph(inputRoot, ts, system = ts.sys) {
   const root = path.resolve(inputRoot)
-  const entries = applicationEntries(root, ts)
-  const configs = collectConfigs(root, ts)
+  const entries = applicationEntries(root, system)
+  const configs = collectConfigs(root, ts, system)
   const application = chooseConfig(configs, entries)
   let aliases
   if (application.status !== 'supported') aliases = { status: application.status, reason: application.reason, rules: [] }

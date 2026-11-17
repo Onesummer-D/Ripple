@@ -4,6 +4,9 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import type { ProjectRevision, Relation, RuntimeElementObservation, RuntimeIdentityReason, RuntimePageContext, RuntimeSourceMap, SourceGraph, SourceNode } from './model'
+import { bindFrozenAnalysis } from './graph-identity-v2-adapter'
+import type { FrozenSourceSnapshot } from './frozen-source-snapshot'
+import { frozenSourceRef, isFrozenSourceSnapshot, frozenSourceSystem } from './frozen-project-snapshot'
 import { findPageOverrideMarkers, readPageOverrideRegistry } from './page-overrides'
 import type { ProjectConfigGraph } from './project-config-resolver.mjs'
 import { resolveProjectConfigGraph } from './project-config-resolver.mjs'
@@ -82,8 +85,8 @@ const auditedRouterHostMajor = (version: string): boolean => {
   return match !== null && (match[1] === '6' || match[1] === '7')
 }
 
-const routerHostBasis = (root: string, containingFile: string, specifier: string): string | undefined => {
-  const resolved = ts.resolveModuleName(specifier, containingFile, { moduleResolution: ts.ModuleResolutionKind.Bundler }, ts.sys)
+const routerHostBasis = (root: string, containingFile: string, specifier: string, system = ts.sys): string | undefined => {
+  const resolved = ts.resolveModuleName(specifier, containingFile, { moduleResolution: ts.ModuleResolutionKind.Bundler }, system)
     .resolvedModule?.resolvedFileName
   // The allowlist must reflect the ANALYZED PROJECT's own installation,
   // never a router reached by walking past the project root (for example the
@@ -101,9 +104,9 @@ const routerHostBasis = (root: string, containingFile: string, specifier: string
       const rootDir = path.parse(dir).root
       while (dir !== rootDir) {
         const manifest = path.join(dir, 'package.json')
-        if (fs.existsSync(manifest)) {
+        if (system.fileExists(manifest)) {
           try {
-            const parsed = JSON.parse(fs.readFileSync(manifest, 'utf8')) as { name?: string; version?: string }
+            const parsed = JSON.parse(system.readFile(manifest)!) as { name?: string; version?: string }
             if (parsed.name === specifier && parsed.version && auditedRouterHostMajor(parsed.version)) {
               return `${parsed.name}@${parsed.version}(installed)`
             }
@@ -128,7 +131,7 @@ const routerHostBasis = (root: string, containingFile: string, specifier: string
   // package, and only accept ranges whose every possible version is an
   // audited major: an exact x.y.z, or a caret/tilde range on major 6/7.
   try {
-    const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')) as {
+    const manifest = JSON.parse(system.readFile(path.join(projectRoot, 'package.json'))!) as {
       dependencies?: Record<string, string>; devDependencies?: Record<string, string>; peerDependencies?: Record<string, string>
     }
     const declared = manifest.dependencies?.[specifier] ?? manifest.devDependencies?.[specifier] ?? manifest.peerDependencies?.[specifier]
@@ -272,25 +275,60 @@ function declarationComponentName(
   return target ? byExport.get(`${target.file}#${target.exportName}`) : undefined
 }
 
-export function analyzeProject(input: string, requireClean = true): SourceGraph {
-  const snapshot = readProjectSnapshot(input, requireClean)
-  const overrideRegistry = readPageOverrideRegistry(snapshot.root)
+export function analyzeProject(input: string | FrozenSourceSnapshot, requireClean = true): SourceGraph {
+  const frozen = typeof input !== 'string'
+  if (frozen && !isFrozenSourceSnapshot(input)) throw new ProjectReadError('Frozen source snapshot is unavailable')
+  const frozenInput = frozen ? input as FrozenSourceSnapshot : undefined
+  const frozenRevision: ProjectRevision | undefined = frozenInput ? {
+    projectId: `project:${sha256(normalize(frozenInput.root)).slice(0, 20)}`,
+    sourceDigest: frozenInput.sourceDigest,
+    gitCommit: frozenInput.gitHead ?? '',
+    ref: frozenSourceRef(frozenInput),
+    runtimeFingerprint: sha256([`node=${process.version}`, `typescript=${ts.version}`,
+      ...['package.json', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb', 'bun.lock']
+        .filter(name => frozenInput.fileExists(path.join(frozenInput.root, name)))
+        .map(name => `${name}=${sha256(Buffer.from(frozenInput.readFile(path.join(frozenInput.root, name))!))}`),
+    ].sort().join('\n')),
+  } : undefined
+  const snapshot: ProjectSnapshot = frozenInput ? {
+    root: frozenInput.root,
+    revision: frozenRevision!,
+    trackedFiles: [...frozenInput.trackedFiles],
+  } : readProjectSnapshot(input as string, requireClean)
+  const system = frozen ? frozenSourceSystem(input as FrozenSourceSnapshot) : ts.sys
+  const overrideRegistry = readPageOverrideRegistry(snapshot.root, frozen ? system : undefined)
   const sourceFiles = new Map<string, ts.SourceFile>()
   const tracked = new Set(snapshot.trackedFiles.map(file => normalize(path.join(snapshot.root, file))))
   const codeFiles = snapshot.trackedFiles.filter(file => /\.(tsx?|jsx?)$/i.test(file) && !/(^|\/)(node_modules|dist|build|\.ripple)(\/|$)/.test(file))
   for (const relative of codeFiles) {
     const absolute = path.join(snapshot.root, relative)
-    const stat = fs.lstatSync(absolute)
-    if (stat.isSymbolicLink() || !stat.isFile()) continue
-    const source = ts.createSourceFile(relative, fs.readFileSync(absolute, 'utf8'), ts.ScriptTarget.Latest, true, sourceKindFor(relative))
+    if (!frozen) {
+      const stat = fs.lstatSync(absolute)
+      if (stat.isSymbolicLink() || !stat.isFile()) continue
+    }
+    const source = ts.createSourceFile(relative, system.readFile(absolute)!, ts.ScriptTarget.Latest, true, sourceKindFor(relative))
     if (parseErrors(source).length) throw new ProjectReadError(`TypeScript/JSX 解析失败：${relative}`)
     sourceFiles.set(normalize(absolute), source)
   }
 
   const compilerOptions: ts.CompilerOptions = { jsx: ts.JsxEmit.Preserve, moduleResolution: ts.ModuleResolutionKind.Bundler, allowJs: true }
-  const configGraph: ProjectConfigGraph = resolveProjectConfigGraph(snapshot.root, ts)
+  const configGraph: ProjectConfigGraph = resolveProjectConfigGraph(snapshot.root, ts, system)
   if (configGraph.application.status === 'supported') Object.assign(compilerOptions, configGraph.application.parsed.options)
-  const program = ts.createProgram([...sourceFiles.keys()], compilerOptions)
+  const host = ts.createCompilerHost(compilerOptions)
+  if (frozen) {
+    host.readFile = system.readFile
+    host.fileExists = system.fileExists
+    host.directoryExists = system.directoryExists
+    host.getDirectories = system.getDirectories
+    host.realpath = system.realpath
+    host.getCurrentDirectory = system.getCurrentDirectory
+    host.getSourceFile = (name, languageVersion) => {
+      const text = system.readFile(name)
+      return text === undefined ? undefined : ts.createSourceFile(name, text, languageVersion, true)
+    }
+    host.writeFile = () => { throw new ProjectReadError('Frozen analyzer cannot write files') }
+  }
+  const program = ts.createProgram([...sourceFiles.keys()], compilerOptions, host)
   const checker = program.getTypeChecker()
   for (const absolute of sourceFiles.keys()) {
     const boundSource = program.getSourceFile(absolute)
@@ -602,8 +640,8 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
   }
   for (const file of snapshot.trackedFiles.filter(candidate => /\.css$/i.test(candidate))) {
     const absolute = path.join(snapshot.root, file)
-    if (fs.lstatSync(absolute).isSymbolicLink()) continue
-    const css = fs.readFileSync(absolute, 'utf8')
+    if (!frozen && fs.lstatSync(absolute).isSymbolicLink()) continue
+    const css = system.readFile(absolute)!
     let parsed: ReturnType<typeof parseCssTokenSource>
     try {
       parsed = parseCssTokenSource(file, css)
@@ -690,7 +728,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     for (const statement of source.statements) {
       if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
       const specifier = statement.moduleSpecifier.text
-      const scriptResolved = ts.resolveModuleName(specifier, absolute, compilerOptions, ts.sys).resolvedModule?.resolvedFileName
+      const scriptResolved = ts.resolveModuleName(specifier, absolute, compilerOptions, system).resolvedModule?.resolvedFileName
       const cssResolved = /\.css$/i.test(specifier) ? path.resolve(path.dirname(absolute), specifier) : undefined
       const resolved = scriptResolved ?? (cssResolved && tracked.has(normalize(cssResolved)) ? cssResolved : undefined)
       if (!resolved || !tracked.has(normalize(resolved))) {
@@ -798,7 +836,7 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
               const binding = routerHostBindings.get(tag)
               const used = binding && checker.getSymbolAtLocation(parentElement.openingElement.tagName)
               if (binding && used === binding.symbol) {
-                const versioned = routerHostBasis(snapshot.root, absolute, binding.specifier)
+                const versioned = routerHostBasis(snapshot.root, absolute, binding.specifier, system)
                 if (versioned) {
                   certainty = 'source-proven'
                   basis = `:host-proven:${binding.exportName}:${versioned}`
@@ -1097,9 +1135,11 @@ export function analyzeProject(input: string, requireClean = true): SourceGraph 
     }
   }
 
-  const endDigest = readProjectSnapshot(snapshot.root, false).revision.sourceDigest
+  const endDigest = frozen ? snapshot.revision.sourceDigest : readProjectSnapshot(snapshot.root, false).revision.sourceDigest
   if (endDigest !== snapshot.revision.sourceDigest) throw new ProjectReadError('分析期间项目源码发生变化，请重新读取')
-  return { id: `graph:${snapshot.revision.sourceDigest.slice(0, 20)}`, revision: snapshot.revision, nodes, edges, unresolved: [...new Set(unresolved)] }
+  const graph: SourceGraph = { id: `graph:${snapshot.revision.sourceDigest.slice(0, 20)}`, revision: snapshot.revision, nodes, edges, unresolved: [...new Set(unresolved)] }
+  if (frozen) bindFrozenAnalysis(graph, input as FrozenSourceSnapshot)
+  return graph
 }
 
 export function resolveJsxSourceElement(graph: SourceGraph, sourceRef: string): { element: SourceNode; editableText: SourceNode[] } {
