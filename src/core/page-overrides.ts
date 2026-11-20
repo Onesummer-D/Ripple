@@ -47,7 +47,11 @@ function validateRegistry(value: unknown): PageOverrideRegistry {
   return registry as PageOverrideRegistry
 }
 
-export function readPageOverrideRegistry(root: string): PageOverrideRegistry {
+export function readPageOverrideRegistry(root: string, source?: Pick<ts.System, 'readFile'>): PageOverrideRegistry {
+  if (source) {
+    const text = source.readFile(path.join(root, '.ripple/overrides.json'))
+    return text === undefined ? emptyPageOverrideRegistry() : validateRegistry(JSON.parse(text))
+  }
   const directory = path.join(root, '.ripple')
   const registryPath = path.join(directory, 'overrides.json')
   if (!fs.existsSync(directory)) return emptyPageOverrideRegistry()

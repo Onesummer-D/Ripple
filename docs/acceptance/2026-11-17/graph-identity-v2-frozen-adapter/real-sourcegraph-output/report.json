@@ -1,0 +1,28 @@
+{
+  "status": "available-content-only",
+  "graphDigest": "af9082ccb4a0f5e53eacf4d8c5febc83bdbf6ae7bfd27ecfd9b59b7d37be66fd",
+  "canonicalBytesSha256": "c86a750686001efeca4f6992a5cf54e23d2f7d01a6d46415613fa6fb460f8b9b",
+  "sourceDigest": "47c12fc52842e2743d08ead6a9360b5721f3c11a487e63005d2948f4be6de0b4",
+  "gitHead": "e2660ee55ef038d2d0fc8f0894bd795366d199d8",
+  "rootTree": "9332f9c4e94614e4cc07012c8ec724dcaef915d2",
+  "trackedFiles": [
+    "App.tsx",
+    "theme.css"
+  ],
+  "graph": {
+    "nodes": 8,
+    "edges": 18,
+    "unresolved": 2
+  },
+  "tokenUseCount": 2,
+  "mappingCount": 2,
+  "acceptedMappings": 2,
+  "sourceTrust": "content-only",
+  "hostProvenance": "unverified",
+  "registryBinding": "caller-supplied-unattested",
+  "artifacts": {
+    "canonical-graph.json": "c86a750686001efeca4f6992a5cf54e23d2f7d01a6d46415613fa6fb460f8b9b",
+    "mapping-diagnostics.json": "470321d78d25e1ba025c41af1967a66ce018646e750a8dd10da2c2a619dd1c5d",
+    "sourcegraph.json": "c2cc2f143a9ef696b1d34db2fb246488aec5433d444a41809085eb9a21890dad"
+  }
+}

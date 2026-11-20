@@ -1,0 +1,374 @@
+{
+  "id": "graph:47c12fc52842e2743d08",
+  "revision": {
+    "projectId": "project:d066db2c0d6ecae20c00",
+    "sourceDigest": "47c12fc52842e2743d08ead6a9360b5721f3c11a487e63005d2948f4be6de0b4",
+    "gitCommit": "e2660ee55ef038d2d0fc8f0894bd795366d199d8",
+    "ref": "master",
+    "runtimeFingerprint": "3a527c2a80c70eeaf5fb15dc0b16ac4c819b2a67feb7236257cfe7efd5f4db8f"
+  },
+  "nodes": [
+    {
+      "id": "file:App.tsx",
+      "kind": "file",
+      "label": "App.tsx",
+      "location": {
+        "path": "App.tsx"
+      }
+    },
+    {
+      "id": "file:theme.css",
+      "kind": "file",
+      "label": "theme.css",
+      "location": {
+        "path": "theme.css"
+      }
+    },
+    {
+      "id": "component:App.tsx#22",
+      "kind": "component",
+      "label": "App",
+      "location": {
+        "path": "App.tsx",
+        "start": 22,
+        "end": 88
+      }
+    },
+    {
+      "id": "token:theme.css#30",
+      "kind": "token",
+      "label": "--accent",
+      "value": "#456",
+      "location": {
+        "path": "theme.css",
+        "start": 30,
+        "end": 34,
+        "offset": 21
+      },
+      "tokenOrigin": "css-custom-property",
+      "selectorScope": ":root",
+      "byteOffset": 29,
+      "mediaContext": []
+    },
+    {
+      "id": "token-use:theme.css#48",
+      "kind": "token-use",
+      "label": "var(--accent)",
+      "value": "var(--accent)",
+      "location": {
+        "path": "theme.css",
+        "start": 48,
+        "end": 60,
+        "offset": 48
+      },
+      "byteOffset": 56,
+      "selectorScope": ".title",
+      "mediaContext": []
+    },
+    {
+      "id": "token-use:theme.css#73",
+      "kind": "token-use",
+      "label": "var(--accent)",
+      "value": "var(--accent)",
+      "location": {
+        "path": "theme.css",
+        "start": 73,
+        "end": 85,
+        "offset": 73
+      },
+      "byteOffset": 81,
+      "selectorScope": ".title",
+      "mediaContext": []
+    },
+    {
+      "id": "jsx:App.tsx#51",
+      "kind": "jsx-element",
+      "label": "<h1>",
+      "location": {
+        "path": "App.tsx",
+        "start": 51,
+        "end": 87,
+        "offset": 51
+      },
+      "selector": "[data-ripple-source=\"jsx:App.tsx#51\"]",
+      "className": "title"
+    },
+    {
+      "id": "literal:App.tsx#73",
+      "kind": "data",
+      "label": "Frozen 中文",
+      "value": "Frozen 中文",
+      "location": {
+        "path": "App.tsx",
+        "start": 73,
+        "end": 82
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "source:component:App.tsx#22",
+      "from": "component:App.tsx#22",
+      "to": "file:App.tsx",
+      "kind": "imports",
+      "certainty": "source-proven",
+      "evidenceRefs": []
+    },
+    {
+      "id": "definition:token:theme.css#30",
+      "from": "file:theme.css",
+      "to": "token:theme.css#30",
+      "kind": "reads",
+      "certainty": "source-proven",
+      "evidenceRefs": []
+    },
+    {
+      "id": "css-token-use-source:theme.css:48",
+      "from": "file:theme.css",
+      "to": "token-use:theme.css#48",
+      "kind": "reads",
+      "certainty": "source-proven",
+      "evidenceRefs": [
+        "css-token-use:theme.css:48"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 48,
+        "byteOffset": 56,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ".title"
+    },
+    {
+      "id": "css-token-use-source:theme.css:73",
+      "from": "file:theme.css",
+      "to": "token-use:theme.css#73",
+      "kind": "reads",
+      "certainty": "source-proven",
+      "evidenceRefs": [
+        "css-token-use:theme.css:73"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 73,
+        "byteOffset": 81,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ".title"
+    },
+    {
+      "id": "import:App.tsx:0",
+      "from": "file:App.tsx",
+      "to": "file:theme.css",
+      "kind": "imports",
+      "certainty": "source-proven",
+      "evidenceRefs": []
+    },
+    {
+      "id": "component-host:component:App.tsx#22:jsx:App.tsx#51",
+      "from": "component:App.tsx#22",
+      "to": "jsx:App.tsx#51",
+      "kind": "renders",
+      "certainty": "source-proven",
+      "evidenceRefs": []
+    },
+    {
+      "id": "literal-read:literal:App.tsx#73",
+      "from": "component:App.tsx#22",
+      "to": "literal:App.tsx#73",
+      "kind": "reads",
+      "certainty": "source-proven",
+      "evidenceRefs": []
+    },
+    {
+      "id": "jsx-text:jsx:App.tsx#51:literal:App.tsx#73",
+      "from": "jsx:App.tsx#51",
+      "to": "literal:App.tsx#73",
+      "kind": "reads",
+      "certainty": "source-proven",
+      "evidenceRefs": []
+    },
+    {
+      "id": "css-token-unknown:theme.css:48:--accent",
+      "from": "token-use:theme.css#48",
+      "to": "file:theme.css",
+      "kind": "uses-token",
+      "certainty": "unknown",
+      "evidenceRefs": [
+        "css-token-use:theme.css:48"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 48,
+        "byteOffset": 56,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ".title"
+    },
+    {
+      "id": "css-token-declaration-use:token:theme.css#30:token-use:theme.css#48",
+      "from": "token:theme.css#30",
+      "to": "token-use:theme.css#48",
+      "kind": "token-reference",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:48",
+        "token-use:theme.css#48"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 48,
+        "byteOffset": 56,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    },
+    {
+      "id": "css-token-reference:token-use:theme.css#48:token:theme.css#30",
+      "from": "token-use:theme.css#48",
+      "to": "token:theme.css#30",
+      "kind": "uses-token",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:48",
+        "token-use:theme.css#48"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 48,
+        "byteOffset": 56,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    },
+    {
+      "id": "css-selector-candidate:relation-id/v1:eb32e3dc61b5bb35c18f9781582397329b378eaa98dfeb63c20ad91dd2ada447",
+      "from": "token-use:theme.css#48",
+      "to": "jsx:App.tsx#51",
+      "kind": "css-cascade",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:48",
+        "token-use:theme.css#48"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 48,
+        "byteOffset": 56,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    },
+    {
+      "id": "css-token-consumer:token:theme.css#30:token-use:theme.css#48:jsx:App.tsx#51",
+      "from": "jsx:App.tsx#51",
+      "to": "token:theme.css#30",
+      "kind": "uses-token",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:48",
+        "token-use:theme.css#48"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 48,
+        "byteOffset": 56,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    },
+    {
+      "id": "css-token-unknown:theme.css:73:--accent",
+      "from": "token-use:theme.css#73",
+      "to": "file:theme.css",
+      "kind": "uses-token",
+      "certainty": "unknown",
+      "evidenceRefs": [
+        "css-token-use:theme.css:73"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 73,
+        "byteOffset": 81,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ".title"
+    },
+    {
+      "id": "css-token-declaration-use:token:theme.css#30:token-use:theme.css#73",
+      "from": "token:theme.css#30",
+      "to": "token-use:theme.css#73",
+      "kind": "token-reference",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:73",
+        "token-use:theme.css#73"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 73,
+        "byteOffset": 81,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    },
+    {
+      "id": "css-token-reference:token-use:theme.css#73:token:theme.css#30",
+      "from": "token-use:theme.css#73",
+      "to": "token:theme.css#30",
+      "kind": "uses-token",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:73",
+        "token-use:theme.css#73"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 73,
+        "byteOffset": 81,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    },
+    {
+      "id": "css-selector-candidate:relation-id/v1:cc3f6c5494d57605ae127255943bf7937b03a1a52d2a957d2c54e046f8138012",
+      "from": "token-use:theme.css#73",
+      "to": "jsx:App.tsx#51",
+      "kind": "css-cascade",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:73",
+        "token-use:theme.css#73"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 73,
+        "byteOffset": 81,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    },
+    {
+      "id": "css-token-consumer:token:theme.css#30:token-use:theme.css#73:jsx:App.tsx#51",
+      "from": "jsx:App.tsx#51",
+      "to": "token:theme.css#30",
+      "kind": "uses-token",
+      "certainty": "semantic-candidate",
+      "evidenceRefs": [
+        "css-token-use:theme.css:73",
+        "token-use:theme.css#73"
+      ],
+      "sourceUse": {
+        "path": "theme.css",
+        "charOffset": 73,
+        "byteOffset": 81,
+        "offsetUnit": "code-unit"
+      },
+      "selectorScope": ":root"
+    }
+  ],
+  "unresolved": [
+    "css-token-use-unknown:theme.css#48: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven",
+    "css-token-use-unknown:theme.css#73: var(--accent) static selector/className matches are candidates; DOM activation, cascade, theme state and computed style are not proven"
+  ]
+}

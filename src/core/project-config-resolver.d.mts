@@ -33,7 +33,7 @@ export interface ProjectConfigGraph {
   }
 }
 
-export function resolveProjectConfigGraph(root: string, typescript: typeof ts): ProjectConfigGraph
+export function resolveProjectConfigGraph(root: string, typescript: typeof ts, system?: ts.System): ProjectConfigGraph
 export function toViteAliasRules(graph: ProjectConfigGraph): Array<{ find: string | RegExp; replacement: string }>
 export function toViteExistenceFallbackPrefixes(graph: ProjectConfigGraph): string[]
 export function probeExistenceFallback(prefixDir: string, specifier: string, fileExists?: (candidate: string) => boolean): string | null
