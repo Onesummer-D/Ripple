@@ -1,0 +1,65 @@
+{
+  "evidence": {
+    "version": "ripple/graph-producer-evidence/v1",
+    "build": {
+      "version": "ripple/analyzer-source-build/v1",
+      "producer": "ripple/analyzeProject",
+      "lockfileSha256": "9288e5a0747fcc6afe9f37d854555acaecad1d08b5b31eea4c871fc00e7cc764",
+      "runtime": {
+        "nodeVersion": "v24.15.0",
+        "nodeExecutableSha256": "3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5",
+        "icuVersion": "78.2",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "dependencies": {
+        "typescript": "5.9.3",
+        "postcss": "8.5.30",
+        "nanoid": "3.3.20",
+        "picocolors": "1.1.1",
+        "source-map-js": "1.2.2"
+      },
+      "buildSha256": "78e8dad97e4df1338982974d547e74f122dba780cadc3ccaca239c9acbfd584e"
+    },
+    "source": {
+      "projectId": "test-only:webportflio",
+      "repository": "allanhue/webportflio",
+      "head": "b244f857457d2a07f118155602eef9097fd322bd",
+      "rootTree": "2a11c8c54d253e153585e88328a365ec5f4eb5cb",
+      "sourceDigest": "8b290a1fad716fc674f572a93ad9256a509610925c1539d565afa115930a214c",
+      "trackedSetSha256": "4553df9bf9fc648ff62d4e03c0ae7c525261a464e92acc8bfe0d0745bde7a59d"
+    },
+    "rawGraphArtifactSha256": "855da230e3f749c969b7eeef7bae8ec636291500682bab00f3d178e9f637df05",
+    "graphDigest": "f06aa70dfd13a88f0c32d33d00ffa368f8c984da9c567587cef47553952562d3",
+    "canonicalBytesSha256": "319a0d6dbae1bda9a3e1036939624b3b399f62ad80fecadd53053eaa70455af6",
+    "evidenceSha256": "3daf8dd648b1feef9bd3c9b4527fc56258657c7bd7803271fb6d1e3e75389ccb"
+  },
+  "verification": "replayed",
+  "directAnalyzerRawBytesEqual": true,
+  "graph": {
+    "nodes": 675,
+    "edges": 3046,
+    "unresolved": 253,
+    "mappings": 252
+  },
+  "adapterStatus": "available-content-only",
+  "hostProvenance": "unverified",
+  "negatives": {
+    "appendedByte": {
+      "status": "unavailable",
+      "reason": "graph-artifact-mismatch"
+    },
+    "forgedProducer": {
+      "status": "unavailable",
+      "reason": "evidence-mismatch"
+    },
+    "missingBuild": {
+      "status": "unavailable",
+      "reason": "build-identity-unavailable"
+    },
+    "wrongTree": {
+      "status": "unavailable",
+      "reason": "project-binding-mismatch"
+    }
+  }
+}
