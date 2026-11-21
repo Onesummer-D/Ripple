@@ -1,13 +1,17 @@
 import { resolve } from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import react from '@vitejs/plugin-react'
 import { localProjectApiPlugin } from './src/core/local-project-api'
+import { loadLocalProjectAnalysisHost } from './src/core/local-project-analysis-host'
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   // demo-static 模式：公网静态体验版（评委 Demo）。
   // 与正式构建的差异：强制演示适配器（VITE_STATIC_DEMO=1，入口在 experience-main.tsx 判定）、
   // 相对资源路径（可部署在任意子路径）、独立输出目录 dist-demo、不内嵌后端 API。
   const demoStatic = mode === 'demo-static'
+  const readOnlyAnalysisHost = command === 'serve' && !demoStatic
+    ? loadLocalProjectAnalysisHost(process.env.RIPPLE_LOCAL_ANALYSIS_HOST_CONFIG, [searchForWorkspaceRoot(__dirname)])
+    : undefined
   const input: Record<string, string> = demoStatic
     ? { experience: resolve(__dirname, 'experience.html') }
     : {
@@ -16,7 +20,7 @@ export default defineConfig(({ mode }) => {
       }
 
   return {
-    plugins: demoStatic ? [react()] : [localProjectApiPlugin(), react()],
+    plugins: demoStatic ? [react()] : [localProjectApiPlugin({ readOnlyAnalysisHost }), react()],
     server: { host: '127.0.0.1', port: 4173, strictPort: true },
     base: demoStatic ? './' : '/',
     define: demoStatic ? { 'import.meta.env.VITE_STATIC_DEMO': JSON.stringify('1') } : {},
