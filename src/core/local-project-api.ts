@@ -17,6 +17,7 @@ import { normalizeVerificationContract, VerificationContractError } from './veri
 import { listStoredCandidates, readStoredCandidate, workbenchStateRoot, writeStoredCandidate, type CandidateLifecycle } from './workbench-store'
 import type { CandidateOperationRegistry } from './candidate-operation-executors'
 import { inspectProjectCapabilities } from './project-capabilities'
+import { createLocalProjectReadOnlyAnalysis, type ReadOnlyAnalysisHost } from './local-project-read-only-analysis'
 
 interface OpenProject { root: string; graph: SourceGraph }
 
@@ -267,10 +268,34 @@ function restoreStoredCandidate(candidateId: string): LiveCandidate | undefined 
   return live
 }
 
-async function handle(request: IncomingMessage, response: ServerResponse, options: LocalProjectApiOptions = {}): Promise<void> {
+async function handle(
+  request: IncomingMessage, response: ServerResponse, options: LocalProjectApiOptions,
+  readOnlyAnalysis: ReturnType<typeof createLocalProjectReadOnlyAnalysis>,
+): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? '127.0.0.1'}`)
   if (!url.pathname.startsWith('/__ripple/api/')) return
   assertLoopbackRequest(request)
+  if (url.pathname === '/__ripple/api/project/read-only-analysis') {
+    if (request.method !== 'POST') {
+      response.setHeader('allow', 'POST')
+      return json(response, 405, { code: 'method-not-allowed' })
+    }
+    let body: Record<string, unknown>
+    try { body = await readJson(request) } catch (error) {
+      const status = error instanceof Error ? (error as Error & { statusCode?: number }).statusCode : undefined
+      return json(response, status === 413 || status === 415 ? status : 400, { code: 'invalid-request' })
+    }
+    if (url.search || Object.keys(body).length !== 1 || typeof body.projectId !== 'string' ||
+        !body.projectId.trim() || body.projectId !== body.projectId.trim() || /[\u0000-\u001f\u007f]/u.test(body.projectId)) {
+      return json(response, 400, { code: 'invalid-request' })
+    }
+    const result = readOnlyAnalysis(body.projectId)
+    if (result.status === 'ok') return json(response, 200, result.summary)
+    const { code, hostReceiptStatus, producerEvidenceStatus } = result
+    const status = code === 'project-unregistered' ? 404
+      : code === 'project-drift' || code === 'host-receipt-rejected' ? 409 : 503
+    return json(response, status, { code, hostReceiptStatus, producerEvidenceStatus })
+  }
   const evidenceMatch = url.pathname.match(/^\/__ripple\/api\/candidate\/([^/]+)\/evidence\/([^/]+)$/)
   if (evidenceMatch) {
     if (request.method !== 'GET') return reject(response, 405, '截图证据仅支持读取')
@@ -644,11 +669,13 @@ async function cleanupCandidates(): Promise<void> {
 export interface LocalProjectApiOptions {
   candidateOperationExecutors?: CandidateOperationRegistry
   readStagedAsset?: (sha256: string) => Uint8Array
+  readOnlyAnalysisHost?: ReadOnlyAnalysisHost
 }
 
 export function localProjectApiPlugin(options: LocalProjectApiOptions = {}): Plugin {
   let shutdown: Promise<void> | undefined
   const stopRuntime = () => shutdown ??= cleanupCandidates()
+  const readOnlyAnalysis = createLocalProjectReadOnlyAnalysis(options.readOnlyAnalysisHost)
   return {
     name: 'ripple-local-project-api',
     apply: 'serve',
@@ -656,7 +683,7 @@ export function localProjectApiPlugin(options: LocalProjectApiOptions = {}): Plu
       await preparePreviewNetworkPool()
       server.middlewares.use((request, response, next) => {
         if (!request.url?.startsWith('/__ripple/api/')) return next()
-        void handle(request, response, options).catch(error => {
+        void handle(request, response, options, readOnlyAnalysis).catch(error => {
           const failure = error instanceof Error ? error as Error & { statusCode?: number } : undefined
           const code = failure && 'code' in failure ? failure.code : undefined
           const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' || failure?.name === 'VerificationRunnerError' ? 503 : failure instanceof PatchApplyError || failure?.name === 'CandidateError' || failure?.name === 'SessionInvariantError' || failure?.name === 'VerificationEvidenceError' ? 409 : failure instanceof VerificationContractError || failure?.name === 'PreviewResourcePolicyError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
