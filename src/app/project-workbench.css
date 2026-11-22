@@ -22,3 +22,25 @@
 .edit-panel .field-label{font-size:12px}.intent-help{display:block;margin:7px 0 0 43px;color:#9a9f91;font-size:12px;line-height:1.55}.target-fields .field-label{font-size:12px}.target-proof strong.target-current-value{font:500 13px/1.45 'DM Sans',sans-serif;white-space:normal;overflow-wrap:anywhere}.target-proof small{font-size:11px;line-height:1.55}.source-selection li .quiet-button{min-height:34px;font-size:11px}
 @media(max-width:600px){.intent-help{margin-left:0}.target-proof{align-items:flex-start}.target-proof>code{font-size:10px}}
 
+.read-only-analysis { margin:15px 0; padding:18px 22px; }
+.read-only-analysis-header { justify-content:space-between; flex-wrap:wrap; }
+.read-only-analysis-header button { min-height:34px; color:#c7d2b7; border-color:#4b5541; background:#20251c; }
+.read-only-analysis-header button:disabled { opacity:.55; cursor:default; }
+.read-only-analysis-results { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:10px; margin-top:14px; }
+.read-only-analysis-group { min-width:0; padding:12px 14px; border:1px solid #30342b; border-radius:7px; background:#141611; }
+.read-only-analysis-group h3 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 12px; font-size:12px; }
+.read-only-analysis-group h3 code { color:#c1cdb1; background:#262d22; padding:3px 6px; border-radius:4px; }
+.read-only-analysis-group dl { display:grid; gap:10px; margin:0; }
+.read-only-analysis-group dt { color:#a6aa9c; font-size:11px; }
+.read-only-analysis-group dd { margin:3px 0 0; color:#e0e4d7; font-size:12px; overflow-wrap:anywhere; }
+.read-only-analysis-group code,.read-only-analysis-error code { font:11px/1.5 'DM Mono',monospace; }
+.read-only-analysis-group dd code { color:#c4d0b6; }
+.read-only-analysis-content { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.read-only-analysis-full { grid-column:1/-1; }
+.read-only-analysis-error { margin-left:0; overflow-wrap:anywhere; }
+.read-only-analysis-announcement { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+@media(max-width:660px) {
+  .read-only-analysis { padding:16px; }
+  .read-only-analysis-results { grid-template-columns:minmax(0,1fr); }
+}
+
