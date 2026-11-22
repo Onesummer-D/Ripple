@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BrowserVerificationContract, EditKind, EditOperation, EvidenceResult, ScopeDecision } from '../core/model'
 import { VerificationContractEditor } from './VerificationContractEditor'
 import { ScopeEffectPreview } from './ScopeEffectPreview'
+import { ReadOnlyAnalysisPanel } from './ReadOnlyAnalysisPanel'
 import { buildScopeEffectPreview, type PageScopeChoice } from './scope-effect-preview'
 import { projectPreviewViewports } from '../core/project-viewports'
 import { assessPickerDisplayIdentity, isCurrentPickerEnvelope } from '../core/runtime-selection-bridge'
@@ -173,6 +174,7 @@ export default function ProjectWorkbench() {
   const [projectPath, setProjectPath] = useState('')
   const [intent, setIntent] = useState('')
   const [analysis, setAnalysis] = useState<Analysis>()
+  const [analysisOpenVersion, setAnalysisOpenVersion] = useState(0)
   const [resourceDraft, setResourceDraft] = useState('')
   const [targetId, setTargetId] = useState('')
   const [focusAfterInputRequest, setFocusAfterInputRequest] = useState(0)
@@ -384,6 +386,7 @@ export default function ProjectWorkbench() {
 
   async function analyze() {
     setBusy(true); setError('')
+    setAnalysisOpenVersion(version => version + 1)
     try {
       const next = await post<Analysis>('analyze', { projectRoot: projectPath, previousCandidateId: candidate?.id })
       setProjectPath(next.projectRoot)
@@ -592,6 +595,7 @@ export default function ProjectWorkbench() {
 
   async function restoreHistoryItem(candidateId: string) {
     setBusy(true); setError('')
+    setAnalysisOpenVersion(version => version + 1)
     try {
       const restored = await post<{ analysis: Analysis; rawIntent: string; verificationContract?: BrowserVerificationContract; scope?: ScopeDecision; candidate: CandidateView; verification: VerificationView; workflow: WorkflowView }>('candidate/restore', { candidateId })
       setProjectPath(restored.analysis.projectRoot)
@@ -679,6 +683,13 @@ export default function ProjectWorkbench() {
         <article className="metric-card"><span>源码编辑目标</span><strong>{analysis.targets.length}</strong><small>TEXT · MEDIA · TOKEN 统一进入 EditSession</small></article>
         <article className={analysis.unresolved.length ? 'metric-card metric-warning' : 'metric-card'}><span>分析确定性</span><strong>{analysis.unresolved.length ? `${analysis.unresolved.length} 项待确认` : '依赖完整'}</strong><small>{analysis.unresolved.length ? '模糊关系不会被当作已证明影响' : '来源与页面消费关系已读取'}</small></article>
       </section>
+
+      <ReadOnlyAnalysisPanel
+        key={JSON.stringify([analysisOpenVersion, analysis.revision.projectId, analysis.revision.sourceDigest, analysis.revision.gitCommit])}
+        projectId={analysis.revision.projectId}
+        sourceDigest={analysis.revision.sourceDigest}
+        opening={busy}
+      />
 
       <section className="panel project-source-preview" data-testid="project-source-preview">
         <div className="section-title compact"><span className="step-badge">↗</span><div><h2>先看真实页面，再选源码目标</h2><p>只读预演当前分析版本；页面点选后由 Ripple 服务端重新核实 JSX 来源。</p></div><button type="button" data-testid="toggle-project-preview" className="quiet-button" onClick={() => void toggleProjectSourcePreview()} disabled={busy || sourcePreviewBusy || previewBusy || verificationBusy || !!candidate}>{sourcePreviewBusy ? '准备只读预演…' : sourcePreview ? '关闭项目预演' : '启动真实页面预演'}</button></div>
