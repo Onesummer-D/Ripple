@@ -17,7 +17,8 @@ import { normalizeVerificationContract, VerificationContractError } from './veri
 import { listStoredCandidates, readStoredCandidate, workbenchStateRoot, writeStoredCandidate, type CandidateLifecycle } from './workbench-store'
 import type { CandidateOperationRegistry } from './candidate-operation-executors'
 import { inspectProjectCapabilities } from './project-capabilities'
-import { createLocalProjectReadOnlyAnalysis, type ReadOnlyAnalysisHost } from './local-project-read-only-analysis'
+import { createLocalProjectReadOnlyAnalysis, createLocalProjectReadOnlyAnalysisDetailed, type ReadOnlyAnalysisHost } from './local-project-read-only-analysis'
+import { createReadOnlyAnalysisHistoryService, type ReadOnlyAnalysisHistoryService } from './read-only-analysis-history'
 
 interface OpenProject { root: string; graph: SourceGraph }
 
@@ -271,6 +272,8 @@ function restoreStoredCandidate(candidateId: string): LiveCandidate | undefined 
 async function handle(
   request: IncomingMessage, response: ServerResponse, options: LocalProjectApiOptions,
   readOnlyAnalysis: ReturnType<typeof createLocalProjectReadOnlyAnalysis>,
+  readOnlyAnalysisDetailed: ReturnType<typeof createLocalProjectReadOnlyAnalysisDetailed>,
+  readOnlyAnalysisHistory: ReadOnlyAnalysisHistoryService,
 ): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? '127.0.0.1'}`)
   if (!url.pathname.startsWith('/__ripple/api/')) return
@@ -295,6 +298,65 @@ async function handle(
     const status = code === 'project-unregistered' ? 404
       : code === 'project-drift' || code === 'host-receipt-rejected' ? 409 : 503
     return json(response, status, { code, hostReceiptStatus, producerEvidenceStatus })
+  }
+  if (url.pathname === '/__ripple/api/project/read-only-history/capture') {
+    if (request.method !== 'POST') {
+      response.setHeader('allow', 'POST')
+      return json(response, 405, { code: 'method-not-allowed' })
+    }
+    let body: Record<string, unknown>
+    try { body = await readJson(request) } catch (error) {
+      const status = error instanceof Error ? (error as Error & { statusCode?: number }).statusCode : undefined
+      return json(response, status === 413 || status === 415 ? status : 400, { code: 'invalid-request' })
+    }
+    if (url.search || Object.keys(body).length !== 1 || typeof body.projectId !== 'string' ||
+        !body.projectId.trim() || body.projectId !== body.projectId.trim() || /[\u0000-]/u.test(body.projectId)) {
+      return json(response, 400, { code: 'invalid-request' })
+    }
+    const result = readOnlyAnalysisDetailed(body.projectId)
+    if (result.status !== 'ok') {
+      const { code, hostReceiptStatus, producerEvidenceStatus } = result
+      const status = code === 'project-unregistered' ? 404
+        : code === 'project-drift' || code === 'host-receipt-rejected' ? 409 : 503
+      return json(response, status, { code, hostReceiptStatus, producerEvidenceStatus })
+    }
+    try {
+      const saved = await readOnlyAnalysisHistory.capture(result.verified)
+      return json(response, saved.deduplicated ? 200 : 201, {
+        schemaVersion: saved.record.schemaVersion,
+        recordId: saved.record.recordId,
+        deduplicated: saved.deduplicated,
+        summary: result.verified.summary,
+        capturedAt: saved.record.capturedAt,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      const conflict = message === 'history-record-conflict'
+      const limit = message === 'history-storage-limit'
+      const code = conflict ? 'history-record-conflict' : limit ? 'history-storage-limit' : 'history-storage-unavailable'
+      return json(response, conflict ? 409 : 503, { code, hostReceiptStatus: 'verified', producerEvidenceStatus: 'available-producer-evidence' })
+    }
+  }
+  if (url.pathname === '/__ripple/api/project/read-only-history') {
+    if (request.method !== 'GET') {
+      response.setHeader('allow', 'GET')
+      return json(response, 405, { code: 'method-not-allowed' })
+    }
+    const projectId = url.searchParams.get('projectId')
+    const limitText = url.searchParams.get('limit')
+    const limit = limitText === null ? 100 : Number(limitText)
+    if (url.searchParams.getAll('projectId').length !== 1 || url.searchParams.size < 1 || url.searchParams.size > 2 || !projectId || projectId.trim() !== projectId ||
+        /[\u0000-]/u.test(projectId) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+      return json(response, 400, { code: 'invalid-request' })
+    }
+    if (!options.readOnlyAnalysisHost) return json(response, 503, { code: 'host-config-unavailable' })
+    if (!options.readOnlyAnalysisHost.resolveProject(projectId)) return json(response, 404, { code: 'project-unregistered' })
+    try {
+      return json(response, 200, { schemaVersion: 'ripple/read-only-analysis-history/v1', projectId, records: readOnlyAnalysisHistory.list(projectId, limit) })
+    } catch (error) {
+      const corrupt = error instanceof Error && error.message === 'history-record-corrupt'
+      return json(response, corrupt ? 409 : 503, { code: corrupt ? 'history-record-corrupt' : 'history-storage-unavailable' })
+    }
   }
   const evidenceMatch = url.pathname.match(/^\/__ripple\/api\/candidate\/([^/]+)\/evidence\/([^/]+)$/)
   if (evidenceMatch) {
@@ -670,12 +732,15 @@ export interface LocalProjectApiOptions {
   candidateOperationExecutors?: CandidateOperationRegistry
   readStagedAsset?: (sha256: string) => Uint8Array
   readOnlyAnalysisHost?: ReadOnlyAnalysisHost
+  readOnlyAnalysisHistory?: ReadOnlyAnalysisHistoryService
 }
 
 export function localProjectApiPlugin(options: LocalProjectApiOptions = {}): Plugin {
   let shutdown: Promise<void> | undefined
   const stopRuntime = () => shutdown ??= cleanupCandidates()
   const readOnlyAnalysis = createLocalProjectReadOnlyAnalysis(options.readOnlyAnalysisHost)
+  const readOnlyAnalysisDetailed = createLocalProjectReadOnlyAnalysisDetailed(options.readOnlyAnalysisHost)
+  const readOnlyAnalysisHistory = options.readOnlyAnalysisHistory ?? createReadOnlyAnalysisHistoryService()
   return {
     name: 'ripple-local-project-api',
     apply: 'serve',
@@ -683,7 +748,7 @@ export function localProjectApiPlugin(options: LocalProjectApiOptions = {}): Plu
       await preparePreviewNetworkPool()
       server.middlewares.use((request, response, next) => {
         if (!request.url?.startsWith('/__ripple/api/')) return next()
-        void handle(request, response, options, readOnlyAnalysis).catch(error => {
+        void handle(request, response, options, readOnlyAnalysis, readOnlyAnalysisDetailed, readOnlyAnalysisHistory).catch(error => {
           const failure = error instanceof Error ? error as Error & { statusCode?: number } : undefined
           const code = failure && 'code' in failure ? failure.code : undefined
           const status = typeof failure?.statusCode === 'number' ? failure.statusCode : failure?.name === 'CandidatePreviewError' || failure?.name === 'VerificationRunnerError' ? 503 : failure instanceof PatchApplyError || failure?.name === 'CandidateError' || failure?.name === 'SessionInvariantError' || failure?.name === 'VerificationEvidenceError' ? 409 : failure instanceof VerificationContractError || failure?.name === 'PreviewResourcePolicyError' || failure?.name === 'ProjectReadError' || code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' ? 400 : 500
