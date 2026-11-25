@@ -8,6 +8,7 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import { createServer, type ViteDevServer } from 'vite'
 import { measureAnalyzerSourceBuild } from '../src/core/graph-producer-evidence-v1'
 import { readProjectSnapshot } from '../src/core/project'
+import { createReadOnlyAnalysisHistoryService } from '../src/core/read-only-analysis-history'
 
 const endpoint = '/__ripple/api/project/read-only-analysis'
 const configKey = 'RIPPLE_LOCAL_ANALYSIS_HOST_CONFIG'
@@ -73,7 +74,7 @@ async function screenshot(page: Page, info: TestInfo, name: string) {
 }
 
 test('the workbench renders a real read-only summary and reports evidence failures', async ({ page }, info) => {
-  test.setTimeout(90_000)
+  test.setTimeout(180_000)
   const parent = mkdtempSync(path.join(tmpdir(), 'ripple-read-only-panel-'))
   const servers: ViteDevServer[] = []
   const previousEnv = [process.env[configKey], process.env[stateKey]] as const
@@ -90,8 +91,8 @@ test('the workbench renders a real read-only summary and reports evidence failur
     const registered = projectFixture(parent, 'registered')
     const unknown = projectFixture(parent, 'unregistered')
     const failed = projectFixture(parent, 'analysis-failure', true)
-    const address = await serve(hostFixture(parent, [registered, failed]))
-    await openProject(page, address, registered.checkoutRoot)
+    let activeAddress = await serve(hostFixture(parent, [registered, failed]))
+    await openProject(page, activeAddress, registered.checkoutRoot)
     const response = await runAnalysis(page)
     expect(response.status()).toBe(200)
     expect(response.request().postDataJSON()).toEqual({ projectId: registered.binding.projectId })
@@ -113,7 +114,11 @@ test('the workbench renders a real read-only summary and reports evidence failur
       await expect(field.locator('dd')).toHaveText(String(value))
     }
     await expect(page.getByTestId('toggle-project-preview')).toBeEnabled()
-    await screenshot(page, info, 'read-only-analysis-success')
+    const firstCapture = page.waitForResponse(res => new URL(res.url()).pathname === '/__ripple/api/project/read-only-history/capture')
+    await page.getByRole('button', { name: '保存分析记录' }).click()
+    expect((await firstCapture).status()).toBe(201)
+    await page.getByRole('button', { name: '刷新历史' }).click()
+    await expect(panel.locator('.read-only-analysis-history-item')).toHaveCount(1)
 
     writeFileSync(path.join(registered.checkoutRoot, 'theme.css'), ':root{--ink:green} .card{color:var(--ink)}\n')
     commitProject(registered.checkoutRoot)
@@ -124,24 +129,58 @@ test('the workbench renders a real read-only summary and reports evidence failur
     await expect(panel.getByRole('heading', { name: '来源证明' })).toHaveCount(0)
     await screenshot(page, info, 'project-drift')
 
+    const historyService = createReadOnlyAnalysisHistoryService()
+    await historyService.capture({
+      summary: {
+        projectId: registered.binding.projectId, sourceDigest: 'c'.repeat(64), graphDigest: 'd'.repeat(64),
+        mappingCount: 4, unresolvedCount: 1, hostReceiptStatus: 'verified',
+        producerEvidenceStatus: 'available-producer-evidence',
+      },
+      binding: { ...registered.binding, gitHead: '4'.repeat(40), rootTree: '3'.repeat(40), sourceDigest: 'c'.repeat(64) },
+      repository: registered.binding.repository, gitHead: '4'.repeat(40), rootTree: '3'.repeat(40),
+      sourceDigest: 'c'.repeat(64), graphDigest: 'd'.repeat(64), mappingCount: 4, unresolvedCount: 1,
+    })
+    await page.getByRole('button', { name: '刷新历史' }).click()
+    await expect(panel.locator('.read-only-analysis-history-item')).toHaveCount(2)
+    const historyItems = panel.locator('.read-only-analysis-history-item input')
+    await historyItems.nth(0).check()
+    await historyItems.nth(1).check()
+    await expect(panel.getByTestId('read-only-analysis-comparison')).toContainText('SourceDigest：已变化')
+    await screenshot(page, info, 'read-only-analysis-history-comparison')
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 768, height: 900 },
+      { width: 390, height: 844 },
+      { width: 375, height: 812 },
+    ]) {
+      await page.setViewportSize(viewport)
+      await expect(panel).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await screenshot(page, info, `read-only-analysis-${viewport.width}`)
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
+
     async function expectFailure(server: string, root: string, status: number, code: string) {
       await openProject(page, server, root)
       const failure = await runAnalysis(page)
       expect(failure.status()).toBe(status)
       expect((await failure.json()).code).toBe(code)
-      await expect(panel.getByRole('alert')).toContainText(code)
+      await expect(panel.getByRole('alert').filter({ hasText: code })).toBeVisible()
       await expect(panel.getByRole('heading', { name: '来源证明' })).toHaveCount(0)
       await screenshot(page, info, code)
     }
-    await expectFailure(address, unknown.checkoutRoot, 404, 'project-unregistered')
-    await expectFailure(address, failed.checkoutRoot, 503, 'analysis-failed')
+    await expectFailure(activeAddress, unknown.checkoutRoot, 404, 'project-unregistered')
+    await expectFailure(activeAddress, failed.checkoutRoot, 503, 'analysis-failed')
     await expectFailure(await serve(), registered.checkoutRoot, 503, 'host-config-unavailable')
   } finally {
     for (const [index, key] of [configKey, stateKey].entries()) {
       if (previousEnv[index] === undefined) delete process.env[key]
       else process.env[key] = previousEnv[index]
     }
-    await Promise.allSettled(servers.map(server => server.close()))
+    await Promise.allSettled(servers.splice(0).map(async server => {
+      (server.httpServer as { closeAllConnections?: () => void } | null | undefined)?.closeAllConnections?.()
+      await server.close()
+    }))
     rmSync(parent, { recursive: true, force: true })
   }
 })
