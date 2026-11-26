@@ -12,6 +12,7 @@ import { adaptSourceGraph } from './graph-identity-v2-adapter'
 import { measureAnalyzerSourceBuild } from './graph-producer-evidence-v1'
 import { createHostRegistryIssuerV1, type HostRegistryIssueResultV1 } from './host-registry-issuer-v1'
 import { localProjectApiPlugin } from './local-project-api'
+import { createReadOnlyAnalysisHistoryService } from './read-only-analysis-history'
 import { createLocalProjectReadOnlyAnalysis, type ReadOnlyAnalysisHost } from './local-project-read-only-analysis'
 import { analyzeProject } from './project'
 
@@ -107,7 +108,7 @@ beforeAll(async () => {
     plugins: [localProjectApiPlugin({ readOnlyAnalysisHost: { resolveProject(projectId) {
       lookups += 1
       return registry.get(projectId)
-    } } })],
+    } }, readOnlyAnalysisHistory: createReadOnlyAnalysisHistoryService() })],
     server: { host: '127.0.0.1', port: 0 },
   })
   await server.listen()
@@ -153,6 +154,26 @@ describe('registered read-only analysis over HTTP', () => {
     expect(git(root, 'status', '--porcelain')).toBe('')
     expect(git(root, 'rev-parse', 'HEAD')).toBe(expected.gitHead)
   }, 40_000)
+
+  it('captures a verified history record and reads it back through the isolated history API', async () => {
+    const capture = await fetch(origin + '/__ripple/api/project/read-only-history/capture', {
+      method: 'POST', headers: { 'content-type': 'application/json', origin },
+      body: JSON.stringify({ projectId: project.expected.projectId }),
+    })
+    expect(capture.status).toBe(201)
+    const saved = await capture.json() as { recordId: string; deduplicated: boolean; summary: { graphDigest: string } }
+    expect(saved.recordId).toMatch(/^[a-f0-9]{64}$/)
+    expect(saved.deduplicated).toBe(false)
+    expect(saved.summary.graphDigest).toMatch(/^[a-f0-9]{64}$/)
+    const repeat = await fetch(origin + '/__ripple/api/project/read-only-history/capture', {
+      method: 'POST', headers: { 'content-type': 'application/json', origin },
+      body: JSON.stringify({ projectId: project.expected.projectId }),
+    })
+    expect((await repeat.json()).deduplicated).toBe(true)
+    const history = await fetch(origin + `/__ripple/api/project/read-only-history?projectId=${encodeURIComponent(project.expected.projectId)}&limit=100`, { headers: { origin } })
+    expect(history.status).toBe(200)
+    expect((await history.json()).records).toHaveLength(1)
+  }, 90_000)
 
   it('rejects method, origin, query and caller-supplied authority before registry lookup', async () => {
     const before = lookups

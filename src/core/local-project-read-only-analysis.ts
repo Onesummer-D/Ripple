@@ -28,6 +28,18 @@ export interface ReadOnlyAnalysisSummary {
   producerEvidenceStatus: 'available-producer-evidence'
 }
 
+export interface ReadOnlyAnalysisVerified {
+  readonly summary: ReadOnlyAnalysisSummary
+  readonly binding: HostProjectBindingV1
+  readonly repository: string
+  readonly gitHead: string
+  readonly rootTree: string
+  readonly sourceDigest: string
+  readonly graphDigest: string
+  readonly mappingCount: number
+  readonly unresolvedCount: number
+}
+
 type FailureCode = 'host-config-unavailable' | 'project-unregistered' | 'host-receipt-unavailable' |
   'host-receipt-rejected' | 'project-drift' | 'producer-evidence-unavailable' | 'analysis-failed'
 type Failure = {
@@ -37,6 +49,9 @@ type Failure = {
   producerEvidenceStatus: 'unavailable'
 }
 export type ReadOnlyAnalysisResult = { status: 'ok'; summary: ReadOnlyAnalysisSummary } | Failure
+export type ReadOnlyAnalysisDetailedResult =
+  | { status: 'ok'; verified: ReadOnlyAnalysisVerified }
+  | Failure
 
 function fail(code: FailureCode, hostReceiptStatus: Failure['hostReceiptStatus'] = 'unavailable'): Failure {
   return { status: 'failed', code, hostReceiptStatus, producerEvidenceStatus: 'unavailable' }
@@ -55,7 +70,15 @@ function captureMatchingSnapshot(checkoutRoot: string, binding: HostProjectBindi
 
 /** The only operation input is a project ID. Configuration is fixed by server composition. */
 export function createLocalProjectReadOnlyAnalysis(host?: ReadOnlyAnalysisHost) {
+  const detailed = createLocalProjectReadOnlyAnalysisDetailed(host)
   return (projectId: string): ReadOnlyAnalysisResult => {
+    const result = detailed(projectId)
+    return result.status === 'ok' ? { status: 'ok', summary: result.verified.summary } : result
+  }
+}
+
+export function createLocalProjectReadOnlyAnalysisDetailed(host?: ReadOnlyAnalysisHost) {
+  return (projectId: string): ReadOnlyAnalysisDetailedResult => {
     if (!host) return fail('host-config-unavailable')
 
     let stage: FailureCode = 'host-config-unavailable'
@@ -111,11 +134,16 @@ export function createLocalProjectReadOnlyAnalysis(host?: ReadOnlyAnalysisHost) 
         return fail('project-drift', 'rejected')
       }
 
-      return { status: 'ok', summary: {
+      const summary = {
         projectId, sourceDigest: binding.sourceDigest, graphDigest: adapted.result.digest,
         mappingCount: adapted.result.canonical.sourceMappings.length,
         unresolvedCount: adapted.result.canonical.unresolved.length,
-        hostReceiptStatus: 'verified', producerEvidenceStatus: 'available-producer-evidence',
+        hostReceiptStatus: 'verified' as const, producerEvidenceStatus: 'available-producer-evidence' as const,
+      }
+      return { status: 'ok', verified: {
+        summary, binding: verified.binding, repository: binding.repository, gitHead: binding.head, rootTree: binding.rootTree,
+        sourceDigest: binding.sourceDigest, graphDigest: adapted.result.digest,
+        mappingCount: summary.mappingCount, unresolvedCount: summary.unresolvedCount,
       } }
     } catch {
       return fail(stage, receiptStatus)
