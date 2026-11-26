@@ -310,7 +310,7 @@ async function handle(
       return json(response, status === 413 || status === 415 ? status : 400, { code: 'invalid-request' })
     }
     if (url.search || Object.keys(body).length !== 1 || typeof body.projectId !== 'string' ||
-        !body.projectId.trim() || body.projectId !== body.projectId.trim() || /[\u0000-]/u.test(body.projectId)) {
+        !body.projectId.trim() || body.projectId !== body.projectId.trim() || /[\u0000-\u001f\u007f]/u.test(body.projectId)) {
       return json(response, 400, { code: 'invalid-request' })
     }
     const result = readOnlyAnalysisDetailed(body.projectId)
@@ -348,7 +348,7 @@ async function handle(
     const limitText = url.searchParams.get('limit')
     const limit = limitText === null ? 100 : Number(limitText)
     if (url.searchParams.getAll('projectId').length !== 1 || url.searchParams.size < 1 || url.searchParams.size > 2 || !projectId || projectId.trim() !== projectId ||
-        /[\u0000-]/u.test(projectId) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+        /[\u0000-\u001f\u007f]/u.test(projectId) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
       return json(response, 400, { code: 'invalid-request' })
     }
     if (!options.readOnlyAnalysisHost) return json(response, 503, { code: 'host-config-unavailable' })
