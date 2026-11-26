@@ -50,6 +50,7 @@ function storageBytes(root: string): number {
   assertDir(root)
   let total = 0
   for (const projectEntry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!/^[0-9a-f]{64}$/u.test(projectEntry.name)) throw new Error('history-storage-invalid')
     const projectPath = path.join(root, projectEntry.name)
     const projectStat = fs.lstatSync(projectPath)
     if (projectStat.isSymbolicLink() || !projectStat.isDirectory()) throw new Error('history-storage-invalid')

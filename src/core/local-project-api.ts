@@ -333,8 +333,10 @@ async function handle(
       const message = error instanceof Error ? error.message : ''
       const conflict = message === 'history-record-conflict'
       const limit = message === 'history-storage-limit'
-      const code = conflict ? 'history-record-conflict' : limit ? 'history-storage-limit' : 'history-storage-unavailable'
-      return json(response, conflict ? 409 : 503, { code, hostReceiptStatus: 'verified', producerEvidenceStatus: 'available-producer-evidence' })
+      const corrupt = message === 'history-record-corrupt'
+      const invalid = message === 'history-storage-invalid'
+      const code = conflict ? 'history-record-conflict' : limit ? 'history-storage-limit' : corrupt ? 'history-record-corrupt' : invalid ? 'history-storage-invalid' : 'history-storage-unavailable'
+      return json(response, conflict || corrupt ? 409 : 503, { code, hostReceiptStatus: 'verified', producerEvidenceStatus: 'available-producer-evidence' })
     }
   }
   if (url.pathname === '/__ripple/api/project/read-only-history') {
@@ -354,8 +356,12 @@ async function handle(
     try {
       return json(response, 200, { schemaVersion: 'ripple/read-only-analysis-history/v1', projectId, records: readOnlyAnalysisHistory.list(projectId, limit) })
     } catch (error) {
-      const corrupt = error instanceof Error && error.message === 'history-record-corrupt'
-      return json(response, corrupt ? 409 : 503, { code: corrupt ? 'history-record-corrupt' : 'history-storage-unavailable' })
+      const message = error instanceof Error ? error.message : ''
+      const corrupt = message === 'history-record-corrupt'
+      const invalid = message === 'history-storage-invalid'
+      const limit = message === 'history-storage-limit'
+      const code = corrupt ? 'history-record-corrupt' : invalid ? 'history-storage-invalid' : limit ? 'history-storage-limit' : 'history-storage-unavailable'
+      return json(response, corrupt ? 409 : 503, { code })
     }
   }
   const evidenceMatch = url.pathname.match(/^\/__ripple\/api\/candidate\/([^/]+)\/evidence\/([^/]+)$/)
