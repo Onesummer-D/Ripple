@@ -50,7 +50,7 @@ describe('read-only analysis history v1', () => {
     expect(service.list('another-project')).toEqual([])
   })
 
-  it('rejects corrupt records and symlinked storage', async () => {
+  it('rejects corrupt records', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-history-')); roots.push(root)
     process.env.RIPPLE_WORKBENCH_STATE_DIR = root
     const service = createReadOnlyAnalysisHistoryService()
@@ -60,8 +60,18 @@ describe('read-only analysis history v1', () => {
     const actualFile = path.join(directory, fs.readdirSync(directory).find(name => name.endsWith('.json'))!)
     fs.writeFileSync(actualFile, '{"schemaVersion":"ripple/read-only-analysis-history/v1","projectId":"project:history","bad":true}')
     expect(() => service.list('project:history')).toThrow('history-record-corrupt')
+  })
+
+  it.skipIf(process.platform === 'win32')('rejects symlinked storage', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-history-')); roots.push(root)
+    process.env.RIPPLE_WORKBENCH_STATE_DIR = root
+    const service = createReadOnlyAnalysisHistoryService()
+    await service.capture(verified())
+    const actual = fs.readdirSync(path.join(root, 'read-only-analysis-history'))[0]
+    const directory = path.join(root, 'read-only-analysis-history', actual)
+    const actualFile = path.join(directory, fs.readdirSync(directory).find(name => name.endsWith('.json'))!)
     fs.rmSync(actualFile)
-    fs.symlinkSync(root, actualFile, process.platform === 'win32' ? 'junction' : 'file')
+    fs.symlinkSync(root, actualFile, 'file')
     expect(() => service.list('project:history')).toThrow('history-storage-invalid')
   })
 })

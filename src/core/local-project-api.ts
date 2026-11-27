@@ -310,7 +310,7 @@ async function handle(
       return json(response, status === 413 || status === 415 ? status : 400, { code: 'invalid-request' })
     }
     if (url.search || Object.keys(body).length !== 1 || typeof body.projectId !== 'string' ||
-        !body.projectId.trim() || body.projectId !== body.projectId.trim() || /[\u0000-]/u.test(body.projectId)) {
+        !body.projectId.trim() || body.projectId !== body.projectId.trim() || /[\u0000-\u001f\u007f]/u.test(body.projectId)) {
       return json(response, 400, { code: 'invalid-request' })
     }
     const result = readOnlyAnalysisDetailed(body.projectId)
@@ -333,8 +333,10 @@ async function handle(
       const message = error instanceof Error ? error.message : ''
       const conflict = message === 'history-record-conflict'
       const limit = message === 'history-storage-limit'
-      const code = conflict ? 'history-record-conflict' : limit ? 'history-storage-limit' : 'history-storage-unavailable'
-      return json(response, conflict ? 409 : 503, { code, hostReceiptStatus: 'verified', producerEvidenceStatus: 'available-producer-evidence' })
+      const corrupt = message === 'history-record-corrupt'
+      const invalid = message === 'history-storage-invalid'
+      const code = conflict ? 'history-record-conflict' : limit ? 'history-storage-limit' : corrupt ? 'history-record-corrupt' : invalid ? 'history-storage-invalid' : 'history-storage-unavailable'
+      return json(response, conflict || corrupt ? 409 : 503, { code, hostReceiptStatus: 'verified', producerEvidenceStatus: 'available-producer-evidence' })
     }
   }
   if (url.pathname === '/__ripple/api/project/read-only-history') {
@@ -346,7 +348,7 @@ async function handle(
     const limitText = url.searchParams.get('limit')
     const limit = limitText === null ? 100 : Number(limitText)
     if (url.searchParams.getAll('projectId').length !== 1 || url.searchParams.size < 1 || url.searchParams.size > 2 || !projectId || projectId.trim() !== projectId ||
-        /[\u0000-]/u.test(projectId) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+        /[\u0000-\u001f\u007f]/u.test(projectId) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
       return json(response, 400, { code: 'invalid-request' })
     }
     if (!options.readOnlyAnalysisHost) return json(response, 503, { code: 'host-config-unavailable' })
@@ -354,8 +356,12 @@ async function handle(
     try {
       return json(response, 200, { schemaVersion: 'ripple/read-only-analysis-history/v1', projectId, records: readOnlyAnalysisHistory.list(projectId, limit) })
     } catch (error) {
-      const corrupt = error instanceof Error && error.message === 'history-record-corrupt'
-      return json(response, corrupt ? 409 : 503, { code: corrupt ? 'history-record-corrupt' : 'history-storage-unavailable' })
+      const message = error instanceof Error ? error.message : ''
+      const corrupt = message === 'history-record-corrupt'
+      const invalid = message === 'history-storage-invalid'
+      const limit = message === 'history-storage-limit'
+      const code = corrupt ? 'history-record-corrupt' : invalid ? 'history-storage-invalid' : limit ? 'history-storage-limit' : 'history-storage-unavailable'
+      return json(response, corrupt ? 409 : 503, { code })
     }
   }
   const evidenceMatch = url.pathname.match(/^\/__ripple\/api\/candidate\/([^/]+)\/evidence\/([^/]+)$/)
