@@ -74,7 +74,7 @@ async function screenshot(page: Page, info: TestInfo, name: string) {
 }
 
 test('the workbench renders a real read-only summary and reports evidence failures', async ({ page }, info) => {
-  test.setTimeout(90_000)
+  test.setTimeout(180_000)
   const parent = mkdtempSync(path.join(tmpdir(), 'ripple-read-only-panel-'))
   const servers: ViteDevServer[] = []
   const previousEnv = [process.env[configKey], process.env[stateKey]] as const
@@ -147,6 +147,18 @@ test('the workbench renders a real read-only summary and reports evidence failur
     await historyItems.nth(1).check()
     await expect(panel.getByTestId('read-only-analysis-comparison')).toContainText('SourceDigest：已变化')
     await screenshot(page, info, 'read-only-analysis-history-comparison')
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 768, height: 900 },
+      { width: 390, height: 844 },
+      { width: 375, height: 812 },
+    ]) {
+      await page.setViewportSize(viewport)
+      await expect(panel).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await screenshot(page, info, `read-only-analysis-${viewport.width}`)
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
 
     async function expectFailure(server: string, root: string, status: number, code: string) {
       await openProject(page, server, root)
@@ -165,7 +177,10 @@ test('the workbench renders a real read-only summary and reports evidence failur
       if (previousEnv[index] === undefined) delete process.env[key]
       else process.env[key] = previousEnv[index]
     }
-    await Promise.allSettled(servers.map(server => server.close()))
+    await Promise.allSettled(servers.splice(0).map(async server => {
+      (server.httpServer as { closeAllConnections?: () => void } | null | undefined)?.closeAllConnections?.()
+      await server.close()
+    }))
     rmSync(parent, { recursive: true, force: true })
   }
 })
