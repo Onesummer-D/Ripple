@@ -161,4 +161,3 @@ describe('read-only analysis history v1', () => {
   })
 })
 
-
