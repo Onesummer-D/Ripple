@@ -45,6 +45,14 @@ function assertDir(p: string) {
 function assertRecordName(name: string): void {
   if (!/^[0-9a-f]{64}\.json$/u.test(name)) throw new Error('history-storage-invalid')
 }
+function isOrphanTempName(name: string): boolean {
+  return /^\.record-[0-9a-f-]{36}\.tmp$/u.test(name)
+}
+function assertRegularFile(file: string): number {
+  const stat = fs.lstatSync(file)
+  if (stat.isSymbolicLink() || !stat.isFile()) throw new Error('history-storage-invalid')
+  return stat.size
+}
 function storageBytes(root: string): number {
   if (!fs.existsSync(root)) return 0
   assertDir(root)
@@ -55,11 +63,9 @@ function storageBytes(root: string): number {
     const projectStat = fs.lstatSync(projectPath)
     if (projectStat.isSymbolicLink() || !projectStat.isDirectory()) throw new Error('history-storage-invalid')
     for (const recordEntry of fs.readdirSync(projectPath, { withFileTypes: true })) {
-      assertRecordName(recordEntry.name)
       const recordPath = path.join(projectPath, recordEntry.name)
-      const recordStat = fs.lstatSync(recordPath)
-      if (recordStat.isSymbolicLink() || !recordStat.isFile()) throw new Error('history-storage-invalid')
-      total += recordStat.size
+      if (!isOrphanTempName(recordEntry.name)) assertRecordName(recordEntry.name)
+      total += assertRegularFile(recordPath)
     }
   }
   return total
@@ -87,16 +93,22 @@ function readRecords(projectId: string): ReadOnlyAnalysisHistoryRecordV1[] {
   if (!fs.existsSync(directory)) return []
   assertDir(directory)
   let totalBytes = 0
-  const records = fs.readdirSync(directory, { withFileTypes: true }).map(entry => {
-    assertRecordName(entry.name)
+  const records = fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const file = path.join(directory, entry.name)
+    if (isOrphanTempName(entry.name)) {
+      const tempBytes = assertRegularFile(file)
+      totalBytes += tempBytes
+      if (totalBytes > READ_ONLY_ANALYSIS_HISTORY_MAX_BYTES) throw new Error('history-storage-limit')
+      return []
+    }
+    assertRecordName(entry.name)
     const stat = fs.lstatSync(file)
     if (stat.isSymbolicLink() || !stat.isFile()) throw new Error('history-storage-invalid')
     totalBytes += stat.size
     if (stat.size > READ_ONLY_ANALYSIS_HISTORY_MAX_RECORD_BYTES) throw new Error('history-record-corrupt')
     if (totalBytes > READ_ONLY_ANALYSIS_HISTORY_MAX_BYTES) throw new Error('history-storage-limit')
     try {
-      return validateRecord(JSON.parse(fs.readFileSync(file, 'utf8')), projectId)
+      return [validateRecord(JSON.parse(fs.readFileSync(file, 'utf8')), projectId)]
     } catch (error) {
       if (error instanceof Error && (error.message === 'history-record-corrupt' || error.message === 'history-storage-invalid')) throw error
       throw new Error('history-record-corrupt')
