@@ -10,6 +10,8 @@ export const READ_ONLY_ANALYSIS_HISTORY_MAX_RECORD_BYTES = 64 * 1024
 export const READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS = 100
 export const READ_ONLY_ANALYSIS_HISTORY_MAX_BYTES = 16 * 1024 * 1024
 const ROOT_NAME = 'read-only-analysis-history'
+const GLOBAL_LOCK_KEY = '\u0000read-only-analysis-history-global'
+const SERVICE_TEMP_NAME = /^\.record-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.tmp$/u
 const locks = new Map<string, Promise<void>>()
 export interface ReadOnlyAnalysisHistoryRecordV1 {
   readonly schemaVersion: typeof READ_ONLY_ANALYSIS_HISTORY_SCHEMA_VERSION
@@ -45,6 +47,13 @@ function assertDir(p: string) {
 function assertRecordName(name: string): void {
   if (!/^[0-9a-f]{64}\.json$/u.test(name)) throw new Error('history-storage-invalid')
 }
+function isServiceTempName(name: string): boolean {
+  return SERVICE_TEMP_NAME.test(name)
+}
+function assertServiceTemp(file: string): void {
+  const stat = fs.lstatSync(file)
+  if (stat.isSymbolicLink() || !stat.isFile()) throw new Error('history-storage-invalid')
+}
 function storageBytes(root: string): number {
   if (!fs.existsSync(root)) return 0
   assertDir(root)
@@ -55,8 +64,12 @@ function storageBytes(root: string): number {
     const projectStat = fs.lstatSync(projectPath)
     if (projectStat.isSymbolicLink() || !projectStat.isDirectory()) throw new Error('history-storage-invalid')
     for (const recordEntry of fs.readdirSync(projectPath, { withFileTypes: true })) {
-      assertRecordName(recordEntry.name)
       const recordPath = path.join(projectPath, recordEntry.name)
+      if (isServiceTempName(recordEntry.name)) {
+        assertServiceTemp(recordPath)
+        continue
+      }
+      assertRecordName(recordEntry.name)
       const recordStat = fs.lstatSync(recordPath)
       if (recordStat.isSymbolicLink() || !recordStat.isFile()) throw new Error('history-storage-invalid')
       total += recordStat.size
@@ -87,21 +100,26 @@ function readRecords(projectId: string): ReadOnlyAnalysisHistoryRecordV1[] {
   if (!fs.existsSync(directory)) return []
   assertDir(directory)
   let totalBytes = 0
-  const records = fs.readdirSync(directory, { withFileTypes: true }).map(entry => {
-    assertRecordName(entry.name)
+  const records: ReadOnlyAnalysisHistoryRecordV1[] = []
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name)
+    if (isServiceTempName(entry.name)) {
+      assertServiceTemp(file)
+      continue
+    }
+    assertRecordName(entry.name)
     const stat = fs.lstatSync(file)
     if (stat.isSymbolicLink() || !stat.isFile()) throw new Error('history-storage-invalid')
     totalBytes += stat.size
     if (stat.size > READ_ONLY_ANALYSIS_HISTORY_MAX_RECORD_BYTES) throw new Error('history-record-corrupt')
     if (totalBytes > READ_ONLY_ANALYSIS_HISTORY_MAX_BYTES) throw new Error('history-storage-limit')
     try {
-      return validateRecord(JSON.parse(fs.readFileSync(file, 'utf8')), projectId)
+      records.push(validateRecord(JSON.parse(fs.readFileSync(file, 'utf8')), projectId))
     } catch (error) {
       if (error instanceof Error && (error.message === 'history-record-corrupt' || error.message === 'history-storage-invalid')) throw error
       throw new Error('history-record-corrupt')
     }
-  })
+  }
   return records.sort((a, b) => b.capturedAt.localeCompare(a.capturedAt) || b.recordId.localeCompare(a.recordId))
 }
 function fromVerified(v: ReadOnlyAnalysisVerified): Identity {
@@ -116,12 +134,13 @@ async function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
   const previous = locks.get(id) ?? Promise.resolve()
   let release!: () => void
   const next = new Promise<void>(resolve => { release = resolve })
-  locks.set(id, previous.then(() => next))
+  const queued = previous.then(() => next)
+  locks.set(id, queued)
   await previous
-  try { return await fn() } finally { release(); if (locks.get(id) === next) locks.delete(id) }
+  try { return await fn() } finally { release(); if (locks.get(id) === queued) locks.delete(id) }
 }
 async function save(v: ReadOnlyAnalysisVerified) {
-  return withLock(v.summary.projectId, async () => {
+  return withLock(GLOBAL_LOCK_KEY, () => withLock(v.summary.projectId, async () => {
     const identity = fromVerified(v)
     const recordId = readOnlyAnalysisRecordId(identity)
     const existing = readRecords(identity.projectId).find(record => record.recordId === recordId)
@@ -141,7 +160,7 @@ async function save(v: ReadOnlyAnalysisVerified) {
     try { fs.writeFileSync(handle, bytes); fs.fsyncSync(handle) } finally { fs.closeSync(handle) }
     try { fs.renameSync(temp, file) } finally { if (fs.existsSync(temp)) fs.unlinkSync(temp) }
     return { status: 'saved' as const, record, deduplicated: false }
-  })
+  }))
 }
 export interface ReadOnlyAnalysisHistoryService {
   capture(verified: ReadOnlyAnalysisVerified): Promise<{ status: 'saved'; record: ReadOnlyAnalysisHistoryRecordV1; deduplicated: boolean }>
@@ -156,3 +175,4 @@ export function createReadOnlyAnalysisHistoryService(): ReadOnlyAnalysisHistoryS
     },
   }
 }
+
