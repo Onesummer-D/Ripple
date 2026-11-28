@@ -66,6 +66,12 @@ function readableDate(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
+function CopyHash({ label, value }: { label: string; value: string }) {
+  return <button type="button" className="quiet-button read-only-analysis-copy" aria-label={`复制${label}`} onClick={event => {
+    event.preventDefault()
+    void navigator.clipboard?.writeText(value)
+  }}>复制</button>
+}
 export function ReadOnlyAnalysisPanel({ projectId, sourceDigest, opening }: {
   projectId: string; sourceDigest: string; opening: boolean
 }) {
@@ -105,6 +111,7 @@ export function ReadOnlyAnalysisPanel({ projectId, sourceDigest, opening }: {
     setHistory([])
     setHistoryError('')
     setCaptureStatus('idle')
+    void loadHistory(request.signal, historyGeneration.current)
     return () => {
       active.current?.abort()
       request.abort()
@@ -205,9 +212,9 @@ export function ReadOnlyAnalysisPanel({ projectId, sourceDigest, opening }: {
       {history.length === 0 && <p className="empty-note">暂无保存记录。</p>}
       {history.length > 0 && <div className="read-only-analysis-history-list">{history.map((record, index) => <label key={record.recordId} className="read-only-analysis-history-item">
         <input type="checkbox" aria-label={`选择历史版本 ${index === 0 ? 'A' : 'B'} ${record.gitHead.slice(0, 10)}`} checked={selected.includes(record.recordId)} onChange={() => toggleHistory(record.recordId)} />
-        <span><strong>{selected[0] === record.recordId ? '版本 A · ' : selected[1] === record.recordId ? '版本 B · ' : ''}{readableDate(record.capturedAt)}</strong><small>{record.repository} · HEAD {record.gitHead.slice(0, 10)} · Mapping {record.mappingCount} · unresolved {record.unresolvedCount}</small><small>Host Receipt：{record.hostReceiptStatus} · Producer Evidence：{record.producerEvidenceStatus}</small><code>{record.recordId}</code><details><summary>展开版本身份</summary><small>Root Tree：{record.rootTree}</small><small>SourceDigest：{record.sourceDigest}</small><small>GraphDigest：{record.graphDigest}</small><button type="button" className="quiet-button" onClick={event => { event.preventDefault(); void navigator.clipboard?.writeText(record.recordId) }}>复制 recordId</button></details></span>
+        <span><strong>{selected[0] === record.recordId ? '版本 A · ' : selected[1] === record.recordId ? '版本 B · ' : ''}{readableDate(record.capturedAt)}</strong><small>{record.repository} · HEAD {record.gitHead.slice(0, 10)} · Mapping {record.mappingCount} · unresolved {record.unresolvedCount}</small><small>Host Receipt：{record.hostReceiptStatus} · Producer Evidence：{record.producerEvidenceStatus}</small><code>{record.recordId}</code><details><summary>展开版本身份</summary><small>Git HEAD：{record.gitHead} <CopyHash label="Git HEAD" value={record.gitHead} /></small><small>Root Tree：{record.rootTree} <CopyHash label="Root Tree" value={record.rootTree} /></small><small>SourceDigest：{record.sourceDigest} <CopyHash label="SourceDigest" value={record.sourceDigest} /></small><small>GraphDigest：{record.graphDigest} <CopyHash label="GraphDigest" value={record.graphDigest} /></small><small>recordId：{record.recordId} <CopyHash label="recordId" value={record.recordId} /></small></details></span>
       </label>)}</div>}
-      {delta && <div className="read-only-analysis-comparison" data-testid="read-only-analysis-comparison"><strong>版本比较（只读）</strong><span>Git HEAD：{delta.head} · Root Tree：{delta.tree}</span><span>SourceDigest：{delta.source} · GraphDigest：{delta.graph}</span><span>Mapping 变化：{delta.mapping > 0 ? '+' : ''}{delta.mapping} · unresolved 变化：{delta.unresolved > 0 ? '+' : ''}{delta.unresolved}</span><span>Host Receipt：{delta.host} · Producer Evidence：{delta.producer}</span><small>差异仅表示历史身份或分析结果不同，不推断页面影响、来源证明、Verification PASS 或任何编辑授权。</small></div>}
+      {delta && <div className="read-only-analysis-comparison" data-testid="read-only-analysis-comparison"><strong>版本比较（只读）</strong><span>版本 A：{readableDate(compared[0].capturedAt)} · 版本 B：{readableDate(compared[1].capturedAt)}</span><span>Git HEAD：{delta.head} · Root Tree：{delta.tree}</span><span>SourceDigest：{delta.source} · GraphDigest：{delta.graph}</span><span>Mapping 变化：{delta.mapping > 0 ? '+' : ''}{delta.mapping} · unresolved 变化：{delta.unresolved > 0 ? '+' : ''}{delta.unresolved}</span><span>Host Receipt：{delta.host} · Producer Evidence：{delta.producer}</span><small>差异仅表示历史身份或分析结果不同，不推断页面影响、来源证明、Verification PASS 或任何编辑授权。</small></div>}
     </section>
   </section>
 }

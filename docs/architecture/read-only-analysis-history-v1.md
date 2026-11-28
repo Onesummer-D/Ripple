@@ -29,7 +29,7 @@ POST /__ripple/api/project/read-only-history/capture
 
 The request body must contain exactly one field, projectId. The server repeats the complete trusted analysis flow. It resolves the project only from the server-owned Host Registry, issues and verifies the receipt with the pinned public key, captures the registered checkout, verifies the source binding, replays the pinned Analyzer Build, and compares the raw Graph and GraphDigestV2. The request does not accept a receipt, public key, Build pin, project binding, recordId, or snapshot.
 
-Responses are 200 for an existing immutable version, 201 for a newly stored record, 400 invalid-request, 404 project-unregistered, 409 project-drift or host-receipt-rejected, 503 host-config-unavailable, host-receipt-unavailable, producer-evidence-unavailable, analysis-failed, or history-storage-unavailable, and 409 history-record-conflict. Failed captures never create a record.
+Responses are 200 for an existing immutable version, 201 for a newly stored record, 400 invalid-request, 404 project-unregistered, 409 project-drift or host-receipt-rejected, 503 host-config-unavailable, host-receipt-unavailable, producer-evidence-unavailable, analysis-failed, history-storage-unavailable, history-storage-invalid, or history-storage-limit, and 409 history-record-conflict or history-record-corrupt. Failed captures never create a record.
 
 GET /__ripple/api/project/read-only-history?projectId=...&limit=1..100
 
@@ -43,7 +43,7 @@ The UI compares two records locally by their fields and displays source-version 
 
 History is stored below the server-controlled read-only-analysis-history directory under the configured workbench state root. Candidate session directories are separate. The history root, each project directory, and each record file must be regular directories or files. Symlinks, junctions, non-regular files, path traversal, absolute paths, duplicate separators, NUL bytes, and backslashes are rejected.
 
-Each record is written to a unique temporary file opened with exclusive creation and mode 0600, flushed, then atomically renamed into place. A failed write cannot be listed as a successful record. Reads verify regular-file type, schema, recordId recomputation, and byte length before parsing.
+Each record is written to a unique temporary file opened with exclusive creation and mode 0600, flushed, then atomically renamed into place. A failed write cannot be listed as a successful record. An orphan temporary file is recognized only when it is a regular file named `.record-<UUID>.tmp`; it is ignored as a record but counted toward the global 16 MiB limit. Malformed temporary names, symlinks, junctions, and non-regular files fail with history-storage-invalid. Reads verify regular-file type, schema, recordId recomputation, and byte length before parsing.
 
 Limits are fixed at 64 KiB per record, 100 records per project, and 16 MiB for the complete history root. The service refuses a new record with history-storage-limit and preserves existing records. Concurrent captures for the same project are serialized. Different projects may proceed independently.
 
