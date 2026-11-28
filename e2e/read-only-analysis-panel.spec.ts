@@ -146,6 +146,8 @@ test('the workbench renders a real read-only summary and reports evidence failur
     await historyItems.nth(0).check()
     await historyItems.nth(1).check()
     await expect(panel.getByTestId('read-only-analysis-comparison')).toContainText('SourceDigest：已变化')
+    await expect(panel.getByTestId('read-only-analysis-comparison').locator('.is-changed').first()).toBeVisible()
+    await expect(panel.getByTestId('read-only-analysis-comparison').locator('.is-count-delta')).toHaveCount(1)
     await screenshot(page, info, 'read-only-analysis-history-comparison')
     for (const viewport of [
       { width: 1440, height: 900 },
@@ -156,6 +158,7 @@ test('the workbench renders a real read-only summary and reports evidence failur
       await page.setViewportSize(viewport)
       await expect(panel).toBeVisible()
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      expect(await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-testid="read-only-analysis-comparison"] *')).every(element => element.getBoundingClientRect().right <= window.innerWidth + 1))).toBe(true)
       await screenshot(page, info, `read-only-analysis-${viewport.width}`)
     }
     await page.setViewportSize({ width: 1440, height: 900 })
