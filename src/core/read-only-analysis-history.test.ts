@@ -4,7 +4,14 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createReadOnlyAnalysisHistoryService } from './read-only-analysis-history'
+import {
+  READ_ONLY_ANALYSIS_HISTORY_MAX_BYTES,
+  READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS,
+  READ_ONLY_ANALYSIS_HISTORY_MAX_RECORD_BYTES,
+  READ_ONLY_ANALYSIS_HISTORY_SCHEMA_VERSION,
+  createReadOnlyAnalysisHistoryService,
+  readOnlyAnalysisRecordId,
+} from './read-only-analysis-history'
 import type { ReadOnlyAnalysisVerified } from './local-project-read-only-analysis'
 
 const roots: string[] = []
@@ -17,6 +24,33 @@ const verified = (projectId = 'project:history', source = 'a'.repeat(64), graph 
   repository: 'fixture/history', gitHead: '1'.repeat(40), rootTree: '2'.repeat(40),
   sourceDigest: source, graphDigest: graph, mappingCount: 2, unresolvedCount: 3,
 })
+
+function digestNumber(value: number): string {
+  return value.toString(16).padStart(64, '0')
+}
+
+function writePaddedRecord(root: string, projectId: string, index: number, size: number): void {
+  const identity = {
+    schemaVersion: READ_ONLY_ANALYSIS_HISTORY_SCHEMA_VERSION,
+    projectId,
+    repository: 'fixture/history',
+    gitHead: digestNumber(index).slice(0, 40),
+    rootTree: digestNumber(index + 1).slice(0, 40),
+    sourceDigest: digestNumber(index + 2),
+    graphDigest: digestNumber(index + 3),
+    mappingCount: index,
+    unresolvedCount: index + 1,
+    hostReceiptStatus: 'verified' as const,
+    producerEvidenceStatus: 'available-producer-evidence' as const,
+  }
+  const record = { ...identity, recordId: readOnlyAnalysisRecordId(identity), capturedAt: new Date(0).toISOString() }
+  const json = JSON.stringify(record)
+  const baseBytes = Buffer.byteLength(json + '\n', 'utf8')
+  if (baseBytes >= size) throw new Error(`record fixture too small: ${baseBytes} >= ${size}`)
+  const directory = path.join(root, 'read-only-analysis-history', createHash('sha256').update(projectId).digest('hex'))
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
+  fs.writeFileSync(path.join(directory, record.recordId + '.json'), json + ' '.repeat(size - baseBytes - 1) + '\n', { mode: 0o600 })
+}
 
 afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
@@ -48,6 +82,57 @@ describe('read-only analysis history v1', () => {
     await service.capture(verified())
     expect(createReadOnlyAnalysisHistoryService().list('project:history')).toHaveLength(1)
     expect(service.list('another-project')).toEqual([])
+  })
+
+  it('enforces the 100-record project limit independently of the global byte limit', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-history-')); roots.push(root)
+    process.env.RIPPLE_WORKBENCH_STATE_DIR = root
+    const service = createReadOnlyAnalysisHistoryService()
+    for (let index = 0; index < READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS; index += 1) {
+      writePaddedRecord(root, 'record-limit', index, 1_024)
+    }
+    await expect(service.capture(verified('record-limit', digestNumber(10000), digestNumber(11000)))).rejects.toThrow('history-storage-limit')
+    expect(service.list('record-limit')).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
+  })
+
+  it('enforces the global byte limit across projects and preserves isolated histories', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-history-')); roots.push(root)
+    process.env.RIPPLE_WORKBENCH_STATE_DIR = root
+    const projects = ['capacity-one', 'capacity-two', 'capacity-three']
+    const recordSize = 55_924
+    for (const [projectIndex, projectId] of projects.entries()) {
+      for (let index = 0; index < READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS; index += 1) {
+        writePaddedRecord(root, projectId, projectIndex * 100 + index, recordSize)
+      }
+    }
+    const service = createReadOnlyAnalysisHistoryService()
+    expect(service.list(projects[0])).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
+    expect(service.list(projects[1])).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
+    const existing = service.list(projects[2])
+    expect(existing).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
+    await expect(service.capture(verified('capacity-four', 'f'.repeat(64), 'e'.repeat(64)))).rejects.toThrow('history-storage-limit')
+    expect(service.list(projects[0])).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
+    expect(service.list('capacity-four')).toEqual([])
+    expect(READ_ONLY_ANALYSIS_HISTORY_MAX_BYTES).toBeGreaterThan(300 * recordSize)
+    expect(recordSize).toBeLessThan(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORD_BYTES)
+  })
+
+  it('ignores only regular service temp files left by an interrupted write', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-history-')); roots.push(root)
+    process.env.RIPPLE_WORKBENCH_STATE_DIR = root
+    const service = createReadOnlyAnalysisHistoryService()
+    await service.capture(verified())
+    const directory = path.join(root, 'read-only-analysis-history', createHash('sha256').update('project:history').digest('hex'))
+    const temp = path.join(directory, '.record-123e4567-e89b-42d3-a456-426614174000.tmp')
+    fs.writeFileSync(temp, '{"unfinished":true}', { mode: 0o600 })
+    await service.capture(verified('project:history', 'c'.repeat(64), 'd'.repeat(64)))
+    expect(service.list('project:history')).toHaveLength(2)
+    expect(fs.existsSync(temp)).toBe(true)
+
+    const unknown = path.join(directory, 'leftover.tmp')
+    fs.writeFileSync(unknown, 'untrusted')
+    await expect(service.capture(verified('project:history', 'e'.repeat(64), 'f'.repeat(64)))).rejects.toThrow('history-storage-invalid')
+    expect(fs.existsSync(unknown)).toBe(true)
   })
 
   it('rejects corrupt records', async () => {
