@@ -50,9 +50,10 @@ function assertRecordName(name: string): void {
 function isServiceTempName(name: string): boolean {
   return SERVICE_TEMP_NAME.test(name)
 }
-function assertServiceTemp(file: string): void {
+function assertServiceTemp(file: string): number {
   const stat = fs.lstatSync(file)
   if (stat.isSymbolicLink() || !stat.isFile()) throw new Error('history-storage-invalid')
+  return stat.size
 }
 function storageBytes(root: string): number {
   if (!fs.existsSync(root)) return 0
@@ -66,7 +67,7 @@ function storageBytes(root: string): number {
     for (const recordEntry of fs.readdirSync(projectPath, { withFileTypes: true })) {
       const recordPath = path.join(projectPath, recordEntry.name)
       if (isServiceTempName(recordEntry.name)) {
-        assertServiceTemp(recordPath)
+        total += assertServiceTemp(recordPath)
         continue
       }
       assertRecordName(recordEntry.name)

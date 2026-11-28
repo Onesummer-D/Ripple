@@ -99,12 +99,15 @@ describe('read-only analysis history v1', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-history-')); roots.push(root)
     process.env.RIPPLE_WORKBENCH_STATE_DIR = root
     const projects = ['capacity-one', 'capacity-two', 'capacity-three']
-    const recordSize = 55_924
+    const recordSize = 55_920
     for (const [projectIndex, projectId] of projects.entries()) {
       for (let index = 0; index < READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS; index += 1) {
         writePaddedRecord(root, projectId, projectIndex * 100 + index, recordSize)
       }
     }
+    const orphanDirectory = path.join(root, 'read-only-analysis-history', createHash('sha256').update(projects[2]).digest('hex'))
+    const orphan = path.join(orphanDirectory, '.record-123e4567-e89b-42d3-a456-426614174000.tmp')
+    fs.writeFileSync(orphan, 'o'.repeat(1_000), { mode: 0o600 })
     const service = createReadOnlyAnalysisHistoryService()
     expect(service.list(projects[0])).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
     expect(service.list(projects[1])).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
@@ -113,6 +116,7 @@ describe('read-only analysis history v1', () => {
     await expect(service.capture(verified('capacity-four', 'f'.repeat(64), 'e'.repeat(64)))).rejects.toThrow('history-storage-limit')
     expect(service.list(projects[0])).toHaveLength(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORDS)
     expect(service.list('capacity-four')).toEqual([])
+    expect(fs.existsSync(orphan)).toBe(true)
     expect(READ_ONLY_ANALYSIS_HISTORY_MAX_BYTES).toBeGreaterThan(300 * recordSize)
     expect(recordSize).toBeLessThan(READ_ONLY_ANALYSIS_HISTORY_MAX_RECORD_BYTES)
   })
@@ -129,10 +133,26 @@ describe('read-only analysis history v1', () => {
     expect(service.list('project:history')).toHaveLength(2)
     expect(fs.existsSync(temp)).toBe(true)
 
+    const nearMiss = path.join(directory, '.record-123e4567-e89b-52d3-a456-426614174000.tmp')
+    fs.writeFileSync(nearMiss, 'near miss')
+    expect(() => service.list('project:history')).toThrow('history-storage-invalid')
+    expect(fs.existsSync(nearMiss)).toBe(true)
+    fs.rmSync(nearMiss)
+
     const unknown = path.join(directory, 'leftover.tmp')
     fs.writeFileSync(unknown, 'untrusted')
     await expect(service.capture(verified('project:history', 'e'.repeat(64), 'f'.repeat(64)))).rejects.toThrow('history-storage-invalid')
     expect(fs.existsSync(unknown)).toBe(true)
+  })
+
+  it('serializes concurrent captures and leaves no blocked lock queue', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ripple-history-')); roots.push(root)
+    process.env.RIPPLE_WORKBENCH_STATE_DIR = root
+    const service = createReadOnlyAnalysisHistoryService()
+    await Promise.all(Array.from({ length: 4 }, (_, index) => service.capture(verified('concurrent-project', digestNumber(index + 200), digestNumber(index + 300)))))
+    expect(service.list('concurrent-project')).toHaveLength(4)
+    await service.capture(verified('concurrent-project', digestNumber(500), digestNumber(600)))
+    expect(service.list('concurrent-project')).toHaveLength(5)
   })
 
   it('rejects corrupt records', async () => {
